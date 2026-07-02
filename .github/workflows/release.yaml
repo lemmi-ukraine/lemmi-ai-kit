@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  # Every push to main produces a preview release: tag vX.Y.Z-preview.N (semver
+  # prerelease of the version currently in pyproject.toml) with PEP 440 wheel
+  # version X.Y.Z.devN. Stable releases are cut by scripts/publish.sh.
+  preview:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-preview
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Compute preview version
+        id: ver
+        run: |
+          BASE="$(uv version --short)"
+          echo "tag=v${BASE}-preview.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "pep440=${BASE}.dev${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Build with preview version
+        run: |
+          uv version --frozen "${{ steps.ver.outputs.pep440 }}"
+          uv build
+
+      - name: Create preview release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.ver.outputs.tag }}" dist/* \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "${{ steps.ver.outputs.tag }}" \
+            --notes "Automated preview release from \`${GITHUB_SHA}\`."
+
+  stable:
+    if: github.ref_type == 'tag' && !contains(github.ref_name, '-preview.')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Verify tag matches project version
+        run: |
+          VERSION="$(uv version --short)"
+          if [ "v${VERSION}" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match pyproject version ${VERSION}" >&2
+            exit 1
+          fi
+
+      - name: Gate on checks
+        run: |
+          uv sync --dev
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run basedpyright
+          uv run pytest
+
+      - name: Build
+        run: uv build
+
+      - name: Create stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --latest

@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+dist/
+build/
+
+# Tooling caches
+.ruff_cache/
+.pytest_cache/
+.basedpyright/
+
+# OS
+.DS_Store
+
+# Local env
+.env
