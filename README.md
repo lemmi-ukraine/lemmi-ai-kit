@@ -10,13 +10,13 @@ brand-new repository on any machine.
 ## Install the CLI
 
 ```sh
-curl -LsSf https://raw.githubusercontent.com/lemmi-ukraine/lemmi-ai-kit/main/install.sh | sh
+curl -LsSf https://raw.githubusercontent.com/Reidond/lemmi-ai-kit/main/install.sh | sh
 ```
 
 or directly with uv:
 
 ```sh
-uv tool install git+https://github.com/lemmi-ukraine/lemmi-ai-kit   # add @vX.Y.Z for a pinned release
+uv tool install git+https://github.com/Reidond/lemmi-ai-kit   # add @vX.Y.Z for a pinned release
 ```
 
 ## Use it in a project

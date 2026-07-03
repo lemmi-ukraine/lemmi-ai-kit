@@ -1,14 +1,14 @@
 #!/usr/bin/env sh
 # Install the lemmi-ai-kit CLI as a uv tool.
 #
-#   curl -LsSf https://raw.githubusercontent.com/lemmi-ukraine/lemmi-ai-kit/main/install.sh | sh
+#   curl -LsSf https://raw.githubusercontent.com/Reidond/lemmi-ai-kit/main/install.sh | sh
 #
 # Environment overrides:
-#   LEMMI_AI_KIT_REPO  git URL of the kit repo (default: the lemmi-ukraine GitHub repo)
+#   LEMMI_AI_KIT_REPO  git URL of the kit repo (default below; use git@github.com:... for SSH access to the private repo)
 #   LEMMI_AI_KIT_REF   git ref to install (default: latest stable v* tag; falls back to main)
 set -eu
 
-REPO="${LEMMI_AI_KIT_REPO:-https://github.com/lemmi-ukraine/lemmi-ai-kit}"
+REPO="${LEMMI_AI_KIT_REPO:-https://github.com/Reidond/lemmi-ai-kit}"
 REF="${LEMMI_AI_KIT_REF:-}"
 
 if ! command -v uv >/dev/null 2>&1; then
