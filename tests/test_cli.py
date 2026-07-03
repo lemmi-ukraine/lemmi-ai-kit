@@ -12,7 +12,7 @@ def test_list_prints_skills(capsys: pytest.CaptureFixture[str]) -> None:
     out = capsys.readouterr().out
     assert "commit-message" in out
     assert "analyze-logs" in out
-    assert "29 skill(s)" in out
+    assert "31 skill(s)" in out
 
 
 def test_list_default_excludes_extras(capsys: pytest.CaptureFixture[str]) -> None:

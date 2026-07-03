@@ -147,6 +147,18 @@ invocation = "user"
 summary = "One-command parallel deep research with disjoint source ownership and a cited report"
 
 [[skills]]
+name = "fable-orchestrate"
+profile = "orchestration"
+invocation = "user"
+summary = "Orchestrator mode: decompose, delegate to native/external workers (codex, cursor-agent, grok), verify, synthesize"
+
+[[skills]]
+name = "agent-delegate"
+profile = "orchestration"
+invocation = "user"
+summary = "Delegate one scoped, verified task to a named worker (codex, cursor, grok, deep-reasoner, fast-worker)"
+
+[[skills]]
 name = "lemmi-python-conventions"
 profile = "python"
 invocation = "auto"

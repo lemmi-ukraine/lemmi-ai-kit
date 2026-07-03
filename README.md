@@ -49,6 +49,7 @@ lemmi-ai-kit install --dry-run    # preview without writing
 | `skill-authoring` | skill-creator, skill-creation-workflow, skill-reviewer, skill-researcher, skill-content-reviewer | ✅ |
 | `prompts` | prompt-engineering-conventions, review-prompts, prompt-eng-reviewer, prompt-domain-reviewer | ✅ |
 | `research` | research-source-planner, research-source-claim, parallel-deep-research | ✅ |
+| `orchestration` | fable-orchestrate, agent-delegate (delegate to codex / cursor-agent / grok CLIs + native Opus/Sonnet subagents) | ✅ |
 | `python` | lemmi-python-conventions, lemmi-vertical-slice, lemmi-test-conventions | ✅ |
 | `extras` | openai-realtime-quirks, analyze-logs (project-flavored: realtime voice, GCP logs) | opt-in |
 

@@ -15,6 +15,7 @@ PROFILES: tuple[str, ...] = (
     "skill-authoring",
     "prompts",
     "research",
+    "orchestration",
     "python",
     "extras",
 )
@@ -26,6 +27,7 @@ DEFAULT_PROFILES: tuple[str, ...] = (
     "skill-authoring",
     "prompts",
     "research",
+    "orchestration",
     "python",
 )
 
