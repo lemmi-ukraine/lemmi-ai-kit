@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Lemmi's shared AI configuration as a Claude Code plugin, plus the support scripting the plugin's kit-setup skill uses to scaffold project files"
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [{ name = "Andrii Shafar", email = "andrii.shafar@lemmi.io" }]
+authors = [{ name = "lemmi-ukraine" }]
 dependencies = []
 
 [project.urls]
