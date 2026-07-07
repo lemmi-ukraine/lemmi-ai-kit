@@ -1,7 +1,7 @@
 {
   "name": "lemmi",
   "description": "Lemmi's Claude Code plugins: shared AI development workflow (skills, project seeding, learnings loop).",
-  "owner": { "name": "Andrii Shafar" },
+  "owner": { "name": "lemmi-ukraine", "url": "https://github.com/lemmi-ukraine" },
   "plugins": [
     {
       "name": "lemmi-ai-kit",
