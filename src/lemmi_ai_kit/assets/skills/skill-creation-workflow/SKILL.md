@@ -73,7 +73,7 @@ after research provides context.
 
 ### Phase 2 — Research
 
-Read `.claude/skills/skill-researcher/SKILL.md`, then use the **Agent tool** to
+Read `../skill-researcher/SKILL.md` (sibling kit skill), then use the **Agent tool** to
 spawn the researcher in a forked context:
 
 ```
@@ -126,7 +126,7 @@ and invoke the skill-creator. To avoid nesting a skill inside this running workf
 do not call it via the Skill tool — instead, read its SKILL.md and follow its
 creation pipeline directly, passing the Research Brief as input material.
 
-1. Read `.claude/skills/skill-creator/SKILL.md`
+1. Read `../skill-creator/SKILL.md`
 2. Follow its Phase 1 (Discovery) — ask remaining questions not covered in Phase 1 above
 3. Follow its Phase 2 (Classification)
 4. Follow its Phase 3 (Build) — use the Research Brief to inform content
@@ -138,8 +138,8 @@ Run the `skill-reviewer` checklist against the newly created skill. To avoid
 nesting a skill inside this running workflow, read its SKILL.md and follow its
 Review Mode directly.
 
-1. Read `.claude/skills/skill-reviewer/SKILL.md`
-2. Read `.claude/skills/skill-reviewer/references/review-checklist.md`
+1. Read `../skill-reviewer/SKILL.md`
+2. Read `../skill-reviewer/references/review-checklist.md`
 3. Execute Steps 1–8 of Review Mode against the new skill:
    - **Step 2:** Structural compliance (Blockers + Major + Minor)
    - **Step 3:** Description quality
@@ -156,7 +156,7 @@ Only surface issues that require user input.
 
 ### Phase 6 — Content Review
 
-Read `.claude/skills/skill-content-reviewer/SKILL.md`, then use the **Agent tool**
+Read `../skill-content-reviewer/SKILL.md` (sibling kit skill), then use the **Agent tool**
 to spawn the reviewer in a forked context:
 
 ```

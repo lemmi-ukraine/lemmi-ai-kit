@@ -6,7 +6,7 @@ actually useful — so this file normally holds only a handful of not-yet-promot
 
 **Where the knowledge lives (consult these, not one big flat file):**
 - **Universal conventions & anti-patterns** → `AGENTS.md` (always loaded).
-- **Cross-cutting patterns** → the relevant `.claude/skills/*` skill.
+- **Cross-cutting patterns** → the relevant skill (project-local `.claude/skills/`; kit skills are plugin-managed).
 - **Subsystem conventions & gotchas** → the code-adjacent **module / feature `README.md`**.
   **When you work in a subsystem, consult that subsystem's README** — that is where its
   promoted lessons live.

@@ -30,6 +30,3 @@ jobs:
 
       - name: Tests (pytest)
         run: uv run pytest
-
-      - name: Build sanity
-        run: uv build

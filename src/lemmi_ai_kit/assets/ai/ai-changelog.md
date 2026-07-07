@@ -6,6 +6,6 @@
 > **How entries are added:** Automatically by AI workflows (skill-creator, learning-consolidator,
 > post-task-review) or manually via the `ai-changelog` skill.
 >
-> **Format:** Each entry follows the structured format defined in `.claude/skills/ai-changelog/SKILL.md`.
+> **Format:** Each entry follows the structured format defined by the `ai-changelog` skill (lemmi-ai-kit plugin).
 
 ---

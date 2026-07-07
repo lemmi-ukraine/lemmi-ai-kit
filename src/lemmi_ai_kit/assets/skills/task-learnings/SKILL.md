@@ -103,7 +103,7 @@ If a finding reveals a gap in existing project rules:
 |-------------|-----------------|-----|
 | New anti-pattern discovered | `AGENTS.md` "Do not" section | Append a new bullet |
 | Convention ambiguity resolved | Relevant project rule files (`.claude/skills/`, AGENTS.md, or equivalent) | Add clarification |
-| Skill instructions were insufficient | Relevant `.claude/skills/*/SKILL.md` | Extend instructions |
+| Skill instructions were insufficient | Relevant skill (project-local; kit skills are plugin-managed — record an upstream proposal in `.ai/learnings.md`) | Extend instructions |
 | New coding pattern to enforce | `AGENTS.md` conventions section | Append to relevant subsection |
 
 **Rules for updating rules:**
@@ -115,12 +115,12 @@ If a finding reveals a gap in existing project rules:
 ### Step 7: Changelog Entry (if rules were updated)
 
 If Step 6 modified any AI infrastructure files (AGENTS.md rules, skill instructions, conventions),
-read `.claude/skills/ai-changelog/SKILL.md` and append the appropriate changelog entry
+read the `ai-changelog` skill and append the appropriate changelog entry
 (e.g., `RULE-ADDED`, `CONV-MODIFIED`, `SKILL-MODIFIED`) to `.ai/ai-changelog.md`.
 
 ### Step 8: Improvement Hypothesis (if changelog entry was written)
 
-After writing a changelog entry in Step 7, read `.claude/skills/ai-improvement-tracker/SKILL.md`
+After writing a changelog entry in Step 7, read the `ai-improvement-tracker` skill
 and evaluate whether the change warrants a testable improvement hypothesis.
 
 ## Quality Gates

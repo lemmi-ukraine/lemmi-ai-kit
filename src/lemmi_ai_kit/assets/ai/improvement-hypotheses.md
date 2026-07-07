@@ -8,7 +8,7 @@
 > via the `ai-improvement-tracker` skill.
 >
 > **Format:** Each entry follows the structured format defined in
-> `.claude/skills/ai-improvement-tracker/SKILL.md`.
+> the `ai-improvement-tracker` skill.
 >
 > **Status lifecycle:** PENDING → CONFIRMED | REFUTED | INCONCLUSIVE | SUPERSEDED
 > (status changes are made by the future validation skill, not this file's authors)

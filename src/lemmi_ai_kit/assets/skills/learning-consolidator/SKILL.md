@@ -241,14 +241,14 @@ This is the most complex action. Follow this process:
    - One-paragraph summary of what the skill will contain
 2. **Wait for user approval.**
 3. **Create the skill following the `skill-creator` pipeline**
-   (see `.claude/skills/skill-creator/SKILL.md` for the full 5-phase process):
+   (see the `skill-creator` skill for the full 5-phase process):
    - Phase 1 (Discovery): answers come from the clustered learnings
-   - Phase 2 (Classification): use the skill taxonomy from `.claude/skills/skill-reviewer/references/skill-taxonomy.md`
+   - Phase 2 (Classification): use the skill taxonomy from `../skill-reviewer/references/skill-taxonomy.md`
    - Phase 3 (Build): create SKILL.md, references/ files as needed
    - Phase 4 (Validation): run the structural compliance checklist
    - Phase 5 (Registration): add to CLAUDE.md
 4. **Validate quality using the `skill-reviewer` checklist**
-   (see `.claude/skills/skill-reviewer/references/review-checklist.md`):
+   (see `../skill-reviewer/references/review-checklist.md`):
    - Run through all structural, description, invocation, and instruction checks
    - Fix any Blocker or Major findings before presenting
    - Report Minor findings to user
@@ -298,12 +298,12 @@ After all changes are made, verify consistency across the project's AI infrastru
 
 ### Phase 7: Changelog & Summary Report
 
-**7a. Append changelog entry** — Read `.claude/skills/ai-changelog/SKILL.md` and append a
+**7a. Append changelog entry** — Read the `ai-changelog` skill and append a
 `CONSOLIDATION` entry to `.ai/ai-changelog.md` summarizing all promotions, new skills,
 rule additions, and archives from this consolidation run. Use the grouped format documented
 in the ai-changelog skill.
 
-**7b. Record improvement hypothesis** — Read `.claude/skills/ai-improvement-tracker/SKILL.md`
+**7b. Record improvement hypothesis** — Read the `ai-improvement-tracker` skill
 and evaluate whether the consolidation warrants improvement hypotheses (e.g., promoted rules
 expected to reduce specific error classes, new skills expected to improve consistency).
 

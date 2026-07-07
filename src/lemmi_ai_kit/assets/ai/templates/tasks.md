@@ -30,7 +30,7 @@ Task 3 (no deps) ──┘                                Task 5 (depends on 3)
 
 <!-- Use this when the task has natural phase boundaries (2+ independent concerns,
      intermediate consistent states, later phases don't invalidate earlier ones).
-     See .claude/skills/spec-driven-dev/references/phased-execution.md for guidance. -->
+     See references/phased-execution.md in the spec-driven-dev skill for guidance. -->
 
 ### Phase 1: {Objective in one sentence}
 

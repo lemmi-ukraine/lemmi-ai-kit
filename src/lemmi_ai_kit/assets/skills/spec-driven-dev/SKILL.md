@@ -138,7 +138,7 @@ Create two documents:
 3. **If the Technical Approach or Design section exceeds ~60 lines**, move it into a separate `.specs/{task-name}/design.md` file and link to it from spec.md. Keep spec.md focused on Problem Statement + Scenarios + Risk.
 4. Create `.specs/{task-name}/tasks.md` — a task breakdown derived from the spec. Use `.ai/templates/tasks.md` as the starting template. Every file-to-modify in the spec should map to at least one task. Identify parallel groups where possible.
 5. Self-review using the Spec Quality Checklist at the bottom of this file.
-6. **Run the plan-critic self-review** (`.claude/skills/plan-critic/SKILL.md`) — full review over spec.md + tasks.md (+ design.md if split out). Resolve all findings before continuing. If any Blockers or Questions remain, surface them in the presentation.
+6. **Run the plan-critic self-review** (the `plan-critic` skill) — full review over spec.md + tasks.md (+ design.md if split out). Resolve all findings before continuing. If any Blockers or Questions remain, surface them in the presentation.
 7. **STOP.** Present to the user for approval. Wait for explicit approval before continuing.
 8. Only proceed to implementation after approval.
 
@@ -150,14 +150,14 @@ Create three separate documents in order, with a user approval gate after each:
    - Use `.ai/templates/requirements.md` as the starting template
    - Fill in all sections based on task analysis and codebase exploration
    - See [references/requirements-guide.md](references/requirements-guide.md) for Gherkin syntax, actor identification, adversarial scenario generation, and AI pipeline patterns
-   - **Run the plan-critic self-review** (`.claude/skills/plan-critic/SKILL.md`) — full review. Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
+   - **Run the plan-critic self-review** (the `plan-critic` skill) — full review. Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
    - **STOP.** Present to user. Wait for explicit approval before continuing.
 
 2. **Design**: Create `.specs/{task-name}/design.md` (only after requirements approved)
    - Use `.ai/templates/design.md` as the starting template
    - Reference the requirements document for acceptance criteria
    - See [references/design-guide.md](references/design-guide.md) for writing guidance
-   - **Run the plan-critic self-review** (`.claude/skills/plan-critic/SKILL.md`) — full review. Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
+   - **Run the plan-critic self-review** (the `plan-critic` skill) — full review. Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
    - **STOP.** Present to user. Wait for explicit approval before continuing.
 
 3. **Tasks**: Create `.specs/{task-name}/tasks.md` (only after design approved)
@@ -165,7 +165,7 @@ Create three separate documents in order, with a user approval gate after each:
    - Derive tasks from the design document
    - Ensure every acceptance criterion maps to at least one task
    - Identify parallel groups and dependencies
-   - **Run the plan-critic self-review** (`.claude/skills/plan-critic/SKILL.md`) — completeness-only pass (Dimensions 4–5 only). Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
+   - **Run the plan-critic self-review** (the `plan-critic` skill) — completeness-only pass (Dimensions 4–5 only). Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
    - **STOP.** Present to user. Wait for explicit approval before implementation.
 
 4. Proceed to implementation only after all three documents are approved.

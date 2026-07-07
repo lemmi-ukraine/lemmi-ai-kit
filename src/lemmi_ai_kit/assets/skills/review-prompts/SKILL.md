@@ -118,7 +118,7 @@ For each batch of prompts (max 10-15 per batch):
 #### How to Invoke the Reviewers
 
 Use the **Agent tool** to spawn two parallel subagents. Each agent receives:
-- The full SKILL.md content of the reviewer (read from `.claude/skills/{name}/SKILL.md`)
+- The full SKILL.md content of the reviewer (read from `../{name}/SKILL.md` — sibling skill in the kit)
 - The Domain Brief produced in Phase 1
 - The list of prompt file paths in the current batch
 

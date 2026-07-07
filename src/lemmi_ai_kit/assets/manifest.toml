@@ -3,6 +3,12 @@
 # invocation: user (slash command) | auto (background reference) | internal (pipeline skill)
 
 [[skills]]
+name = "kit-setup"
+profile = "core"
+invocation = "user"
+summary = "Seed or refresh project-owned AGENTS.md/CLAUDE.md/.ai files from plugin templates, placeholders filled from the detected project"
+
+[[skills]]
 name = "commit-message"
 profile = "core"
 invocation = "user"
@@ -157,6 +163,12 @@ name = "agent-delegate"
 profile = "orchestration"
 invocation = "user"
 summary = "Delegate one scoped, verified task to a named worker (codex, cursor, grok, deep-reasoner, fast-worker)"
+
+[[skills]]
+name = "scout-review"
+profile = "orchestration"
+invocation = "user"
+summary = "DoorDash-style three-stage review: cheap lead scout, strong deep reviewers, adversarial disprove-it pass (fable or opus combo)"
 
 [[skills]]
 name = "lemmi-python-conventions"

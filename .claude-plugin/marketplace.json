@@ -1,0 +1,12 @@
+{
+  "name": "lemmi",
+  "description": "Lemmi's Claude Code plugins: shared AI development workflow (skills, project seeding, learnings loop).",
+  "owner": { "name": "Andrii Shafar" },
+  "plugins": [
+    {
+      "name": "lemmi-ai-kit",
+      "source": "./",
+      "description": "Lemmi's shared AI configuration as a plugin: 30+ skills plus /lemmi-ai-kit:kit-setup to seed project-owned, editable AGENTS.md/CLAUDE.md/.ai files from your existing project."
+    }
+  ]
+}

@@ -153,7 +153,7 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
 ```bash
 # <session-dir> is auto-derived from the repo root + ~/.claude/projects/ — omit it (pass it only to
 # override, e.g. a personal-scope install). `generatedFor.sessionDir` records which dir was used.
-python .claude/skills/session-retrospective/scripts/extract_sessions.py \
+python scripts/extract_sessions.py \  # path relative to this skill's directory
   ".ai/tmp/retro/" [--since YYYY-MM-DD] [--until YYYY-MM-DD] --self-check
 ```
 Pure stdlib (no third-party deps). The project `.venv` python or system `python` both work;

@@ -284,10 +284,9 @@ Run this checklist before presenting the skill to the user:
 After creating the skill files:
 
 1. If it's a project skill, add it to the project's `CLAUDE.md` skills listing
-2. **Append a changelog entry** — invoke the `ai-changelog` skill (read
-   `.claude/skills/ai-changelog/SKILL.md`) with a `SKILL-ADDED` entry containing:
+2. **Append a changelog entry** — invoke the `ai-changelog` skill with a `SKILL-ADDED` entry containing:
    the skill name, type, files created, and which workflows are affected
-3. **Record improvement hypothesis** — read `.claude/skills/ai-improvement-tracker/SKILL.md`
+3. **Record improvement hypothesis** — read the `ai-improvement-tracker` skill
    and evaluate whether the changelog entry warrants a testable hypothesis about expected value
 4. Test triggering: ask "What skills are available?" to verify Claude sees it
 5. Test invocation: run the skill with a sample task

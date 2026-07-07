@@ -142,7 +142,7 @@ Steps:
 
 Use as the default for most phases.
 
-Steps: Follow steps 1–6 of `.claude/skills/post-task-review/SKILL.md`:
+Steps: Follow steps 1–6 of the `post-task-review` skill:
 1. High-level conceptual review
 2. Detailed file-by-file review
 3. Project conventions review
@@ -154,7 +154,7 @@ Steps: Follow steps 1–6 of `.claude/skills/post-task-review/SKILL.md`:
 
 Use for the final phase, or for phases with cross-feature impact or architectural decisions.
 
-Steps: Follow the complete 8-step process from `.claude/skills/post-task-review/SKILL.md`:
+Steps: Follow the complete 8-step process from the `post-task-review` skill:
 - Steps 1–6: code review and convention compliance
 - Step 7: documentation impact analysis
 - Step 8: learnings extraction

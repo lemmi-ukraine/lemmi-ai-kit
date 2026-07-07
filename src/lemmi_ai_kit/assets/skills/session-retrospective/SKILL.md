@@ -79,7 +79,7 @@ The output schema is documented in [references/extractor-output-schema.md](refer
    despite a rule" claims later (Phase 5).
 3. **`AGENTS.md`** — to identify convention gaps (rules the user enforces that aren't captured, or
    rules the AI violated).
-4. **`ls .claude/skills/`** — to know what skills exist (effectiveness analysis).
+4. **available skills** — project `.claude/skills/` (if present) plus the lemmi-ai-kit plugin catalog (effectiveness analysis).
 5. The most recent prior report in `.ai/retrospectives/` (if any) — don't repeat its findings.
 
 ### Phase 3 — Deep-Dive the Substantial Sessions (parallel sub-agents)

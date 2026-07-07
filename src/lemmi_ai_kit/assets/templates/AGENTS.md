@@ -16,7 +16,7 @@ uv run pytest tests/
 ## Conventions
 
 > TODO(project): document project structure and code conventions here.
-> If the `python` profile is installed, the shared Lemmi conventions live in the
+> The shared Lemmi conventions live in the
 > `lemmi-python-conventions`, `lemmi-vertical-slice`, and `lemmi-test-conventions` skills —
 > keep this section for what is specific to THIS project.
 
@@ -36,7 +36,7 @@ Prefer authoritative, auth-free sources (fetch with `WebFetch` before answering)
 provider docs pages and, when docs pages are unreliable, raw SDK type source files
 (for OpenAI: `https://raw.githubusercontent.com/openai/openai-python/main/src/openai/types/...`).
 
-See `.claude/skills/ai-docs-lookup/SKILL.md` for the full lookup process.
+See the `ai-docs-lookup` skill for the full lookup process.
 
 ## AI Development Workflows
 
@@ -74,17 +74,17 @@ SKILL CREATION                          PERIODIC (weekly/biweekly)
 
 ### Task completion checklist (mandatory)
 When a task is complete, ALWAYS perform these steps before considering it done:
-1. **Post-task review** (major tasks: 3+ files, new feature, spec completion) — Run the full 8-step review: code review (1–6), documentation impact (7), learnings extraction (8). See `.claude/skills/post-task-review/SKILL.md`.
-2. **Learnings extraction** (all tasks) — Extract project-level findings and append to `.ai/learnings.md`. See `.claude/skills/task-learnings/SKILL.md`.
-3. **Documentation updates** — If any modified files affect docs (per `.claude/skills/post-task-review/references/doc-impact-matrix.md`), update the affected documentation.
+1. **Post-task review** (major tasks: 3+ files, new feature, spec completion) — Run the full 8-step review: code review (1–6), documentation impact (7), learnings extraction (8). See the `post-task-review` skill.
+2. **Learnings extraction** (all tasks) — Extract project-level findings and append to `.ai/learnings.md`. See the `task-learnings` skill.
+3. **Documentation updates** — If any modified files affect docs (per `references/doc-impact-matrix.md` in the `post-task-review` skill), update the affected documentation.
 4. **Rebuild/restart** — TODO(project): if the project runs long-lived services, list the rebuild/restart command needed after code changes.
 
 ### Learnings system
-- `.ai/learnings.md` is a **lean intake buffer**, not the knowledge store. Before a task, draw on: the always-loaded `AGENTS.md` rules; the relevant `.claude/skills/*`; and — **when working in a subsystem, that subsystem's code-adjacent module/feature `README.md`**, where its specific conventions and gotchas live. Skim `.ai/learnings.md` itself only for not-yet-promoted intake entries.
+- `.ai/learnings.md` is a **lean intake buffer**, not the knowledge store. Before a task, draw on: the always-loaded `AGENTS.md` rules; the relevant skills (plugin or project-local); and — **when working in a subsystem, that subsystem's code-adjacent module/feature `README.md`**, where its specific conventions and gotchas live. Skim `.ai/learnings.md` itself only for not-yet-promoted intake entries.
 - After completing a task, extract and record new learnings using the `task-learnings` skill — it appends to the `.ai/learnings.md` intake buffer under the matching category.
 - If a finding reveals a convention gap, write it straight to its home: a universal rule → `AGENTS.md`; a cross-cutting pattern → the relevant skill; a subsystem gotcha → the module/feature README; an invariant guard a future edit could break → a co-located code comment.
 - Periodically (~weekly) run `/learning-consolidator` to drain accumulated intake entries into rules, skills, READMEs, and comments, then remove the promoted source entries.
-- See `.claude/skills/task-learnings/SKILL.md` for the full extraction process.
+- See the `task-learnings` skill for the full extraction process.
 
 ### Product brief (pre-planning)
 Uses: product-brief (task)
@@ -102,19 +102,19 @@ Uses: spec-driven-dev (workflow), plan-critic (review)
 - At each spec gate, iterate if the user requests changes. Challenge changes that are technically unsound or contradict prior approvals — once, with reasoning — then defer to the user.
 - All spec documents must be written to `.specs/{task-name}/` as actual files. IDE-specific plan tools do not substitute for file creation.
 - Large tasks with natural phase boundaries: use phased execution with intermediate quality gates to reduce context load and catch drift early.
-- Templates live in `.ai/templates/`. See `.claude/skills/spec-driven-dev/SKILL.md` for the full pipeline.
+- Templates live in `.ai/templates/`. See the `spec-driven-dev` skill for the full pipeline.
 
 ### Post-task review
 Uses: post-task-review (workflow), task-learnings (task), commit-message (task)
 - Run the 8-step review for all major tasks (3+ files modified, new features, spec completions).
-- Steps 1–6: code review and convention compliance (see `.claude/skills/post-task-review/SKILL.md`).
+- Steps 1–6: code review and convention compliance (see the `post-task-review` skill).
 - Step 7: documentation impact analysis — check and update affected docs.
 - Step 8: learnings extraction — capture and record project knowledge.
 
 ### Plan self-review (plan-critic)
 Uses: plan-critic (review) — **universal, not limited to spec-driven-dev**
 - **Before presenting ANY plan, spec, or design document to the user**, run the plan-critic self-review. This applies to bug-fix plans, feature specs, refactoring plans, and any other structured plan.
-- Invoke `.claude/skills/plan-critic/SKILL.md` after writing: `spec.md` (medium tasks), `design.md` (large tasks), `tasks.md` (large tasks, completeness-only), or any bug-fix/task plan.
+- Invoke the `plan-critic` skill after writing: `spec.md` (medium tasks), `design.md` (large tasks), `tasks.md` (large tasks, completeness-only), or any bug-fix/task plan.
 - Resolve all Blocker and Major findings silently before presenting. Minor findings are fixed without mention.
 - If any Blockers or Questions cannot be resolved without user input, surface them prominently at the top of the presented document — do not suppress them.
 
@@ -124,7 +124,7 @@ Uses: fable-orchestrate (workflow), agent-delegate (task)
   scoped subtasks go to cheaper native subagents (Opus for reasoning, Sonnet for mechanical
   work) and external CLI peers (codex, cursor-agent, grok) in parallel.
 - Every delegation uses the brief contract (one concern, inlined context, self-checkable
-  definition of done, short report) — see `.claude/skills/fable-orchestrate/references/brief-template.md`.
+  definition of done, short report) — see `references/brief-template.md` in the `fable-orchestrate` skill.
 - A worker's summary is a claim: verify the actual output against the definition of done before
   merging. For high-stakes decisions, task independent workers in parallel without showing them
   each other's answers, then synthesize.
@@ -152,7 +152,7 @@ Uses: research-source-planner (task), research-source-claim (task), parallel-dee
 - Modify AI prompt templates without running `/review-prompts` or explicitly getting user approval to skip the review.
 - Treat task docs as runtime configuration, or let tasks drift from current implementation without updating status.
 
-### Python rules (projects using the `python` profile)
+### Python rules (Python projects)
 - Use `str()` on `str, Enum` subclasses to extract values — use `.value` instead (Python 3.11 breaking change).
 - Use `.value` on enum-typed fields in models with `use_enum_values=True` — these fields are already strings at runtime.
 - Use `cast(Any, ...)` to pass objects between layers with different models — perform explicit type conversion instead.

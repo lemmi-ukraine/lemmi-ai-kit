@@ -60,7 +60,7 @@ When creating a new cursor rule during consolidation, follow this structure:
 
 ## Full Process
 
-See `.claude/skills/{skill-name}/SKILL.md` for the complete process.
+See the `{skill-name}` skill for the complete process.
 ```
 
 Keep cursor rules as thin references (under 30 lines). They exist so Cursor IDE users

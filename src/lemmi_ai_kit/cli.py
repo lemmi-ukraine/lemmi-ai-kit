@@ -1,111 +1,84 @@
-"""Command-line interface: lemmi-ai-kit install | list | diff."""
+"""Support-scripting CLI for the lemmi-ai-kit Claude Code plugin.
+
+The plugin is the only installation mechanism for the kit's skills. This CLI is
+NOT a user-facing installer — it is the deterministic helper the plugin's
+`kit-setup` skill shells out to (and a dev tool for this repo):
+
+- `scaffold` — place the project-owned files (AGENTS.md, CLAUDE.md, .ai/) into a
+  project, with the CLAUDE.md skill index rendered from the shipped catalog.
+- `list` — print the skill catalog (name, profile, invocation, summary).
+"""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
-from lemmi_ai_kit import __version__, installer
-from lemmi_ai_kit.manifest import (
-    DEFAULT_PROFILES,
-    PROFILES,
-    Manifest,
-    ManifestError,
-    load_manifest,
-    normalize_profiles,
-)
-
-
-def _add_profile_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--profile",
-        action="append",
-        default=[],
-        metavar="NAME",
-        help=(
-            "profile(s) to include (repeatable or comma-separated); "
-            f"known: {', '.join(PROFILES)}; default: {', '.join(DEFAULT_PROFILES)}"
-        ),
-    )
-    parser.add_argument(
-        "--all", action="store_true", help="include every profile, including extras"
-    )
+from lemmi_ai_kit import __version__, scaffold
+from lemmi_ai_kit.manifest import ManifestError, load_manifest
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="lemmi-ai-kit",
-        description="Deploy Lemmi's shared AI configuration (Claude Code skills, AGENTS.md/CLAUDE.md, .ai scaffolding) into a project.",
+        description=(
+            "Support scripts for the lemmi-ai-kit Claude Code plugin. "
+            "Install the kit itself as a plugin: /plugin marketplace add lemmi-ukraine/lemmi-ai-kit"
+        ),
     )
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    install_p = sub.add_parser(
-        "install", help="install the AI configuration into a project"
+    scaffold_p = sub.add_parser(
+        "scaffold",
+        help="place the project-owned AI config files (AGENTS.md, CLAUDE.md, .ai/) into a project",
     )
-    install_p.add_argument(
+    scaffold_p.add_argument(
         "target",
         nargs="?",
         default=".",
         help="project root (default: current directory)",
     )
-    _add_profile_args(install_p)
-    install_p.add_argument(
+    scaffold_p.add_argument(
         "--force",
         action="store_true",
-        help="overwrite locally modified managed files (skills, .ai/templates)",
+        help="overwrite locally modified managed files (.ai/templates)",
     )
-    install_p.add_argument(
+    scaffold_p.add_argument(
         "--reseed",
         action="store_true",
         help="also overwrite seed files (AGENTS.md, CLAUDE.md, .ai state logs) — destructive to project customizations",
     )
-    install_p.add_argument(
+    scaffold_p.add_argument(
         "--dry-run",
         action="store_true",
         help="report what would change without writing",
     )
 
-    list_p = sub.add_parser("list", help="list the skills shipped by the kit")
-    _add_profile_args(list_p)
-
-    diff_p = sub.add_parser(
-        "diff",
-        help="show drift between a project and the kit (exit 1 when drift exists)",
-    )
-    diff_p.add_argument(
-        "target",
-        nargs="?",
-        default=".",
-        help="project root (default: current directory)",
-    )
-    _add_profile_args(diff_p)
+    sub.add_parser("list", help="list the skills shipped by the plugin")
 
     return parser
 
 
-def _cmd_install(
-    args: argparse.Namespace, manifest: Manifest, profiles: tuple[str, ...]
-) -> int:
+def _cmd_scaffold(args: argparse.Namespace) -> int:
     target = Path(args.target).resolve()
     if not target.is_dir():
         print(f"error: target is not a directory: {target}")
         return 2
     dry_run: bool = args.dry_run
-    report = installer.install(
+    manifest = load_manifest()
+    report = scaffold.scaffold(
         target,
         manifest,
-        profiles,
         force=args.force,
         reseed=args.reseed,
         dry_run=dry_run,
     )
 
     prefix = "[dry-run] " if dry_run else ""
-    print(f"{prefix}lemmi-ai-kit {__version__} -> {target}")
-    print(f"{prefix}profiles: {', '.join(profiles)}")
+    print(f"{prefix}lemmi-ai-kit {__version__} scaffold -> {target}")
     print(
         f"{prefix}written: {report.count('written')}  seeded: {report.count('seeded')}  "
         f"overwritten: {report.count('overwritten')}  unchanged: {report.count('unchanged')}"
@@ -127,52 +100,28 @@ def _cmd_install(
     return 0
 
 
-def _cmd_list(manifest: Manifest, profiles: tuple[str, ...]) -> int:
-    selected = manifest.for_profiles(profiles)
-    width_name = max(len(s.name) for s in selected)
-    width_profile = max(len(s.profile) for s in selected)
-    for entry in selected:
+def _cmd_list() -> int:
+    manifest = load_manifest()
+    skills = manifest.skills
+    width_name = max(len(s.name) for s in skills)
+    width_profile = max(len(s.profile) for s in skills)
+    for entry in skills:
         print(
             f"{entry.name:<{width_name}}  {entry.profile:<{width_profile}}  {entry.invocation:<8}  {entry.summary}"
         )
-    print(f"\n{len(selected)} skill(s) in profiles: {', '.join(profiles)}")
+    print(f"\n{len(skills)} skill(s) shipped by the plugin")
     return 0
-
-
-def _cmd_diff(
-    args: argparse.Namespace, manifest: Manifest, profiles: tuple[str, ...]
-) -> int:
-    target = Path(args.target).resolve()
-    if not target.is_dir():
-        print(f"error: target is not a directory: {target}")
-        return 2
-    entries = installer.diff(target, manifest, profiles)
-    drift = [e for e in entries if e.state != "unchanged"]
-    if not drift:
-        print(
-            f"{target}: in sync with lemmi-ai-kit {__version__} ({len(entries)} files)"
-        )
-        return 0
-    print(f"{target}: {len(drift)} file(s) differ from lemmi-ai-kit {__version__}")
-    for entry in drift:
-        print(f"  {entry.state:<9} {entry.kind:<8} {entry.relative}")
-    return 1
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     try:
-        profiles = normalize_profiles(args.profile, include_all=args.all)
-        manifest = load_manifest()
+        if args.command == "scaffold":
+            return _cmd_scaffold(args)
+        if args.command == "list":
+            return _cmd_list()
     except (ManifestError, OSError) as exc:
         print(f"error: {exc}")
         return 2
-
-    if args.command == "install":
-        return _cmd_install(args, manifest, profiles)
-    if args.command == "list":
-        return _cmd_list(manifest, profiles)
-    if args.command == "diff":
-        return _cmd_diff(args, manifest, profiles)
     parser.error(f"unknown command: {args.command}")

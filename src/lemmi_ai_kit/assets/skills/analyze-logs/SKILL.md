@@ -234,7 +234,7 @@ Created: `tasks/{PREFIX}-{slug}.md`
 ### Step 4b: Challenge Review (Mandatory)
 
 **Before presenting the findings report to the user**, run a self-review challenge pass inspired by
-the plan-critic skill (`.claude/skills/plan-critic/SKILL.md`). This step catches assumption errors,
+the `plan-critic` skill. This step catches assumption errors,
 contradictory guidance, and missed issues.
 
 For each reported issue, challenge:

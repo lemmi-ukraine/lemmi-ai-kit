@@ -57,7 +57,7 @@ Use this template for the Phase 7 summary report after all changes are executed.
 |------|--------|
 | `.ai/learnings.md` | Removed {N} entries, merged {N} entries |
 | `AGENTS.md` | Added {N} rules to {sections} |
-| `.claude/skills/{name}/SKILL.md` | {description of change} |
+| `{name}` skill | {description of change} |
 | ... | ... |
 
 ### Recommendations

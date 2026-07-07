@@ -314,7 +314,7 @@ Answer each question. A non-trivial answer becomes a Scenario. "N/A — this fea
 
 > **Doc-first rule**: Before writing scenarios that reference specific model IDs, event names,
 > audio formats, session parameters, or API capabilities, fetch the official documentation
-> using `WebFetch`. See `.claude/skills/ai-docs-lookup/SKILL.md`. Do not rely on in-memory
+> using `WebFetch`. See the `ai-docs-lookup` skill. Do not rely on in-memory
 > knowledge for provider-specific facts.
 
 Reusable copy-and-adapt Gherkin patterns for common AI pipeline behaviors.

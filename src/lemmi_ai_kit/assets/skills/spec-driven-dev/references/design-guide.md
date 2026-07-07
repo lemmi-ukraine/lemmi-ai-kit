@@ -3,7 +3,7 @@
 ## Designing Within the Vertical Slice Architecture
 
 All new components must follow the project's vertical slice architecture. Reference the
-`lemmi-vertical-slice` skill (`.claude/skills/lemmi-vertical-slice/SKILL.md`) for the
+`lemmi-vertical-slice` skill for the
 canonical feature directory template.
 
 Key constraints:

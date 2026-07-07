@@ -9,10 +9,10 @@ shared contract.
 ```
 You are building a deduplicated source manifest for a parallel research run. READ and FOLLOW these
 files as your spec, then execute their pipeline:
-- .claude/skills/research-source-planner/SKILL.md
-- .claude/skills/research-source-planner/references/manifest-schema.md
-- .claude/skills/research-source-planner/references/challenge-and-dedup.md
-- .claude/skills/research-source-planner/references/assignment.md
+- ../research-source-planner/SKILL.md
+- ../research-source-planner/references/manifest-schema.md
+- ../research-source-planner/references/challenge-and-dedup.md
+- ../research-source-planner/references/assignment.md
 
 Question: {{QUESTION}}
 Angles (pre-decomposed): {{ANGLES}}

@@ -1,72 +1,72 @@
 # lemmi-ai-kit
 
-Deploy Lemmi's shared AI configuration — Claude Code skills, `AGENTS.md`/`CLAUDE.md`,
-and the `.ai/` learnings scaffolding — into any project with one command.
+Lemmi's shared AI configuration as a **Claude Code plugin** — 33 skills
+(spec-driven dev, post-task review, the learnings loop, orchestration, research,
+code review) plus project seeding for `AGENTS.md`/`CLAUDE.md` and the `.ai/`
+scaffolding.
 
-The kit packages the AI development workflow system that grew inside
-`<private-source-project>`, cleaned of project- and machine-specific content so it works in a
-brand-new repository on any machine.
+The kit packages the AI development workflow system that grew inside a
+production project, cleaned of project- and machine-specific content so it works
+in a brand-new repository on any machine.
 
-## Install the CLI
+## Install (plugin — the only supported way)
 
-```sh
-curl -LsSf https://raw.githubusercontent.com/Reidond/lemmi-ai-kit/main/install.sh | sh
+In Claude Code:
+
+```
+/plugin marketplace add lemmi-ukraine/lemmi-ai-kit
+/plugin install lemmi-ai-kit@lemmi
 ```
 
-or directly with uv:
+Skills are managed by the plugin and update with it; nothing is copied into your
+projects. Invoke them as `/lemmi-ai-kit:<name>` (e.g. `/lemmi-ai-kit:commit-message`).
 
-```sh
-uv tool install git+https://github.com/Reidond/lemmi-ai-kit   # add @vX.Y.Z for a pinned release
+## Set up a project
+
+Inside the project you want to configure:
+
+```
+/lemmi-ai-kit:kit-setup
 ```
 
-## Use it in a project
+The setup skill scaffolds the **project-owned** files and fills their
+placeholders from your actual project:
 
-```sh
-cd your-project
-lemmi-ai-kit install              # default profiles (see below)
-lemmi-ai-kit install --all        # everything, including extras
-lemmi-ai-kit install --profile core,python
-lemmi-ai-kit list                 # what ships, per profile
-lemmi-ai-kit diff                 # drift between the project and the kit (exit 1 on drift)
-lemmi-ai-kit install --dry-run    # preview without writing
-```
-
-### What gets installed
-
-| Target | Content | Ownership |
+| File | Content | Ownership |
 |---|---|---|
-| `.claude/skills/<name>/` | the selected profiles' skills | **managed** — updated by re-install (`--force` to overwrite local edits) |
-| `.ai/templates/` | spec templates (requirements/design/tasks) | **managed** |
-| `.ai/learnings.md`, `.ai/ai-changelog.md`, `.ai/improvement-hypotheses.md` | empty intake/log files | **seed** — written once, never touched again (`--reseed` to reset) |
-| `AGENTS.md` | generic AI-workflow rules + `TODO(project)` sections to fill in | **seed** |
-| `CLAUDE.md` | `@AGENTS.md` + a skills index rendered for the installed profiles | **seed** |
+| `AGENTS.md` | AI-workflow rules; commands/conventions/restart/project-rules sections **detected from the project** (CI workflows, manifests, lockfiles) | project — edit freely |
+| `CLAUDE.md` | `@AGENTS.md` + the plugin skill index, pre-rendered | project — edit freely |
+| `.ai/learnings.md`, `.ai/ai-changelog.md`, `.ai/improvement-hypotheses.md` | empty intake/log files | project state — never overwritten |
+| `.ai/templates/` | spec templates (requirements/design/tasks) | kit-managed |
 
-### Profiles
+Generated sections are wrapped in `<!-- lemmi-ai-kit:begin/end ... -->` markers.
+The files are yours to edit; the markers only exist so
+`/lemmi-ai-kit:kit-setup refresh` can later re-detect and update those blocks —
+per-block diff and approval, manual edits are never silently overwritten. Facts
+that can't be detected stay as honest `TODO(project)` stubs.
 
-| Profile | Skills | Default |
-|---|---|---|
-| `core` | commit-message, branch-switch, spec-driven-dev, post-task-review, learning-consolidator, session-retrospective, product-brief, plan-critic, task-learnings, ai-changelog, ai-improvement-tracker, ai-docs-lookup | ✅ |
-| `skill-authoring` | skill-creator, skill-creation-workflow, skill-reviewer, skill-researcher, skill-content-reviewer | ✅ |
-| `prompts` | prompt-engineering-conventions, review-prompts, prompt-eng-reviewer, prompt-domain-reviewer | ✅ |
-| `research` | research-source-planner, research-source-claim, parallel-deep-research | ✅ |
-| `orchestration` | fable-orchestrate, agent-delegate (delegate to codex / cursor-agent / grok CLIs + native Opus/Sonnet subagents) | ✅ |
-| `python` | lemmi-python-conventions, lemmi-vertical-slice, lemmi-test-conventions | ✅ |
-| `extras` | openai-realtime-quirks, analyze-logs (project-flavored: realtime voice, GCP logs) | opt-in |
+## Support CLI (scripting, not installation)
 
-After installing, fill in the `TODO(project)` sections in `AGENTS.md` (commands,
-project conventions, restart steps).
+The Python package is no longer an installer — it is the deterministic helper
+the `kit-setup` skill shells out to, and a dev tool for this repo:
 
-## Releases
+```sh
+python3 -m lemmi_ai_kit scaffold <target>   # place project-owned files (seed semantics)
+python3 -m lemmi_ai_kit list                # print the skill catalog
+```
 
-- **Preview**: every push to `main` automatically publishes a semver prerelease
-  `vX.Y.Z-preview.N` (wheel version `X.Y.Z.devN`) via GitHub Actions.
-- **Stable**: run `scripts/publish.sh` from an up-to-date `main`. It gates on
-  lint/type/tests, tags `vX.Y.Z`, pushes, and starts the next patch cycle;
-  CI then publishes the GitHub release. Use `scripts/publish.sh minor|major`
-  to bump before releasing.
+`scaffold` never copies skills and never overwrites existing seed files
+(`--reseed` to reset seeds, `--force` to update kit-managed `.ai/templates/`,
+`--dry-run` to preview). The `kit-setup` skill runs it from the plugin cache via
+`PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src"` — no pip install needed.
 
-The version in `pyproject.toml` is always the version *under development*;
-previews are prereleases of it.
+## Versioning
+
+There is no publish pipeline — the plugin marketplace serves this repo
+directly, so pushing to `main` is the release. CI only gates code quality
+(lint, format, types, tests). When bumping the version, change it in
+`pyproject.toml` and `.claude-plugin/plugin.json` together (a test enforces
+they match).
 
 ## Development
 
@@ -78,16 +78,23 @@ uv run basedpyright
 uv run pytest
 ```
 
-Assets live in `src/lemmi_ai_kit/assets/` and are shipped inside the wheel:
+Layout:
 
-- `assets/manifest.toml` — the skill registry (name, profile, invocation, summary);
-  `lemmi-ai-kit list` and the `CLAUDE.md` index render from it. Tests enforce that
-  it stays in sync with `assets/skills/*`.
-- `assets/skills/` — the ported skills. The test suite (`tests/test_assets.py`)
-  permanently enforces the porting hygiene contract: no absolute machine paths, no
-  `<private-source-project>` references, no dated history citations, no machine-specific rules.
-- `assets/templates/` — `AGENTS.md` and `CLAUDE.md` seeds.
-- `assets/ai/` — the `.ai/` scaffolding (empty state logs + spec templates).
+- `.claude-plugin/` — `plugin.json` (points at the skills below) and
+  `marketplace.json` (this repo doubles as its own marketplace).
+- `src/lemmi_ai_kit/assets/manifest.toml` — the skill registry (name, profile,
+  invocation, summary); `list` and the CLAUDE.md index render from it. Tests
+  enforce that it stays in sync with `assets/skills/*`.
+- `src/lemmi_ai_kit/assets/skills/` — all 33 skills, loaded by the plugin
+  directly from this path. The test suite (`tests/test_assets.py`) permanently
+  enforces the porting hygiene contract: no absolute machine paths, no
+  source-project references, no dated history citations, no machine-specific
+  rules.
+- `src/lemmi_ai_kit/assets/templates/` — `AGENTS.md`/`CLAUDE.md` seeds used by
+  `scaffold`.
+- `src/lemmi_ai_kit/assets/ai/` — the `.ai/` scaffolding (empty state logs +
+  spec templates).
+- `src/lemmi_ai_kit/{cli,scaffold,manifest}.py` — the support scripting code.
 
-VS Code: the repo ships settings and extension recommendations (ruff as formatter,
-basedpyright for types) in `.vscode/`.
+VS Code: the repo ships settings and extension recommendations (ruff as
+formatter, basedpyright for types) in `.vscode/`.

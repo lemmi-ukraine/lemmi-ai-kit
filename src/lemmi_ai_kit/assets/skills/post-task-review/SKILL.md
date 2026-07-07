@@ -94,7 +94,7 @@ If no documentation was affected, explicitly state: "No documentation updates ne
 
 After the full review is complete, extract and record learnings.
 
-Invoke the `task-learnings` skill (`.claude/skills/task-learnings/SKILL.md`) to:
+Invoke the `task-learnings` skill to:
 
 1. Review the entire task for discoveries, surprises, and corrections
 2. Include findings from the review itself (steps 1–7) — if the review caught issues, those are learnings too
@@ -102,9 +102,9 @@ Invoke the `task-learnings` skill (`.claude/skills/task-learnings/SKILL.md`) to:
 4. Append project-level findings to `.ai/learnings.md`
 5. Update project rules if any convention gaps were found
 6. **If any AI infrastructure files were modified** during steps 1–7 (convention updates,
-   skill modifications, rule additions), read `.claude/skills/ai-changelog/SKILL.md` and
+   skill modifications, rule additions), read the `ai-changelog` skill and
    append the appropriate changelog entry to `.ai/ai-changelog.md`
-7. **After writing a changelog entry**, read `.claude/skills/ai-improvement-tracker/SKILL.md`
+7. **After writing a changelog entry**, read the `ai-improvement-tracker` skill
    and evaluate whether the change warrants a testable improvement hypothesis
 
 ## Output Format

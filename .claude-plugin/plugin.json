@@ -1,0 +1,10 @@
+{
+  "name": "lemmi-ai-kit",
+  "displayName": "Lemmi AI Kit",
+  "version": "0.1.0",
+  "description": "Lemmi's shared AI configuration: spec-driven dev, post-task review, learnings loop, orchestration, research, and review skills — plus a setup skill that seeds project-owned AGENTS.md/CLAUDE.md/.ai files from your existing project.",
+  "author": { "name": "Andrii Shafar" },
+  "repository": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "license": "MIT",
+  "skills": ["./src/lemmi_ai_kit/assets/skills/"]
+}
