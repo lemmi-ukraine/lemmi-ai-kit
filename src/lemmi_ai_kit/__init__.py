@@ -1,4 +1,4 @@
-"""lemmi-ai-kit — Lemmi's shared AI configuration (Claude Code plugin) support code."""
+"""lemmi-ai-kit — Lemmi's shared AI configuration (Claude Code / Codex plugin) support code."""
 
 import tomllib
 from importlib.metadata import PackageNotFoundError, version

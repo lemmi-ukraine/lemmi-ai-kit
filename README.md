@@ -1,6 +1,6 @@
 # lemmi-ai-kit
 
-Lemmi's shared AI configuration as a **Claude Code plugin** — 33 skills
+Lemmi's shared AI configuration as a **Claude Code and Codex plugin** — 33 skills
 (spec-driven dev, post-task review, the learnings loop, orchestration, research,
 code review) plus project seeding for `AGENTS.md`/`CLAUDE.md` and the `.ai/`
 scaffolding.
@@ -11,15 +11,27 @@ in a brand-new repository on any machine.
 
 ## Install (plugin — the only supported way)
 
-In Claude Code:
+Skills are managed by the plugin and update with it; nothing is copied into your
+projects.
+
+### Claude Code
 
 ```
 /plugin marketplace add lemmi-ukraine/lemmi-ai-kit
 /plugin install lemmi-ai-kit@lemmi
 ```
 
-Skills are managed by the plugin and update with it; nothing is copied into your
-projects. Invoke them as `/lemmi-ai-kit:<name>` (e.g. `/lemmi-ai-kit:commit-message`).
+Invoke skills as `/lemmi-ai-kit:<name>` (e.g. `/lemmi-ai-kit:commit-message`).
+
+### Codex
+
+```
+codex plugin marketplace add lemmi-ukraine/lemmi-ai-kit
+```
+
+Then open the plugin directory, select the **Lemmi** marketplace, and install
+**Lemmi AI Kit**. Skills ship from the same catalog; invoke them via the plugin
+skill surface (e.g. `kit-setup`, `commit-message`).
 
 ## Set up a project
 
@@ -28,6 +40,8 @@ Inside the project you want to configure:
 ```
 /lemmi-ai-kit:kit-setup
 ```
+
+(or the Codex skill equivalent, `kit-setup`)
 
 The setup skill scaffolds the **project-owned** files and fills their
 placeholders from your actual project:
@@ -58,15 +72,17 @@ python3 -m lemmi_ai_kit list                # print the skill catalog
 `scaffold` never copies skills and never overwrites existing seed files
 (`--reseed` to reset seeds, `--force` to update kit-managed `.ai/templates/`,
 `--dry-run` to preview). The `kit-setup` skill runs it from the plugin cache via
-`PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src"` — no pip install needed.
+`PYTHONPATH` on the plugin root's `src/` (Claude: `CLAUDE_PLUGIN_ROOT`; Codex:
+`PLUGIN_ROOT`, with `CLAUDE_PLUGIN_ROOT` also set for compatibility) — no pip
+install needed.
 
 ## Versioning
 
-There is no publish pipeline — the plugin marketplace serves this repo
+There is no publish pipeline — the plugin marketplaces serve this repo
 directly, so pushing to `main` is the release. CI only gates code quality
 (lint, format, types, tests). When bumping the version, change it in
-`pyproject.toml` and `.claude-plugin/plugin.json` together (a test enforces
-they match).
+`pyproject.toml`, `.claude-plugin/plugin.json`, and `.codex-plugin/plugin.json`
+together (tests enforce they match).
 
 ## Development
 
@@ -80,12 +96,16 @@ uv run pytest
 
 Layout:
 
-- `.claude-plugin/` — `plugin.json` (points at the skills below) and
-  `marketplace.json` (this repo doubles as its own marketplace).
+- `.claude-plugin/` — Claude Code `plugin.json` (points at the skills below) and
+  `marketplace.json` (this repo doubles as its own Claude marketplace).
+- `.codex-plugin/` — Codex `plugin.json` (same skills path + install-surface
+  metadata).
+- `.agents/plugins/marketplace.json` — Codex marketplace catalog (plugin at
+  repo root).
 - `src/lemmi_ai_kit/assets/manifest.toml` — the skill registry (name, profile,
   invocation, summary); `list` and the CLAUDE.md index render from it. Tests
   enforce that it stays in sync with `assets/skills/*`.
-- `src/lemmi_ai_kit/assets/skills/` — all 33 skills, loaded by the plugin
+- `src/lemmi_ai_kit/assets/skills/` — all 33 skills, loaded by both plugins
   directly from this path. The test suite (`tests/test_assets.py`) permanently
   enforces the porting hygiene contract: no absolute machine paths, no
   source-project references, no dated history citations, no machine-specific

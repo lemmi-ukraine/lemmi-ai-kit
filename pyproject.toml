@@ -1,7 +1,7 @@
 [project]
 name = "lemmi-ai-kit"
 version = "0.1.0"
-description = "Lemmi's shared AI configuration as a Claude Code plugin, plus the support scripting the plugin's kit-setup skill uses to scaffold project files"
+description = "Lemmi's shared AI configuration as a Claude Code and Codex plugin, plus the support scripting the plugin's kit-setup skill uses to scaffold project files"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "lemmi-ukraine" }]

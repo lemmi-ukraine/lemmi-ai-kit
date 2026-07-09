@@ -1,0 +1,35 @@
+{
+  "name": "lemmi-ai-kit",
+  "version": "0.1.0",
+  "description": "Lemmi's shared AI configuration: spec-driven dev, post-task review, learnings loop, orchestration, research, and review skills — plus a setup skill that seeds project-owned AGENTS.md/CLAUDE.md/.ai files from your existing project.",
+  "author": {
+    "name": "lemmi-ukraine",
+    "url": "https://github.com/lemmi-ukraine"
+  },
+  "homepage": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "repository": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "spec-driven-dev",
+    "code-review",
+    "orchestration",
+    "learnings",
+    "agents-md"
+  ],
+  "skills": "./src/lemmi_ai_kit/assets/skills/",
+  "interface": {
+    "displayName": "Lemmi AI Kit",
+    "shortDescription": "Shared AI workflow: skills + project seeding",
+    "longDescription": "Lemmi's shared AI configuration as a Codex plugin: 30+ skills for spec-driven development, post-task review, the learnings loop, orchestration, research, and review — plus kit-setup to seed project-owned, editable AGENTS.md/CLAUDE.md/.ai files from your existing project.",
+    "developerName": "lemmi-ukraine",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+    "defaultPrompt": [
+      "Set up this project with lemmi-ai-kit (kit-setup).",
+      "Run a post-task review of the changes I just made.",
+      "Draft a commit message for the current diff."
+    ]
+  }
+}

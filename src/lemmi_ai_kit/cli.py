@@ -1,4 +1,4 @@
-"""Support-scripting CLI for the lemmi-ai-kit Claude Code plugin.
+"""Support-scripting CLI for the lemmi-ai-kit Claude Code / Codex plugin.
 
 The plugin is the only installation mechanism for the kit's skills. This CLI is
 NOT a user-facing installer — it is the deterministic helper the plugin's
@@ -22,8 +22,9 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="lemmi-ai-kit",
         description=(
-            "Support scripts for the lemmi-ai-kit Claude Code plugin. "
-            "Install the kit itself as a plugin: /plugin marketplace add lemmi-ukraine/lemmi-ai-kit"
+            "Support scripts for the lemmi-ai-kit Claude Code / Codex plugin. "
+            "Install via Claude: /plugin marketplace add lemmi-ukraine/lemmi-ai-kit — "
+            "or Codex: codex plugin marketplace add lemmi-ukraine/lemmi-ai-kit"
         ),
     )
     parser.add_argument(

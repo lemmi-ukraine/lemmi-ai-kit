@@ -1,6 +1,6 @@
 {
   "name": "lemmi",
-  "description": "Lemmi's Claude Code plugins: shared AI development workflow (skills, project seeding, learnings loop).",
+  "description": "Lemmi's AI plugins for Claude Code (and Codex via .codex-plugin): shared development workflow (skills, project seeding, learnings loop).",
   "owner": { "name": "lemmi-ukraine", "url": "https://github.com/lemmi-ukraine" },
   "plugins": [
     {

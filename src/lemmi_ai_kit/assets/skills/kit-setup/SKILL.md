@@ -31,14 +31,16 @@ scaffolding), with seed semantics — existing files are never overwritten:
 
 ```bash
 # needs Python >= 3.11 (tomllib); system python3 may be older — pick one that works:
+# Claude sets CLAUDE_PLUGIN_ROOT; Codex sets PLUGIN_ROOT (and CLAUDE_PLUGIN_ROOT for compat).
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}"
 PY=$(command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3)
-PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" "$PY" -m lemmi_ai_kit scaffold .
+PYTHONPATH="${PLUGIN_ROOT}/src" "$PY" -m lemmi_ai_kit scaffold .
 ```
 
 If no Python ≥ 3.11 exists on the machine, use uv if available
 (`uv run --no-project --python 3.12 python -m lemmi_ai_kit scaffold .` with the
 same `PYTHONPATH`); as a last resort, replicate the scaffold by hand: copy
-`templates/AGENTS.md`, `ai/*` from `${CLAUDE_PLUGIN_ROOT}/src/lemmi_ai_kit/assets/`
+`templates/AGENTS.md`, `ai/*` from `${PLUGIN_ROOT}/src/lemmi_ai_kit/assets/`
 (only files that don't exist), and render CLAUDE.md's `{{SKILLS_*}}` placeholders
 from `assets/manifest.toml` (user-invocable entries as `/lemmi-ai-kit:<name>`).
 
