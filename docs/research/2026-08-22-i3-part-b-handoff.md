@@ -94,8 +94,17 @@ it.
 
 The load-bearing instances are the unconditional ones — `SKILL.md:256`
 (*"`.cursor/rules/{skill-name}.md`"*) and `cross-reference-targets.md:77` (a checklist
-checkbox on the Kiro path). `SKILL.md:257` is conditional and `SKILL.md:387` is
-actually a *guard* against the pattern, so neither is the problem.
+checkbox on the Kiro path). `SKILL.md:257` is conditional (*"if the skill affects
+conventions"*).
+
+**`SKILL.md:387` is not exculpatory — do not read it that way.** It sits in an
+"Anti-patterns" list as *"Do NOT create cursor rules or kiro steering docs **without
+checking existing ones for overlap**"*, which is a **conditional authorization**, not
+a prohibition: it presumes these files get created and only requires an overlap check
+first. The sibling entries confirm the reading — *"Do NOT delete entries without user
+approval"* permits deletion with approval, while *"Do NOT skip skill-reviewer
+validation"* is a flat ban. So :387 is weak evidence **for** this finding, not against
+it: the kit instructs creating IDE-specific files, just carefully.
 
 Two structural points for whoever owns this:
 
