@@ -83,6 +83,31 @@ skill names, or install commands that I4 changes.
 **Still open, unchanged:** OQ-5 (docs site), OQ-6 (public `.ai/learnings.md` as a
 curated asset), OQ-7 (Codex parity in the README). All Wave 4, all operator.
 
+## Found in passing, deliberately not crossed — I2/I4 territory
+
+`learning-consolidator` hardcodes IDE-specific paths: **29 occurrences** — 23
+`.cursor/` and 6 `.kiro/` — across 26 lines in `SKILL.md` and
+`references/cross-reference-targets.md`. Meanwhile `skill-reviewer/SKILL.md:153`'s
+portability check reads *"No IDE-specific references (Cursor, VSCode, Kiro) unless
+justified."* The kit ships one skill pointing at these paths and another forbidding
+it.
+
+The load-bearing instances are the unconditional ones — `SKILL.md:256`
+(*"`.cursor/rules/{skill-name}.md`"*) and `cross-reference-targets.md:77` (a checklist
+checkbox on the Kiro path). `SKILL.md:257` is conditional and `SKILL.md:387` is
+actually a *guard* against the pattern, so neither is the problem.
+
+Two structural points for whoever owns this:
+
+1. **Nothing mechanical catches it.** `test_assets.py`'s `_FORBIDDEN` has no
+   `\.cursor/` or `\.kiro/` pattern, so `skill-reviewer:153` is enforced by human
+   review only.
+2. **The rule says "unless justified", so the cheap fix is probably to state the
+   justification** rather than strip 29 references: these are discovery targets in
+   *other people's* repos — places a consolidator looks for existing guidance — not
+   this repo's own paths. That is a defensible justification; it is simply nowhere
+   written down.
+
 ## The pre-flip gate — the concept the program plan lacks
 
 The operator intends to publish in ~1 week (≈2026-08-29). The wave plan puts I3b in
@@ -92,12 +117,34 @@ gate that asks whether it is.
 
 Four items must be true before the flip, and none of them is Part B's README rewrite:
 
-1. **Four stale public-facing counts.** `README.md:3` and `README.md:108` say
-   "33 skills"; `.claude-plugin/marketplace.json:9` and `.codex-plugin/plugin.json:24`
-   say "30+ skills". Truth after I1 is **29** — and "30+" is false too, not merely
-   imprecise. The README pair is correct on `main` today and goes wrong the moment I1
-   merges; the manifest pair is already wrong. The manifest pair matters most, because
-   that is what a marketplace listing surfaces.
+1. **Four stale public-facing counts — one provenance, one commit, one owner.**
+
+   | Site | Says | True today | After I1 |
+   |---|---|---|---|
+   | `README.md:3` | "33 skills" | ✔ (33) | ✘ |
+   | `README.md:108` | "all 33 skills" | ✔ (33) | ✘ |
+   | `.claude-plugin/marketplace.json:9` | "30+ skills" | ✔ (33 is 30-plus) | ✘ |
+   | `.codex-plugin/plugin.json:24` | "30+ skills" | ✔ | ✘ |
+
+   Measured: `main` 33, `i3a` 33, `i1-decouple-prompt-skills` **29**.
+
+   **All four are true today and all four break at the same instant — the I1 merge.**
+   An earlier draft of this document called `"30+"` "already false"; that was circular
+   reasoning, because 29 *is* the I1 state. What actually predates I1 is only `"30+"`
+   understating 33 — vague, a style wart, not a flip blocker and not worth its own
+   owner.
+
+   So the provenance of the *falsehood* is uniformly **I1**, and the fix is one commit
+   on `i1-decouple-prompt-skills`. Splitting these by owner is the failure mode to
+   avoid: only one pair reads as "the README", so a split ruling risks the other two
+   being missed entirely.
+
+   Note on latitude, stated rather than assumed: the Part B hard stop names
+   `README.md`, so it does not literally bar the two manifest files. But its *reason*
+   does — `.claude-plugin/marketplace.json:9` contains `/lemmi-ai-kit:kit-setup`, an
+   invocation I4 changes, which is exactly what the stop exists to protect. The
+   charter also assigns manifest `description` fields to I3b. Either way, correction
+   above makes one commit on `i1` the cleaner route.
 2. **The private source project's name — and this is two questions, not one.**
    `lemmi-ai-api` is an **explicitly banned pattern** in `tests/test_assets.py:19`,
    labelled "source-project reference". But that test scans `assets_root()` only.
