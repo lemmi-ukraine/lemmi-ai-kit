@@ -149,7 +149,6 @@ Uses: research-source-planner (task), research-source-claim (task), parallel-dee
 - `Read` a conventional or assumed path before confirming it exists — `Glob`/verify first.
 - Verify a structured-config value (YAML frontmatter key, JSON field, enum membership) with a whole-file substring grep — parse the structure or scope the match to the structural region instead. A content grep also matches files that merely *document* the key.
 - Start implementing bug fixes without presenting a brief plan first — even for "quick" fixes. If the fix touches more than 1 file or involves data flow changes, write a plan and get approval before coding.
-- Modify AI prompt templates without running `/review-prompts` or explicitly getting user approval to skip the review.
 - Treat task docs as runtime configuration, or let tasks drift from current implementation without updating status.
 
 ### Python rules (Python projects)
