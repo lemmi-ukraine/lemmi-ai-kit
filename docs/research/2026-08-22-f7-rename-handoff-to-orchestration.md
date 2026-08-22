@@ -9,7 +9,7 @@ work is at [`2026-08-22-f7-rename-completion-review.md`](2026-08-22-f7-rename-co
 where they overlap, that one is harsher and this one is shorter.
 
 Two things in here are more urgent than the rename itself: the merge set is no longer
-the three branches the earlier handoff names (§2), and **two other sessions' pre-flip
+the three branches the earlier handoff names (§2), and **three other sessions' pre-flip
 work is sitting uncommitted in this shared checkout** (§4).
 
 ---
@@ -107,15 +107,20 @@ both `== 29` and the renamed set.
 
 ## 4. Three other sessions are live in this checkout, and only my work is committed
 
-This is the operational risk in the tree right now. Over this session the dirty set grew
-from four entries to six as other sessions worked around me:
+This is the operational risk in the tree right now. The set below is a **snapshot that was
+already stale before this document was committed** — it grew twice while I was writing this
+section. Re-derive it, do not trust the rows:
+
+```
+git status --short          # tracked-but-modified, plus untracked
+```
 
 | Path | Owner | State |
 |---|---|---|
 | `docs/research/2026-08-22-i3-part-b-handoff.md`, `-publication-reachability.md`, `-session-handoff-to-orchestration.md` | I3a | **modified, uncommitted — this is the F6 fix** |
 | `tests/test_plugin.py` | Session A (W3.0) | modified, uncommitted |
 | `docs/research/2026-08-22-w3-0-codex-install-verified.md` | Session A (W3.0) | **untracked** |
-| `docs/research/2026-08-22-i2-portability-triage.md` | I2 | **untracked** |
+| `docs/research/2026-08-22-i2-portability-triage.md`, `-i2-w2-1-completion-review.md` | I2 | **untracked** |
 
 Two consequences, both cheap to prevent and expensive to discover later:
 
@@ -125,10 +130,12 @@ Two consequences, both cheap to prevent and expensive to discover later:
    committed to this repository) ``. But **if the flip merges without those three files
    being committed, the flip ships the defect F6 exists to fix.** Nothing in the merged
    state contains that fix, because it is not in any commit.
-2. **Four files of other sessions' evidence exist in exactly one copy, untracked.** The
-   program doc already records that the F5 enforcement makes `git clean -xdf` delete
-   untracked trees silently, with no recovery. Two of the four are untracked *and* not
-   ignored, so an ordinary `git clean` reaches them too.
+2. **Every one of those files exists in exactly one copy.** The tracked ones hold
+   uncommitted edits; the untracked documents exist nowhere else at all. The program doc
+   already records that the F5 enforcement makes `git clean -xdf` delete untracked trees
+   silently, with no recovery — and these documents are untracked *without* being ignored,
+   so a plain `git clean -fd` reaches them too, which `tasks/` and `.specs/` at least
+   require `-x` for.
 
 **Nobody should switch this checkout's branch or clean it until those are committed.**
 That is also why I created `pre-flip` at the existing tip rather than basing on
