@@ -2,9 +2,17 @@
 
 **Written:** 2026-08-22, after Part A landed and its checks were run.
 **Status:** Part A complete. Part B **not started, deliberately.**
-**Branches:** `i3a-contribution-surface` (15 commits off `main`), plus two authorized
-surgical exceptions — `f3-stale-counts` (4, off `i1`) and
-`readme-drop-unbacked-refresh-claim` (1, off `main`).
+**Branches:** `i3a-contribution-surface`, plus two authorized surgical exceptions —
+`f3-stale-counts` (which **contains** `i1`) and `readme-drop-unbacked-refresh-claim`
+(off `main`). Merge order and the current counts are in
+[the orchestration handoff](2026-08-22-session-handoff-to-orchestration.md) §1.
+
+> No commit counts are written here on purpose. An earlier version said "15 commits off
+> `main`" and was wrong within the hour — a document that states its own branch's commit
+> count is stale the moment you commit the document. Which is the rule this session
+> enforced with a test for skill counts (`tests/test_readme_counts.py`) and then broke by
+> hand three files away. Run
+> `git rev-list --count main..<branch>` instead.
 
 `initiative-planner` Step 0 on Part A's scope answers **yes / no / no** — more than
 one deliverable, but the work does not outlive the session and no approval gate
