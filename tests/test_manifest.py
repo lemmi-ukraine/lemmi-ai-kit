@@ -16,7 +16,7 @@ def test_manifest_loads_and_matches_asset_dirs() -> None:
     # load_manifest() itself enforces the bijection between [[skills]] entries
     # and assets/skills/* directories, so loading successfully is the assertion.
     manifest = load_manifest()
-    assert len(manifest.skills) == 33
+    assert len(manifest.skills) == 29
     names = {s.name for s in manifest.skills}
     assert "task-learnings" in names
     assert "openai-realtime-quirks" in names

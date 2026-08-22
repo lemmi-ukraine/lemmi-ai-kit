@@ -1,5 +1,5 @@
 # Skills shipped by lemmi-ai-kit.
-# profile: core | skill-authoring | prompts | research | python | extras
+# profile: core | skill-authoring | research | python | extras
 # invocation: user (slash command) | auto (background reference) | internal (pipeline skill)
 
 [[skills]]
@@ -109,30 +109,6 @@ name = "skill-content-reviewer"
 profile = "skill-authoring"
 invocation = "internal"
 summary = "Verify skill content quality against its research brief"
-
-[[skills]]
-name = "prompt-engineering-conventions"
-profile = "prompts"
-invocation = "auto"
-summary = "Prompt authoring conventions (role design, few-shot, anchoring, safety nets)"
-
-[[skills]]
-name = "review-prompts"
-profile = "prompts"
-invocation = "user"
-summary = "Comprehensive prompt review from engineering and domain-expert perspectives"
-
-[[skills]]
-name = "prompt-eng-reviewer"
-profile = "prompts"
-invocation = "internal"
-summary = "Prompt engineering analysis (structure, format, parameters)"
-
-[[skills]]
-name = "prompt-domain-reviewer"
-profile = "prompts"
-invocation = "internal"
-summary = "Domain expertise analysis of prompts (methodology, calibration, enrichment)"
 
 [[skills]]
 name = "research-source-planner"

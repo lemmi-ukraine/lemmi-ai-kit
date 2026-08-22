@@ -13,7 +13,6 @@ Invocation = Literal["user", "auto", "internal"]
 PROFILES: tuple[str, ...] = (
     "core",
     "skill-authoring",
-    "prompts",
     "research",
     "orchestration",
     "python",
@@ -25,7 +24,6 @@ PROFILES: tuple[str, ...] = (
 DEFAULT_PROFILES: tuple[str, ...] = (
     "core",
     "skill-authoring",
-    "prompts",
     "research",
     "orchestration",
     "python",
