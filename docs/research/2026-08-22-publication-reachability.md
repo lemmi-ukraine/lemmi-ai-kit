@@ -1,7 +1,7 @@
 # Publication reachability and the traffic baseline
 
 **Measured:** 2026-08-22 · **Deliverable:** I3 D9 · **Status:** settled, not estimated
-**Charter:** [../../tasks/I3-FEATURE-oss-discoverability.md](../../tasks/I3-FEATURE-oss-discoverability.md)
+**Charter:** `tasks/I3-FEATURE-oss-discoverability.md` (private planning artifact — not committed to this repository)
 
 This is the baseline the charter said must exist before any discoverability claim
 is made. It came back as a finding rather than a number.

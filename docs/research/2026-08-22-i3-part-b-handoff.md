@@ -18,7 +18,7 @@
 one deliverable, but the work does not outlive the session and no approval gate
 remained once OQ-2 and OQ-3 closed. So no `.specs/` decomposition was produced *for
 Part A*. One already exists for I3 as a whole, written by a parallel session at
-`.specs/i3-oss-discoverability/`, and Part A was built against its layer stack rather
+`.specs/i3-oss-discoverability/` (private, never committed), and Part A was built against its layer stack rather
 than re-planned. **I3 as a whole does clear Step 0** (Part B outlives this session and
 has four open operator gates), which is why this handoff exists and a pro-forma
 roadmap does not.
@@ -203,7 +203,7 @@ Four items must be true before the flip, and none of them is Part B's README rew
 
    **But stripping the string would not make these files safe either, and that is the
    more important point.** Even with every mention of the name removed,
-   `tasks/I2-TECH-port-upstream-skills.md` still publishes:
+   `tasks/I2-TECH-port-upstream-skills.md` (private planning artifact — not committed to this repository) still publishes:
 
    - a **named inventory of a private repository's skills** — 13 upstream-only
      entries, each with a word count and a dependency count

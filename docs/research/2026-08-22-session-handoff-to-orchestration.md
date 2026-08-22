@@ -5,7 +5,7 @@
 **Nothing is pushed.** All four branches are local. Publishing them is the operator's call.
 
 This is the execution-side handoff. A planning-side one exists at
-`.specs/i3-oss-discoverability/handoff-to-orchestrator.md` (untracked — see §6). Where
+`.specs/i3-oss-discoverability/handoff-to-orchestrator.md` (private, never committed — see §6). Where
 they disagree on what shipped, this one was written from `git`.
 
 ---
@@ -157,7 +157,7 @@ Do not commit them.
 The reason is not the hygiene contract, though they would now fail it — the tracked-tree
 guard added on `i3a` catches the source-project name in any tracked file, so committing
 them can no longer happen silently. The real reason is that **stripping that name would not
-make them safe.** `tasks/I2-TECH-port-upstream-skills.md` publishes a named inventory of a
+make them safe.** `tasks/I2-TECH-port-upstream-skills.md` (private planning artifact — not committed to this repository) publishes a named inventory of a
 private repository's skills — 13 entries with word counts and dependency counts — plus
 internal script names, a product-line attribution, and one line of internal usage
 telemetry. **Four** occurrences of the name; **13** inventory rows that survive removing all
