@@ -182,6 +182,32 @@ Four items must be true before the flip, and none of them is Part B's README rew
    `"path": "./"` bug does not, and I4's Gate C has never been tested against this
    repository — only against vendor docs.
 
+   **For whoever owns I4 — a cheaper mitigation than an alias, with what is and
+   is not verified marked.** Publishing on 2026-08-29 expires OP-3's rationale
+   (program line 193: *"breakage is near-zero now and compounds weekly"* — near-zero
+   was a property of being private). Three mitigations existed; the flip date and
+   the README restriction remove two, leaving only a compatibility shim. On that:
+
+   | Shape | Status |
+   |---|---|
+   | Host-level skill aliases | **No mechanism found.** Neither manifest has an alias table, and the `/lemmi-ai-kit:` namespace derives from the plugin *name*. Whether either host supports aliases is unresearched — likely not. |
+   | A **deprecated plugin entry** beside its successors, sharing the skills path | **Format permits it** — both marketplace files already use a `plugins` **array**. Old `/lemmi-ai-kit:<skill>` invocations would keep resolving because the old plugin still exists, with nothing aliasing anything. |
+   | Duplicate skill directories under old names | Works, but doubles the tree I2 just refreshed. |
+
+   **Verified here:** the array exists in both files; and **neither marketplace test
+   asserts `len(plugins) == 1`** — `test_plugin.py` builds `{p["name"]: p for p in
+   plugins}` and looks up by name, so a second entry passes both tests unchanged.
+   **Not verified:** whether Claude Code resolves two plugins sharing one skills
+   directory, and Codex's `source.path: "./"` defect is an independent unknown on
+   that path. Test the deprecated-entry shape first — it is the cheapest to falsify.
+
+   **The pressure runs one way.** If every shim shape fails, this is not a balanced
+   choice between accepting breakage and dropping the rename: dropping it to protect
+   adopters from breakage would undermine D4, and D4's reasoning — *"nobody adopts a
+   skill branded with another company's name"* — is **strengthened** by going public,
+   not weakened, because outside adopters become the entire point. So "re-decide
+   OP-3" reads like a live trade-off and is not one.
+
 ## The decision this handoff cannot make
 
 Publishing before I4 **invalidates the program's own justification for its wave
