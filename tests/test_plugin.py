@@ -76,7 +76,16 @@ def test_claude_marketplace_lists_the_plugin_at_repo_root() -> None:
     assert plugin["source"] == "./"
 
 
-def test_codex_marketplace_lists_the_plugin_at_repo_root() -> None:
+def test_codex_marketplace_source_path_resolves_to_a_plugin_dir() -> None:
+    # Codex does not require source.path to be a *subdirectory* -- it requires
+    # that <marketplace root>/<source.path> exist as a directory, and it reads
+    # the manifest at <source.path>/.codex-plugin/plugin.json. Verified against
+    # codex-cli 0.149.0 with a local marketplace source: "./" installs cleanly
+    # (33 skills, version read from the manifest), while pointing source.path at
+    # a directory that does not exist yet fails hard with "plugin source path is
+    # not a directory". So assert the invariant Codex actually enforces, not the
+    # literal "./" -- that stays true through the pack split, which is what will
+    # legitimately move this path to "./plugins/<pack>".
     market = _load_json(".agents/plugins/marketplace.json")
     assert market["name"]
     interface = cast(dict[str, Any], market["interface"])
@@ -86,7 +95,13 @@ def test_codex_marketplace_lists_the_plugin_at_repo_root() -> None:
     plugin = entries[_codex_plugin_json()["name"]]
     source = cast(dict[str, Any], plugin["source"])
     assert source["source"] == "local"
-    assert source["path"] == "./"
+    rel = cast(str, source["path"])
+    assert rel.startswith("./"), f"Codex requires source.path to start with './': {rel}"
+    assert ".." not in rel, f"source.path must stay inside the marketplace root: {rel}"
+    plugin_root = _REPO_ROOT / rel
+    assert plugin_root.is_dir(), f"codex plugin source path is not a directory: {rel}"
+    manifest = plugin_root / ".codex-plugin" / "plugin.json"
+    assert manifest.is_file(), f"no .codex-plugin/plugin.json under source.path: {rel}"
     policy = cast(dict[str, Any], plugin["policy"])
     assert policy["installation"]
     assert policy["authentication"]
