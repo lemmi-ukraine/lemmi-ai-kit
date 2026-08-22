@@ -38,5 +38,5 @@ before ticking these. CI runs the same four on every PR regardless of base branc
 ---
 
 <sub>By opening this PR you agree your contribution is licensed under the
-[MIT License](../blob/main/LICENSE) — inbound equals outbound. No CLA, no sign-off
+[MIT License](https://github.com/lemmi-ukraine/lemmi-ai-kit/blob/main/LICENSE) — inbound equals outbound. No CLA, no sign-off
 trailer.</sub>

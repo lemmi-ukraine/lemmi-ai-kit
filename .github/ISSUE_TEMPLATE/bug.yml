@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         **Not for security issues.** If this is a vulnerability, close this form and
-        follow [SECURITY.md](../blob/main/SECURITY.md) instead.
+        follow [SECURITY.md](https://github.com/lemmi-ukraine/lemmi-ai-kit/blob/main/SECURITY.md) instead.
 
   - type: input
     id: skill
