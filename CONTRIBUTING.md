@@ -93,6 +93,14 @@ illustrative examples there.
 `improvement-hypotheses.md` ship as headers with no dated entries — a new project
 starts at zero.
 
+**Scope, stated precisely.** The four checks above cover
+`src/lemmi_ai_kit/assets/` — the tree that ships to your project. A **second** check
+in `tests/test_publication_hygiene.py` covers every *tracked* file outside that tree
+(docs, community files, config) for one thing only: a reference to the private source
+project this kit was extracted from. It has its own allowlist, for the handful of
+files that exist to document the rule. So a docs-only PR can still go red, and the
+failure message tells you which of the two contracts you tripped.
+
 ## Adding a skill
 
 1. Create `src/lemmi_ai_kit/assets/skills/<name>/SKILL.md` with frontmatter whose
