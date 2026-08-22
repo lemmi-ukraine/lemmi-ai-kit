@@ -37,9 +37,9 @@ target to its dependent files.
 
 | Convention type | Files to check |
 |----------------|---------------|
-| Python coding convention | `lemmi-python-conventions` skill, `.cursor/rules/code-quality.md` |
-| Architecture convention | `lemmi-vertical-slice` skill, `.cursor/rules/feature-development.md` |
-| Testing convention | `lemmi-test-conventions` skill, `.cursor/rules/testing.md` |
+| Python coding convention | `python-conventions` skill, `.cursor/rules/code-quality.md` |
+| Architecture convention | `vertical-slice` skill, `.cursor/rules/feature-development.md` |
+| Testing convention | `test-conventions` skill, `.cursor/rules/testing.md` |
 | Error handling convention | `.cursor/rules/error-handling.md` |
 | Logging convention | `.cursor/rules/logging.md` |
 | Workflow convention | `.cursor/rules/spec-driven-dev.md`, `.cursor/rules/post-task-review.md` |

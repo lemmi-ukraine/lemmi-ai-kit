@@ -32,9 +32,9 @@ def test_for_profiles_filters() -> None:
     manifest = load_manifest()
     python_only = manifest.for_profiles(("python",))
     assert {s.name for s in python_only} == {
-        "lemmi-python-conventions",
-        "lemmi-vertical-slice",
-        "lemmi-test-conventions",
+        "python-conventions",
+        "vertical-slice",
+        "test-conventions",
     }
 
 

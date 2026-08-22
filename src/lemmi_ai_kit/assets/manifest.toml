@@ -171,19 +171,19 @@ invocation = "user"
 summary = "DoorDash-style three-stage review: cheap lead scout, strong deep reviewers, adversarial disprove-it pass (fable or opus combo)"
 
 [[skills]]
-name = "lemmi-python-conventions"
+name = "python-conventions"
 profile = "python"
 invocation = "auto"
 summary = "Python coding conventions (one class per file, typed models, DI at boundaries)"
 
 [[skills]]
-name = "lemmi-vertical-slice"
+name = "vertical-slice"
 profile = "python"
 invocation = "auto"
 summary = "Vertical slice architecture patterns for Python backend features"
 
 [[skills]]
-name = "lemmi-test-conventions"
+name = "test-conventions"
 profile = "python"
 invocation = "auto"
 summary = "Testing conventions: integration-first, DI-based mocking, timeout decorators"

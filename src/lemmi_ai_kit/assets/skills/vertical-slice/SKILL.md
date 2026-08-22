@@ -1,5 +1,5 @@
 ---
-name: lemmi-vertical-slice
+name: vertical-slice
 user-invocable: false
 metadata:
   type: reference
@@ -193,7 +193,7 @@ domain name, not the historical path) — even if the old module is still import
 ## Anti-Patterns (Feature-Specific)
 
 For the full convention rules and "Do not" list, see AGENTS.md.
-For import and code style examples, see the lemmi-python-conventions skill.
+For import and code style examples, see the python-conventions skill.
 
 These are vertical-slice-specific anti-patterns:
 

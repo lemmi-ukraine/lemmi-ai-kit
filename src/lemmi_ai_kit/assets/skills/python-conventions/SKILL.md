@@ -1,5 +1,5 @@
 ---
-name: lemmi-python-conventions
+name: python-conventions
 user-invocable: false
 metadata:
   type: reference

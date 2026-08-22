@@ -17,7 +17,7 @@ uv run pytest tests/
 
 > TODO(project): document project structure and code conventions here.
 > The shared Lemmi conventions live in the
-> `lemmi-python-conventions`, `lemmi-vertical-slice`, and `lemmi-test-conventions` skills —
+> `python-conventions`, `vertical-slice`, and `test-conventions` skills —
 > keep this section for what is specific to THIS project.
 
 ### Task documents (`tasks/`)
@@ -156,7 +156,7 @@ Uses: research-source-planner (task), research-source-claim (task), parallel-dee
 - Use `str()` on `str, Enum` subclasses to extract values — use `.value` instead (Python 3.11 breaking change).
 - Use `.value` on enum-typed fields in models with `use_enum_values=True` — these fields are already strings at runtime.
 - Use `cast(Any, ...)` to pass objects between layers with different models — perform explicit type conversion instead.
-- Use `if TYPE_CHECKING:` import guards to break an import cycle or type a back-reference — resolve the cycle structurally instead (narrow `Protocol`, neutral module, inverted dependency). See the `lemmi-python-conventions` skill.
+- Use `if TYPE_CHECKING:` import guards to break an import cycle or type a back-reference — resolve the cycle structurally instead (narrow `Protocol`, neutral module, inverted dependency). See the `python-conventions` skill.
 - Use blocking I/O inside async flows.
 - Make real external API calls in tests, or patch concrete clients instead of using protocol-based DI overrides.
 

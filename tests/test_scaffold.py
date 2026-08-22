@@ -40,7 +40,7 @@ def test_claude_md_lists_full_catalog_with_plugin_namespace(
     assert "`/lemmi-ai-kit:kit-setup`" in user_section
     assert "`/lemmi-ai-kit:spec-driven-dev`" in user_section
     assert "`/lemmi-ai-kit:analyze-logs`" in user_section  # extras ship too
-    assert "lemmi-vertical-slice" in auto_section
+    assert "vertical-slice" in auto_section
     assert "plan-critic" in internal_section
     assert "{{" not in text
 
