@@ -53,11 +53,8 @@ placeholders from your actual project:
 | `.ai/learnings.md`, `.ai/ai-changelog.md`, `.ai/improvement-hypotheses.md` | empty intake/log files | project state — never overwritten |
 | `.ai/templates/` | spec templates (requirements/design/tasks) | kit-managed |
 
-Generated sections are wrapped in `<!-- lemmi-ai-kit:begin/end ... -->` markers.
-The files are yours to edit; the markers only exist so
-`/lemmi-ai-kit:kit-setup refresh` can later re-detect and update those blocks —
-per-block diff and approval, manual edits are never silently overwritten. Facts
-that can't be detected stay as honest `TODO(project)` stubs.
+The files are yours to edit. Facts that can't be detected stay as honest
+`TODO(project)` stubs.
 
 ## Support CLI (scripting, not installation)
 
