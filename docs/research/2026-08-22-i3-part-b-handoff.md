@@ -170,12 +170,49 @@ Four items must be true before the flip, and none of them is Part B's README rew
      `_ALLOWLIST` — so none is a defect. But answering only the hygiene question
      leaves the operator believing the name is out when it is not.
 
-   **Standing gap either way:** `test_assets.py` scans `assets_root()`, so every
-   top-level tree added since — `tasks/`, `.specs/`, and now `docs/research/`, which
-   *is* tracked and flip-bound — is unguarded. Either widen the scan to the tracked
-   tree with an explicit rule-teaching allowlist, or state in `CONTRIBUTING.md` that
-   the contract covers shipped assets only. Silence is what let a banned pattern reach
-   a committed path.
+   ~~**Standing gap either way:**~~ **Closed** — `tests/test_publication_hygiene.py`
+   now applies all nine patterns to every tracked file outside `assets/`. So both
+   `tasks/` and `.specs/` fail CI the moment anyone commits them, which is the
+   behaviour we want: the decision can no longer be made silently.
+
+   ### And the string is not the problem — do not treat this as a hygiene question
+
+   A proposal to **allowlist** the occurrences was put forward on the grounds that all
+   of them "discuss the ban", which is the category both tests already exempt. Checked
+   against the files: **it does not hold.** Of 17 occurrences, roughly 10 are
+   substantive references *to* the private project rather than discussions of the rule
+   — paths into it (`lemmi-ai-api/.claude/skills/`), a git command run against it
+   (`git -C ../lemmi-ai-api log …`), its total skill count (43), and the statement that
+   the kit was extracted from it. Allowlisting those would convert a working guard into
+   a rubber stamp.
+
+   **But stripping the string would not make these files safe either, and that is the
+   more important point.** Even with every mention of the name removed,
+   `tasks/I2-TECH-port-upstream-skills.md` still publishes:
+
+   - a **named inventory of a private repository's skills** — 13 upstream-only
+     entries, each with a word count and a dependency count
+   - internal script names (`audit_cleanup_targets.py`, `ai_files_lint.py`)
+   - a product-line attribution: two skills marked *"Non-portable — Lemmi interview
+     product"*
+   - the private repo's divergence profile against this one
+
+   Redacting the name makes that inventory **unattributed, not safe**. A
+   hygiene-contract exemption cannot resolve a disclosure question, and treating it as
+   one would answer the small question while leaving the large one untouched.
+
+   **The pressure to commit has already been removed.** The stated reason to commit
+   these trees was loss risk — four charters and the plan artifacts existing as a
+   single uncommitted copy. A verified byte-for-byte backup now sits outside the
+   working tree, which mitigates loss without publishing anything. So the tension
+   between "commit them for safekeeping" and "do not publish them" dissolves: keep
+   them untracked, and the loss risk is already handled.
+
+   **Recommendation:** do not commit `tasks/` or `.specs/` to this repository. If the
+   planning record should be public, that is a rewrite — not a redaction — and it is a
+   separate decision from I3. Gitignoring both trees would make the accident
+   impossible, but note it may collide with the `.specs/` convention that I2 and I4
+   discuss shipping, so it is not a free change.
 3. **The traffic baseline is a 14-day window.** It must be captured **on** the flip
    date. Nobody owns this.
 4. **The install path.** Reachability clears itself at the flip; the Codex
@@ -200,6 +237,22 @@ Four items must be true before the flip, and none of them is Part B's README rew
    **Not verified:** whether Claude Code resolves two plugins sharing one skills
    directory, and Codex's `source.path: "./"` defect is an independent unknown on
    that path. Test the deprecated-entry shape first — it is the cheapest to falsify.
+
+   **Two traps for whoever implements this, both measured:**
+
+   1. **Fixing the Codex manifest alone turns the suite red.**
+      `test_plugin.py:89` asserts `source["path"] == "./"` — the exact shape §5b says
+      Codex rejects. So the test defends the defect. Correcting the manifest without
+      the test is a manifest edit *plus* a test edit, and someone who does the manifest
+      first will see a failure and may conclude their fix was wrong.
+   2. **The shim would ship untested, and is one cleanup commit from vanishing.** Both
+      marketplace tests look up `entries[_claude_plugin_json()["name"]]` — the plugin's
+      *current* name. After a rename that resolves to the **new** name, so a deprecated
+      old entry is invisible to the suite: nothing asserts it exists. A shim whose whole
+      purpose is absorbing a breaking change must carry its own test — assert the old
+      name is still present and still resolves — or a later tidy-up deletes what every
+      pre-rename install depends on, with CI green. Same defect class as the scan-scope
+      gap above, one layer up: the guard does not look there.
 
    **The pressure runs one way.** If every shim shape fails, this is not a balanced
    choice between accepting breakage and dropping the rename: dropping it to protect
