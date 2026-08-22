@@ -2,7 +2,9 @@
 
 **Written:** 2026-08-22, after Part A landed and its checks were run.
 **Status:** Part A complete. Part B **not started, deliberately.**
-**Branch:** `i3a-contribution-surface`, 4 commits off `main` (`f03ce20`).
+**Branches:** `i3a-contribution-surface` (15 commits off `main`), plus two authorized
+surgical exceptions — `f3-stale-counts` (4, off `i1`) and
+`readme-drop-unbacked-refresh-claim` (1, off `main`).
 
 `initiative-planner` Step 0 on Part A's scope answers **yes / no / no** — more than
 one deliverable, but the work does not outlive the session and no approval gate
@@ -21,19 +23,24 @@ roadmap does not.
 | `b4a8204` | L2 | `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, 3 issue forms + `config.yml`, PR template |
 | `fd6d8fb` | L3 | License-drift test across 3 sources; `pyproject.toml` license + `license-files` |
 | `0f82e5f` | S1 | `docs/research/` — D9 reachability, D10 anchor terms, D11 dogfood verdict |
+| later | — | this handoff; two peer-review rounds; the tracked-tree hygiene guard; the review-criteria and dead-field fixes; two unresolvable links corrected |
 
-**Definition of done, I3a — all five verified as commands:**
+**Definition of done, I3a — three pass, two cannot be signed while the repo is private.**
+Corrected 2026-08-22; an earlier version of this table claimed all five, which overstated
+4 and 5. See [the completion review](2026-08-22-i3a-completion-review.md).
 
 | # | Check | Result |
 |---|---|---|
-| 1 | LICENSE matches both manifests, verified by a test | **pass**, widened to 3 sources; test verified by deliberate breakage |
-| 2 | CONTRIBUTING / CoC / SECURITY exist, each naming a real contact and process | **pass** — `support@lemmi.io` |
-| 3 | 3 issue forms + PR template | **pass** — 4 forms; all validated against the GitHub issue-forms schema |
-| 4 | Community-standards checklist complete | **pass** by file presence (GitHub's own checklist is not readable while private) |
-| 5 | Clone → four checks passing using only CONTRIBUTING.md | **pass** — executed literally in a fresh clone at `fd6d8fb` |
+| 1 | LICENSE matches both manifests, verified by a test | **PASS** — widened to 3 sources; test verified by deliberate breakage |
+| 2 | CONTRIBUTING / CoC / SECURITY exist, each naming a real contact and process | **PASS** — `support@lemmi.io`, domain confirmed to accept mail (full Workspace MX + SPF); the alias itself is unverified |
+| 3 | 3 issue forms + PR template | **PASS** — 4 forms, all validated against the GitHub issue-forms schema |
+| 4 | Community-standards checklist complete | **UNVERIFIED — not a pass.** Every required file is present, but that is *not this check*: GitHub's checklist lives in Insights → Community Standards, which needs the web UI and is unreadable on a private repo. Signable only at the flip. |
+| 5 | Clone → four checks passing using only `CONTRIBUTING.md` | **PARTIAL.** Content verified — a clone at `fd6d8fb` ran `uv sync --dev` and all four checks clean. But CONTRIBUTING's *literal* first command (`git clone https://github.com/lemmi-ukraine/lemmi-ai-kit`) fails for an outsider, so a local-path clone was substituted. The instruction is correct and not yet executable by its audience. Resolves at the flip, no code change. |
 
 Full CI gate green at every commit: `ruff check`, `ruff format --check`,
-`basedpyright` (strict, 0 errors), `pytest` (33 passed).
+`basedpyright` (strict, 0 errors), `pytest` — **37 on this branch, and 39 on the
+merged result of all four branches**, which was verified rather than assumed. See the
+completion review.
 
 ## Stated deviations — not passes
 
