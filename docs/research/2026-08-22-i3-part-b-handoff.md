@@ -204,3 +204,19 @@ Two coherent options, and this is an operator call:
 
 Flagged by three independent sessions. It should be decided before the date, not
 discovered after.
+
+**Delaying is not uniformly safer — the pre-flip items do not all move the same way.**
+Worth knowing before the date is chosen, because "hold the flip" reads like it relaxes
+every blocker and it does not:
+
+| Item | Sensitivity to a later flip |
+|---|---|
+| Stale counts (§1) | **Neutral.** They break when **I1 merges**, not when the repo flips. The date only decides whether they break in public. |
+| Scan-scope gap (§2) | **Buys time on the exposure**, but the gap itself outlives any date — `docs/research/` stays unguarded either way. |
+| Traffic baseline (§3) | **Neutral**, but the owner and the 14-day window move with the date. Re-anchor, do not forget. |
+| Marketplace install (§4) | **INVERTED — a delay costs you.** A private repo is *what blocks* `plugin marketplace add`. Going public is the fix. This is a blocker on *signing I4's Gate C*, not a blocker on flipping, and holding keeps it open longer. |
+| `README.md:56` refresh promise | **Buys real time.** Move the flip past I3b and build-or-retract stops being an emergency and becomes I3b's ordinary scope. |
+| IDE-path references | **Independent** of the date entirely. |
+
+Net: a later flip buys time on the count fix's public exposure, the scan gap, and the
+refresh promise — and costs time on the one item that only publication can resolve.
