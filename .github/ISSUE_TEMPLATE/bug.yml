@@ -1,0 +1,79 @@
+name: Bug report
+description: A skill misbehaves, kit-setup scaffolds something wrong, or the CLI errors
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Not for security issues.** If this is a vulnerability, close this form and
+        follow [SECURITY.md](../blob/main/SECURITY.md) instead.
+
+  - type: input
+    id: skill
+    attributes:
+      label: Which skill, or which command?
+      description: The skill name, or the CLI command you ran. "Not sure" is a valid answer.
+      placeholder: kit-setup / commit-message / uv run python -m lemmi_ai_kit scaffold .
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: |
+        What you ran, and what came back. Paste the actual output rather than
+        describing it — for a skill, the agent's transcript of the step that went
+        wrong is the most useful thing you can include.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+      description: |
+        If the skill's own SKILL.md says something different from what happened,
+        quote that line. A skill contradicting its own documentation is a much
+        sharper bug report than a skill contradicting an expectation.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: host
+    attributes:
+      label: Where were you running it?
+      options:
+        - Claude Code
+        - Codex
+        - Neither — the Python CLI directly
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: Portability bugs are the most common kind here, so this matters.
+      placeholder: Windows 11 / macOS 15 / Ubuntu 24.04
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Kit version or commit
+      description: From the plugin listing, or `git rev-parse --short HEAD` for a clone.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for this
+          required: false
+        - label: This is not a security issue
+          required: true
