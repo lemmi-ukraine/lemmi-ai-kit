@@ -1,45 +1,72 @@
-"""Nothing tracked may name the private source project, except where it teaches the rule.
+"""The hygiene contract, applied to every tracked file — not just the asset tree.
 
-`test_assets.py` enforces the same ban, but only under `assets_root()`. Every
-top-level tree added since — `docs/`, the community files, and anything future —
-was unguarded, so a reference could reach a committed path without anything
-checking it. That is not hypothetical: the Part B handoff's own mention of the
-source project is exempt on the merits, but nothing verified it. It passed because
-the scan never looked.
+`test_assets.py` rejects nine patterns, but all five of its scans start at
+`assets_root()`. Every top-level tree added since — `docs/`, the community files,
+anything future — was unguarded, so a banned pattern could reach a committed path
+with nothing checking it. The Part B handoff's own mention of the source project is
+exempt on the merits, but nothing verified it: it passed because the scan never
+looked.
 
-Scope is deliberately **tracked files only**. That is the set that becomes public,
-and it keeps untracked local scratch (planning notes, scratch dirs) out of scope
-rather than failing a developer's run for files they never intend to commit. A
-tracked file is a published file, and this test is the gate.
+Two deliberate design choices:
+
+**The patterns are imported, not restated.** Duplicating the nine regexes here would
+let the two contracts drift, and a pattern guarded inside `assets/` but not outside
+is exactly the gap this file exists to close. One definition, two scopes.
+
+**Scope is tracked files only.** That is the set which becomes public, and it keeps
+untracked local scratch out of scope rather than failing a developer's run for files
+they never intend to commit. A tracked file is a published file, and this is the gate.
 """
 
-import re
 import subprocess
 from pathlib import Path
 
 import pytest
+from test_assets import _FORBIDDEN  # pyright: ignore[reportPrivateUsage]
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# The asset tree has its own, stricter contract in test_assets.py.
+# The asset tree has its own scan, with its own allowlist.
 _ALREADY_COVERED = "src/lemmi_ai_kit/assets/"
 
-_SOURCE_PROJECT = re.compile(r"lemmi-ai-api")
-
-# Files permitted to name it because they teach, implement, or document the rule
-# that bans it — the same principle as test_assets.py's _ALLOWLIST. Keep this
-# minimal: every entry is a file that would be wrong to rewrite.
-_TEACHES_THE_RULE: frozenset[str] = frozenset(
-    {
-        "tests/test_assets.py",  # defines the forbidden pattern
-        "tests/test_publication_hygiene.py",  # this file
-        "CONTRIBUTING.md",  # explains the ban to contributors
-        "docs/research/2026-08-22-i3-part-b-handoff.md",  # documents this finding
-    }
-)
+# Files permitted to carry a pattern because they teach, implement, or document the
+# rule that bans it — same principle and same shape as test_assets.py's _ALLOWLIST.
+# Per-pattern, never blanket: a wholesale exemption hides the next real violation.
+_ALLOWLIST: dict[str, tuple[str, ...]] = {
+    # Defines the patterns, so its own source necessarily contains them. Only six of
+    # the nine self-match: three regexes (/home/\w and the two dated citations) use
+    # metacharacters where a literal would be, so they do not match their own source.
+    "tests/test_assets.py": (
+        "absolute macOS home path",
+        "machine-specific host rule",
+        "machine-specific console workaround",
+        "source-project reference",
+        "source-project backup reference",
+        # `authorization:\s` and a Windows-normalization comment, per its own note.
+        "Windows drive-letter path",
+    ),
+    # Explains the contract to contributors, so it must quote what it bans.
+    "CONTRIBUTING.md": (
+        "absolute macOS home path",
+        "machine-specific host rule",
+        "machine-specific console workaround",
+        "source-project reference",
+        "source-project backup reference",
+    ),
+    # The review checklist names the path shapes a reviewer rejects.
+    ".github/PULL_REQUEST_TEMPLATE.md": ("absolute macOS home path",),
+    # Documents the scan-scope finding that produced this test.
+    "docs/research/2026-08-22-i3-part-b-handoff.md": ("source-project reference",),
+    # A `"…LICENSE:\n"` assertion message: a literal backslash-n after a colon trips
+    # the drive-letter pattern. Same false-positive class test_assets.py allowlists
+    # for extract_sessions.py's redaction regexes.
+    "tests/test_license.py": ("Windows drive-letter path",),
+    # This file, for the same reason — it quotes that message in a comment.
+    "tests/test_publication_hygiene.py": ("Windows drive-letter path",),
+}
 
 _TEXT_SUFFIXES = frozenset(
-    {".md", ".py", ".toml", ".txt", ".json", ".yaml", ".yml", ".cfg", ".ini", ""}
+    {".md", ".py", ".toml", ".txt", ".json", ".yaml", ".yml", ".cfg", ".ini"}
 )
 
 
@@ -54,17 +81,18 @@ def _tracked_text_files() -> list[str]:
         )
     except OSError:  # pragma: no cover - git absent
         pytest.skip("git is not available, so the tracked set cannot be determined")
+        raise
     if result.returncode != 0:  # pragma: no cover - not a work tree
         pytest.skip("not a git work tree, so the tracked set cannot be determined")
+        raise
 
-    paths: list[str] = []
-    for raw in result.stdout.decode("utf-8").split("\0"):
-        if not raw or raw.startswith(_ALREADY_COVERED):
-            continue
-        if Path(raw).suffix.lower() not in _TEXT_SUFFIXES:
-            continue
-        paths.append(raw)
-    return sorted(paths)
+    return sorted(
+        raw
+        for raw in result.stdout.decode("utf-8").split("\0")
+        if raw
+        and not raw.startswith(_ALREADY_COVERED)
+        and Path(raw).suffix.lower() in _TEXT_SUFFIXES
+    )
 
 
 def test_the_tracked_set_is_not_empty() -> None:
@@ -76,37 +104,52 @@ def test_the_tracked_set_is_not_empty() -> None:
     )
 
 
-def test_no_tracked_file_names_the_private_source_project() -> None:
+def test_no_tracked_file_carries_a_forbidden_pattern() -> None:
     violations: list[str] = []
     for relative in _tracked_text_files():
-        if relative in _TEACHES_THE_RULE:
-            continue
-        path = _REPO_ROOT / relative
+        allowed = _ALLOWLIST.get(relative, ())
         try:
-            text = path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
+            text = (_REPO_ROOT / relative).read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError) as exc:
+            # Never skip silently. An unreadable tracked file is precisely the
+            # "passed because the scan never looked" failure this test exists for.
+            violations.append(
+                f"{relative}: could not be scanned ({type(exc).__name__}) — "
+                "add it to _TEXT_SUFFIXES' exclusions or fix its encoding"
+            )
             continue
-        for match in _SOURCE_PROJECT.finditer(text):
-            line = text.count("\n", 0, match.start()) + 1
-            violations.append(f"{relative}:{line}: names the private source project")
+        for pattern, why in _FORBIDDEN:
+            if why in allowed:
+                continue
+            for match in pattern.finditer(text):
+                line = text.count("\n", 0, match.start()) + 1
+                violations.append(f"{relative}:{line}: {why} ({match.group(0)!r})")
 
     assert not violations, (
-        "tracked files naming the private source project:\n"
+        "tracked files carrying a forbidden pattern:\n"
         + "\n".join(violations)
-        + "\n\nIf the file exists to teach or document this rule, add it to "
-        "_TEACHES_THE_RULE with a comment saying why. Otherwise remove the reference — "
-        "a tracked file is a published file."
+        + "\n\nIf the file exists to teach or document the rule, add that specific "
+        "reason to its _ALLOWLIST entry with a comment saying why. Otherwise remove "
+        "the reference — a tracked file is a published file."
     )
 
 
 def test_the_allowlist_has_no_stale_entries() -> None:
-    """An allowlist entry that no longer needs to be there hides a future violation."""
+    """A dead allowlist entry silently exempts the next real violation."""
+    by_reason = {why: pattern for pattern, why in _FORBIDDEN}
     stale: list[str] = []
-    for relative in sorted(_TEACHES_THE_RULE):
+    for relative, reasons in sorted(_ALLOWLIST.items()):
         path = _REPO_ROOT / relative
         if not path.is_file():
             stale.append(f"{relative}: allowlisted but does not exist")
             continue
-        if not _SOURCE_PROJECT.search(path.read_text(encoding="utf-8")):
-            stale.append(f"{relative}: allowlisted but no longer names it")
-    assert not stale, "stale _TEACHES_THE_RULE entries:\n" + "\n".join(stale)
+        text = path.read_text(encoding="utf-8")
+        for reason in reasons:
+            pattern = by_reason.get(reason)
+            if pattern is None:
+                stale.append(f"{relative}: allowlists unknown reason {reason!r}")
+            elif not pattern.search(text):
+                stale.append(
+                    f"{relative}: allowlists {reason!r} but no longer matches it"
+                )
+    assert not stale, "stale _ALLOWLIST entries:\n" + "\n".join(stale)

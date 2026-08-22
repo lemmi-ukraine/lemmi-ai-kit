@@ -14,7 +14,7 @@ Run `uv run ruff check . && uv run ruff format --check . && uv run basedpyright 
 before ticking these. CI runs the same four on every PR regardless of base branch.
 
 - [ ] All four checks pass locally
-- [ ] No absolute paths — no `/Users/…`, `/home/…`, or drive-letter paths anywhere under `src/lemmi_ai_kit/assets/`
+- [ ] No absolute paths — no `/Users/…`, `/home/…`, or drive-letter paths in **any** file you touched, not only under `src/lemmi_ai_kit/assets/`
 - [ ] No reference to a private source project or to dated history that does not ship
 
 **If this adds or renames a skill:**
