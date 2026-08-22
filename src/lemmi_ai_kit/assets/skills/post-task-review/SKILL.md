@@ -31,7 +31,7 @@ and convention compliance. Steps 7–8 are documentation and learnings extension
 
 1. **High-Level Conceptual Review** — Does the solution align with requirements? Any design flaws?
 2. **Detailed File-by-File Review** — Check every function for correctness, edge cases, resource cleanup
-3. **Project Conventions Review** — Imports, one-class-per-file, feature structure, logging, exceptions (see AGENTS.md § Conventions). **Prompt template check**: if any files under `prompts/` were modified, verify that `/review-prompts` was run during the task. If not, flag this as a convention violation and **ask the user** to run `/review-prompts` separately after this review completes (do NOT invoke it from within this workflow — that would violate the workflow nesting rule).
+3. **Project Conventions Review** — Imports, one-class-per-file, feature structure, logging, exceptions (see AGENTS.md § Conventions).
 4. **Self-Challenge** — Ask adversarial questions: "What could go wrong?", "What if input is empty?"
 5. **Document Findings and Implement Fixes** — Fix each issue found with clear reasoning
 6. **Run Linting and Diagnostics** — `ruff check --fix` on all modified files, `read_lints` on all modified files

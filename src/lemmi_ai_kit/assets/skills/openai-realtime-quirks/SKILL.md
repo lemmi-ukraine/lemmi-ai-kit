@@ -105,7 +105,7 @@ transcript that fires `_execute_confirmed_interrupt()` after speech already ende
   (only conversation history survives). A per-response template that drives content *selection*
   (e.g. "ask the next question on a different competency") must be self-contained against history or
   inject the needed state. Templates that only *transform existing content* (e.g. rephrase the
-  previous question) are safe. (See prompt-engineering-conventions §17.)
+  previous question) are safe.
 
 ## 7. Pacing: the model has no clock
 
@@ -113,8 +113,7 @@ The Realtime model receives **no runtime time signal** — elapsed/remaining min
 injected. Every wall-clock instruction ("~35 minutes", "X minutes left") is inert. **Pace by
 coverage and question/turn count**, not time. Avoid "top N questions" caps that silently bound
 length. Gate any closing/wrap-up protocol on explicit coverage + minimum-count conditions, placed at
-BOTH primacy and recency (a lone middle-of-prompt number is unreliable — prompt-engineering-conventions
-§4/§6).
+BOTH primacy and recency (a lone middle-of-prompt number is unreliable).
 
 ## 8. Benign errors
 

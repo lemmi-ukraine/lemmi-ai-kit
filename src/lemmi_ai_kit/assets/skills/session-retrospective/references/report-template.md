@@ -41,7 +41,7 @@ sessions is the highest-value finding.}
 
 | Friction | Occurrences | Evidence | Likely cause |
 |----------|-------------|----------|--------------|
-| Blocked skill invocation | plan-critic, review-prompts, branch-switch, commit-message | stats.skillsBlocked | Agent tried to call disable-model-invocation skills directly |
+| Blocked skill invocation | plan-critic, branch-switch, commit-message | stats.skillsBlocked | Agent tried to call disable-model-invocation skills directly |
 
 ### Repetitive Questions
 {Same AskUserQuestion theme across ≥2 sessions → a missing default/config/rule.}
