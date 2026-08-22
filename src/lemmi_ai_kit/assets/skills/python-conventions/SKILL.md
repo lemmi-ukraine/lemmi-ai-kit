@@ -4,7 +4,7 @@ user-invocable: false
 metadata:
   type: reference
 description: |
-  Enforce Python coding conventions for the Lemmi backend. Covers one-class-per-file,
+  Enforce Python coding conventions for a Python backend. Covers one-class-per-file,
   no local imports, no magic strings, no anonymous types, cognitive complexity limits,
   typed models over dicts, constants extraction, and feature-scoped dependencies.
 
@@ -12,7 +12,7 @@ description: |
   Python code quality, or troubleshooting convention violations in PR reviews.
 ---
 
-# Python Convention Examples — Lemmi Backend
+# Python Convention Examples — Python Backend
 
 This skill provides **code examples** for the conventions defined in AGENTS.md.
 For the rules themselves, see AGENTS.md § Conventions.

@@ -11,7 +11,7 @@ description: |
   features, reviewing feature structure, or troubleshooting circular imports between features.
 ---
 
-# Vertical Slice Architecture - Lemmi Backend
+# Vertical Slice Architecture - Python Backend
 
 ## When This Skill Activates
 

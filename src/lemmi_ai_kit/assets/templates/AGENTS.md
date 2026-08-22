@@ -16,7 +16,7 @@ uv run pytest tests/
 ## Conventions
 
 > TODO(project): document project structure and code conventions here.
-> The shared Lemmi conventions live in the
+> The shared conventions live in the
 > `python-conventions`, `vertical-slice`, and `test-conventions` skills —
 > keep this section for what is specific to THIS project.
 
