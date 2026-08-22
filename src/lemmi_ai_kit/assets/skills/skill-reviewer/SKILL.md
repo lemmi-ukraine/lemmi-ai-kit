@@ -290,10 +290,10 @@ Map the skill to the project's AI development lifecycle:
 │                                                               │
 │  1. PLANNING          2. IMPLEMENTATION     3. COMPLETION     │
 │  ┌──────────────┐    ┌──────────────────┐  ┌──────────────┐ │
-│  │ spec-driven   │    │ lemmi-python-    │  │ post-task    │ │
+│  │ spec-driven   │    │ python-          │  │ post-task    │ │
 │  │   -dev        │    │  conventions     │  │  -review     │ │
-│  │  (workflow)   │    │ lemmi-vertical-  │  │ (workflow)   │ │
-│  │    ↓          │    │  slice           │  │   ↓          │ │
+│  │  (workflow)   │    │ vertical-slice   │  │ (workflow)   │ │
+│  │    ↓          │    │                  │  │   ↓          │ │
 │  │ plan-critic   │    │  (reference)     │  │ task-        │ │
 │  │  (review)     │    │                  │  │  learnings   │ │
 │  └──────────────┘    └──────────────────┘  │ (task)       │ │
