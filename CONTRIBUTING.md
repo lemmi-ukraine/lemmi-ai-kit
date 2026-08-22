@@ -95,11 +95,16 @@ starts at zero.
 
 **Scope, stated precisely.** The four checks above cover
 `src/lemmi_ai_kit/assets/` — the tree that ships to your project. A **second** check
-in `tests/test_publication_hygiene.py` covers every *tracked* file outside that tree
-(docs, community files, config) for one thing only: a reference to the private source
-project this kit was extracted from. It has its own allowlist, for the handful of
-files that exist to document the rule. So a docs-only PR can still go red, and the
-failure message tells you which of the two contracts you tripped.
+in `tests/test_publication_hygiene.py` applies the same nine patterns to every
+*tracked* file outside that tree: docs, community files, config, this file. It
+imports the patterns from `test_assets.py` rather than restating them, so the two
+scans cannot drift apart, and it has its own small allowlist for documents that exist
+to teach the rule.
+
+So **a docs-only PR can go red**, and the message names which contract you tripped.
+The rule of thumb: a tracked file is a published file, so an absolute path or a
+private-project reference is a problem wherever you put it — not only under
+`assets/`.
 
 ## Adding a skill
 
@@ -111,7 +116,12 @@ failure message tells you which of the two contracts you tripped.
    `profile`, `invocation` and `summary`. All four are validated.
    - `profile` must be one of the values in `PROFILES` in
      [`src/lemmi_ai_kit/manifest.py`](src/lemmi_ai_kit/manifest.py) — a closed
-     tuple. Read it rather than guessing; the set changes.
+     tuple. Read it rather than guessing; the set changes. It is validated, so a
+     wrong value fails the suite — but be aware it currently has **no runtime
+     effect**: `for_profiles()` has no production call site and the plugin
+     packaging ships every skill regardless of profile. Treat it as a label that
+     is checked for consistency, not a switch. A planned pack split will give it
+     teeth.
    - `invocation` is `user` (a slash command), `auto` (loaded as background
      reference) or `internal` (called by another skill, not by a person).
 3. Run `uv run pytest`. `load_manifest()` enforces a bijection between manifest
@@ -136,6 +146,14 @@ few requests is what the authoring path gets designed against.
 - **What review looks for**, in this order: does it work in a fresh repo on
   another OS; does the skill's own description match what it actually does; is it
   scoped to one job; does it duplicate a skill that already exists.
+- **Are the commands it tells an agent to run safe?** This is a first-class review
+  criterion, not a footnote, because a skill is instructions an agent executes and
+  there is no sandbox between it and your working tree — see
+  [SECURITY.md](SECURITY.md#threat-model--read-this-part). Review reads every
+  command a skill instructs, every script it ships, and every path it writes to,
+  and asks what a careless reading of the instruction would do. Destructive
+  commands, network calls the skill does not document, and writes outside a
+  declared target are all rejected regardless of how good the rest is.
 - **Prose gets read closely.** In a skills pack the prose *is* the product, so
   expect line-level comments on wording. That is not nitpicking — a skill is
   instructions a model follows literally.
