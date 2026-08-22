@@ -16,8 +16,8 @@ uv run pytest tests/
 ## Conventions
 
 > TODO(project): document project structure and code conventions here.
-> The shared Lemmi conventions live in the
-> `lemmi-python-conventions`, `lemmi-vertical-slice`, and `lemmi-test-conventions` skills —
+> The shared conventions live in the
+> `python-conventions`, `vertical-slice`, and `test-conventions` skills —
 > keep this section for what is specific to THIS project.
 
 ### Task documents (`tasks/`)
@@ -119,12 +119,12 @@ Uses: plan-critic (review) — **universal, not limited to spec-driven-dev**
 - If any Blockers or Questions cannot be resolved without user input, surface them prominently at the top of the presented document — do not suppress them.
 
 ### Orchestration and delegation
-Uses: fable-orchestrate (workflow), agent-delegate (task)
-- For large decomposable tasks, run `/fable-orchestrate`: the main model plans and judges;
+Uses: orchestrate (workflow), agent-delegate (task)
+- For large decomposable tasks, run `/orchestrate`: the main model plans and judges;
   scoped subtasks go to cheaper native subagents (Opus for reasoning, Sonnet for mechanical
   work) and external CLI peers (codex, cursor-agent, grok) in parallel.
 - Every delegation uses the brief contract (one concern, inlined context, self-checkable
-  definition of done, short report) — see `references/brief-template.md` in the `fable-orchestrate` skill.
+  definition of done, short report) — see `references/brief-template.md` in the `orchestrate` skill.
 - A worker's summary is a claim: verify the actual output against the definition of done before
   merging. For high-stakes decisions, task independent workers in parallel without showing them
   each other's answers, then synthesize.
@@ -149,14 +149,13 @@ Uses: research-source-planner (task), research-source-claim (task), parallel-dee
 - `Read` a conventional or assumed path before confirming it exists — `Glob`/verify first.
 - Verify a structured-config value (YAML frontmatter key, JSON field, enum membership) with a whole-file substring grep — parse the structure or scope the match to the structural region instead. A content grep also matches files that merely *document* the key.
 - Start implementing bug fixes without presenting a brief plan first — even for "quick" fixes. If the fix touches more than 1 file or involves data flow changes, write a plan and get approval before coding.
-- Modify AI prompt templates without running `/review-prompts` or explicitly getting user approval to skip the review.
 - Treat task docs as runtime configuration, or let tasks drift from current implementation without updating status.
 
 ### Python rules (Python projects)
 - Use `str()` on `str, Enum` subclasses to extract values — use `.value` instead (Python 3.11 breaking change).
 - Use `.value` on enum-typed fields in models with `use_enum_values=True` — these fields are already strings at runtime.
 - Use `cast(Any, ...)` to pass objects between layers with different models — perform explicit type conversion instead.
-- Use `if TYPE_CHECKING:` import guards to break an import cycle or type a back-reference — resolve the cycle structurally instead (narrow `Protocol`, neutral module, inverted dependency). See the `lemmi-python-conventions` skill.
+- Use `if TYPE_CHECKING:` import guards to break an import cycle or type a back-reference — resolve the cycle structurally instead (narrow `Protocol`, neutral module, inverted dependency). See the `python-conventions` skill.
 - Use blocking I/O inside async flows.
 - Make real external API calls in tests, or patch concrete clients instead of using protocol-based DI overrides.
 

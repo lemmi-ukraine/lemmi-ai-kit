@@ -172,5 +172,4 @@ value as a learning resource.
 - Do NOT backfill historical entries — start tracking from the date the changelog was created
 - Do NOT log changes to product prompt content (e.g., files under `prompts/**`) — those are AI *product*
   content, not AI *development* infrastructure. A prompt change's record is its `.specs/<task>/`
-  research + spec and the `/review-prompts` pass; it does NOT belong in `.ai/ai-changelog.md` or
-  `.ai/improvement-hypotheses.md`.
+  research + spec; it does NOT belong in `.ai/ai-changelog.md` or `.ai/improvement-hypotheses.md`.

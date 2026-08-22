@@ -1,5 +1,5 @@
 ---
-name: lemmi-test-conventions
+name: test-conventions
 description: >
   Testing conventions for the Python backend. Integration-first philosophy,
   DI-based mocking, timeout decorators, base class rules, factory usage,

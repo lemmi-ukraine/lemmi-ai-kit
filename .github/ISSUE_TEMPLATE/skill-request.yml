@@ -1,0 +1,83 @@
+name: Skill request
+description: Propose a skill the kit does not have
+labels: ["skill-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A skill is a workflow an agent follows. The most useful requests describe a
+        task you do repeatedly and have to re-explain each time.
+
+  - type: input
+    id: name
+    attributes:
+      label: Proposed skill name
+      description: Lowercase, hyphenated, and a verb or a noun phrase — matching the existing catalog.
+      placeholder: review-migrations
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What repeated task would this handle?
+      description: |
+        Describe the work, not the solution. What do you do today, how often, and
+        what goes wrong when it is done from memory?
+    validations:
+      required: true
+
+  - type: textarea
+    id: trigger
+    attributes:
+      label: When should it activate?
+      description: |
+        What would a person say, or what state would the repo be in, that means this
+        skill should run? A skill with no clear trigger never gets invoked.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: invocation
+    attributes:
+      label: How should it be invoked?
+      description: See CONTRIBUTING.md for what these mean.
+      options:
+        - user — a slash command a person runs
+        - auto — background reference the agent loads when relevant
+        - internal — called by another skill, never by a person
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Is this language- or domain-specific?
+      description: |
+        Language-specific skills are real and welcome, but they belong in a language
+        pack rather than the core set.
+      options:
+        - Language-agnostic — works in any repo
+        - Language-specific
+        - Domain-specific
+    validations:
+      required: true
+
+  - type: textarea
+    id: existing
+    attributes:
+      label: Which existing skill is closest, and why is it not enough?
+      description: |
+        Run `uv run python -m lemmi_ai_kit list` or browse the plugin catalog. If
+        nothing is close, say so — that is a useful signal too.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: offer
+    attributes:
+      label: Would you write it?
+      options:
+        - label: I would be willing to open the PR myself
+          required: false

@@ -37,8 +37,8 @@ No task steps — just knowledge, patterns, and rules.
 - Content is conventions, patterns, domain expertise
 
 **Examples in this project:**
-- `lemmi-python-conventions` — coding rules
-- `lemmi-vertical-slice` — architecture patterns
+- `python-conventions` — coding rules
+- `vertical-slice` — architecture patterns
 
 **When to create a Reference Skill:**
 - Knowledge applies across many different tasks
@@ -106,7 +106,7 @@ Manages state, approval gates, and phase transitions.
 
 ### Phase 2: Implementation
 **Purpose:** Write code following project conventions.
-**Skills involved:** lemmi-python-conventions (reference), lemmi-vertical-slice (reference)
+**Skills involved:** python-conventions (reference), vertical-slice (reference)
 **Artifacts produced:** Source code, migrations, tests
 
 ### Phase 3: Completion

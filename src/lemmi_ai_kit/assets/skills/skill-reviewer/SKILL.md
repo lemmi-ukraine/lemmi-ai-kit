@@ -276,7 +276,7 @@ Classify the skill into one of these types:
 | Type | Definition | Examples |
 |------|-----------|---------|
 | **Task Skill** | Performs a specific, bounded action with clear input/output | commit-message, task-learnings |
-| **Reference Skill** | Provides background knowledge Claude applies contextually | lemmi-python-conventions, lemmi-vertical-slice |
+| **Reference Skill** | Provides background knowledge Claude applies contextually | python-conventions, vertical-slice |
 | **Review Skill** | Analyzes artifacts and produces findings | plan-critic, post-task-review |
 | **Workflow Skill** | Orchestrates other skills in a pipeline with state management | spec-driven-dev |
 
@@ -290,10 +290,10 @@ Map the skill to the project's AI development lifecycle:
 │                                                               │
 │  1. PLANNING          2. IMPLEMENTATION     3. COMPLETION     │
 │  ┌──────────────┐    ┌──────────────────┐  ┌──────────────┐ │
-│  │ spec-driven   │    │ lemmi-python-    │  │ post-task    │ │
+│  │ spec-driven   │    │ python-          │  │ post-task    │ │
 │  │   -dev        │    │  conventions     │  │  -review     │ │
-│  │  (workflow)   │    │ lemmi-vertical-  │  │ (workflow)   │ │
-│  │    ↓          │    │  slice           │  │   ↓          │ │
+│  │  (workflow)   │    │ vertical-slice   │  │ (workflow)   │ │
+│  │    ↓          │    │                  │  │   ↓          │ │
 │  │ plan-critic   │    │  (reference)     │  │ task-        │ │
 │  │  (review)     │    │                  │  │  learnings   │ │
 │  └──────────────┘    └──────────────────┘  │ (task)       │ │

@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "Lemmi AI Kit",
     "shortDescription": "Shared AI workflow: skills + project seeding",
-    "longDescription": "Lemmi's shared AI configuration as a Codex plugin: 30+ skills for spec-driven development, post-task review, the learnings loop, orchestration, research, and review — plus kit-setup to seed project-owned, editable AGENTS.md/CLAUDE.md/.ai files from your existing project.",
+    "longDescription": "Lemmi's shared AI configuration as a Codex plugin: skills for spec-driven development, post-task review, the learnings loop, orchestration, research, and review — plus kit-setup to seed project-owned, editable AGENTS.md/CLAUDE.md/.ai files from your existing project.",
     "developerName": "lemmi-ukraine",
     "category": "Developer Tools",
     "capabilities": ["Interactive", "Write"],

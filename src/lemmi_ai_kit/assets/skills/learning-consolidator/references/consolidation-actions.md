@@ -18,8 +18,8 @@ Add the entry's knowledge as a convention or anti-pattern rule in project config
 |-------------------|-----------------|
 | Something to never do | `AGENTS.md` → "Do not" section |
 | How to structure code | `AGENTS.md` → relevant Conventions subsection |
-| A Python-specific pattern with code example | `lemmi-python-conventions` skill |
-| An architecture pattern with directory structure | `lemmi-vertical-slice` skill |
+| A Python-specific pattern with code example | `python-conventions` skill |
+| An architecture pattern with directory structure | `vertical-slice` skill |
 | A testing convention | `AGENTS.md` → Testing subsection |
 | An external API behavior to remember | `AGENTS.md` → relevant Backend subsection |
 | A prompt engineering principle | Evaluate for `PROMOTE_TO_SKILL` instead |

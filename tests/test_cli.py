@@ -13,7 +13,7 @@ def test_list_prints_full_catalog(capsys: pytest.CaptureFixture[str]) -> None:
     assert "commit-message" in out
     assert "analyze-logs" in out
     assert "kit-setup" in out
-    assert "33 skill(s)" in out
+    assert "29 skill(s)" in out
 
 
 def test_scaffold_and_rerun_roundtrip(

@@ -213,7 +213,7 @@ For each approved promotion, execute the action:
 1. Identify the correct target section in `AGENTS.md` (Conventions, "Do not", or specific subsection).
 2. Draft the rule text — concise, imperative, consistent with surrounding style.
 3. Add the rule to `AGENTS.md` at the identified location.
-4. If the rule also needs a code example, check if `lemmi-python-conventions` or `lemmi-vertical-slice` skills cover it. Add an example there only if the pattern is non-obvious.
+4. If the rule also needs a code example, check if `python-conventions` or `vertical-slice` skills cover it. Add an example there only if the pattern is non-obvious.
 5. **Cross-reference update** — Check [references/cross-reference-targets.md](references/cross-reference-targets.md) for files that must be updated when a rule is added to the target section. Update each one.
 
 #### UPDATE_SKILL

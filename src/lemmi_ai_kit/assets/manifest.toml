@@ -1,5 +1,5 @@
 # Skills shipped by lemmi-ai-kit.
-# profile: core | skill-authoring | prompts | research | python | extras
+# profile: core | skill-authoring | research | python | extras
 # invocation: user (slash command) | auto (background reference) | internal (pipeline skill)
 
 [[skills]]
@@ -111,30 +111,6 @@ invocation = "internal"
 summary = "Verify skill content quality against its research brief"
 
 [[skills]]
-name = "prompt-engineering-conventions"
-profile = "prompts"
-invocation = "auto"
-summary = "Prompt authoring conventions (role design, few-shot, anchoring, safety nets)"
-
-[[skills]]
-name = "review-prompts"
-profile = "prompts"
-invocation = "user"
-summary = "Comprehensive prompt review from engineering and domain-expert perspectives"
-
-[[skills]]
-name = "prompt-eng-reviewer"
-profile = "prompts"
-invocation = "internal"
-summary = "Prompt engineering analysis (structure, format, parameters)"
-
-[[skills]]
-name = "prompt-domain-reviewer"
-profile = "prompts"
-invocation = "internal"
-summary = "Domain expertise analysis of prompts (methodology, calibration, enrichment)"
-
-[[skills]]
 name = "research-source-planner"
 profile = "research"
 invocation = "user"
@@ -153,7 +129,7 @@ invocation = "user"
 summary = "One-command parallel deep research with disjoint source ownership and a cited report"
 
 [[skills]]
-name = "fable-orchestrate"
+name = "orchestrate"
 profile = "orchestration"
 invocation = "user"
 summary = "Orchestrator mode: decompose, delegate to native/external workers (codex, cursor-agent, grok), verify, synthesize"
@@ -171,19 +147,19 @@ invocation = "user"
 summary = "DoorDash-style three-stage review: cheap lead scout, strong deep reviewers, adversarial disprove-it pass (fable or opus combo)"
 
 [[skills]]
-name = "lemmi-python-conventions"
+name = "python-conventions"
 profile = "python"
 invocation = "auto"
 summary = "Python coding conventions (one class per file, typed models, DI at boundaries)"
 
 [[skills]]
-name = "lemmi-vertical-slice"
+name = "vertical-slice"
 profile = "python"
 invocation = "auto"
 summary = "Vertical slice architecture patterns for Python backend features"
 
 [[skills]]
-name = "lemmi-test-conventions"
+name = "test-conventions"
 profile = "python"
 invocation = "auto"
 summary = "Testing conventions: integration-first, DI-based mocking, timeout decorators"

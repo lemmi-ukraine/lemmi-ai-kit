@@ -1,4 +1,4 @@
-# Coding Patterns Reference — Lemmi Backend
+# Coding Patterns Reference — Python Backend
 
 Detailed implementation patterns for error handling, HTTP clients, dependency injection,
 authentication, and feature decorators. Read this file when implementing services that

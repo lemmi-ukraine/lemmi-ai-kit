@@ -1,0 +1,64 @@
+name: Pack contribution
+description: Propose a language- or domain-specific pack of skills
+labels: ["pack-contribution"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This path is not open yet, and that is exactly why this form is useful.**
+
+        The repo currently ships one plugin from one skills directory. Splitting it
+        into a core pack plus sibling language packs — and defining how an external
+        pack registers itself — is planned but not built. The shape of the first few
+        requests here is what that authoring path gets designed against, so a
+        request filed now carries more weight than one filed later.
+
+  - type: input
+    id: pack
+    attributes:
+      label: Proposed pack name
+      placeholder: rust-conventions / terraform / django
+    validations:
+      required: true
+
+  - type: textarea
+    id: contents
+    attributes:
+      label: What skills would it contain?
+      description: A rough list is fine. One line each.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why-separate
+    attributes:
+      label: Why a separate pack rather than skills in the core set?
+      description: |
+        Usually the answer is "it only makes sense if you use X". Say what X is, and
+        what breaks or misleads if someone without X installs it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: overlap
+    attributes:
+      label: Does it overlap anything that ships today?
+      description: |
+        The kit already carries some language-specific conventions skills. Say
+        whether yours would duplicate, replace, or sit alongside them.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: maintenance
+    attributes:
+      label: Would you maintain it?
+      description: |
+        An unmaintained pack that goes stale is worse than no pack — the whole
+        premise of this kit is that stale-but-pretty guidance is a real cost.
+      options:
+        - Yes, I would maintain it ongoing
+        - I would write it, but cannot commit to maintaining it
+        - I am only requesting it
+    validations:
+      required: true
