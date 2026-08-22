@@ -10,19 +10,56 @@ they disagree on what shipped, this one was written from `git`.
 
 ---
 
-## 1. Merge order — the only constraint that cannot be reordered
+## 1. Merge order — there is no ordering requirement. Three branches, not four.
 
 ```
 main
- ├── i1-decouple-prompt-skills ....... 3 commits, 16 files   I1 complete
- │    └── f3-stale-counts ............ 4 commits, 20 files   MUST follow i1
- ├── i3a-contribution-surface ....... 16 commits, 17 files   I3a complete
- └── readme-drop-unbacked-refresh-claim  1 commit,  1 file   independent
+ └── i1-decouple-prompt-skills ....... I1 complete
+      └── f3-stale-counts ............ CONTAINS i1 — merging this lands both
+main
+ └── i3a-contribution-surface ........ I3a complete, independent
+main
+ └── readme-drop-unbacked-refresh-claim  independent
 ```
 
-**`f3-stale-counts` descends from `i1` structurally**, so it cannot merge first. That is
-deliberate: it sets the README to 29 skills, which is true only after I1 lands. Everything
-else is independent and can merge in any order.
+**Merge `f3-stale-counts`, `i3a-contribution-surface`, and
+`readme-drop-unbacked-refresh-claim`, in any order. Do not merge `i1` separately** — it is
+subsumed.
+
+> **Corrected 2026-08-22, after this document first claimed the opposite.** An earlier
+> version said *"`f3-stale-counts` descends from `i1`, so it cannot merge first"*. That
+> inverts the consequence of its own premise. Descending from `i1` is precisely why `f3`
+> **can** go first: it is a fast-forward that carries `i1` with it. Measured:
+>
+> ```
+> git merge-base --is-ancestor main f3-stale-counts                → 0  (fast-forward)
+> git merge-base --is-ancestor i1-decouple-prompt-skills f3-…      → 0  (f3 contains i1)
+> git rev-list --count f3-stale-counts..i1-decouple-prompt-skills  → 0  (i1 has nothing f3 lacks)
+> ```
+>
+> Confirmed by doing it: merging `f3` alone into `main` yields 29 skill dirs, README at
+> "29 skills", the four deleted skills absent, 31 tests passing — and a subsequent
+> `git merge i1-decouple-prompt-skills` reports **"Already up to date."**
+>
+> The correct weaker statement: `f3`'s README-at-29 is only true when the 29-skill tree is
+> present, and **containment guarantees that** — no merge ordering is required to achieve
+> it. Read as an ordering rule, the original invented a separate merge of `i1` that is
+> redundant at best. Flagged as an error in the worst possible place: the section labelled
+> as the one constraint that could not be reordered.
+
+**Verified, not assumed:** all branches merge clean and the merged result passes the full
+gate — `ruff`, `ruff format`, `basedpyright` strict, **39 tests**, 29 skill dirs, 29
+manifest entries, README at 29, zero unbacked refresh claims. Independently reproduced by a
+second session, twice, from a fresh clone. Re-run before merging:
+
+```bash
+git checkout -b MERGE-VERIFY main
+for b in f3-stale-counts i3a-contribution-surface \
+         readme-drop-unbacked-refresh-claim; do
+  git merge --no-edit "$b" || echo "CONFLICT: $b"
+done
+uv run ruff check . && uv run ruff format --check . && uv run basedpyright && uv run pytest
+```
 
 **Verified, not assumed:** all four merge clean, and the merged result passes the full
 gate — `ruff`, `ruff format`, `basedpyright` strict, **39 tests**, 29 skill dirs, 29
