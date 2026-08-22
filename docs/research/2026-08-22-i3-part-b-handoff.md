@@ -56,10 +56,12 @@ skill names, or install commands that I4 changes.
 
 **Findings from Part A that Part B must consume:**
 
-- **The triad attribution in the charter is wrong.** The charter credits GitHub Spec
-  Kit for `requirements → design → tasks`. Spec Kit's phases are
-  `constitution/specify/plan/tasks/implement/converge`. The triad is **AWS Kiro's**
-  exactly. Anchor the term on Spec Kit, the triad on Kiro.
+- **The triad's attribution splits across two projects — preventive, not a fix.** The
+  charter *asks* which project popularized `requirements → design → tasks`; it does
+  not answer it, and no attribution exists in the repo today. Do not go looking for a
+  charter error. The answer: Spec Kit popularized the *term* (its phases are
+  `constitution/specify/plan/tasks/implement/converge`), while the *triad* is **AWS
+  Kiro's** exactly. Anchor the term on Spec Kit, the triad on Kiro.
 - **`llms.txt` is dropped** — ~10% adoption, no standards-body recognition, no
   governance body. Do not present it as a standard.
 - **"blameless retrospective" needs rewording.** The SRE term is blameless
@@ -96,12 +98,28 @@ Four items must be true before the flip, and none of them is Part B's README rew
    imprecise. The README pair is correct on `main` today and goes wrong the moment I1
    merges; the manifest pair is already wrong. The manifest pair matters most, because
    that is what a marketplace listing surfaces.
-2. **`tasks/` names the private source project 12 times.** `lemmi-ai-api` appears
-   across 4 files there. It is an **explicitly banned pattern** in
-   `tests/test_assets.py:19` — but that test scans `assets_root()` only, so `tasks/`
-   and `.specs/` are outside its reach. The repo bans the string where it looks and
-   would publish it where it does not. Both trees are currently untracked; keep them
-   that way, gitignore them, or get a ruling before committing.
+2. **The private source project's name — and this is two questions, not one.**
+   `lemmi-ai-api` is an **explicitly banned pattern** in `tests/test_assets.py:19`,
+   labelled "source-project reference". But that test scans `assets_root()` only.
+
+   - **The hygiene question** is `tasks/` alone: **13 occurrences across 4 files**
+     (`00-KICKOFF` 3, `00-PROGRAM` 4, `I1` 2, `I2` 4; `.specs/` has zero). Untracked
+     today, so it **resolves for free by staying untracked** or being gitignored.
+   - **The disclosure question is already answered**, and separating it matters.
+     **Three tracked files already name it** and go public regardless of what happens
+     to `tasks/`: `tests/test_assets.py:19` (the rule), `CONTRIBUTING.md:73` (a table
+     row describing it as "a reference to the private source project nobody else can
+     read"), and this document. All three fall under the contract's own
+     *teaches-or-implements-the-rule* exemption — the same principle as its
+     `_ALLOWLIST` — so none is a defect. But answering only the hygiene question
+     leaves the operator believing the name is out when it is not.
+
+   **Standing gap either way:** `test_assets.py` scans `assets_root()`, so every
+   top-level tree added since — `tasks/`, `.specs/`, and now `docs/research/`, which
+   *is* tracked and flip-bound — is unguarded. Either widen the scan to the tracked
+   tree with an explicit rule-teaching allowlist, or state in `CONTRIBUTING.md` that
+   the contract covers shipped assets only. Silence is what let a banned pattern reach
+   a committed path.
 3. **The traffic baseline is a 14-day window.** It must be captured **on** the flip
    date. Nobody owns this.
 4. **The install path.** Reachability clears itself at the flip; the Codex

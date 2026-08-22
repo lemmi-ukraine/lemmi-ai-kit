@@ -18,7 +18,7 @@ sourcing grounds, and one needs rewording for precision.
 
 | # | Term | Verdict |
 |---|---|---|
-| 1 | spec-driven development | **SOURCED**, with a correction to the charter |
+| 1 | spec-driven development | **SOURCED** — and the answer splits across two projects |
 | 2 | Architecture Decision Record | **SOURCED** |
 | 3 | product requirements document | **no primary** — use as plain vocabulary, claim nothing |
 | 4 | vertical slice architecture | **SOURCED** |
@@ -35,9 +35,18 @@ sourcing grounds, and one needs rewording for precision.
 
 ---
 
-## 1. spec-driven development — the charter attributes this to the wrong project
+## 1. spec-driven development — the answer splits across two projects
 
-The charter asks "which project popularized the triad". Two different projects, and
+**This is preventive, not corrective. There is no charter error to fix, and nobody
+should go looking for one.** The charter's column is headed *"Attribution to verify"*
+and its entry for this row is a question — *"Which project popularized the triad, and
+what the current canonical write-up is"* — not a claim. Grepped `README.md`, `src/`
+and `tests/` for `spec.kit|kiro`: **no triad attribution exists anywhere in the repo
+today.** The only `kiro` hits are unrelated (`.kiro/steering/` paths in
+`learning-consolidator`, and an IDE-portability example in `skill-reviewer`).
+
+So what follows is the answer the charter asked for, and it constrains Part B's README
+wording rather than correcting anything already written. Two different projects, and
 the distinction matters because only one of them matches what the kit actually ships.
 
 **The term** was popularized by **GitHub Spec Kit** — first commit ~August 2025 (the
@@ -45,6 +54,11 @@ repo's own note reads "One year after the first commit, Spec Kit has reached 1.0
 dated 2026-08-21), MIT licensed, ~130.8k stars. But its phases are
 `constitution → specify → plan → tasks → implement → converge`. **That is not the
 kit's triad.**
+
+> **Re-check the phase list before quoting it.** It was read live from the repo on
+> 2026-08-22 and `converge` is recent enough that a reader working from an older
+> snapshot will not recognise it. The conclusion does not depend on the list:
+> `specify/plan/tasks` is not `requirements/design/tasks` either way.
 
 **The triad** is **AWS Kiro's**, exactly. Kiro's documented spec artifacts are
 `requirements.md`, `design.md`, `tasks.md`, in a three-phase
