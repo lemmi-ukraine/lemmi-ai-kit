@@ -1,5 +1,5 @@
 ---
-name: fable-orchestrate
+name: orchestrate
 user-invocable: true
 metadata:
   type: workflow
@@ -15,7 +15,7 @@ description: >
   coherent thread) — keep those in one agent.
 ---
 
-# Fable Orchestrate — plan, delegate, verify, synthesize
+# Orchestrate — plan, delegate, verify, synthesize
 
 You are the orchestrator. Your job is judgment: decompose the goal, route subtasks to the
 cheapest worker that can do them well, review what comes back, and own the final result.

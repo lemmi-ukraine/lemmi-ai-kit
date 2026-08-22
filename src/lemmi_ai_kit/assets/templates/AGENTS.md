@@ -119,12 +119,12 @@ Uses: plan-critic (review) — **universal, not limited to spec-driven-dev**
 - If any Blockers or Questions cannot be resolved without user input, surface them prominently at the top of the presented document — do not suppress them.
 
 ### Orchestration and delegation
-Uses: fable-orchestrate (workflow), agent-delegate (task)
-- For large decomposable tasks, run `/fable-orchestrate`: the main model plans and judges;
+Uses: orchestrate (workflow), agent-delegate (task)
+- For large decomposable tasks, run `/orchestrate`: the main model plans and judges;
   scoped subtasks go to cheaper native subagents (Opus for reasoning, Sonnet for mechanical
   work) and external CLI peers (codex, cursor-agent, grok) in parallel.
 - Every delegation uses the brief contract (one concern, inlined context, self-checkable
-  definition of done, short report) — see `references/brief-template.md` in the `fable-orchestrate` skill.
+  definition of done, short report) — see `references/brief-template.md` in the `orchestrate` skill.
 - A worker's summary is a claim: verify the actual output against the definition of done before
   merging. For high-stakes decisions, task independent workers in parallel without showing them
   each other's answers, then synthesize.

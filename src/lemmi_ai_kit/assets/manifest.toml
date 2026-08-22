@@ -153,7 +153,7 @@ invocation = "user"
 summary = "One-command parallel deep research with disjoint source ownership and a cited report"
 
 [[skills]]
-name = "fable-orchestrate"
+name = "orchestrate"
 profile = "orchestration"
 invocation = "user"
 summary = "Orchestrator mode: decompose, delegate to native/external workers (codex, cursor-agent, grok), verify, synthesize"
