@@ -189,7 +189,7 @@ three-way merge will attribute it to you.
 7. **Run the four checks:** `uv run ruff check .`, `uv run ruff format --check .`,
    `uv run basedpyright`, `uv run pytest`. If a vocabulary test in `test_checks.py` goes
    red because upstream added a changelog type or a learnings category, that is the alarm
-   working — extend the constant in `src/lemmi_ai_kit/checks.py`. Do not loosen the test
+   working — extend the constant in `plugins/core/src/lemmi_ai_kit/checks.py`. Do not loosen the test
    to keep a refresh green.
 8. **Update the record last.** Move `sync.upstream_commit` to the revision you merged
    from, refresh `synced_on`, and drop the `base` override from every skill you actually
@@ -294,22 +294,21 @@ evidence. Recording the criteria here is what stops "promote it later" from mean
 
 Criterion 1 is one sync in. Criteria 2, 3 and 4 are open.
 
-**`audit-skills --fail-on major` → a CI gate.** Promote once the five open audit findings
-are cleared. Measured on the shipped pack at the time of writing, all five are still open
-and all five are inside the skill directories:
+**`audit-skills --fail-on major` -> a CI gate.** The known major findings were cleared
+before the pack split. Gate at `major`, not `minor`: minor findings are review input,
+and gating on them makes the suite brittle. Re-measure from this checkout with:
 
-| Severity | Finding |
-|---|---|
-| MAJOR | `ai-docs-lookup`: `metadata.type` missing — set `type: task` |
-| MAJOR | `kit-setup`: `metadata.type` missing — set `type: workflow` |
-| MAJOR | `initiative-cleanup`: SKILL.md 556 lines > 500 — move detail into `references/` |
-| MINOR | `ai-docs-lookup/README.md` — delete; the modern mechanism is `description` |
-| MINOR | `test-conventions/README.md` — delete; a bare duplicate frontmatter block |
+```sh
+uv run python -m lemmi_ai_kit audit-skills --fail-on major
+```
 
-Gate at `major`, not `minor`: minor findings are review input, and gating on them makes
-the suite brittle. Re-measure with
-`uv run python -m lemmi_ai_kit audit-skills --skills-dir src/lemmi_ai_kit/assets/skills`
-rather than trusting this table — it is a snapshot.
+That command audits the bundled pack roots (`plugins/core/skills` and
+`plugins/python/skills`) when no project-local `.claude/skills/` directory exists. If
+you need to audit one pack directly, pass its root explicitly, for example:
+
+```sh
+uv run python -m lemmi_ai_kit audit-skills --skills-dir plugins/core/skills --fail-on major
+```
 
 ## 8. What this check does not see
 

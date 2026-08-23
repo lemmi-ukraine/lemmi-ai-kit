@@ -202,11 +202,6 @@ name = "learning-consolidator"
 upstream = "learning-consolidator"
 direction = "upstream-origin"
 
-[[skills]]
-name = "openai-realtime-quirks"
-upstream = "openai-realtime-quirks"
-direction = "upstream-origin"
-note = "Slated for removal by the pack split (one provider's one API). When it goes, delete this row with it — the consistency gate will say so."
 
 [[skills]]
 name = "orchestrate"
@@ -347,6 +342,10 @@ reason = "The source project's interview product: a feedback-quality rubric, a P
 [[unported]]
 upstream = "interview-transcript-analysis"
 reason = "Same coupling: the source project's interview product. A public pack should not carry knowledge only its author can use."
+
+[[unported]]
+upstream = "openai-realtime-quirks"
+reason = "One provider's one API. The language-pack split ruled provider-specific runtime quirks out of the public core pack."
 
 [[unported]]
 upstream = "prompt-domain-reviewer"

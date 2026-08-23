@@ -82,6 +82,19 @@ two.**
    `upstream-origin` for the rest, `divergent-both` where both sides moved.
 4. **A base is a claim with an expiry.** Every one here was derived from upstream's history as of
    2026-08-23. Re-derive, do not inherit.
+5. **The SHA in the table is not uniquely determined, and this document overstated it.** The probe
+   enumerates candidates with `git log --format=%H -- <path>`, which lists only commits that
+   *touched* that path — 2 of upstream's 1,344 for `commit-message`, for instance. That candidate set
+   is complete for **content** (every distinct version of a file appears at some touching commit), so
+   the measurement stands. But the reported ref is only *"the last upstream commit that changed this
+   file before extraction"*: any commit between it and the next touch carries identical content and
+   would score the same. **A stable file ties across a whole range, and this table resolved such ties
+   arbitrarily.**
+
+   Consequence for W2.4: **pin content, not a ref** — record the blob hash beside the SHA, or the
+   drift check will report movement when upstream's history is rewritten or a range is re-walked
+   while the file itself never changed. Raised by `lemmi-ai-kit-1e`, whose prescription — measure base
+   content at the candidate rather than trusting the commit list — is the correct form.
 
 ## Reproduce
 
