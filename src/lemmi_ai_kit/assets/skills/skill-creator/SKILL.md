@@ -307,7 +307,7 @@ Run this checklist before presenting the skill to the user:
 After creating the skill files:
 
 1. If it's a project skill, add it to the project's `CLAUDE.md` skills listing
-1b. **Registration is not reachability — wire the CALLER in the same task.** `lemmi-ai-kit audit-skills`
+1b. **Registration is not reachability — wire the CALLER in the same task.** `python -m lemmi_ai_kit audit-skills`
    verifies a skill is *listed*, never that any workflow *calls* it, so a skill nothing invokes
    passes every gate and still only runs if a human remembers it exists. That is the same defect as
    a rule with no detector, one level up: four stacked-PR skills shipped with

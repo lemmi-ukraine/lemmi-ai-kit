@@ -238,7 +238,7 @@ not-reviewed sections is a finished review, not a failed one.
    `.specs/*/plan.md` names the initiative, or a recent orchestration file sits in `.ai/handoffs/`.
    Otherwise **state that it was skipped**. Count what is already there before adding to it
    (`ls .ai/handoffs/*.md | wc -l`); one more unread brief is the failure mode, not the safe
-   default. If written, check it with `lemmi-ai-kit lint handoffs`, attributing findings **by
+   default. If written, check it with `python -m lemmi_ai_kit lint handoffs`, attributing findings **by
    filename** — the target lints every handoff, not only yours.
 
 ## Example — the verification line, wrong and right

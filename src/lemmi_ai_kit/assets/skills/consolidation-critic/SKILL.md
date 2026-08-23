@@ -45,7 +45,7 @@ already written into always-loaded rules. Both were invisible until checked.
 
 | Input | Why it is needed |
 |---|---|
-| The pre-drain snapshot (`.ai/tmp/learnings-pre-drain-<date>.md`) | C1 cannot run without it |
+| The pre-drain snapshot (`.ai/learnings-pre-drain-<date>.md`) | C1 cannot run without it |
 | `git diff HEAD` over the promotion targets | The actual change under review — not your memory of it |
 | The consolidation plan (`.ai/consolidation-plan-*.md`) | Promotions the plan promised but the drain never made |
 
@@ -69,7 +69,8 @@ entries whose only tokens are incidental paths from their anecdote. Anything els
 knowledge — recover it from the snapshot and promote it before proceeding.
 
 **If no snapshot exists** (a drain that predates the Phase-5 snapshot requirement), reconstruct one
-from git — `git show HEAD:.ai/learnings.md > .ai/tmp/learnings-pre-drain-recovered.md` — and say so
+from git into scratch — `git show HEAD:.ai/learnings.md > .ai/tmp/learnings-pre-drain-recovered.md`,
+deliberately NOT the committed snapshot path, because a reconstruction is not evidence — and say so
 in the report: a snapshot rebuilt from the last commit misses anything appended since, so C1's
 coverage is partial and must be stated as partial, not clean.
 
@@ -169,8 +170,8 @@ This review **edits** — so its own output is unverified until the gates run ag
 them, unfiltered, and read the exit codes:
 
 ```bash
-lemmi-ai-kit lint
-lemmi-ai-kit audit-skills
+PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint
+PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit audit-skills
 ```
 
 …plus the project's canonical lint gate for any code touched — use the exact invocation

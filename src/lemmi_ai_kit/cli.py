@@ -28,7 +28,7 @@ from lemmi_ai_kit.manifest import ManifestError, load_manifest
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="lemmi-ai-kit",
+        prog="python -m lemmi_ai_kit",
         description=(
             "Support scripts for the lemmi-ai-kit Claude Code / Codex plugin. "
             "Install via Claude: /plugin marketplace add lemmi-ukraine/lemmi-ai-kit — "

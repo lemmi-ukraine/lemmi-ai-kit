@@ -86,7 +86,7 @@ end (a chronological catch-all misleads the consolidator's clustering).
 > **This sentence is the only place the category COUNT is written down.** Consumers say "the
 > canonical set" and link here rather than restating a number: a count duplicated across five files
 > breaks silently in all five when an eighth category is added, and prose has no test to catch it.
-> `lemmi-ai-kit lint` and its test derive the count from one constant for the same reason —
+> `python -m lemmi_ai_kit lint` and its test derive the count from one constant for the same reason —
 > a hardcoded "six" in both is exactly what broke when the seventh was added.
 
 | Section header (`##`) | `Category:` slug | What belongs here |

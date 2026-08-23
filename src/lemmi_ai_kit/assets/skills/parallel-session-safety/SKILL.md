@@ -103,7 +103,7 @@ with *"learnings extraction — still deferred because `.ai/learnings.md` sits o
 file set"*, and 12 sessions in that window never ran the completion review at all.
 
 `.ai/learnings.md` and `.ai/ai-changelog.md` are **append-only**: concurrent appends do not
-destroy each other, and `lemmi-ai-kit lint` detects the duplicate-header/spliced-entry artifacts a
+destroy each other, and `python -m lemmi_ai_kit lint` detects the duplicate-header/spliced-entry artifacts a
 merge can produce. So they are always in scope, for every session, regardless of the partition —
 state this explicitly in each brief rather than relying on the worker to infer the exception. A
 scope rule that does not name its own exceptions gets read as exempting the obligations too.
@@ -206,7 +206,7 @@ and any unexplained deletion count is a stop.
 
 §7 says a brief's claims are unreliable. This is the format that makes them checkable. It applies
 to any hand-off written for another session to pick up — the `cross-session` worker in
-`agent-delegate` dispatches against it, and `lemmi-ai-kit lint handoffs` enforces it.
+`agent-delegate` dispatches against it, and `python -m lemmi_ai_kit lint handoffs` enforces it.
 
 **Path:** `.ai/handoffs/{YYYY-MM-DD}-{slug}.md`. Named so the return leg is a known location
 instead of a paste into chat.
@@ -391,4 +391,4 @@ time (§7, §9).
 - `spec-driven-dev` — phase/wave boundaries are where §2's collision checks belong.
 - `test-conventions` — suite mechanics.
 - Shared `.ai/*.md` files corrupted by a merge are enforced mechanically, not here: run
-  `lemmi-ai-kit lint` (see AGENTS.md).
+  `python -m lemmi_ai_kit lint` (see AGENTS.md).

@@ -194,7 +194,7 @@ rather than guessing.
    `## ` header. Then run, and read the verdict:
 
    ```bash
-   lemmi-ai-kit lint learnings
+   PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint learnings
    ```
 
    It validates section placement, entry format, and category slugs. **This call was labelled

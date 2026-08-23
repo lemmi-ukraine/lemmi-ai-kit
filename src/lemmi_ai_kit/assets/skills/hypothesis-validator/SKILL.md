@@ -72,7 +72,7 @@ against:
 - `.ai/learnings.md` intake (did the predicted entries stop/continue appearing?)
 - `.ai/ai-changelog.md` history (was the artifact since replaced? → SUPERSEDED candidate)
 - Where the signal is a fleet property: a fresh
-  `lemmi-ai-kit audit-skills` run (if that script exists)
+  `python -m lemmi_ai_kit audit-skills` run (if available)
 - Session evidence the caller supplies (the consolidator's current-run analysis)
 
 **Record disconfirming evidence with equal weight — never confirm by default.** If you find
@@ -132,7 +132,7 @@ skips rotation is incomplete.
 Run the data-file lint:
 
 ```
-lemmi-ai-kit lint hypotheses
+PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint hypotheses
 ```
 
 Zero findings required (statuses must be exactly in-vocabulary; heading structure intact).
@@ -142,7 +142,7 @@ the Meta-Synthesis below (run it this pass or explicitly carry it to the next).
 ## Meta-Synthesis (~every 10 terminal verdicts)
 
 Individual verdicts close single loops; the synthesis is where they compound into design
-rules for future changes. Trigger: `lemmi-ai-kit lint hypotheses` prints
+rules for future changes. Trigger: `PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint hypotheses` prints
 `NOTE: meta-synthesis due` — computed by comparing the terminal-verdict count (hot +
 archive) against the hot-file header's `**Last meta-synthesis:**` marker, so it fires for
 whoever runs the lint, with no memory required.

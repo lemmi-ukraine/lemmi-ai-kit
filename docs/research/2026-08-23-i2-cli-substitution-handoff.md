@@ -75,6 +75,25 @@ directory. Installed as a plugin this module lives in a package cache with no an
 inside the adopter's project, so anchoring on `__file__` — which is what upstream's
 `audit_skills.py` does via `parents[4]`, the defect §6 of the triage flagged — cannot work.
 
+## Correction (2026-08-23, added by the session that consumed this)
+
+**Every `lemmi-ai-kit <sub>` form in this document is not reachable for an adopter, §3's
+rewrite table included.** `lemmi-ai-kit` is a `[project.scripts]` console script, so it
+exists only after a pip/uv install of the distribution. The kit installs as a Claude Code
+plugin (`/plugin install`), which places skills and never installs the Python package.
+
+The reachable form is the one `kit-setup` already documents:
+
+```bash
+PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit <sub>
+```
+
+All 16 shipped call sites were rewritten to the module form, `cli.py`'s argparse `prog`
+was corrected so `--help` stops teaching the console script, and
+`tests/test_assets.py::_ASSET_ONLY_FORBIDDEN` now rejects the console-script form in
+assets (mutation-tested, and the bare plugin name plus `/lemmi-ai-kit:<skill>` stay
+legal). Read §3's right-hand column as naming the *subcommand*, not the invocation.
+
 ## 3. Cross-skill site coverage — what Session D can rewrite now
 
 Re-measured against upstream at session close. The triage counted 6 + 3 = 9 sites; the

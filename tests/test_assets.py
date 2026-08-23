@@ -42,14 +42,32 @@ _FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
 # subcommand identifier -- neither is a portability defect, and allowlisting each one
 # would grow an exemption list with every future document.
 #
-# The two upstream scripts are replaced by `lemmi-ai-kit lint` / `audit-skills`.
-# Shipping them alongside the CLI would mean two implementations that disagree about
-# what is valid, so the names must not reappear on the next sync. The scripts the kit
-# DOES ship -- drain_audit, audit_cleanup_targets, probe_checker, extract_sessions --
-# are absent from this list on purpose.
+# The two upstream scripts are replaced by the kit's own CLI. Shipping them alongside
+# it would mean two implementations that disagree about what is valid, so the names
+# must not reappear on the next sync. The scripts the kit DOES ship -- drain_audit,
+# audit_cleanup_targets, probe_checker, extract_sessions -- are absent from this list
+# on purpose.
 _ASSET_ONLY_FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"ai_files_lint"), "unshipped linter (use `lemmi-ai-kit lint`)"),
-    (re.compile(r"audit_skills"), "unshipped audit (use `lemmi-ai-kit audit-skills`)"),
+    (
+        re.compile(r"ai_files_lint"),
+        "unshipped linter (use `python -m lemmi_ai_kit lint`)",
+    ),
+    (
+        re.compile(r"audit_skills"),
+        "unshipped audit (use `python -m lemmi_ai_kit audit-skills`)",
+    ),
+    # The `lemmi-ai-kit` console script comes from `[project.scripts]`, so it exists
+    # only after a pip/uv install of the package. The kit installs as a Claude Code
+    # plugin -- `/plugin install` places skills and never installs the distribution --
+    # so a skill telling an adopter to run `lemmi-ai-kit <sub>` names a command they do
+    # not have. Use the module form, which `kit-setup` already documents:
+    # PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit <sub>
+    # The bare plugin name stays legal -- it is the marketplace id and the
+    # `/lemmi-ai-kit:<skill>` invocation prefix.
+    (
+        re.compile(r"lemmi-ai-kit\s+(?:lint|audit-skills|scaffold|list)\b"),
+        "console-script invocation (plugin installs place no console script)",
+    ),
     # The stacked-PR document scaffolds to `.ai/`, never `docs/`.
     (
         re.compile(r"docs/git-stacked-pr-workflow"),

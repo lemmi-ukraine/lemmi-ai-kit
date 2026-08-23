@@ -99,7 +99,7 @@ Every delegation gets a written brief. A good brief has exactly:
    closed with *"learnings extraction — still deferred because `.ai/learnings.md` sits outside my
    declared file set"*, and 12 sessions in the window never ran the review at all. The disjoint-file
    partition exists to stop destructive write collisions; `.ai/learnings.md` and
-   `.ai/ai-changelog.md` are append-only, do not collide destructively, and `lemmi-ai-kit lint`
+   `.ai/ai-changelog.md` are append-only, do not collide destructively, and `python -m lemmi_ai_kit lint`
    catches the merge artifacts that do occur. State this exemption in the brief — a scope
    rule that does not name its own exceptions gets read as exempting the obligations too.
 

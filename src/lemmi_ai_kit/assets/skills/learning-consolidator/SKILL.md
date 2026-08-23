@@ -42,7 +42,7 @@ You verify each entry against the current codebase before deciding its fate.
 ### Phase 1: Inventory & Cluster Detection
 
 0. **Cadence guard** — count intake entries (`python
-   lemmi-ai-kit lint learnings --list-entries`) and read the
+   python -m lemmi_ai_kit lint learnings --list-entries`) and read the
    newest `CONSOLIDATION` entry date in `.ai/ai-changelog.md`. Proceed when intake > 0 AND the
    last consolidation is ≥7 days old — or whenever the user explicitly asked. Otherwise report
    why not ("buffer empty" / "last drain {D} days ago — fresh") and stop. This is the pair of
@@ -342,7 +342,7 @@ After all promotions are executed:
    recent `CONSOLIDATION` entries in `.ai/ai-changelog.md`), KEEP is no longer available —
    promote it to a home or drop it. A lean buffer must not silently re-accumulate.
 5. **Verify removal (structural, not eyeballed)** — run
-   `lemmi-ai-kit lint learnings`
+   `python -m lemmi_ai_kit lint learnings`
    (zero findings required), then re-read `.ai/learnings.md` and confirm:
    - All promoted entries are removed
    - All archived entries are removed

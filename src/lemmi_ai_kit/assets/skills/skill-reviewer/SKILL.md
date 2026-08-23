@@ -39,7 +39,7 @@ You have two modes:
 > semantics, or override rules here.
 >
 > The mechanical subset of Steps 2, 5, and parts of 8 is automated: run
-> `lemmi-ai-kit audit-skills` (read-only, fleet-wide) and fold its findings in; the tables
+> `python -m lemmi_ai_kit audit-skills` (read-only, fleet-wide) and fold its findings in; the tables
 > below define the severities. Add `--fail-on major` to make it gate rather than report.
 >
 > **The audit only scans the directory it is pointed at.** By default that is the project's
