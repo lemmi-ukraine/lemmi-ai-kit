@@ -37,6 +37,15 @@ Run this skill **before presenting any plan document to the user**:
 
 Do NOT run this skill after implementation. The post-task-review skill covers that.
 
+**Self-challenge is per-ARTIFACT, not per-task.** A second proposal written after the first one was
+challenged needs its own pass — the earlier challenge does not cover it, and treating one
+per-session run as satisfying the gate is how an unreviewed plan reaches the operator. The same
+applies to a revision: **re-run this skill on the revised document**, because a fix pass introduces
+defects at roughly the rate it resolves them. Measured on a churn-forensics plan — the second pass
+found three errors and *all three were introduced by the first pass's own correction* — so Step 4's
+resolution loop must re-derive every figure a fix touched rather than carrying the pre-fix number
+forward.
+
 ---
 
 ## Review Process
@@ -52,6 +61,13 @@ Read the document end to end. Identify:
 Then run the DoR pre-flight from [references/dor-tables.md](references/dor-tables.md).
 
 ### Step 2 — Run the Five Dimensions
+
+**Load and WALK the reference files — never review from a mental summary of them.** For
+high-blast-radius plans (production-wide behavior, shared contracts, data), an inline from-memory
+pass converges on generic checks (security, rollback, scope) and systematically misses the
+table-driven ones; a measured instance found 1 Major inline vs 4 more Majors (line-budget
+contradiction, detection-latency gap, under-scoped sweep, missing AI-failure contract) when the
+tables were actually walked. The reference files ARE the skill; this SKILL.md is just its index.
 
 Work through each dimension from [references/review-dimensions.md](references/review-dimensions.md):
 1. Security
@@ -77,7 +93,7 @@ Skip this step when reviewing `spec.md` (medium tasks) or `tasks.md`.
 
 ### Step 3 — Apply the Universal Challenge Questions
 
-After the five dimensions, answer these three questions regardless of scope.
+After the five dimensions, answer these six questions regardless of scope.
 Each question must produce either a confident answer or a finding:
 
 1. **Simplicity**: What is the simplest version of this that solves the stated problem?
@@ -94,6 +110,58 @@ Each question must produce either a confident answer or a finding:
 
 3. **Rollback**: What is the rollback plan if this deploys with a bug?
    If none is stated and this touches DB schema, API contracts, or WebSocket events, flag as Major Impact.
+
+4. **Problem evidence**: Does the document state — in operator-plain language, before any solution —
+   WHAT problem it solves, HOW OFTEN it occurs (a measured figure with its window and source), and
+   why now? If "how often" is unanswerable from the document, flag as Major. Measured failure
+   (2026-08-03, two spec sessions in one day): the operator had to interrogate the spec author —
+   "why do we nede these changes, what problems we want to solve, how often tthey occure" and
+   "i still don't get why do we need this fdeature" / "explain me like for non tech person" — because
+   the motivation lived in a board row the document assumed the reader had. A spec that cannot answer
+   this question in its own text is asking the operator to approve on trust.
+
+5. **Inherited framing**: which claims did this plan **inherit rather than measure**? This is the
+   one question the other four cannot reach, because a premise every section shares reads as
+   coherence, not as a defect — and coherence is what the five dimensions check. Measured failure
+   (2026-08-15): this skill ran on an initiative plan and passed it, and the operator then found
+   **three** scope gaps it had missed — prior shipped work, a substance-vs-delivery mis-framing, and
+   an already-fixed row — each an unexamined inheritance rather than an inconsistency. One of them
+   was a single sentence carried in from the source document ("behavioural feedback genuinely goes
+   deep") that had narrowed a whole-rubric defect to a 12.7%-of-rows defect across **five**
+   downstream sections; one measurement refuted it, 48/48 versus 0/48.
+   - List the claims that **scope** the plan — what is in, what is out, how big the problem is — and
+     require each to be marked `measured (window, n)` or `inherited — unverified`. An inherited
+     claim is not wrong; it is untested, and it is doing structural work either way.
+   - Ask separately: **what has already shipped against this problem, and was its effect measured?**
+     Answered from `git log`/`git grep`, never from a status column — a board row was measured still
+     reading `TODO` a month after its work shipped. Unmeasured prior work is its own deliverable, usually the
+     cheapest one, and sometimes it makes the rest unnecessary.
+   - **Grep `tasks/` and `.specs/` for prior work on the same defect, by the defect's own symbols.**
+     A hypothesis the *operator* supplied survived an entire analysis unchallenged because nobody
+     searched for prior work on it — it had already been investigated and disproven weeks earlier.
+     An inherited claim from the operator gets the same provenance mark as any other; being handed
+     the frame by a human is not measurement.
+   - Flag as **Major Completeness** when a scoping claim carries no provenance. This is the plan-time
+     twin of question 6 below: 6 asks who chose the sample, this asks who chose the frame.
+   - **A review pass cannot audit its own framing.** This skill reads the plan against itself, so a
+     premise the plan and its source document share is invisible to every question above except this
+     one — which is why the checks here are phrased as "produce the provenance list", not "does it
+     look consistent". Where a plan overrode an inherited claim, make it record what it overrode.
+
+6. **Evidence provenance**: for every load-bearing "all N instances have property P" claim, ask
+   **who chose the N**. When the population came from a detector, scan, or grep the author also
+   built, the claim is circular — the instances the detector misses are exactly the counter-examples,
+   so its output can never contradict it. This is not hypothetical: an I6 scan of 875 turns found 30
+   narration instances and measured 30 of 30 carried no question, and that number became the
+   load-bearing safety argument of an **approved** spec ("cancelling a guarded turn cannot destroy
+   question content, because there is none"). A concurrently-built second detector found the one
+   instance that falsified it — a narration preface fused to a real question in one spoken turn.
+   Both passes were individually careful and the failure was invisible from inside either.
+   Flag as Major unless the document does one of: (a) tests P over the **whole population** rather
+   than the detector's output, or (b) reconciles a second, independently-built detector as a union,
+   treating disagreements as findings. Pair every "N of N share P" with **P's base rate** — 9 of 9
+   flagged cases lacking a property looked decisive until the base rate showed 85% of the population
+   lacks it (p ≈ 0.23).
 
 ### Step 4 — Resolve What You Can
 

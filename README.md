@@ -1,6 +1,6 @@
 # lemmi-ai-kit
 
-Lemmi's shared AI configuration as a **Claude Code and Codex plugin** — 29 skills
+Lemmi's shared AI configuration as a **Claude Code and Codex plugin** — 38 skills
 (spec-driven dev, post-task review, the learnings loop, orchestration, research,
 code review) plus project seeding for `AGENTS.md`/`CLAUDE.md` and the `.ai/`
 scaffolding.
@@ -102,7 +102,7 @@ Layout:
 - `src/lemmi_ai_kit/assets/manifest.toml` — the skill registry (name, profile,
   invocation, summary); `list` and the CLAUDE.md index render from it. Tests
   enforce that it stays in sync with `assets/skills/*`.
-- `src/lemmi_ai_kit/assets/skills/` — all 29 skills, loaded by both plugins
+- `src/lemmi_ai_kit/assets/skills/` — all 38 skills, loaded by both plugins
   directly from this path. The test suite (`tests/test_assets.py`) permanently
   enforces the porting hygiene contract: no absolute machine paths, no
   source-project references, no dated history citations, no machine-specific

@@ -183,6 +183,7 @@ LEARNINGS_SECTIONS: dict[str, str] = {
     "Performance Insights": "performance",
     "Pattern Discoveries": "pattern",
     "Convention Clarifications": "convention",
+    "Interaction & Workflow Friction": "interaction",
 }
 LEARNINGS_REQUIRED_FIELDS: tuple[str, ...] = (
     "Context",

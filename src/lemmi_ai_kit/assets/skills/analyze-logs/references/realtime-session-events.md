@@ -33,6 +33,35 @@ known failure modes.
 | `barge_in_truncate_decision` | OpenAI server-side barge-in (WARNING) | User spoke while AI was responding |
 | `user_transcript` | User speech transcribed | `text`, `text_length` |
 
+### Empty/thin transcript triage — triangulate before pulling audio
+
+For any "the saved transcript is empty or thinner than the session tracker counted" incident, the
+realtime stack logs enough to attribute the cause **without touching audio artifacts**:
+
+| Signal | What it proves |
+|---|---|
+| `openai_response_completed.response_length` | ground truth of what the assistant SAID (chars, from OpenAI's own transcript) |
+| stereo-batch `char_count` | what Deepgram returned |
+| VAD `speech_started`/`speech_stopped` durations | that the user really spoke |
+| audio-storage byte counts (÷48000 B/s for 24 kHz PCM16) | real audio durations |
+
+The **per-phase capture ratio discriminates the cause**: opening ~85% then ~0 with stray English
+fragments = language code-switch; uniform ~0 without clean fragments = corruption; status-page
+incidents + latency outliers = provider degradation.
+
+**Field traps** — three fields mean something other than their name suggests:
+- assistant `conversation_turn_completed.duration_seconds` is the response-*generation* window
+  (0.02 s bursts), NOT audio duration
+- `questions_asked` = `len(conversation_history) // 2`
+- `transcript_length` = assistant-turn count, not Q&A rows
+
+**Fastest content/language check** (no audio needed) — every assistant turn's text is already
+persisted by `persist_assistant_turn`:
+
+```sql
+SELECT seq_num, content FROM realtime_interview WHERE interview_id = ... ORDER BY seq_num;
+```
+
 ## Event Types — Audio
 
 | event_type | Meaning | Key Fields |

@@ -76,10 +76,30 @@ Append under the current date heading in `.ai/improvement-hypotheses.md`:
 - **Hypothesis** — must use the "By X, we expect Y because Z" structure. The "because"
   clause is what makes it useful; without a causal mechanism, the hypothesis is a wish.
 - **Signal** — mandatory. The falsifiability test: if you cannot describe what you would
-  observe, the hypothesis is not worth recording.
-- **Risk** — optional but encouraged. Presence is a quality marker.
-- **Status** — always starts as `PENDING`. Only a future validation skill changes it
-  to `CONFIRMED`, `REFUTED`, `INCONCLUSIVE`, or `SUPERSEDED`.
+  observe, the hypothesis is not worth recording. Four signal-design rules from the
+  2026-08-02 meta-synthesis (n=22 — these patterns decided whether an entry could ever
+  resolve):
+  1. Name only measuring instruments that EXIST at write time — Glob/`git log` the file,
+     report, or script before citing it (4 of 6 INCONCLUSIVE verdicts named instruments
+     that did not exist, e.g. retrospectives that were never committed).
+  2. Prefer ≤2 decidable clauses. A ≥3-clause conjunction resolves INCONCLUSIVE on partial
+     hits — split into two hypotheses (different categories) or drop the weakest clause.
+  3. Give event-keyed windows a calendar backstop ("the next 2 runs or 8 weeks, whichever
+     first") — rare events strand PENDINGs; the validator parks them DORMANT at 8 weeks.
+  4. Never write a signal the system's own operation satisfies (a skill's hypothesis
+     confirmed by the skill merely running is a cheap CONFIRMED that measures nothing).
+- **Risk** — optional but encouraged. Presence is a quality marker. If the change relies
+  on a session *electing to act* (a permission, a prose cadence guard, a step someone must
+  remember), say so here — all 3 REFUTED verdicts to date share exactly that mechanism.
+- **Status** — always starts as `PENDING` and its value is EXACTLY one of `PENDING`,
+  `CONFIRMED`, `REFUTED`, `INCONCLUSIVE`, `SUPERSEDED`. Only the `hypothesis-validator`
+  skill (invoked from learning-consolidator Phase 6.5, approval-gated; offered by
+  session-retrospective when its data settles a signal) changes it; session-retrospective
+  §4g reports evidence but never edits statuses.
+- **Validation notes** — optional sub-field placed directly above Status. Partial or
+  interim evidence (e.g. "1 supporting run") goes HERE while Status stays `PENDING` —
+  never inline annotations on the Status value itself. Written by `hypothesis-validator`
+  (or a human); dated.
 - **Changelog ref** — creates the link to the companion changelog entry. Never modify
   the changelog to link back (keeps the changelog format stable).
 
@@ -101,7 +121,10 @@ If not, skip — do not record a hypothesis.
 Read the first ~30 lines of `.ai/improvement-hypotheses.md` (after the header) to
 check if today's date heading (`## YYYY-MM-DD`) already exists.
 
-- If it exists: append under the last entry for that date.
+- If it exists: insert the new entry DIRECTLY UNDER the date heading — newest-first *within*
+  the day, matching the file's reverse-chronological contract (same rule as `ai-changelog`
+  Step 1; a same-day append-at-end once separated a changelog entry from the review that
+  reviews it).
 - If it does not: add a new date heading after the `---` separator, before existing
   date headings.
 
@@ -119,6 +142,7 @@ Before writing, verify:
 - [ ] Hypothesis is NOT a restatement of the changelog "Why" field
 - [ ] Hypothesis names a specific causal mechanism (the "because" clause)
 - [ ] Signal describes something observable, not aspirational
+- [ ] Signal cites only instruments that exist right now (verified with Glob/git, not assumed)
 - [ ] Category is a single value from the taxonomy
 - [ ] If 2 hypotheses, they target different categories
 
@@ -193,10 +217,14 @@ Decision: **Skip** — purely administrative sync, no behavioral change expected
 
 ## File Size Management
 
-Hypotheses with `PENDING` status must persist until validated. The future validation
-skill will handle cleanup by changing statuses and optionally archiving resolved entries.
+Hypotheses with `PENDING` status must persist until validated — never archive or delete
+them; they are the backlog for validation.
 
-Do not archive or delete PENDING hypotheses — they are the backlog for validation.
+Terminal entries do NOT accumulate in the hot file: `hypothesis-validator`'s archive-rotation step rotates
+every entry resolved before the latest pass to `.ai/improvement-hypotheses-archive.md`,
+and the lint's `meta-synthesis due` NOTE (≥10 unsynthesized terminal verdicts, computed
+from the hot-file header's `Last meta-synthesis` marker) triggers the aggregate read that
+turns verdicts into design rules.
 
 ## Anti-Patterns
 

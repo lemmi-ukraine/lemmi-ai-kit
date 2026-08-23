@@ -3,7 +3,7 @@
 Pure stdlib, no DB / service / migration dependencies, so this does NOT require the project's
 Docker/CI test harness. Run with:
 
-    uv run python -m pytest .claude/skills/session-retrospective/scripts/test_extract_sessions.py
+    uv run python -m pytest "${CLAUDE_SKILL_DIR}/scripts/test_extract_sessions.py"
 """
 
 import json

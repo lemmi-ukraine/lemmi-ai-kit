@@ -1,5 +1,5 @@
 # Skills shipped by lemmi-ai-kit.
-# profile: core | skill-authoring | research | python | extras
+# profile: core | skill-authoring | research | orchestration | python | extras
 # invocation: user (slash command) | auto (background reference) | internal (pipeline skill)
 
 [[skills]]
@@ -67,6 +67,18 @@ name = "ai-changelog"
 profile = "core"
 invocation = "internal"
 summary = "Append structured entries to the AI infrastructure changelog"
+
+[[skills]]
+name = "consolidation-critic"
+profile = "core"
+invocation = "internal"
+summary = "Adversarial gate on a consolidation plan before it executes: challenges every promotion, archive and new-skill proposal, and audits that no drained entry lost its knowledge"
+
+[[skills]]
+name = "hypothesis-validator"
+profile = "core"
+invocation = "internal"
+summary = "Close the improvement-hypothesis loop: window guardrail, evidence for and against, CONFIRMED/REFUTED/INCONCLUSIVE/SUPERSEDED verdicts, archive rotation and meta-synthesis"
 
 [[skills]]
 name = "ai-improvement-tracker"
@@ -145,6 +157,48 @@ name = "scout-review"
 profile = "orchestration"
 invocation = "user"
 summary = "DoorDash-style three-stage review: cheap lead scout, strong deep reviewers, adversarial disprove-it pass (fable or opus combo)"
+
+[[skills]]
+name = "parallel-session-safety"
+profile = "orchestration"
+invocation = "auto"
+summary = "One-tree/many-writers coordination: file-ownership partitioning, shared-artifact collisions, verify-don't-reapply, and why a suite verdict is untrustworthy in a contended checkout"
+
+[[skills]]
+name = "initiative-cleanup"
+profile = "orchestration"
+invocation = "user"
+summary = "Retire a finished initiative's artifacts safely: per-file partition and exhaustiveness census, artifact-kind classification, evidence and reference gates before any delete, and a self-review gate"
+
+[[skills]]
+name = "branch-diff-review"
+profile = "orchestration"
+invocation = "user"
+summary = "Review a branch's committed diff against its base and emit a findings report: gates with exit codes and scope, explicit not-reviewed section, and per-finding verification that bans re-rating from judgment"
+
+[[skills]]
+name = "pr-comment-resolver"
+profile = "orchestration"
+invocation = "user"
+summary = "Resolve reviewer comments in the layer that owns the code: per-thread verdict, owning-layer lookup by introducing commit, backup tags and preflight before any authorized cascade"
+
+[[skills]]
+name = "pr-review-concise"
+profile = "orchestration"
+invocation = "user"
+summary = "Adversarially review a pull request under an enforced comment-length budget: severity-labelled inline findings routed to the PR that owns the code, posted in one atomic call"
+
+[[skills]]
+name = "initiative-planner"
+profile = "orchestration"
+invocation = "user"
+summary = "Plan a multi-session initiative before work starts: level-1 charter (PDR or ADR), typed session decomposition, derived concurrency, capability-tier routing, and the operator-only blockers"
+
+[[skills]]
+name = "stacked-pr-planner"
+profile = "orchestration"
+invocation = "user"
+summary = "Plan branch/PR topology before the first commit: classify each deliverable by risk class and review lane, assign it to exactly one layer, emit a checkable layer table with re-plan triggers"
 
 [[skills]]
 name = "python-conventions"

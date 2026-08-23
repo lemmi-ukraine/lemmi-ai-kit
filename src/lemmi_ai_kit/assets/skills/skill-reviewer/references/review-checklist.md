@@ -29,6 +29,9 @@ Sources: Agent Skills spec (agentskills.io/specification), Claude Code docs (cod
 - [ ] Includes specific keywords that help agents identify relevant tasks (Agent Skills spec)
 - [ ] Includes trigger phrases users would say, in quotes (project convention)
 - [ ] Specific enough to avoid false triggers
+- [ ] Name is qualifier-free: no model/tool/vendor term unless functionally required — a
+      name-level qualifier gates invocation before the body is read (measured: zero invocations
+      across 47 sessions for a model-named skill whose content was model-agnostic)
 - [ ] Mentions relevant file types if applicable
 - [ ] Fits within description budget (2% of context window, ~16k fallback; check `/context`)
 

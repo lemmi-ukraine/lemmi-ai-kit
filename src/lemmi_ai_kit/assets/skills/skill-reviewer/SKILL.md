@@ -34,6 +34,21 @@ You have two modes:
 
 ## Review Mode: Quality Audit
 
+> Platform facts in this skill were verified against code.claude.com/docs/en/skills and
+> agentskills.io/specification — re-fetch BOTH before editing budget numbers, field
+> semantics, or override rules here.
+>
+> The mechanical subset of Steps 2, 5, and parts of 8 is automated: run
+> `lemmi-ai-kit audit-skills` (read-only, fleet-wide) and fold its findings in; the tables
+> below define the severities. Add `--fail-on major` to make it gate rather than report.
+>
+> **The audit only scans the directory it is pointed at.** By default that is the project's
+> `.claude/skills/`, so a skill living anywhere else — a shareable kit, a scaffold, a vendored
+> copy — is invisible to it, and a clean fleet audit says **nothing** about that skill. Point
+> it at the right tree with `--skills-dir`, or walk the checklist by hand: the portability
+> greps in Step 6, plus a domain-marker sweep to catch calibration-example leakage into a
+> shareable artifact.
+
 ### Step 1: Read the Skill
 
 Read the complete `SKILL.md` and all supporting files in the skill directory.
@@ -78,6 +93,7 @@ Evaluate the description against the formula: `[WHAT] + [WHEN] + [keywords]`
 | Trigger phrases | Includes 2+ specific phrases users would say (in quotes) | Project convention |
 | Specificity | Not vague ("helps with projects" = FAIL) | Agent Skills spec |
 | Negative triggers | Clarifies what NOT to trigger on (for broad skills) | Best practice |
+| Name neutrality | The NAME carries no model/tool/vendor qualifier unless the skill cannot function without it — the name is routing metadata read BEFORE the body, so a qualifier silently scopes the skill to matching sessions (`fable-orchestrate`: zero invocations in 47 sessions while model-agnostic in content; renamed `orchestrate` → immediate re-registration) | Project convention (2026-08-02) |
 
 Rate: GOOD / NEEDS IMPROVEMENT / POOR
 

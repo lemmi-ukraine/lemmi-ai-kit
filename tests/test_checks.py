@@ -260,6 +260,9 @@ def test_no_absolute_path_is_ever_printed(
 _SKILLS = assets_root() / "skills"
 _TABLE_CODE_RE = re.compile(r"^\|\s*`([A-Z][A-Z-]+)`\s*\|", re.MULTILINE)
 _TABLE_BOLD_RE = re.compile(r"^\|\s*\*\*([A-Z][^*|]+?)\*\*\s*\|", re.MULTILINE)
+_LEARNINGS_ROW_RE = re.compile(
+    r"^\|\s*([A-Z][^|]*?)\s*\|\s*`([a-z-]+)`\s*\|", re.MULTILINE
+)
 
 
 def _pin_message(kind: str, source: str) -> str:
@@ -281,22 +284,27 @@ def test_changelog_types_match_the_shipped_skill() -> None:
 
 
 def test_learnings_sections_and_slugs_match_the_shipped_skill() -> None:
-    text = (_SKILLS / "task-learnings" / "SKILL.md").read_text(encoding="utf-8")
-    documented_sections = set(_TABLE_BOLD_RE.findall(text))
+    # The canonical set lives in the reference doc, not SKILL.md: it is shared with
+    # `learning-consolidator`, and a table duplicated in both drifts silently.
+    ref = "task-learnings/references/learnings-format.md"
+    text = (
+        _SKILLS / "task-learnings" / "references" / "learnings-format.md"
+    ).read_text(encoding="utf-8")
+    # Two groups per row, so this pins the header-to-slug PAIRING, not just the
+    # header set -- a mismatched slug is the failure that actually breaks the lint.
+    documented_pairs = set(_LEARNINGS_ROW_RE.findall(text))
 
-    assert documented_sections, "no category table found in task-learnings/SKILL.md"
-    assert documented_sections == set(checks.LEARNINGS_SECTIONS), _pin_message(
-        "learnings sections", "task-learnings/SKILL.md"
+    assert documented_pairs, f"no category table found in {ref}"
+    assert documented_pairs == set(checks.LEARNINGS_SECTIONS.items()), _pin_message(
+        "learnings sections", ref
     )
 
     # The slug list is the one the entry format tells an author to write.
-    slug_line = re.search(r"^- \*\*Category\*\*: (.+)$", text, re.MULTILINE)
-    assert slug_line is not None, (
-        "no Category slug line found in task-learnings/SKILL.md"
-    )
+    slug_line = re.search(r"^- \*\*Category\*\*: (.+\|.+)$", text, re.MULTILINE)
+    assert slug_line is not None, f"no Category slug line found in {ref}"
     documented_slugs = {part.strip() for part in slug_line.group(1).split("|")}
     assert documented_slugs == set(checks.LEARNINGS_SECTIONS.values()), _pin_message(
-        "learnings category slugs", "task-learnings/SKILL.md"
+        "learnings category slugs", ref
     )
 
 

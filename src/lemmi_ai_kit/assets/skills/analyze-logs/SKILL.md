@@ -32,6 +32,21 @@ ultrathink
 3. **Separate issues.** Logs often contain multiple unrelated problems. Investigate and report each one independently.
 4. **Ask when unsure.** If a log entry is ambiguous, the context is unclear, or multiple root causes are plausible, ask the user rather than guess.
 5. **No speculation without labeling.** If you form a hypothesis without hard evidence, explicitly mark it as `[HYPOTHESIS]` and explain what evidence would confirm or refute it.
+6. **Never quote a raw `grep -c` as a frequency.** One job failure writes the same error string into several fields of each entry (`error_message`, `message`, `stack_trace`) *and* across more than one entry (the job-execution wrapper plus the feature-level handler). A `grep -c` returning 6 and an earlier review's "exactly 3 times" both traced to a **single** job — neither was an incident count, and both had already been quoted as frequency evidence in a task doc. Extract the correlating id first and count DISTINCT ids:
+
+   ```bash
+   grep -B4 -A12 "<error string>" <file> | grep -E '"(job_id|interview_id)"' | sort -u
+   ```
+
+   State the ids next to the count so the next reader can tell an incident count from a hit count.
+7. **Never collapse buckets a source document deliberately separated.** Merging two categories that
+   an upstream doc kept apart inflated one finding **5×**. Before writing any aggregate, check
+   whether the source defined its own buckets — if it did, report in those buckets and state
+   explicitly when you are combining them and why.
+8. **Census the identity key before normalizing.** One entity's identity can travel under more than
+   one field name in the same corpus (a session appearing under two different key names), so a
+   join on a single field silently drops or double-counts records. Enumerate the candidate identity
+   fields across the whole corpus first, then pick the resolution order and say what it is.
 
 ## Analysis Pipeline
 

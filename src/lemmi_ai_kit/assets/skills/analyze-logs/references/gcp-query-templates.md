@@ -2,7 +2,8 @@
 
 Common GCP Cloud Logging queries for this project. Use these when the user asks to
 search GCP logs or when constructing queries to help the user find specific entries.
-Replace `{SERVICE_NAME}` with the project's Cloud Run service name.
+Replace `{SERVICE_NAME}` with the project's Cloud Run service name, and
+`{PROJECT_ID}` with the GCP project id of the environment you are querying.
 
 ## Base Filters
 
@@ -13,12 +14,19 @@ resource.type="cloud_run_revision"
 resource.labels.service_name="{SERVICE_NAME}"
 ```
 
-To scope to a specific environment, add the configuration name and region — e.g., if
-production and dev deployments run in different regions:
+To scope to a specific environment, use `resource.labels.project_id`, not
+`resource.labels.location`. **Measured: `location` does not distinguish environments** when
+deployments share a region — every entry across 11 log exports spanning two environments carried
+the same `location`. One project id per environment is the reliable discriminator:
 
 ```
 resource.labels.configuration_name="{SERVICE_NAME}"
-resource.labels.location="{REGION}"
+resource.labels.project_id="{PROJECT_ID}"
+```
+
+```
+resource.labels.configuration_name="{SERVICE_NAME}"
+resource.labels.project_id="{PROJECT_ID}"
 ```
 
 ## Common Queries
@@ -70,13 +78,49 @@ severity>=ERROR
 
 ### Background Job Failures
 
+This job system has no single structured `job_failed` event — a job's terminal outcome is one of
+FOUR shapes (verified 2026-07-29/07-30 against `backend/app/core/jobs/service.py` AND two real
+incidents' logs — do not assume the first shape found is exhaustive, as the 07-29 revision below was
+missed until a second real incident produced it):
+
+1. `jsonPayload.event_type="job_completed"` — success.
+2. `jsonPayload.event_type="job_expired"` — the repository's inactivity-sweep path
+   (`JOB_INACTIVITY_EXPIRATION_SECONDS`), for a row that went silent for a long time.
+3. `jsonPayload.event_type="job_execution_cancelled"` (`JOB_EVENT_CANCELLED`,
+   `service.py::_run_registered_job`'s `CancelledError` handler) — a **graceful** cancellation
+   (e.g. `background_task_registry`'s shutdown-timeout cancel that the task's own try/except got a
+   chance to observe before SIGKILL) that DOES mark the row FAILED and DOES log a structured
+   `job_`-prefixed event, WARNING severity.
+4. An unstructured `"Exception in {job_type}"` / `"Exception in job_execution"` ERROR message with
+   NO `job_`-prefixed event_type at all — an uncaught application exception inside the handler
+   (e.g. a raised `ValueError`).
+
+A row can also show **no terminal event whatsoever** — created/dispatched/execution_started with
+nothing after, forever — when the process is killed too abruptly (hard SIGKILL, e.g. OOM) for even
+the `CancelledError` handler in shape 3 to run. This is the genuinely silent case and the one most
+likely to be missed: two same-shaped OOM-kill incidents produced BOTH outcomes (one job silently
+stuck with nothing further logged, a different job in the other incident cleanly cancelled via
+shape 3) — the abruptness of the kill relative to that specific task's execution point decides
+which one you get, not the failure cause.
+
+The query below covers all four terminal shapes; a query that only matches `event_type=~"job_"` or
+`message=~"job.*failed"` will silently miss shapes 3 and 4, and NONE of these queries can
+distinguish "still running" from "silently stuck forever" — for that, correlate by `job_id` (see
+below) and check whether enough time has passed for the job type's normal duration.
+
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="{SERVICE_NAME}"
-(jsonPayload.message=~"job.*failed" OR jsonPayload.message=~"job.*error" OR jsonPayload.message=~"BackgroundJobError")
+(jsonPayload.event_type="job_expired" OR jsonPayload.event_type="job_execution_cancelled" OR jsonPayload.message=~"^Exception in " OR jsonPayload.message=~"BackgroundJobError")
 severity>=WARNING
 timestamp>="{START_TIME}"
 ```
+
+To reconstruct a specific job's full outcome, correlate every `event_type=~"job_"` entry by
+`jsonPayload.job_id` (a JSON parse, not `grep -A`/`-B` — see the External Service Quirks entry
+`[2026-07-29] GCP Cloud Logging console exports...` in `.ai/learnings.md`/its promoted home) and
+treat "created/dispatched/execution_started with no completed/expired and no Exception message" as
+inconclusive rather than failed — it may simply be still running or outside the captured window.
 
 ### WebSocket Connection Issues
 

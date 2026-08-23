@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from lemmi_ai_kit.cli import main
+from lemmi_ai_kit.manifest import load_manifest
 
 
 def test_list_prints_full_catalog(capsys: pytest.CaptureFixture[str]) -> None:
@@ -13,7 +14,9 @@ def test_list_prints_full_catalog(capsys: pytest.CaptureFixture[str]) -> None:
     assert "commit-message" in out
     assert "analyze-logs" in out
     assert "kit-setup" in out
-    assert "29 skill(s)" in out
+    # Derived, not literal: the CLI's own count must agree with the manifest it renders.
+    expected = len(load_manifest().skills)
+    assert f"{expected} skill(s)" in out
 
 
 def test_scaffold_and_rerun_roundtrip(

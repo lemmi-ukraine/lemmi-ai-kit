@@ -165,6 +165,24 @@ Create three separate documents in order, with a user approval gate after each:
    - Derive tasks from the design document
    - Ensure every acceptance criterion maps to at least one task
    - Identify parallel groups and dependencies
+   - **Relevance audit — for each task, state what it recovers and THROUGH WHICH MECHANISM.**
+     Task-to-cause mapping is assumed at planning time and rarely re-checked, so a plan can be
+     internally consistent and still leave its largest bucket unaddressed. Measured: a 41% funnel
+     loss decomposed into three causes; the task written as the fix for the biggest one delivered a
+     machine-readable reason on the API's event payload and error body — and **the front end
+     rendered neither**, so it changed nothing user-visible. It was correctly derived from the root
+     cause and still could not move it. A task whose
+     mechanism terminates in another team's repo is **enablement, not a fix**: label it so and name
+     who owns the other half. Run this as an explicit audit, not as trust in the
+     requirements-to-task derivation.
+   - **Any post-review amendment re-opens the completeness dimension.** Plan-critic's "every
+     adopted item → a task" check passed *when it ran*; sections, riders and decisions adopted in
+     prose afterwards silently re-open it with nobody re-running the review. Two shapes seen
+     together: a rider adopted in discussion with **no implementing task**, and a measurement
+     contract promising a detector **no task builds**. After adding any section, rider or decision,
+     immediately tick it against `tasks.md` — a new task, or an explicit "no task because…" — and
+     re-check every instrument the spec promises against a building task. Cheap form: end every
+     spec-amending turn with "does each new noun have a task?"
    - **Run the plan-critic self-review** (the `plan-critic` skill) — completeness-only pass (Dimensions 4–5 only). Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
    - **STOP.** Present to user. Wait for explicit approval before implementation.
 
@@ -212,6 +230,31 @@ When a requested change is technically questionable — it conflicts with existi
 - Naming preferences, wording choices, or ordering of sections
 - Scope changes within reason (the user may have new information about requirements)
 - Technology choices that are a matter of preference rather than correctness
+
+## Executing & Resuming a Spec
+
+- **Acceptance scenarios outrank tactic prose.** Gherkin scenarios and the risk table encode
+  decisions at higher fidelity than tactic sketches — an "accepted risk" row reveals which
+  over-constraint the author consciously chose. Derive each edit from the scenarios first, use
+  tactic prose as implementation hints, resolve any divergence in the scenario's favor, and record
+  the interpretation in the spec's working notes at execution time.
+- **A parenthetical "reuse X's exact type" loses to the spec's own NAMED PRECEDENT.** When a spec
+  gives both an implementation detail to copy *and* a named precedent function for the same
+  behavior, verify the parenthetical actually produces the required outcome before trusting it —
+  the named precedent is likelier to have been chosen because it is the one that works. Measured:
+  a spec said the new endpoint's ownership check should "mirror `bulk_update_statuses`'s existing
+  check; reuse its exact exception type" (a bare `PermissionError`), while its own Security NFR
+  anchored the endpoint to "same pattern as `GET /coach/subtasks/{id}`". `PermissionError` is a
+  builtin with **no entry in `handle_coach_request`'s exception→HTTP map**, so raising it would
+  have fallen through as an unhandled 500 instead of the required 403 — and the named precedent
+  (`CoachTaskService.get_subtask_detail`) raises `TaskAccessDeniedError`, which IS wired to 403.
+  Grep the decorator/middleware exception map before copying an exception type, and record the
+  resolution in the Deviations Log with **both** readings, not only the one taken.
+- **Resuming mid-pipeline: every "Done" status line in `tasks.md` is a prior session's CLAIM, and
+  one entry can mix true and fabricated claims** — so neither blanket-trust nor blanket-redo is
+  right. Before building on a load-bearing "Done", grep for each claim's concrete artifact (test
+  symbol, fixture field, doc marker): claims whose artifacts exist stand; absent artifacts get
+  re-done. Record corrections in the tracking file (supersede, don't silently overwrite history).
 
 ## Phased Execution for Large Tasks
 
@@ -283,19 +326,59 @@ When implementing from a spec (phased or non-phased):
 - If implementation reveals that the spec needs changes, update the spec first and note the deviation in the Deviations Log
 - If scope grows beyond the original spec, stop and discuss with the user
 
+## Closing a Spec — self-review, then retire
+
+A spec is not finished when its last task is ticked. Two steps close it, in order:
+
+1. **Self-review — `post-task-review`** (mandatory for Medium and Large; the 8-step pass). Its
+   step 4 self-challenge and step 7 documentation-impact sweep are what catch the defects the
+   implementation pass cannot see, because they check the work against the *approved scenarios* and
+   against every doc that cites the changed files. Phased specs run the gate levels in
+   § Quality Gate Levels; the final phase always gets the Full pass.
+
+2. **Retire — `initiative-cleanup`** (approval-gated, destructive). Settles the board rows against
+   `git grep`, writes the forward plan **before** anything is deleted, partitions every deletion
+   target per file into tracked vs untracked, and runs the comment pass. **`initiative-cleanup` owns
+   the disposition rules — do not decide a spec's fate here.** Its gates:
+   - **What KIND of artifact is it?** The implemented/not-implemented question below reaches a
+     **spec** and nothing else — a dispatch brief describes no code, so it can never satisfy it.
+     Scaffolding, rollback anchors, instruments and results are each dispositioned by their own
+     life-ending condition. Skipping this axis is how one run left 136 of 157 files uncategorised
+     and still reported success.
+   - **Implemented?** (specs only) Prove it by content (`git grep -l '<symbol>' <ref>`), never by
+     ancestry — a squash-merge makes the original SHAs non-ancestors while the code is in `dev`. Not
+     implemented ⇒ `parked` with a revival trigger, never deleted.
+   - **References repointed?** Sweep every inbound citation and repoint it *before* removal, then
+     re-sweep to zero. No build fails over a dead reference.
+
+**For a multi-slice initiative** (several specs, several branches), the topology is decided *before*
+the first commit by `stacked-pr-planner`, and `orchestrate` § "Plan first" invokes it. A spec that
+will land across more than one PR names its layer there rather than discovering it at commit time.
+
 ## State Contract
 
 - **State location:** `.specs/{task-name}/`
 - **State files:** `requirements.md`, `design.md`, `tasks.md`, `spec.md`
 - **State transitions:** draft → reviewed (plan-critic) → approved (user) → implementing → completed
-- **Cleanup:** Completed specs remain as documentation; abandoned specs are deleted
+- **Cleanup:** owned by `initiative-cleanup`, not by this skill. Note its rules are the **inverse** of
+  the intuitive ones this line used to state: a spec whose work **shipped** is *deleted* (the code and
+  its tests are the truth; relocate anything durable to the code-adjacent home and leave a changelog
+  pointer, or it becomes a second source that drifts), while a spec that was **parked or abandoned**
+  is *kept*, because it carries the decision **not** to build — which is what stops the next
+  initiative re-deriving it. Both dispositions are gated on § Closing a Spec's two checks.
 
 ## Spec Storage Convention
 
 - All specs live in `.specs/{task-name}/` at the project root
 - `{task-name}` uses lowercase with hyphens (e.g., `voice-recording-upload`, `sse-progress-migration`)
-- Completed specs remain in the repository as documentation of past decisions
-- Abandoned specs should be deleted to avoid confusion
+- **Commit the spec.** Writing under `.specs/` does not track it — the directory is not gitignored,
+  but a new file there stays untracked until `git add`, and an untracked spec is a single copy with
+  no history. Verify: `git ls-files --error-unmatch .specs/{task-name}/spec.md` → exit 0
+- **Disposition at the end is `initiative-cleanup`'s call, and it inverts the intuition:** a spec
+  whose work SHIPPED gets deleted (relocate anything durable to the code-adjacent home, leave a
+  changelog pointer); a spec that was ABANDONED or parked is KEPT, with its revival trigger. See
+  § Closing a Spec. Never delete a spec whose work was not implemented, and never delete one without
+  first repointing every inbound reference
 
 ## Spec Quality Checklist
 

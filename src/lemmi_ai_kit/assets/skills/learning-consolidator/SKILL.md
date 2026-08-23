@@ -41,8 +41,31 @@ You verify each entry against the current codebase before deciding its fate.
 
 ### Phase 1: Inventory & Cluster Detection
 
+0. **Cadence guard** — count intake entries (`python
+   lemmi-ai-kit lint learnings --list-entries`) and read the
+   newest `CONSOLIDATION` entry date in `.ai/ai-changelog.md`. Proceed when intake > 0 AND the
+   last consolidation is ≥7 days old — or whenever the user explicitly asked. Otherwise report
+   why not ("buffer empty" / "last drain {D} days ago — fresh") and stop. This is the pair of
+   `session-retrospective` Phase 0; that skill's ending also nudges THIS one when it is overdue.
+   Cadence: measured **~5 entries/day** (REFUTED twice — draining does not slow intake, do not
+   re-predict it), so the >25 NOTE fires in ~5 days and weekly is the FLOOR; if volume is the
+   concern the lever is capture-side selectivity at `task-learnings`, not more drains.
+   **Then verify the PREVIOUS drain landed — its plan is a claims sheet.**
+   `.ai/consolidation-plan-2026-08-03.md` is headed "EXECUTED" and lost **18 of its 37** promotions:
+   uncommitted edits in a tree several sessions were stashing through, and the only symptom was the
+   buffer failing to shrink (work looked pending AND done, so neither artifact contradicted the
+   other). Run `git log --oneline --all --grep=CONSOLIDATION -- AGENTS.md`; with no commit naming
+   that drain, re-verify each promotion at its **named target** and treat still-present entries as
+   un-drained rather than duplicates.
 1. Read `.ai/learnings.md` in full.
-2. Count entries per category. Report the inventory:
+2. **Deferred-work pickup** — check `tasks/TECH-deferred-consolidation-*.md` and the most
+   recent `.ai/consolidation-plan-*.md` for open/deferred items. Carry each still-open item
+   into this run's consolidation plan (re-verify it against the live skill/codebase first —
+   coverage may have shifted since it was deferred). Deferred ≠ dropped only if something
+   re-surfaces it; this step is that something.
+3. Count entries per category. The canonical category set is defined in
+   `../task-learnings/references/learnings-format.md` (§ Canonical Categories) —
+   the single source of truth shared with the producer (`task-learnings`). Report the inventory:
    ```
    Learnings Inventory:
    - Architecture Decisions: N
@@ -51,9 +74,8 @@ You verify each entry against the current codebase before deciding its fate.
    - Performance Insights: N
    - Pattern Discoveries: N
    - Convention Clarifications: N
-   - Prompt Engineering for AI Skills: N
-   - Specification Engineering: N
-   - Feature-Specific AI Pipelines: N
+   - Interaction & Workflow Friction: N
+   - <each legacy/transitional section found, verbatim>: N
    - Total: N
    ```
 3. If `--category` was specified, filter to only that category's entries for subsequent phases.
@@ -62,10 +84,15 @@ You verify each entry against the current codebase before deciding its fate.
 > under the file's *last* `## ` header regardless of topic, so a section silently becomes a
 > chronological catch-all that misleads cluster detection (and your per-section counts). Verify
 > section boundaries by parsing the structure (count `### [` entries per `## ` section), not by
-> eyeballing — and re-file mis-placed entries. For any mass archive/re-file in later phases, use a
-> **dry-run script** that asserts each kill/move pattern matches **exactly once** and that the
-> before/after entry count changes only by the intended delta; back up the file first. Botched edits
-> to this append-log are silent (entries vanish or malform with nothing failing).
+> eyeballing — and re-file mis-placed entries.
+>
+> **Check `Interaction & Workflow Friction` first — it is the file's LAST `## ` header AND its name
+> reads broad, so it is doubly exposed to catch-all drift.** Audit its entries against the
+> `interaction` vs `pitfall` test in `learnings-format.md` (does the finding turn on the CODE, or on
+> how the work was conducted?), not on the assumption that placement was deliberate. For any mass archive/re-file in later phases, use a
+> **dry-run script** that asserts each kill/move pattern matches **exactly once** and reports
+> the before/after entry-count delta; back up the file first. Botched edits to an append-log are silent
+> (entries vanish or malform with nothing failing).
 
 4. **Cluster detection** — Scan for groups of 3+ entries that share a common theme or domain
    across categories. Clusters are candidates for PROMOTE_TO_SKILL (reference skill).
@@ -123,6 +150,21 @@ section in [references/consolidation-actions.md](references/consolidation-action
 The core question: does the file, module, class, API, or pattern described in the entry
 still exist and behave as described?
 
+Use the entry's routing fields when present: `Verify-at:` names the anchor to grep first;
+a `Scope: branch:<x>` / `Scope: until:<event>` whose boundary has passed makes the entry an
+ARCHIVE candidate (expired) without further analysis — confirm the boundary passed, don't
+re-litigate the content.
+
+**Parked patterns rot mechanism-first**: a grep proves a pattern still EXISTS, but any claim about
+CHECKER/TOOL behavior (basedpyright inference, a lint rule firing, a version-tied mechanism) needs a
+~10-line probe against the pinned toolchain before it ships into a rule — a prior promotion pass
+found 2 of 9 parked patterns fully dead by grep and 2 MORE with stale mechanism rationales only the
+probe caught. Phrase promoted bullets at the principle/boundary level and anchor each to a live
+file path so the next pass can re-verify cheaply. **And grep every code symbol the promoted text
+cites against the CURRENT branch** — entries written on another branch carry that branch's names
+(the 2026-07-16 drain shipped `ShutdownRunContext` into a README; this branch calls it
+`ShutdownContext` — caught only by the post-task symbol sweep).
+
 **Decision:** `CURRENT` | `STALE` | `SUPERSEDED`
 
 If `STALE` or `SUPERSEDED`: mark for archival with reason.
@@ -159,6 +201,16 @@ promotion action. Use the decision criteria in
 | `ARCHIVE` | Entry is stale, superseded, or fully covered |
 
 Record the classification and target (which file to update or create) for each entry.
+
+**Routing-field hints (when the entry carries them):** `Home:` seeds the action/target
+(`tasks:<file>` → the work lane: verify the named task doc exists or create it, then the entry
+archives once the task carries the work; `agents-rule`/`skill:<name>`/`readme:<path>`/`comment:`
+map to the actions above). `Enforce-via:` biases the promotion: when it names `lint`/`test`/
+`template`/`script`, prefer landing the guidance at that mechanical seam over prose — the
+measured record is that mechanical seams change behavior and prose only raises probability.
+Hints are VERIFIED, never followed blindly: a wrong `Home:` or a renamed `Verify-at:` symbol is
+expected (entries can be written on another branch — grep every promoted symbol against the
+current branch).
 
 **Retrospective priority boost:** any entry that Phase 1.5 cross-linked to a recurring real-session
 mistake jumps to the top of the `PROMOTE_TO_RULE` queue — the retrospective is evidence the current
@@ -211,7 +263,13 @@ For each approved promotion, execute the action:
 
 #### PROMOTE_TO_RULE
 1. Identify the correct target section in `AGENTS.md` (Conventions, "Do not", or specific subsection).
-2. Draft the rule text — concise, imperative, consistent with surrounding style.
+2. Draft the rule text — concise, imperative, consistent with surrounding style. If the rule
+   governs how work is *performed* (evidence standards, citation discipline, verification
+   thresholds), ask whether a **sub-agent** will ever do that work — if yes, route the operative
+   text into the AGENTS.md spawn-preamble clause (the restate-in-every-spawn-prompt list), not only
+   a main-thread bullet: rules outside the spawn prompt do not reach sub-agents (5 of 6 audited
+   sub-agents violated a 2-week-old main-thread rule), while the preamble mechanism measured 0
+   re-hits in 300 agents.
 3. Add the rule to `AGENTS.md` at the identified location.
 4. If the rule also needs a code example, check if `python-conventions` or `vertical-slice` skills cover it. Add an example there only if the pattern is non-obvious.
 5. **Cross-reference update** — Check [references/cross-reference-targets.md](references/cross-reference-targets.md) for files that must be updated when a rule is added to the target section. Update each one.
@@ -266,18 +324,34 @@ This is the most complex action. Follow this process:
 
 After all promotions are executed:
 
+> **Snapshot the buffer FIRST** — `cp .ai/learnings.md .ai/learnings-pre-drain-<date>.md`
+> before any deletion, `cmp`-verify it, and **commit it alongside the drain**. Step 6's landing
+> audit takes it as input, so an uncommitted or gitignored snapshot makes "zero entries deleted
+> without a home" an assertion rather than evidence. Never `.ai/tmp/` (gitignored — the 2026-08-02
+> drain's evidence is simply gone, and its two published tallies still disagree with nothing left
+> to settle it). Full rationale: [references/consolidation-actions.md](references/consolidation-actions.md)
+> § Pre-Drain Snapshot.
+
 1. **Remove archived entries** — entries marked `ARCHIVE` are deleted entirely.
 2. **Remove promoted entries** — entries whose knowledge is now fully captured in
    rules/skills are deleted entirely. No tombstones — the rule/skill is the authoritative
    source now, and the git history preserves the original entry.
 3. **Replace merged entries** — remove source entries, insert the merged entry.
-4. **Keep entries** — leave unchanged.
-5. **Verify** — re-read `.ai/learnings.md` and confirm:
+4. **Keep entries** — leave unchanged, but enforce the dwell limit: if an entry already
+   survived the TWO previous consolidation runs as KEEP (check its date against the two most
+   recent `CONSOLIDATION` entries in `.ai/ai-changelog.md`), KEEP is no longer available —
+   promote it to a home or drop it. A lean buffer must not silently re-accumulate.
+5. **Verify removal (structural, not eyeballed)** — run
+   `lemmi-ai-kit lint learnings`
+   (zero findings required), then re-read `.ai/learnings.md` and confirm:
    - All promoted entries are removed
    - All archived entries are removed
    - Remaining entries are properly formatted
    - Category sections with no entries are removed (avoid empty sections)
    - File header and instructions are preserved
+6. **Verify LANDING — mandatory, and NOT step 5's check.** Step 5 proves entries left the buffer; it
+   is blind to an entry removed whose knowledge reached no home. Run `drain_audit.py` on the snapshot
+   and adjudicate every flagged row: [§ Drain Landing Audit](references/consolidation-actions.md#drain-landing-audit).
 
 ### Phase 6: Cross-Reference Verification
 
@@ -296,6 +370,31 @@ After all changes are made, verify consistency across the project's AI infrastru
 3. **Report any inconsistencies** found — these must be resolved before the consolidation
    is considered complete.
 
+### Phase 6.5: Hypothesis Validation (via `hypothesis-validator`)
+
+Close the feedback loop on `.ai/improvement-hypotheses.md`. The validation logic lives in
+the dedicated internal task skill — read `../hypothesis-validator/SKILL.md` and
+run its process here (one owner, multiple callers):
+
+1. It enumerates `Status: PENDING` hypotheses, applies the **window guardrail** (never
+   validate younger than the signal's window; interim evidence → dated `Validation notes:`,
+   Status untouched), gathers evidence FOR and AGAINST (this run's analysis, retro §4g,
+   changelog, fleet audits), and proposes `CONFIRMED | REFUTED | INCONCLUSIVE | SUPERSEDED`.
+2. Fold its proposed status changes into the consolidation plan (Phase 3's approval gate
+   covers them — no second prompt); execute only after approval, appending the
+   `- **Resolution ({date}):** …` line per its Step 6.
+3. `REFUTED` verdicts carry its mandatory follow-up action (adjust/revert the change, or
+   record why it stays) — a refuted-with-no-action row is an incomplete plan item.
+4. **Its lifecycle actions are plan items, never post-approval side effects.** Archive
+   rotation and the Meta-Synthesis both **write** (`.ai/improvement-hypotheses.md` and the
+   archive file), so they are *discovered* during Phases 1–2 and carried into the Phase 3
+   plan with their targets named — which entries rotate, and whether the lint's synthesis-due
+   NOTE is currently firing. Approval then covers them exactly as item 2's status changes.
+   **This step runs after the gate, so anything it discovers for the first time here has not
+   been approved:** if the NOTE only starts firing once this run's own verdicts land, do not
+   execute it silently — present it as a one-line delta for a second approval, or carry it to
+   the next run with a dated note. Discovery may happen late; writing may not.
+
 ### Phase 7: Changelog & Summary Report
 
 **7a. Append changelog entry** — Read the `ai-changelog` skill and append a
@@ -307,11 +406,28 @@ in the ai-changelog skill.
 and evaluate whether the consolidation warrants improvement hypotheses (e.g., promoted rules
 expected to reduce specific error classes, new skills expected to improve consistency).
 
-**7c. Present summary** — Present a final summary using the template in
-[references/analysis-report-template.md](references/analysis-report-template.md).
+**7c. Draft the summary** — using the template in
+[references/analysis-report-template.md](references/analysis-report-template.md), including a
+section listing every file modified during the consolidation. **Do not present it yet** — Phase 8
+routinely changes what it says.
 
-Include an additional section listing all files modified during the consolidation
-(for the user to review the changes).
+### Phase 8: Consolidation Critic (MANDATORY — via `consolidation-critic`)
+
+Read `../consolidation-critic/SKILL.md` and run its eight checks over this run's own
+output, then present the reviewed summary. It is a `review`-type skill, so invoking it from this
+workflow does not violate the max-1-level nesting rule (same relationship as
+`spec-driven-dev` → `plan-critic`).
+
+This is not a formality and not optional. The 2026-07-31 drain was believed complete when Phase 7
+was drafted; the critic found **6 of 87 entries (7%) deleted without a home** — one of them
+cross-referenced from a skill as if it existed — plus **4 false claims already written into
+always-loaded rules**, an auto-loaded skill contradicting itself, and a provider claim promoted from
+a single unverifiable forum post as fact.
+
+Resolve every **Blocker** (deleted knowledge, a false claim already shipped) before reporting the
+consolidation complete, and fold the critic's corrections into the Phase 7 changelog entry and
+summary — including any headline figure the fixes invalidated. If a Blocker needs a decision only
+the user can make, surface it at the top of the summary rather than reporting a clean run.
 
 ## Quality Gates
 
@@ -346,34 +462,8 @@ Include an additional section listing all files modified during the consolidatio
 
 ## Calibration Examples
 
-### Good: Entry that should be PROMOTE_TO_RULE
-
-```
-### [2026-03-04] Shared exceptions over HTTPException for standard errors
-- Finding: Using HTTPException directly in routes bypasses the middleware error shaping pipeline.
-- Impact: Always use shared exceptions in routes. Only use HTTPException for non-standard status codes.
-```
-
-Why PROMOTE_TO_RULE: describes a mandatory convention, validated in production, applies across all features,
-expressible as a single imperative rule in AGENTS.md's "Do not" section.
-
-### Good: Entry that should be KEEP
-
-```
-### [2026-03-14] OpenAI response.audio.delta events arrive out of order under high load
-- Finding: Under sustained load, audio delta events occasionally arrive with sequence numbers
-  that skip ahead, causing playback gaps.
-- Impact: May need client-side reordering buffer.
-```
-
-Why KEEP: only 1 day old, observed once, needs more validation before becoming a rule.
-Could be a transient API issue.
-
-### Bad: Premature PROMOTE_TO_SKILL
-
-An entry about a single debugging technique (e.g., "log timeline analysis for OpenAI Realtime")
-should NOT become a skill on its own — it's one technique, not a coherent body of knowledge.
-It should be PROMOTE_TO_RULE or KEEP until 2+ related entries form a cluster.
+Worked promote-vs-keep judgements (a good PROMOTE_TO_RULE, a good KEEP, and a premature
+PROMOTE_TO_SKILL): [references/consolidation-actions.md § Calibration Examples](references/consolidation-actions.md#calibration-examples).
 
 ## Anti-patterns
 

@@ -227,3 +227,51 @@ from app.features.{feature}.config import {Feature}Settings, DomainTables, Busin
 # Usage:
 settings = {Feature}Settings()
 ```
+
+## Registry/Pipeline Extension Points (conflict-free decomposition)
+
+When decomposing an if/elif churn axis (event dispatch, action dispatch, ordered phases) into
+registries/pipelines, drive them from **append-only ordered registration modules** (one list-literal
+per axis, e.g. `event_behavior_registrations.py`) — adding a feature = new file + one list append;
+no existing handler/router is touched, so merge conflicts vanish by construction. Two contracts make
+it work:
+
+- **Composition-root chicken-and-egg**: steps/behaviors need the session reference, but the session
+  needs them wired. Build the session first, wire the registry/pipeline against it via a composition
+  helper, AND have the facade self-wire defaults from the SAME registration tables when not injected
+  (so direct-construction tests still get a working session).
+- **Per-handler isolation drops client-error contracts**: a router that logs-and-continues per
+  handler swallows the client-facing ERROR a decorator used to emit. Wrap each handler in an
+  error-shaping adapter at the composition root (log + send client ERROR + swallow→continue).
+- Sibling features converge by MIRRORING the structure, never cross-importing — if both need it,
+  the abstraction belongs in `core/`.
+
+## Before Adding a Channel, Inventory What the Consumer Already Receives
+
+When a component lacks a discriminator, the reflex is a new channel — a protocol method, a session
+hook, a no-op for the sibling strategy, plus wiring. Inventory the fields on the objects it is
+**already handed** first. The stereo assembler could not distinguish "a pause inside one spoken
+turn" from "two distinct turns", and the discriminator was already in its own input:
+`StereoBatcher` records a `TurnBoundary` at every `response.created` and `_create_batch` attaches
+them to `TranscriptionBatch.turn_boundaries` — a field the stereo assembler received on every batch
+and never read (only the mono assembler consumed it). Reading it made the fix one file with no
+plumbing.
+
+The cheaper design was also the **more correct** one, which is the usual shape: an existing field
+is already in the producer's native units. The boundary is a buffer-length watermark — the same
+coordinate frame as utterance times — so it needs no wall clock and no provider event-ordering
+assumption, whereas the `current_position_seconds()` stamp it replaced would have reintroduced
+clock skew. Watch especially for **two-implementation seams**, where one strategy routinely
+populates a shared model field the other ignores: grep the shared dataclass's fields against each
+consumer. At the time of the fix `batch.turn_boundaries` was read only by the MONO assembler —
+that asymmetry was the whole finding. It now has readers in both (`stereo_transcript_assembly.py`
+and `transcript_assembly.py`), so grepping it today shows a healthy seam; the lesson is the
+diagnostic, not the current count.
+
+## Composition-Root Facades Are Exempt from Line-Count NFRs
+
+A session facade is a composition root: its residual is constructor wiring + the multi-Protocol
+contract surface + design-mandated inline hot paths + thin delegators — not further decomposable
+without churning every construction site for a metric. Set line-count NFRs on behaviors/handlers/
+steps, NOT on composition-root facades; extract every genuinely separable concern, then document
+the residual as a composition-root deviation (same reasoning as the dependency-count exemption).

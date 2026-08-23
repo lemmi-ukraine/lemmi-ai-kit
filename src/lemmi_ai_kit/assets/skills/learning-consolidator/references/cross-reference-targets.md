@@ -43,6 +43,8 @@ target to its dependent files.
 | Error handling convention | `.cursor/rules/error-handling.md` |
 | Logging convention | `.cursor/rules/logging.md` |
 | Workflow convention | `.cursor/rules/spec-driven-dev.md`, `.cursor/rules/post-task-review.md` |
+| Learnings lifecycle / intake-buffer model | `.cursor/rules/learnings.md`, `.kiro/steering/task-completion-review.md`, `.kiro/steering/task-completion-review-output.md` (any change to how learnings are consulted, appended, or drained must update ALL thin references — the 2026-06-23 redistribution missed the cursor one) |
+| **Pipeline-skill edit** (`ai-changelog`, `ai-improvement-tracker`, `hypothesis-validator`, `learning-consolidator` and its `scripts/`, `session-retrospective`, `task-learnings`) | **The edit reaches only the skills directory it is made in.** If the project keeps copies of these skills anywhere else, nothing signals the drift. **Locate them first** (`find . -type d -name learning-consolidator`), then establish which regime each copy is in, because the two behave oppositely: a **content fork** holds its own body and must be diffed against mainline before you trust it; a **pointer shim** (~20 lines whose body says *read the canonical SKILL.md*) is drift-immune by construction and needs no action, though its frontmatter `description` and any adaptation list can still go stale when a skill's description or argument contract changes. Tell the two apart before assuming either: `head -8 <path>/SKILL.md` — a shim opens with a read instruction, a fork opens with content. Then state in the change record which copies the edit reached. |
 
 ## Cursor Rule File Format (for new rules)
 
