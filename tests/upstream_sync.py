@@ -447,6 +447,32 @@ def _git(repo: Path, *args: str) -> str:
     return result.stdout
 
 
+def read_upstream_file(repo: Path, ref: str, path: str) -> str:
+    """One file's content from upstream at `ref`, decoded as UTF-8 explicitly.
+
+    Deliberately NOT `_git`. That helper passes `text=True`, which decodes through the
+    locale codec -- fine for the commit counts and ASCII paths it was written for, and
+    wrong for content. On a Windows console code page every em dash comes back mangled,
+    so a comparison of two prose tables reports differences that are not there; the same
+    defect once turned 14 rewritten lines into 176 phantom dropped ones. Vocabularies are
+    prose, so they get bytes and an explicit decode.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo), "show", f"{ref}:{path}"],
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:  # pragma: no cover - git absent from PATH
+        raise UpstreamUnavailable(f"cannot run git: {exc}") from exc
+    if result.returncode != 0:
+        stderr = result.stderr.decode("utf-8", errors="replace").strip()
+        raise UpstreamUnavailable(
+            f"cannot read {path} at {ref[:8]}: {stderr or 'no stderr'}"
+        )
+    return result.stdout.decode("utf-8")
+
+
 def _exists(repo: Path, spec: str) -> bool:
     """Does `spec` (a ref, or `ref:path`) resolve? A miss is an answer, not an error."""
     result = subprocess.run(

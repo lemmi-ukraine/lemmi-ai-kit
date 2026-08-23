@@ -7,7 +7,13 @@ assets must work in a brand-new project on any machine.
 import re
 from pathlib import Path
 
-from lemmi_ai_kit.manifest import assets_root, load_manifest
+from lemmi_ai_kit.manifest import (
+    PACKS,
+    assets_root,
+    load_manifest,
+    skill_dir,
+    skills_root,
+)
 
 # (pattern, human explanation)
 _FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
@@ -63,7 +69,7 @@ _ASSET_ONLY_FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
     # not have. Use the module form, which `kit-setup` already documents:
     # PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit <sub>
     # The bare plugin name stays legal -- it is the marketplace id and the
-    # `/lemmi-ai-kit:<skill>` invocation prefix.
+    # `/lemmi-ai-kit-core:<skill>` invocation prefix.
     (
         re.compile(r"lemmi-ai-kit\s+(?:lint|audit-skills|scaffold|list)\b"),
         "console-script invocation (plugin installs place no console script)",
@@ -102,20 +108,31 @@ _ALLOWLIST: dict[str, tuple[str, ...]] = {
 
 
 def _asset_text_files() -> list[Path]:
-    root = assets_root()
     return sorted(
         p
+        for root in (assets_root(), *(skills_root(pack) for pack in PACKS))
+        if root.is_dir()
         for p in root.rglob("*")
         if p.is_file()
         and p.suffix in {".md", ".py", ".toml", ".txt", ".json", ".yaml", ".yml"}
     )
 
 
-def test_assets_have_no_contamination() -> None:
+def _asset_relative(path: Path) -> str:
     root = assets_root()
+    if path.is_relative_to(root):
+        return path.relative_to(root).as_posix()
+    for pack in PACKS:
+        pack_root = skills_root(pack)
+        if path.is_relative_to(pack_root):
+            return f"skills/{path.relative_to(pack_root).as_posix()}"
+    return path.as_posix()
+
+
+def test_assets_have_no_contamination() -> None:
     violations: list[str] = []
     for path in _asset_text_files():
-        rel = path.relative_to(root).as_posix()
+        rel = _asset_relative(path)
         text = path.read_text(encoding="utf-8")
         allowed = _ALLOWLIST.get(rel, ())
         for pattern, why in (*_FORBIDDEN, *_ASSET_ONLY_FORBIDDEN):
@@ -131,10 +148,9 @@ _FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 
 
 def test_every_skill_has_valid_frontmatter() -> None:
-    root = assets_root()
     problems: list[str] = []
     for entry in load_manifest().skills:
-        skill_md = root / "skills" / entry.name / "SKILL.md"
+        skill_md = skill_dir(entry) / "SKILL.md"
         if not skill_md.is_file():
             problems.append(f"{entry.name}: SKILL.md missing")
             continue
@@ -160,18 +176,17 @@ def test_skill_relative_references_resolve() -> None:
     Fenced code blocks are excluded: skills that teach skill authoring show
     illustrative example links there.
     """
-    root = assets_root()
     link_re = re.compile(r"\((?:\./)?((?:references|assets|scripts)/[\w./-]+)\)")
     fence_re = re.compile(r"^```.*?^```", re.DOTALL | re.MULTILINE)
     problems: list[str] = []
     for entry in load_manifest().skills:
-        skill_dir = root / "skills" / entry.name
-        skill_md = skill_dir / "SKILL.md"
+        entry_dir = skill_dir(entry)
+        skill_md = entry_dir / "SKILL.md"
         if not skill_md.is_file():
             continue
         prose = fence_re.sub("", skill_md.read_text(encoding="utf-8"))
         for match in link_re.finditer(prose):
-            target = skill_dir / match.group(1)
+            target = entry_dir / match.group(1)
             if not target.is_file():
                 problems.append(f"{entry.name}: broken reference {match.group(1)}")
     assert not problems, "\n".join(problems)

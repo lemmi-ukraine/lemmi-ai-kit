@@ -24,10 +24,18 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+from upstream_sync import (
+    ENV_VAR,
+    SyncRecordError,
+    UpstreamUnavailable,
+    load_sync_record,
+    read_upstream_file,
+    resolve_upstream,
+)
 
 from lemmi_ai_kit import checks
 from lemmi_ai_kit.cli import main
-from lemmi_ai_kit.manifest import assets_root
+from lemmi_ai_kit.manifest import assets_root, shipped_skill_dirs
 
 # --- fixtures -----------------------------------------------------------------------------
 
@@ -257,12 +265,35 @@ def test_no_absolute_path_is_ever_printed(
 # conforming entry into a false positive, and a value the lint accepts but the skill does
 # not document is a rule nobody was told about.
 
-_SKILLS = assets_root() / "skills"
+
+def _shipped_skill(name: str, *parts: str) -> Path:
+    """One shipped skill's file, resolved by NAME rather than by a hardcoded tree path.
+
+    The pack split moved the skills tree from `assets/skills/` to `plugins/<pack>/skills/`,
+    and these pins broke on the path even though no taxonomy had drifted -- a red test that
+    means nothing about the thing it guards. `shipped_skill_dirs()` answers "where does this
+    skill live" across every pack, so the pins survive the next move too, and a skill that
+    changes pack does not read as a vocabulary change.
+    """
+    return shipped_skill_dirs()[name].joinpath(*parts)
+
+
 _TABLE_CODE_RE = re.compile(r"^\|\s*`([A-Z][A-Z-]+)`\s*\|", re.MULTILINE)
 _TABLE_BOLD_RE = re.compile(r"^\|\s*\*\*([A-Z][^*|]+?)\*\*\s*\|", re.MULTILINE)
 _LEARNINGS_ROW_RE = re.compile(
     r"^\|\s*([A-Z][^|]*?)\s*\|\s*`([a-z-]+)`\s*\|", re.MULTILINE
 )
+
+# Upstream states the hand-off contract in prose and in one table row, so these parse it on
+# its own terms. Both must be able to yield a member `checks.py` lacks -- see the fidelity
+# section at the bottom of this file for why that property is the whole point.
+_UPSTREAM_HANDOFF_SECTION_RE = re.compile(r"`## ([A-Z][^`]*)`")
+_LIFECYCLE_RE = re.compile(r"Status lifecycle:\*\*(.+)$", re.MULTILINE)
+_STATUS_TOKEN_RE = re.compile(r"\b([A-Z]{4,})\b")
+_UPSTREAM_HANDOFF_STATUS_ROW_RE = re.compile(
+    r"^\|\s*`## Status`\s*\|(.+)$", re.MULTILINE
+)
+_BACKTICKED_SLUG_RE = re.compile(r"`([a-z][a-z-]+)`")
 
 
 def _pin_message(kind: str, source: str) -> str:
@@ -274,7 +305,7 @@ def _pin_message(kind: str, source: str) -> str:
 
 
 def test_changelog_types_match_the_shipped_skill() -> None:
-    text = (_SKILLS / "ai-changelog" / "SKILL.md").read_text(encoding="utf-8")
+    text = _shipped_skill("ai-changelog", "SKILL.md").read_text(encoding="utf-8")
     documented = set(_TABLE_CODE_RE.findall(text))
 
     assert documented, "no change-type table found in ai-changelog/SKILL.md"
@@ -288,7 +319,7 @@ def test_learnings_sections_and_slugs_match_the_shipped_skill() -> None:
     # `learning-consolidator`, and a table duplicated in both drifts silently.
     ref = "task-learnings/references/learnings-format.md"
     text = (
-        _SKILLS / "task-learnings" / "references" / "learnings-format.md"
+        _shipped_skill("task-learnings", "references", "learnings-format.md")
     ).read_text(encoding="utf-8")
     # Two groups per row, so this pins the header-to-slug PAIRING, not just the
     # header set -- a mismatched slug is the failure that actually breaks the lint.
@@ -309,7 +340,9 @@ def test_learnings_sections_and_slugs_match_the_shipped_skill() -> None:
 
 
 def test_hypothesis_categories_match_the_shipped_skill() -> None:
-    text = (_SKILLS / "ai-improvement-tracker" / "SKILL.md").read_text(encoding="utf-8")
+    text = _shipped_skill("ai-improvement-tracker", "SKILL.md").read_text(
+        encoding="utf-8"
+    )
     documented = set(_TABLE_BOLD_RE.findall(text))
 
     assert documented, "no category table found in ai-improvement-tracker/SKILL.md"
@@ -323,12 +356,12 @@ def test_hypothesis_statuses_match_the_shipped_seed_file() -> None:
     text = (assets_root() / "ai" / "improvement-hypotheses.md").read_text(
         encoding="utf-8"
     )
-    lifecycle = re.search(r"Status lifecycle:\*\*(.+)$", text, re.MULTILINE)
+    lifecycle = _LIFECYCLE_RE.search(text)
 
     assert lifecycle is not None, (
         "no status lifecycle line in improvement-hypotheses.md"
     )
-    documented = set(re.findall(r"\b([A-Z]{4,})\b", lifecycle.group(1)))
+    documented = set(_STATUS_TOKEN_RE.findall(lifecycle.group(1)))
     assert documented == set(checks.HYPOTHESIS_STATUSES), _pin_message(
         "hypothesis statuses", "the improvement-hypotheses.md seed"
     )
@@ -336,7 +369,7 @@ def test_hypothesis_statuses_match_the_shipped_seed_file() -> None:
 
 def test_handoff_contract_sections_match_the_shipped_skill() -> None:
     """`parallel-session-safety` defines the contract this lint enforces."""
-    skill = _SKILLS / "parallel-session-safety" / "SKILL.md"
+    skill = _shipped_skill("parallel-session-safety", "SKILL.md")
     if not skill.is_file():  # pragma: no cover - the skill is being ported concurrently
         pytest.skip("parallel-session-safety is not shipped yet")
     text = skill.read_text(encoding="utf-8")
@@ -1043,7 +1076,7 @@ def test_a_plugin_namespaced_listing_resolves_against_the_catalog(
     skills = tmp_path / ".claude" / "skills"
     skills.mkdir(parents=True)
     claude_md = _claude_md(
-        tmp_path, "`/lemmi-ai-kit:commit-message` - write a commit message"
+        tmp_path, "`/lemmi-ai-kit-core:commit-message` - write a commit message"
     )
     findings = checks.audit_skills(
         skills, claude_md=claude_md, shipped=frozenset({"commit-message"})
@@ -1083,7 +1116,7 @@ def test_an_unreadable_catalog_suppresses_the_ghost_check_instead_of_guessing(
     skills = tmp_path / ".claude" / "skills"
     skills.mkdir(parents=True)
     claude_md = _claude_md(
-        tmp_path, "`/lemmi-ai-kit:commit-message` - write a commit message"
+        tmp_path, "`/lemmi-ai-kit-core:commit-message` - write a commit message"
     )
     findings = checks.audit_skills(skills, claude_md=claude_md, shipped=None)
 
@@ -1339,3 +1372,169 @@ def test_every_file_target_resolves_to_a_distinct_path(tmp_path: Path) -> None:
     """Guard the table itself: two targets sharing a path would lint the same file twice."""
     paths = {t: checks.target_path(t, tmp_path) for t in checks.LINT_TARGETS}
     assert len(set(paths.values())) == len(checks.LINT_TARGETS), paths
+
+
+# --- upstream fidelity (W-2) --------------------------------------------------------------
+#
+# The five pins above compare a shipped document to a kit constant. Both operands come from
+# this tree, so they measure CONSISTENCY, never fidelity: a refresh that drops a taxonomy
+# member from the document AND from `checks.py` leaves every one of them green. That is not
+# hypothetical. `EXPERIMENT-REGISTERED` was absent from the shipped table, from
+# `CHANGELOG_TYPES`, and from `ai-improvement-tracker` -- zero occurrences in the whole
+# package -- while `test_changelog_types_match_the_shipped_skill` passed, because both of its
+# operands had lost the member together.
+#
+# So these add the third operand. They are skipped without an upstream checkout, which is the
+# normal case for a contributor and for CI: the upstream repository is private and its
+# location is deliberately not recorded in this repo. A skipped fidelity check is honest; a
+# check that cannot fail is not.
+#
+# The assertion is deliberately ONE-SIDED. The kit is allowed to be ahead of upstream, and is
+# (`orchestrate` and `agent-delegate` originated here). What it may not be is silently BEHIND:
+# a member upstream defines must either ship here or be named below with a reason.
+
+_DECLARED_VOCABULARY_DIVERGENCES: dict[str, dict[str, str]] = {
+    # vocabulary -> {member: why the kit deliberately does not carry it}
+    #
+    # Empty on purpose, and it is the point of the mechanism rather than an oversight: at the
+    # 2026-08-23 sync every member upstream defines is carried. Adding an entry here is a
+    # CLAIM -- that the member encodes the source project's policy rather than something an
+    # adopter agreed to -- and it belongs in review. Two rules were dropped on exactly that
+    # ground (see the `checks.py` vocabularies comment); a third, `EXPERIMENT-REGISTERED`, was
+    # recorded as a deliberate drop and turned out to be an accident of a bad merge base. So a
+    # reason written here needs to survive the question "was this decided, or explained after
+    # the fact?"
+}
+
+
+def _upstream_or_skip() -> tuple[Path, str]:
+    """The upstream checkout and the pinned revision, or a skip."""
+    repo = resolve_upstream(None)
+    if repo is None:
+        pytest.skip(f"set ${ENV_VAR} to a real upstream checkout to run this")
+    try:
+        return repo, load_sync_record().upstream_commit
+    except (
+        SyncRecordError,
+        OSError,
+    ) as exc:  # pragma: no cover - record is gated elsewhere
+        pytest.skip(f"sync record unusable: {exc}")
+
+
+def _assert_carried(vocabulary: str, upstream_members: set[str], kit: set[str]) -> None:
+    assert upstream_members, (
+        f"parsed zero {vocabulary} out of upstream -- the document moved or the regex no "
+        "longer matches it. A fidelity check that parses nothing passes vacuously, which is "
+        "the failure this whole section exists to prevent."
+    )
+    declared = _DECLARED_VOCABULARY_DIVERGENCES.get(vocabulary, {})
+    missing = {m for m in upstream_members - kit if m not in declared}
+    assert not missing, (
+        f"upstream defines {vocabulary} this pack does not carry: {sorted(missing)}. Either "
+        "carry them (re-merge the skill against its own extraction base, not the pin) or add "
+        f"each to _DECLARED_VOCABULARY_DIVERGENCES['{vocabulary}'] with the reason it encodes "
+        "the source project's policy rather than an adopter's. Dropping a member from the doc "
+        "and the constant together is exactly what the pins above cannot see."
+    )
+
+
+def test_upstream_changelog_types_are_all_carried() -> None:
+    repo, pin = _upstream_or_skip()
+    try:
+        text = read_upstream_file(repo, pin, ".claude/skills/ai-changelog/SKILL.md")
+    except UpstreamUnavailable as exc:
+        pytest.skip(f"upstream checkout unusable: {exc}")
+    _assert_carried(
+        "changelog types",
+        set(_TABLE_CODE_RE.findall(text)),
+        set(checks.CHANGELOG_TYPES),
+    )
+
+
+def test_upstream_hypothesis_categories_are_all_carried() -> None:
+    repo, pin = _upstream_or_skip()
+    try:
+        text = read_upstream_file(
+            repo, pin, ".claude/skills/ai-improvement-tracker/SKILL.md"
+        )
+    except UpstreamUnavailable as exc:
+        pytest.skip(f"upstream checkout unusable: {exc}")
+    _assert_carried(
+        "hypothesis categories",
+        set(_TABLE_BOLD_RE.findall(text)),
+        set(checks.HYPOTHESIS_CATEGORIES),
+    )
+
+
+def test_upstream_learnings_sections_are_all_carried() -> None:
+    """Pairs, not headers: a header carried under a changed slug still breaks the lint."""
+    repo, pin = _upstream_or_skip()
+    try:
+        text = read_upstream_file(
+            repo, pin, ".claude/skills/task-learnings/references/learnings-format.md"
+        )
+    except UpstreamUnavailable as exc:
+        pytest.skip(f"upstream checkout unusable: {exc}")
+    upstream_pairs = {f"{h} -> {s}" for h, s in _LEARNINGS_ROW_RE.findall(text)}
+    kit_pairs = {f"{h} -> {s}" for h, s in checks.LEARNINGS_SECTIONS.items()}
+    _assert_carried("learnings sections", upstream_pairs, kit_pairs)
+
+
+def test_upstream_handoff_contract_is_all_carried() -> None:
+    """Sections and statuses are parsed OUT of upstream, not filtered against our own set.
+
+    Filtering a candidate list taken from `checks.py` would make this pass by construction
+    -- upstream could add a sixth required section and the assertion could never see it.
+    That is the defect class this section exists to close, so the parse has to be able to
+    return something the kit does not have.
+    """
+    repo, pin = _upstream_or_skip()
+    try:
+        text = read_upstream_file(
+            repo, pin, ".claude/skills/parallel-session-safety/SKILL.md"
+        )
+    except UpstreamUnavailable as exc:
+        pytest.skip(f"upstream checkout unusable: {exc}")
+
+    _assert_carried(
+        "handoff sections",
+        set(_UPSTREAM_HANDOFF_SECTION_RE.findall(text)),
+        set(checks.HANDOFF_REQUIRED_SECTIONS),
+    )
+
+    status_row = _UPSTREAM_HANDOFF_STATUS_ROW_RE.search(text)
+    assert status_row is not None, (
+        "no `## Status` contract row found in upstream parallel-session-safety/SKILL.md -- "
+        "the document moved and this parse needs updating rather than deleting."
+    )
+    _assert_carried(
+        "handoff statuses",
+        set(_BACKTICKED_SLUG_RE.findall(status_row.group(1))),
+        set(checks.HANDOFF_STATUSES),
+    )
+
+
+def test_upstream_hypothesis_statuses_are_all_carried() -> None:
+    """The fifth of the family, and it completes it.
+
+    An earlier draft of the hand-off filed this as owed on the stated grounds that upstream's
+    counterpart is a live data file with no clean parse. That was asserted, not checked, and it
+    is false: upstream's `.ai/improvement-hypotheses.md` carries the same `Status lifecycle:`
+    line the shipped seed does, so the same two patterns read both sides.
+    """
+    repo, pin = _upstream_or_skip()
+    try:
+        text = read_upstream_file(repo, pin, ".ai/improvement-hypotheses.md")
+    except UpstreamUnavailable as exc:
+        pytest.skip(f"upstream checkout unusable: {exc}")
+
+    lifecycle = _LIFECYCLE_RE.search(text)
+    assert lifecycle is not None, (
+        "no `Status lifecycle:` line in upstream's improvement-hypotheses.md -- the document "
+        "moved and this parse needs updating rather than deleting."
+    )
+    _assert_carried(
+        "hypothesis statuses",
+        set(_STATUS_TOKEN_RE.findall(lifecycle.group(1))),
+        set(checks.HYPOTHESIS_STATUSES),
+    )

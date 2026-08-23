@@ -39,7 +39,7 @@ from upstream_sync import (
     resolve_upstream,
 )
 
-from lemmi_ai_kit.manifest import assets_root, load_manifest
+from lemmi_ai_kit.manifest import load_manifest, shipped_skill_dirs
 
 # --------------------------------------------------------------------------------------
 # The real record
@@ -62,7 +62,7 @@ def test_every_shipped_skill_has_exactly_one_row() -> None:
     none, because the drift report would keep printing a confident number for a pack it
     no longer describes.
     """
-    shipped = {p.name for p in (assets_root() / "skills").iterdir() if p.is_dir()}
+    shipped = set(shipped_skill_dirs())
     assert len(shipped) > 10, (
         f"only {len(shipped)} skill directories found -- the enumeration is probably "
         "broken, which would make this check pass vacuously"

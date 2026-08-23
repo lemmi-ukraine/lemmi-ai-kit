@@ -1,0 +1,33 @@
+{
+  "name": "lemmi-ai-kit-python",
+  "version": "0.1.0",
+  "description": "Python-specific conventions for projects using the Lemmi AI Kit core plugin.",
+  "author": {
+    "name": "lemmi-ukraine",
+    "url": "https://github.com/lemmi-ukraine"
+  },
+  "homepage": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "repository": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "python",
+    "testing",
+    "conventions",
+    "agents-md"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Lemmi AI Kit Python",
+    "shortDescription": "Python conventions for Lemmi AI Kit",
+    "longDescription": "Python coding and testing conventions for teams using the Lemmi AI Kit core plugin.",
+    "developerName": "lemmi-ukraine",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive"],
+    "websiteURL": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+    "defaultPrompt": [
+      "Review this Python code against the installed conventions.",
+      "Check whether these tests follow the Python test conventions."
+    ]
+  }
+}

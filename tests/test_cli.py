@@ -61,8 +61,10 @@ def test_audit_skills_falls_back_to_the_bundled_fleet(
         "the audit scanned nothing, so --fail-on cannot fail:\n" + out
     )
     # Derived, not literal: adding or dropping a skill must not need an edit here.
-    expected = len(load_manifest().skills)
-    assert f"{expected} skills;" in out
+    manifest = load_manifest()
+    for pack in ("core", "python"):
+        expected = sum(1 for entry in manifest.skills if entry.pack == pack)
+        assert f"{expected} skills;" in out
     assert exit_code == 0
 
 
@@ -84,10 +86,10 @@ def test_audit_skills_without_the_fallback_would_scan_nothing(
 ) -> None:
     """The regression this guards: disable the fallback and the gate goes vacuous again."""
 
-    def no_bundled_tree(_root: Path) -> Path | None:
-        return None
+    def no_bundled_tree(_root: Path) -> tuple[Path, ...]:
+        return ()
 
-    monkeypatch.setattr(cli, "_bundled_skills_dir", no_bundled_tree)
+    monkeypatch.setattr(cli, "_bundled_skills_dirs", no_bundled_tree)
 
     exit_code = main(
         ["audit-skills", "--project", str(_REPO_ROOT), "--fail-on", "major"]

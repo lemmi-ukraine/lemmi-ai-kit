@@ -27,10 +27,12 @@ _COUNT_CLAIM = re.compile(r"(\d+)(\+?)\s+skills\b")
 
 # Manifests whose prose is indexed by a marketplace, so it must carry no count.
 _MANIFEST_FILES: tuple[str, ...] = (
-    ".claude-plugin/plugin.json",
     ".claude-plugin/marketplace.json",
-    ".codex-plugin/plugin.json",
     ".agents/plugins/marketplace.json",
+    "plugins/core/.claude-plugin/plugin.json",
+    "plugins/core/.codex-plugin/plugin.json",
+    "plugins/python/.claude-plugin/plugin.json",
+    "plugins/python/.codex-plugin/plugin.json",
 )
 
 

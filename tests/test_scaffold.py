@@ -37,9 +37,9 @@ def test_claude_md_lists_full_catalog_with_plugin_namespace(
     user_section = text.split("### User-Invocable")[1].split("###")[0]
     auto_section = text.split("### Auto-Loaded")[1].split("###")[0]
     internal_section = text.split("### Internal Pipeline Skills")[1]
-    assert "`/lemmi-ai-kit:kit-setup`" in user_section
-    assert "`/lemmi-ai-kit:spec-driven-dev`" in user_section
-    assert "`/lemmi-ai-kit:analyze-logs`" in user_section  # extras ship too
+    assert "`/lemmi-ai-kit-core:kit-setup`" in user_section
+    assert "`/lemmi-ai-kit-core:spec-driven-dev`" in user_section
+    assert "`/lemmi-ai-kit-core:analyze-logs`" in user_section
     assert "vertical-slice" in auto_section
     assert "plan-critic" in internal_section
     assert "{{" not in text

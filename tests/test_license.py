@@ -77,7 +77,12 @@ def test_every_license_declaration_matches_the_license_file() -> None:
     expected = _declared_spdx()
     declarations: dict[str, str | None] = {}
 
-    for relative in (".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
+    for relative in (
+        "plugins/core/.claude-plugin/plugin.json",
+        "plugins/core/.codex-plugin/plugin.json",
+        "plugins/python/.claude-plugin/plugin.json",
+        "plugins/python/.codex-plugin/plugin.json",
+    ):
         data = cast(
             dict[str, Any],
             json.loads((_REPO_ROOT / relative).read_text(encoding="utf-8")),

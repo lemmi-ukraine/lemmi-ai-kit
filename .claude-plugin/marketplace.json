@@ -4,9 +4,14 @@
   "owner": { "name": "lemmi-ukraine", "url": "https://github.com/lemmi-ukraine" },
   "plugins": [
     {
-      "name": "lemmi-ai-kit",
-      "source": "./",
-      "description": "Lemmi's shared AI configuration as a plugin: development-workflow skills plus /lemmi-ai-kit:kit-setup to seed project-owned, editable AGENTS.md/CLAUDE.md/.ai files from your existing project."
+      "name": "lemmi-ai-kit-core",
+      "source": "./plugins/core",
+      "description": "Lemmi's language-agnostic AI workflow core: setup, spec-driven development, post-task review, learnings, orchestration, research, and review."
+    },
+    {
+      "name": "lemmi-ai-kit-python",
+      "source": "./plugins/python",
+      "description": "Python coding and testing conventions for projects using Lemmi AI Kit Core."
     }
   ]
 }

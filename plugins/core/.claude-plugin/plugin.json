@@ -1,0 +1,10 @@
+{
+  "name": "lemmi-ai-kit-core",
+  "displayName": "Lemmi AI Kit Core",
+  "version": "0.1.0",
+  "description": "Lemmi's language-agnostic AI workflow skills: setup, spec-driven development, post-task review, learnings, orchestration, research, and review.",
+  "author": { "name": "lemmi-ukraine", "url": "https://github.com/lemmi-ukraine" },
+  "repository": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "license": "MIT",
+  "skills": ["./skills/"]
+}

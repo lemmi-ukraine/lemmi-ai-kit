@@ -1,6 +1,6 @@
 # lemmi-ai-kit
 
-Lemmi's shared AI configuration as a **Claude Code and Codex plugin** — 38 skills
+Lemmi's shared AI configuration as a **Claude Code and Codex plugin** — 37 skills
 (spec-driven dev, post-task review, the learnings loop, orchestration, research,
 code review) plus project seeding for `AGENTS.md`/`CLAUDE.md` and the `.ai/`
 scaffolding.
@@ -18,10 +18,14 @@ projects.
 
 ```
 /plugin marketplace add lemmi-ukraine/lemmi-ai-kit
-/plugin install lemmi-ai-kit@lemmi
+/plugin install lemmi-ai-kit-core@lemmi
+# Optional, for Python projects:
+/plugin install lemmi-ai-kit-python@lemmi
 ```
 
-Invoke skills as `/lemmi-ai-kit:<name>` (e.g. `/lemmi-ai-kit:commit-message`).
+Invoke core skills as `/lemmi-ai-kit-core:<name>` (e.g.
+`/lemmi-ai-kit-core:commit-message`). Python convention skills are under
+`/lemmi-ai-kit-python:<name>`.
 
 ### Codex
 
@@ -30,15 +34,16 @@ codex plugin marketplace add lemmi-ukraine/lemmi-ai-kit
 ```
 
 Then open the plugin directory, select the **Lemmi** marketplace, and install
-**Lemmi AI Kit**. Skills ship from the same catalog; invoke them via the plugin
-skill surface (e.g. `kit-setup`, `commit-message`).
+**Lemmi AI Kit Core**. Python projects can also install **Lemmi AI Kit Python**.
+Skills ship from the same catalog; invoke them via the plugin skill surface
+(e.g. `kit-setup`, `commit-message`).
 
 ## Set up a project
 
 Inside the project you want to configure:
 
 ```
-/lemmi-ai-kit:kit-setup
+/lemmi-ai-kit-core:kit-setup
 ```
 
 (or the Codex skill equivalent, `kit-setup`)
@@ -78,8 +83,9 @@ install needed.
 There is no publish pipeline — the plugin marketplaces serve this repo
 directly, so pushing to `main` is the release. CI only gates code quality
 (lint, format, types, tests). When bumping the version, change it in
-`pyproject.toml`, `.claude-plugin/plugin.json`, and `.codex-plugin/plugin.json`
-together (tests enforce they match).
+`pyproject.toml` and every pack manifest under
+`plugins/*/{.claude-plugin,.codex-plugin}/plugin.json` together (tests enforce
+they match).
 
 ## Development
 
@@ -93,25 +99,22 @@ uv run pytest
 
 Layout:
 
-- `.claude-plugin/` — Claude Code `plugin.json` (points at the skills below) and
-  `marketplace.json` (this repo doubles as its own Claude marketplace).
-- `.codex-plugin/` — Codex `plugin.json` (same skills path + install-surface
-  metadata).
-- `.agents/plugins/marketplace.json` — Codex marketplace catalog (plugin at
-  repo root).
-- `src/lemmi_ai_kit/assets/manifest.toml` — the skill registry (name, profile,
+- `.claude-plugin/marketplace.json` — Claude Code marketplace catalog for the
+  packs in `plugins/*`.
+- `.agents/plugins/marketplace.json` — Codex marketplace catalog for the packs
+  in `plugins/*`.
+- `plugins/core/` — the `lemmi-ai-kit-core` plugin: per-host manifests plus
+  35 language-agnostic skills under `skills/`.
+- `plugins/python/` — the `lemmi-ai-kit-python` plugin: per-host manifests plus
+  2 Python-specific skills under `skills/`.
+- `plugins/core/src/lemmi_ai_kit/assets/manifest.toml` — the skill registry (name, profile,
   invocation, summary); `list` and the CLAUDE.md index render from it. Tests
-  enforce that it stays in sync with `assets/skills/*`.
-- `src/lemmi_ai_kit/assets/skills/` — all 38 skills, loaded by both plugins
-  directly from this path. The test suite (`tests/test_assets.py`) permanently
-  enforces the porting hygiene contract: no absolute machine paths, no
-  source-project references, no dated history citations, no machine-specific
-  rules.
-- `src/lemmi_ai_kit/assets/templates/` — `AGENTS.md`/`CLAUDE.md` seeds used by
+  enforce that it stays in sync with `plugins/*/skills/*`.
+- `plugins/core/src/lemmi_ai_kit/assets/templates/` — `AGENTS.md`/`CLAUDE.md` seeds used by
   `scaffold`.
-- `src/lemmi_ai_kit/assets/ai/` — the `.ai/` scaffolding (empty state logs +
+- `plugins/core/src/lemmi_ai_kit/assets/ai/` — the `.ai/` scaffolding (empty state logs +
   spec templates).
-- `src/lemmi_ai_kit/{cli,scaffold,manifest}.py` — the support scripting code.
+- `plugins/core/src/lemmi_ai_kit/{cli,scaffold,manifest}.py` — the support scripting code.
 
 VS Code: the repo ships settings and extension recommendations (ruff as
 formatter, basedpyright for types) in `.vscode/`.

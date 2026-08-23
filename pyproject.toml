@@ -27,12 +27,12 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/lemmi_ai_kit"]
+packages = ["plugins/core/src/lemmi_ai_kit"]
 
 [tool.ruff]
-src = ["src"]
+src = ["plugins/core/src"]
 target-version = "py311"
-extend-exclude = ["src/lemmi_ai_kit/assets"]
+extend-exclude = ["plugins/core/src/lemmi_ai_kit/assets", "plugins/core/skills", "plugins/python/skills"]
 
 [tool.ruff.lint]
 select = [
@@ -53,8 +53,8 @@ docstring-code-format = false
 testpaths = ["tests"]
 
 [tool.basedpyright]
-include = ["src", "tests"]
-exclude = ["src/lemmi_ai_kit/assets"]
+include = ["plugins/core/src", "tests"]
+exclude = ["plugins/core/src/lemmi_ai_kit/assets", "plugins/core/skills", "plugins/python/skills"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
 reportMissingImports = true

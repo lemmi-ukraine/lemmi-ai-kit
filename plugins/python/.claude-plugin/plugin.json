@@ -1,0 +1,10 @@
+{
+  "name": "lemmi-ai-kit-python",
+  "displayName": "Lemmi AI Kit Python",
+  "version": "0.1.0",
+  "description": "Python-specific conventions for projects using the Lemmi AI Kit core plugin.",
+  "author": { "name": "lemmi-ukraine", "url": "https://github.com/lemmi-ukraine" },
+  "repository": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "license": "MIT",
+  "skills": ["./skills/"]
+}

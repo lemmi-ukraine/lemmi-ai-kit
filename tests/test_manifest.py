@@ -4,17 +4,19 @@ import pytest
 
 from lemmi_ai_kit.manifest import (
     DEFAULT_PROFILES,
+    PACKS,
     PROFILES,
     ManifestError,
     assets_root,
     load_manifest,
     normalize_profiles,
+    skills_root,
 )
 
 
 def test_manifest_loads_and_matches_asset_dirs() -> None:
     # load_manifest() itself enforces the bijection between [[skills]] entries
-    # and assets/skills/* directories, so loading successfully is the assertion.
+    # and plugins/*/skills/* directories, so loading successfully is the assertion.
     manifest = load_manifest()
     # No literal here on purpose. This test already asserts manifest <-> asset-dir
     # equality below, and a hard-coded total rots on every legitimate catalog change --
@@ -24,7 +26,7 @@ def test_manifest_loads_and_matches_asset_dirs() -> None:
     assert manifest.skills, "manifest ships no skills"
     names = {s.name for s in manifest.skills}
     assert "task-learnings" in names
-    assert "openai-realtime-quirks" in names
+    assert "openai-realtime-quirks" not in names
 
 
 def test_every_profile_is_used() -> None:
@@ -38,14 +40,13 @@ def test_for_profiles_filters() -> None:
     python_only = manifest.for_profiles(("python",))
     assert {s.name for s in python_only} == {
         "python-conventions",
-        "vertical-slice",
         "test-conventions",
     }
 
 
 def test_normalize_profiles_defaults() -> None:
     assert normalize_profiles([]) == DEFAULT_PROFILES
-    assert "extras" not in DEFAULT_PROFILES
+    assert "python" not in DEFAULT_PROFILES
 
 
 def test_normalize_profiles_all() -> None:
@@ -53,7 +54,7 @@ def test_normalize_profiles_all() -> None:
 
 
 def test_normalize_profiles_comma_and_repeat() -> None:
-    assert normalize_profiles(["python,core", "extras"]) == ("core", "python", "extras")
+    assert normalize_profiles(["python,core", "python"]) == ("core", "python")
 
 
 def test_normalize_profiles_unknown_raises() -> None:
@@ -67,3 +68,8 @@ def test_assets_root_exists() -> None:
     assert (root / "templates" / "AGENTS.md").is_file()
     assert (root / "templates" / "CLAUDE.md").is_file()
     assert (root / "ai" / "learnings.md").is_file()
+
+
+def test_pack_skill_roots_exist() -> None:
+    for pack in PACKS:
+        assert skills_root(pack).is_dir()

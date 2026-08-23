@@ -33,8 +33,12 @@ from test_assets import (
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# The asset tree has its own scan, with its own allowlist.
-_ALREADY_COVERED = "src/lemmi_ai_kit/assets/"
+# The asset and plugin skill trees have their own scan, with their own allowlist.
+_ALREADY_COVERED = (
+    "plugins/core/src/lemmi_ai_kit/assets/",
+    "plugins/core/skills/",
+    "plugins/python/skills/",
+)
 
 _DRIVE_LETTER_REASON = "Windows drive-letter path"
 
@@ -112,10 +116,10 @@ _TEXT_SUFFIXES = frozenset(
 
 
 def _tracked_text_files() -> list[str]:
-    """Repo-relative paths of tracked text files outside the asset tree."""
+    """Repo-relative paths of published text files outside the asset/skill trees."""
     try:
         result = subprocess.run(
-            ["git", "ls-files", "-z"],
+            ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
             cwd=_REPO_ROOT,
             capture_output=True,
             check=False,
@@ -131,6 +135,7 @@ def _tracked_text_files() -> list[str]:
         raw
         for raw in result.stdout.decode("utf-8").split("\0")
         if raw
+        and (_REPO_ROOT / raw).is_file()
         and not raw.startswith(_ALREADY_COVERED)
         and Path(raw).suffix.lower() in _TEXT_SUFFIXES
     )

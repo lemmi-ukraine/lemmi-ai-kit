@@ -1,0 +1,35 @@
+{
+  "name": "lemmi-ai-kit-core",
+  "version": "0.1.0",
+  "description": "Lemmi's language-agnostic AI workflow skills: setup, spec-driven development, post-task review, learnings, orchestration, research, and review.",
+  "author": {
+    "name": "lemmi-ukraine",
+    "url": "https://github.com/lemmi-ukraine"
+  },
+  "homepage": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "repository": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "spec-driven-dev",
+    "code-review",
+    "orchestration",
+    "learnings",
+    "agents-md"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Lemmi AI Kit Core",
+    "shortDescription": "Language-agnostic AI workflow skills",
+    "longDescription": "Lemmi's shared AI workflow core as a Codex plugin: skills for setup, spec-driven development, post-task review, the learnings loop, orchestration, research, and review.",
+    "developerName": "lemmi-ukraine",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+    "defaultPrompt": [
+      "Set up this project with lemmi-ai-kit core (kit-setup).",
+      "Run a post-task review of the changes I just made.",
+      "Draft a commit message for the current diff."
+    ]
+  }
+}
