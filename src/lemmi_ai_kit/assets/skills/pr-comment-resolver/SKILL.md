@@ -40,8 +40,7 @@ force-pushes. It produced:
   14 times.
 - **A second review surface** nobody asked for.
 - **Compounding cascade cost — the argument that actually bites.** A collect-all PR does not just defer
-  the cascade; it makes every LATER cascade harder, permanently. Those two branches (`a66b3a63`,
-  `025cda33`) touch the same files at many layers, so they collide with any per-layer fix that follows.
+  the cascade; it makes every LATER cascade harder, permanently. Those two collect-all branches touch the same files at many layers, so they collide with any per-layer fix that follows.
   Measured on the L1→top sweep: **every conflict in the cascade came from those two commits and no
   others** — five hunks across four files, each one a judgment call about whether a documented deferral
   or a new fix wins. Two of the fixes turned out to duplicate work those commits had already landed, and

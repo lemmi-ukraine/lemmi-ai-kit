@@ -214,7 +214,7 @@ except ImportError:
 ```
 
 Dev-only LIBRARIES belong in `[dependency-groups].dev`, not `[project.dependencies]` — prod
-`uv sync --locked` then drops them (local `uv run` and the test images keep them). Any code path
+`uv sync --locked` then drops them (dev and test environments keep them). Any code path
 importing a prod-absent dep must degrade gracefully (`try/except ImportError` → 404, not a 500).
 Run `uv lock` after moving a dep between groups.
 
@@ -225,9 +225,10 @@ Run `uv lock` after moving a dep between groups.
   positional first arg as not-a-default, so every construction site errors "argument missing" even
   though runtime accepts omission. When a "field is required" error hits a field that visibly has a
   default, check for the positional form before touching call sites.
-- **Wholesale `basedpyright backend` is structurally red on this host** (venv lacks native/observability
-  deps that Docker has). The meaningful local gate is the SCOPED run over touched files, compared to
-  the recorded scoped baseline; when recording a baseline, state its scope.
+- **A whole-tree type check can be structurally red in a local environment** whose venv lacks
+  native or observability deps that the container image has. Where that is true, the meaningful
+  local gate is the SCOPED run over touched files, compared to a recorded scoped baseline; when
+  recording a baseline, state its scope.
 - **Type-checker probes go under the configured `include` roots** (`backend/`, `tests/`) — pyright-family
   checkers skip dot-dirs (`.ai/tmp/` probes silently analyze NOTHING and report 0/0/0). Put one
   `reveal_type()` in every probe: zero information notes = the checker never ran, not "no findings".

@@ -28,11 +28,11 @@ coverage rather than its outcome.
 Step 4a reads *"a spec or task is deletable **only** because the thing it describes now exists in
 code."* Correct for a spec. **Structurally unanswerable for session scaffolding** — a dispatch brief
 describes no code, so no symbol exists to prove, so 4a can never be satisfied, so every brief is
-permanently undeletable. Measured on `.specs/feedback-relevance-and-realism` at HEAD `c88eefa7`:
+permanently undeletable. Measured on one initiative's spec directory:
 
 ```bash
-git ls-files .specs/feedback-relevance-and-realism/ | wc -l           # -> 157
-git ls-files .specs/feedback-relevance-and-realism/briefs/ | wc -l    # ->  51
+git ls-files .specs/<initiative>/ | wc -l                    # -> 157 in the measured run
+git ls-files .specs/<initiative>/briefs/ | wc -l             # ->  51
 git ls-files '.specs/<initiative>/<capture-dir>-*' | wc -l   # -> 85 in the measured run
 # 51 + 85 = 136 of 157 unreachable by the only gate the skill had
 ```
@@ -42,7 +42,7 @@ git ls-files '.specs/<initiative>/<capture-dir>-*' | wc -l   # -> 85 in the meas
 | Instrument | Reported | Was blind to |
 |---|---|---|
 | `census --root <initiative>` | `PASS every file on disk is claimed by exactly one partition`, exit **0**, all 157 files in **ONE row** | Its axis is git status — *recoverability*, not kind. And its row key was the first two path components, so a `--root` already two deep collapsed the whole initiative into a single line |
-| `coverage --root <initiative>` | counts **directories** | A plan containing the single string `.specs/feedback-relevance-and-realism` dispositioned all 157 files at once. Hence `--per-file` |
+| `coverage --root <initiative>` | counts **directories** | A plan containing the single string one initiative's spec directory dispositioned all 157 files at once. Hence `--per-file` |
 
 **The generalisable lesson, and the reason S-6..S-8 exist:** a gate that exits 0 over a population it
 cannot see has not passed — it has abstained. *"Before trusting any instrument, establish what it
@@ -68,7 +68,7 @@ said *pending*. Pending wins, and a taxonomy that cannot express that is a licen
 
 ### The extraction check, and why "the session returned" is the wrong test
 
-`briefs/AR1-archive-review-records.md` describes an archiving operation that **is finished** — the
+A brief describing an archiving operation that **is finished** — the
 intuitive case for archiving the brief. `extraction` returns **NOT SPENT**: zero decision records
 carry its reasoning, so archiving it removes the only copy from the repo. A brief is spent when its
 reasoning has another home, never merely because its session ended.
@@ -99,21 +99,20 @@ revisited. Measured across all 55 spec directories, 2026-08-09:
 
 | Spec | Says about itself | Reality |
 |---|---|---|
-| `codex-skill-compatibility` | *"Draft for design approval"*, **6/70** ticked | Shipped in 3 merged commits (`66e58992`, `88e7ec4e`, `36262e4e`) |
-| `interview-persona-voice-mapping` | **0/14** ticked | `_PERSONA_VOICE_MAP` live in `backend/app/services/` |
-| `cross-session-orchestration` | **0/35** ticked | `agent-delegate` adapter shipped |
-| `realtime-session-decoupling` | **42/42** ticked | Also shipped — the one case where the boxes agree |
+| A compatibility spec | *"Draft for design approval"*, **6/70** ticked | Shipped in 3 merged commits |
+| A config-mapping spec | **0/14** ticked | Its lookup table live in the service layer |
+| An orchestration spec | **0/35** ticked | Its adapter shipped |
+| A decoupling spec | **42/42** ticked | Also shipped — the one case where the boxes agree |
 
 They fail in **both** directions, so neither a high nor a low tick-count carries information.
 Gate deletions on code, never on a checkbox or a header.
 
 ## ABSENT means the symbol was wrong, far more often than the work is missing
 
-Measured 2026-08-09. A run recorded `ai-driven-interview-end` as **"not implemented"** from an
-ABSENT result and moved it to the keep-list. The spec had in fact shipped — as
-`backend/app/core/interview/config/ai_end_settings.py`,
-`services/actions/ai_end_debug_propose_action.py`, and the `end_proposed` websocket events. The
-probe had guessed `EndProposalBehavior` / `end_proposal_service`, neither of which ever existed.
+Measured. A run recorded a spec as **"not implemented"** from an ABSENT result and moved it to
+the keep-list. The spec had in fact shipped — as a settings module, an action handler, and a set
+of websocket events. The probe had guessed two class and service names, neither of which ever
+existed.
 
 The rule ("no verdict is a valid verdict") was already written in SKILL.md and was violated in the
 same session that wrote it — so the tool now prints the recovery procedure on every ABSENT and the
@@ -202,17 +201,16 @@ exactly what the Step 3 partition isolates. Over-refusing has a cost too: the in
 
 ### A spec cited by production code is load-bearing, and `refs` cannot see it
 
-The same sweep archived `.specs/feedback-shared-prompt-surfaces/` (4 files);
-`backend/app/features/feedback/services/prompt_builder.py:56` and
-`tests/fixtures/governing_rule_fingerprints.py:17` cite its `design.md`/`requirements.md` as the
-design rationale for **shipped** code, confirmed live by `evidence --symbol governing_rules`.
-Archiving it would have left production code pointing at a hole, in trees explicitly out of scope to
-edit. The `refs` authority check covers `CLAUDE.md`, `AGENTS.md` and `.claude/skills/` and says
-nothing about `backend/` or `tests/`, so it never flagged it. The spec was restored.
+The same sweep archived a 4-file spec directory; a service module and a test fixture cited its
+`design.md`/`requirements.md` as the design rationale for **shipped** code, confirmed live by
+`evidence --symbol <Symbol>`. Archiving it would have left production code pointing at a hole, in
+trees explicitly out of scope to edit. The `refs` authority check covers `CLAUDE.md`, `AGENTS.md`
+and the skills directory and says nothing about source or test trees, so it never flagged it. The
+spec was restored.
 
 **A citation from a code path is at least as strong an authority signal as one from `CLAUDE.md`** —
-the code is documenting why it looks the way it does. Grep `backend/` and `tests/` for a spec's path
-before archiving it. Script fix (open): extend `AUTHORITY_FILES` so a citation from any code path
+the code is documenting why it looks the way it does. Grep the source and test trees for a spec's
+path before archiving it. Script fix (open): extend `AUTHORITY_FILES` so a citation from any code path
 makes `refs` exit 1.
 
 ### Two host traps inside one file-move loop, both reading as success

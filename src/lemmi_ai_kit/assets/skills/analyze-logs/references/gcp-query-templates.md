@@ -79,7 +79,7 @@ severity>=ERROR
 ### Background Job Failures
 
 This job system has no single structured `job_failed` event — a job's terminal outcome is one of
-FOUR shapes (verified 2026-07-29/07-30 against `backend/app/core/jobs/service.py` AND two real
+FOUR shapes (verified against the job service's source AND two real
 incidents' logs — do not assume the first shape found is exhaustive, as the 07-29 revision below was
 missed until a second real incident produced it):
 

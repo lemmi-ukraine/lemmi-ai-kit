@@ -170,8 +170,8 @@ And a Part B row, correctly capped:
 
 ```
 F1 — Major, PLAUSIBLE.
-  B1 (two-change trace): parking defers teardown (327e6d90) + ended-delivery reroutes by
-    interview id (1b2f4050); both anchors re-grepped. The composing pair is EVICTED-outcome x
+  B1 (two-change trace): one change defers teardown (<OID-a>) + another reroutes delivery by
+    id (<OID-b>); both anchors re-grepped. The composing pair is EVICTED-outcome x
     reroute-target. Severity NOT moved by this item — judgment only.
   A1 attempted: could not construct end-to-end without a live socket pair. Reachability
     argued, not demonstrated.

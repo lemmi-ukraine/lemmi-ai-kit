@@ -252,8 +252,8 @@ escapes; drop the backslash when running.
 | sort -u`, "fires when more than one type appears") reads `feat:` + `test:` on one layer as mixed
 risk — but a correct BACKEND layer almost always carries both, so the trigger fires on the *healthy*
 case and reopens a settled topology. Risk lives in the files a layer touches, not in the words its
-author chose. The four counters, portable on this host — **no `grep -P`**, whose lookbehind/lookahead
-dies under Git Bash's empty `LANG` ("-P supports only unibyte and UTF-8 locales"):
+author chose. The four counters, written for portability — **no `grep -P`**, whose
+lookbehind/lookahead dies where `LANG` is unset ("-P supports only unibyte and UTF-8 locales"):
 
 ```bash
 F=$(git diff --name-only <base>...<layer>)

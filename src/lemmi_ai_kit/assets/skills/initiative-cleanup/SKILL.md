@@ -59,7 +59,7 @@ error on 2026-08-09, in a run that had this whole document in context; measured 
 
 **`coverage --root <one initiative>` must be run with `--per-file`.** Without it the gate counts
 *directories*, and measured 2026-08-19 a plan containing the single string
-`.specs/feedback-relevance-and-realism` dispositioned all 157 files inside it and exited 0.
+one initiative's spec directory dispositioned all 157 files inside it and exited 0.
 
 
 ## Step 0 — Establish what is actually true right now
@@ -245,7 +245,7 @@ not produce is out of scope — list it, do not touch it.
 **This step exists because the skill shipped with one axis and reported success on a run that
 retired nothing.** Step 4a asks *is the work this file describes implemented?* — right for a spec,
 **unanswerable** for session scaffolding, which describes no code and so has no symbol to prove.
-Measured on `.specs/feedback-relevance-and-realism` at HEAD `c88eefa7`: **51 briefs + 85 capture
+Measured on one initiative's spec directory: **51 briefs + 85 capture
 files = 136 of 157 tracked files** sat outside the only gate the skill had, and the run reported
 completion — on its **coverage**, not its **outcome**. The rule was right; the axis was missing.
 
@@ -324,7 +324,7 @@ named in code did not ship, whatever the board says.
 [references/self-review-gate.md](references/self-review-gate.md)):
 
 1. **A `.md` hit is DOC-ONLY, never implemented.** `ConductGovernor` appears in two specs and a task
-   doc and in **no** code — the package was reverted at `b526d708`. An unscoped grep would have
+   doc and in **no** code — the package had been reverted. An unscoped grep would have
    called it shipped and deleted the record of a deliberate removal.
 2. **A symbol shared across spec dirs proves nothing about any one.** `transcript_gradeability` is
    real landed code belonging to the *eligibility* work, and it also matched

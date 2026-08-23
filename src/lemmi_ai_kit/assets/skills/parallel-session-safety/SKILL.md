@@ -354,8 +354,8 @@ The staging area is **one process-wide file** (`.git/index`) for every session i
 That makes `git add` — not the commit — the moment another session's work joins yours, and a
 pathspec does not protect you: a `git add -- <paths>` whose own `git status` had just come back
 clean still produced a **38-file commit**, two of them another session's `.claude/skills/` edits
-(`git show --stat 8d5eb491` — counted 2026-08-20; the source learnings entry said 5, which does not
-hold at this revision).
+(counted with `git show --stat <OID>`; an earlier note claimed 5, which did not hold at the
+revision actually measured — state the OID with any such count).
 Anything another session staged before you is already in the index, and your pathspec adds to that
 set rather than replacing it.
 

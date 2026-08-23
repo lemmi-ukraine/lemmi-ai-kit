@@ -10,7 +10,7 @@ That question is right for a spec and **structurally unanswerable** for session 
 dispatch brief describes no code, so no symbol exists to prove, so 4a can never be satisfied, so
 every brief is permanently undeletable.
 
-Measured on `.specs/feedback-relevance-and-realism` at HEAD `c88eefa7` (2026-08-19): **51 briefs +
+Measured on one initiative's spec directory (2026-08-19): **51 briefs +
 85 capture files = 136 of 157 tracked files** sat outside the only gate the skill had. The run
 passed every gate it ran and retired nothing. Full incident, including the two instrument
 blindnesses that let it read as success: [self-review-gate.md](self-review-gate.md).
@@ -57,8 +57,8 @@ has **another home**. Two independent failure modes, either of which keeps the f
 2. **No decision record cites it.** Then archiving removes the only copy from the repo. Extract the
    reasoning into a decision record *first*, or keep the file.
 
-**Measured case worth internalising:** `briefs/AR1-archive-review-records.md` describes an archiving
-operation that **is finished** — the intuitive case for archiving the brief. `extraction` returns
+**Measured case worth internalising:** a brief describing an archiving operation that
+**is finished** — the intuitive case for archiving the brief. `extraction` returns
 **NOT SPENT**, because zero decision records carry its reasoning. Finished work and spent scaffolding
 are different properties.
 

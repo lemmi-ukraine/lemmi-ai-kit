@@ -171,17 +171,11 @@ Each learnings category requires different verification approaches during the Ac
 - Check if AGENTS.md or a skill already codifies this convention
 - If the convention was clarified due to confusion, verify the confusion source is still present
 
-> **Legacy sections (tolerated until drained).** The three strategies below cover
+> **Legacy sections (tolerated until drained).** The two strategies below cover
 > pre-redistribution section names that are NOT part of the canonical set (see
 > `../task-learnings/references/learnings-format.md` § Canonical Categories).
 > Use them only if such a section still exists in `.ai/learnings.md`; drain those entries to
 > canonical homes and never create new entries under these names.
-
-### Prompt Engineering for AI Skills (legacy)
-**Verify by:** checking against current prompt files and skill definitions.
-- Read the relevant prompt template files to verify the technique is still in use
-- Check if the skill mentioned still uses the described approach
-- Cross-reference with other prompt engineering entries for contradictions
 
 ### Specification Engineering
 **Verify by:** checking spec templates and guides.

@@ -28,7 +28,7 @@ to make a stale claim detectable.
 
 Three SHAs, not one — a reader six weeks later needs to know whether the anchors still mean anything,
 and branch HEAD alone cannot tell them. Base drift is recorded *and assessed*: in the source run the
-base advanced `9de738de` → `30a940e3` mid-review, which is what makes three-dot mandatory.
+base advanced from one OID to another mid-review, which is what makes three-dot mandatory.
 
 ### 2. Gates — with exit codes AND scope
 

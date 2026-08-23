@@ -124,7 +124,7 @@ git log --oneline origin/dev..<top> | grep -c '<your fix marker>'   # must equal
 > **`--update-refs` also moves branches you never named.** It updates *every* ref pointing into the replayed range, not just your stack layers — one cascade here moved three unrelated branches (two of them old review-fix branches) under a success banner. Snapshot before, diff after, restore anything unintended:
 >
 > ```bash
-> git branch --format='%(objectname) %(refname:short)' | sort > /tmp/refs-before   # use .ai/tmp on this host
+> git branch --format='%(objectname) %(refname:short)' | sort > .ai/tmp/refs-before
 > # ...cascade...
 > git branch --format='%(objectname) %(refname:short)' | sort | diff /tmp/refs-before -
 > ```
@@ -233,7 +233,7 @@ Any history rewrite — rebase or squash — makes ancestry a different question
 
 **A commit's own subject states its status at authoring time; its disposition lives in the commit
 that landed it.** `wip(stalls): park … with handoff` reads as outstanding work, but dev's
-`1c33e4a3` opens "Splits 83aa115c (PR #421)" and adjudicates it piece by piece — two parts LANDED,
+One such commit opens "Splits <OID>" and adjudicates it piece by piece — two parts LANDED,
 one deliberately NOT (review found it unsafe, so it was divided rather than taken or dropped
 whole); 9 of the WIP's 10 files were already on dev. Nothing in the WIP commit could have said
 this: its subject was written before the review existed. To decide whether commit X is outstanding,

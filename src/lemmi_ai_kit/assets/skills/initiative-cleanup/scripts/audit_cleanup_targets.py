@@ -19,7 +19,7 @@ Until this revision every gate here answered ONE question: *is the work this fil
 implemented?* (SKILL.md step 4a). That question is right for a spec and structurally
 unanswerable for session scaffolding -- a dispatch brief describes no code, so no symbol
 exists to prove and it can never satisfy 4a. Measured on `.specs/feedback-relevance-and-
-realism` at HEAD c88eefa7 (2026-08-19): 51 briefs + 85 capture files = 136 of 157 tracked
+realism` (2026-08-19): 51 briefs + 85 capture files = 136 of 157 tracked
 files were unreachable by the only gate the skill had, and the run still reported success.
 
 Two blindnesses let that pass, both reproduced before being fixed:
@@ -166,9 +166,8 @@ PENDING_MARKERS = (
 
 # Markers on the CITING line. A decision record that mentions a brief as still-open is not
 # evidence the brief is spent -- it is evidence of the opposite, and it reads as a citation
-# either way. Measured 2026-08-19: `roadmap.md:140` cites `briefs/CA1-core-api-stage5-query.md`
-# as "**OPEN.** Sent to settle ... Blocks the PF1 gate and therefore the upload", and a
-# citation-counting gate scored that brief SPENT.
+# either way. Measured: a roadmap cited a brief as "**OPEN.** Sent to settle ... Blocks the
+# gate", and a citation-counting gate scored that brief SPENT.
 OPEN_STATE_MARKERS = (
     "open",
     "pending",
@@ -255,7 +254,7 @@ def cmd_census(root: Path, target: str) -> int:
         # Group ONE level below the target, never by absolute path depth. The previous key
         # was the first two path components, so a --root already two deep (an initiative
         # directory) collapsed every file under it into a single row: measured 2026-08-19,
-        # `census --root .specs/feedback-relevance-and-realism` printed ONE line for 156
+        # `census --root .specs/<initiative>` printed ONE line for 156
         # files and called it a complete per-file inventory.
         rest = path[len(target) :].lstrip("/") if path.startswith(target) else path
         head = rest.split("/", 1)[0]
@@ -436,8 +435,8 @@ def _cites_this_file(line: str, target: str, name: str) -> bool:
         return False
     # The basename appears somewhere. Recover the full path FRAGMENT around each occurrence and
     # accept only if that fragment is a genuine SUFFIX of the target path. That distinguishes
-    # `briefs/FE1-angular-rendering-query.md` (a suffix -> a real citation) from
-    # `.ai/handoffs/2026-08-16-B5B1-baseline-and-validation.md` (not a suffix -> a different
+    # `briefs/<name>.md` (a suffix -> a real citation) from
+    # `.ai/handoffs/<date>-<name>.md` (not a suffix -> a different
     # file that merely CONTAINS the basename), while still matching a fragment written relative
     # to another root, e.g. `<capture-dir>/json_output_format.txt` inside a shell
     # FILES=() array -- which a strict prefix comparison misses and a bare-substring match
@@ -761,7 +760,7 @@ def cmd_coverage(root: Path, target: str, plan: str, per_file: bool = False) -> 
 
     `--per-file` closes the granularity hole measured 2026-08-19: the directory mode below
     counts DIRECTORIES, so a plan containing the single string
-    `.specs/feedback-relevance-and-realism` dispositioned all 156 files inside it at once.
+    one initiative's spec directory dispositioned all 156 files inside it at once.
     Use --per-file whenever the target IS one initiative rather than the whole `.specs` tree.
     """
     plan_path = root / plan

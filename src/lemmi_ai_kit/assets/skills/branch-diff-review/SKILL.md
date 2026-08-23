@@ -107,7 +107,7 @@ distinction is moot for this run — measured on a real pair where both produced
 insertions. Exit 1 means the base moved and three-dot is load-bearing; say which case you were in,
 because a reader who sees identical output and no explanation will conclude two-dot is fine in general.
 
-Read the snapshot's **last line** — on this host `git diff --stat` also emits CRLF warnings to stderr,
+Read the snapshot's **last line** — `git diff --stat` can also emit line-ending warnings to stderr,
 and the dirty-set count is deliberately unrelated to the reviewed diff.
 
 **Committed only.** Local uncommitted work is out of scope. Say so in the report — a tree with

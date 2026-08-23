@@ -19,7 +19,7 @@ ARCHIVED entry legitimately has no new home, and an entry whose only tokens are 
 from its anecdote can false-positive. Adjudicate each by hand; the point is that nothing is
 dropped silently.
 
-Windows-safe: forces UTF-8 stdout. Use the project venv python or plain `python`, never `uv run`.
+Forces UTF-8 stdout so the output is readable on consoles that default to a legacy codepage.
 """
 
 import contextlib
@@ -40,9 +40,12 @@ TARGET_GLOBS = (
     ".cursor/**/*.md",
     ".cursor/**/*.mdc",
     ".kiro/steering/*.md",
-    "backend/app/**/README.md",
-    "backend/app/**/*.py",
     "tasks/*.md",
+    # Source-tree surfaces: adjust these two to the project's own layout. A promotion
+    # that lands in code lands in a module README or a docstring, and this script can
+    # only see the trees it is told about -- a missing glob reports a false [LOSS?].
+    "src/**/README.md",
+    "src/**/*.py",
 )
 
 # Tokens too generic to prove a landing.

@@ -9,8 +9,8 @@ Scope it to code **this initiative added**, including files not yet committed â€
 diff lists no untracked file, and new code is routinely still untracked at cleanup time:
 
 ```bash
-{ git diff --name-only --diff-filter=d <initiative-base>..HEAD -- 'backend/**/*.py' 'tests/**/*.py'
-  git ls-files --others --exclude-standard -- 'backend/**/*.py' 'tests/**/*.py'; } | sort -u
+{ git diff --name-only --diff-filter=d <initiative-base>..HEAD -- '<src>/**/*.py' 'tests/**/*.py'
+  git ls-files --others --exclude-standard -- '<src>/**/*.py' 'tests/**/*.py'; } | sort -u
 ```
 
 **Scope the pathspec, or the pass edits what Step 3 just preserved.** Unscoped, the untracked arm
