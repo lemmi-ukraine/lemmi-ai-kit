@@ -42,12 +42,14 @@ Skills come in three kinds, and the difference matters for what you will see:
 
 ### What you get
 
-The kit ships **37 skills in two plugins** ("packs"):
+The kit ships two plugins ("packs"). How many skills you end up with depends on
+which of them you install, so this guide quotes no total — ask your client for the
+inventory instead, as **Check that it worked** below shows.
 
-| Pack | Plugin name | Skills | What is in it |
-|---|---|---:|---|
-| Core | `lemmi-ai-kit-core` | 35 | Everything language-agnostic: project setup, spec-driven development, post-task review, the learnings loop, orchestration, research, code review, commit messages, branch handling |
-| Python | `lemmi-ai-kit-python` | 2 | `python-conventions` and `test-conventions` — both auto-loaded, neither ever typed |
+| Pack | Plugin name | What is in it |
+|---|---|---|
+| Core | `lemmi-ai-kit-core` | Everything language-agnostic: project setup, spec-driven development, post-task review, the learnings loop, orchestration, research, code review, commit messages, branch handling |
+| Python | `lemmi-ai-kit-python` | `python-conventions` and `test-conventions` — both auto-loaded, neither ever typed |
 
 **Core is genuinely language-agnostic, and that is enforced rather than
 promised.** No core skill names a Python-pack skill; where a core skill needs to
@@ -133,9 +135,28 @@ has actually been executed end-to-end** (see the honesty note below):
 ```sh
 git clone https://github.com/lemmi-ukraine/lemmi-ai-kit
 cd lemmi-ai-kit
+```
+
+Then, in Codex:
+
+```sh
 codex plugin marketplace add .
 codex plugin add lemmi-ai-kit-core@lemmi
 ```
+
+Or in Claude Code:
+
+```sh
+claude plugin marketplace add ./
+claude plugin install lemmi-ai-kit-core@lemmi
+```
+
+**The two clients do not spell "here" the same way, and the difference is not
+cosmetic.** Codex was verified with `.`; Claude Code rejects `.` outright with
+`Invalid marketplace source format` and was verified with `./`. Each form above
+is the one actually run against that client — neither spelling has been shown to
+work on the other, so use the line matching your client rather than assuming the
+trailing slash is optional.
 
 ### How verified each of these is
 
@@ -144,29 +165,43 @@ not equally exercised:
 
 - **Codex, from a local clone — verified.** Run on 2026-08-23 with codex-cli
   0.149.0 against an isolated `CODEX_HOME`. Both packs installed and enabled,
-  and all 37 skill files physically materialized. A core-only install was
-  separately confirmed to carry 35 skills and **no** Python skills.
-- **Claude Code — documentation-verified only.** The commands follow the
-  documented plugin-marketplace interface but have not been run end-to-end
-  against this repository. If your client behaves differently, trust your
-  client.
+  and every skill file the manifest listed that day physically materialized. A
+  core-only install was separately confirmed to carry the core skills and **no**
+  Python skills.
+- **Claude Code, from a local clone — verified.** Run on 2026-08-23:
+  `claude plugin marketplace add ./`, then `claude plugin install
+  lemmi-ai-kit-core@lemmi`, then `claude plugin details lemmi-ai-kit-core`,
+  which listed the installed core skills by name. The `.` form of
+  `marketplace add` was rejected by this client; see above.
 - **The `owner/repo` shorthand — not yet exercised** against this repository on
   either host. If it fails, use the clone-and-add-local fallback above.
 
 ### Check that it worked
 
 ```sh
-codex plugin list
+codex plugin list      # Codex
+claude plugin list     # Claude Code
 ```
 
-You should see `lemmi-ai-kit-core@lemmi` installed and enabled. In Claude Code,
-type `/` and look for entries prefixed `lemmi-ai-kit-core:`.
+You should see `lemmi-ai-kit-core@lemmi` installed and enabled.
 
-**Expect 24 entries, not 35.** All 24 user-invocable skills come from core; the
-remaining 11 core skills are auto-loaded or internal and deliberately do not
-appear in the menu. If you also installed the Python pack, it adds 2 more
-auto-loaded skills and **no** new menu entries — that is correct, not a failed
-install.
+That only tells you the install did not error, which is weaker evidence than it
+looks: an earlier probe of this kit showed a client will report a plugin as
+installed when it carries no manifest at all. So ask for the inventory by name:
+
+```sh
+claude plugin details lemmi-ai-kit-core
+```
+
+It prints `Skills (N)` followed by every skill name. Read the names. That is the
+step that separates a real install from a green message, and it is also the only
+count worth trusting — it is the one your machine actually has.
+
+**Most of those skills will not appear in your `/` menu, and that is correct.**
+Only the user-invocable ones do; the rest are auto-loaded or internal by design,
+so the menu is always the shorter list. The Python pack adds two auto-loaded
+skills and **no** new menu entries — a `/` menu that does not change after
+installing it is a successful install, not a failed one.
 
 ---
 
@@ -466,7 +501,7 @@ Python, and nothing for you.
 /plugin install lemmi-ai-kit-core@lemmi
 ```
 
-All 35 core skills work unchanged on a Go repository. Commit messages,
+Every skill in the core pack works unchanged on a Go repository. Commit messages,
 spec-driven development, post-task review, the learnings loop, branch handling,
 code review, research — none of it is language-specific, and none of it will
 point you at a Python skill. That is the enforced boundary from
