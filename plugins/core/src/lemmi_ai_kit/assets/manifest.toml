@@ -222,4 +222,4 @@ summary = "Testing conventions: integration-first, DI-based mocking, timeout dec
 name = "analyze-logs"
 profile = "core"
 invocation = "user"
-summary = "Root-cause analysis from structured and plain application logs with task file creation"
+summary = "Root-cause analysis from structured or plain application logs — platform examples are GCP and Docker, the method is not — with task file creation"
