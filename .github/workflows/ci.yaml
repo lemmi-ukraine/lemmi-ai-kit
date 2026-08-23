@@ -30,3 +30,20 @@ jobs:
 
       - name: Tests (pytest)
         run: uv run pytest
+
+      # Charter DoD 5: the drift check ships as a non-blocking report and is promoted to
+      # a gate only once it has been observed to be accurate. See the promotion criteria
+      # in docs/syncing-from-upstream.md section 7.
+      #
+      # The upstream repository is private and is not present here, so this normally
+      # prints "NOT MEASURED". That line is the point: it makes the absence visible
+      # rather than silent, and everything measurable without upstream -- the record's
+      # validity, its correspondence with the shipped pack, and the measurement
+      # arithmetic itself -- is already gated by pytest above.
+      #
+      # `continue-on-error` rather than relying on the script's exit code: the script
+      # returns 0 on every path by contract, so this only tolerates the script itself
+      # crashing, and it surfaces such a crash in the UI instead of hiding it.
+      - name: Upstream drift report (non-blocking)
+        continue-on-error: true
+        run: uv run python tests/upstream_sync.py

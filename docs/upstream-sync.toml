@@ -1,0 +1,370 @@
+# Recorded upstream sync point for the skill pack.
+#
+# The pack was extracted from a private source project once and refreshed once. This
+# file is the machine-readable record of *what it was refreshed from*, so that "how far
+# behind upstream are we?" is a command (see syncing-from-upstream.md) instead of an
+# audit. `tests/upstream_sync.py` reads it; `tests/test_upstream_sync.py` gates its
+# internal consistency on every run.
+#
+# Three things this file deliberately does NOT record:
+#
+# 1. **The upstream repository's name or location.** It is private, and the hygiene
+#    contract bans naming it in a tracked file. The drift check takes the path from
+#    `--repo` or `$LEMMI_UPSTREAM_REPO`. Committed here: opaque SHAs only.
+# 2. **Word or line counts.** They go stale the moment upstream commits. The check
+#    measures; this file only says what to measure against.
+# 3. **A content hash per skill.** The refresh dropped 82 upstream lines on purpose
+#    (banned patterns, unshipped infrastructure, unreachable pointers, machine-specific
+#    rules). A content check would report every one of them as drift, forever. Drift is
+#    counted in *upstream commits touching a skill's directory since its base* — which
+#    is zero the moment a sync lands, and stays zero until upstream actually moves.
+
+[sync]
+# The upstream revision observed at the sync point. Authoritative for the drift check:
+# anything touching the skills tree after this commit is drift.
+upstream_commit = "a78ee5af7c52fa4058bb84109fa3c2412f63c7f5"
+
+# The last commit at or before `upstream_commit` that actually touched the skills tree.
+# Informational: there are zero skill-touching commits between the two, so the skills
+# content at `upstream_commit` is exactly this commit's. Recorded because it is the
+# honest answer to "when did the content we hold last change upstream?" — 2026-08-20,
+# not 2026-08-22.
+upstream_skills_commit = "2e9737bd6637ccd3fe3752aff7a19f51b4775014"
+
+# Upstream's skills tree as this repo actually received it: the last skills-touching
+# upstream commit BEFORE the kit's first commit (upstream 2026-06-25T21:39, kit
+# 2026-07-02T23:26). This is the merge base for any skill not refreshed since
+# extraction, and the reason a two-way kit-vs-upstream diff is the wrong instrument:
+# the two repos share no git history, so in a two-way diff an upstream advance and a
+# deliberate extraction edit are the same shape. Compare three-way against this.
+#
+# NOT `c05bf72d` (2026-07-06), which earlier work used. That commit is four days INSIDE
+# the extraction window, so three upstream commits land between the two. See
+# [extraction_window] below -- getting this wrong does not merely mis-measure, it
+# reclassifies upstream content as a deliberate kit deletion.
+extraction_base = "3dd2496d874552d6acaac3de6095abc4ec68c2b0"
+
+# Where skills live inside the upstream tree.
+skills_path = ".claude/skills"
+
+synced_on = "2026-08-23"
+
+# --------------------------------------------------------------------------------------
+# The extraction window is not a point, and one earlier base got this wrong.
+#
+# This repo's first commit is 2026-07-02 and its last extraction-era commit 2026-07-09.
+# The 2026-08-23 refresh used `c05bf72d` (2026-07-06) as the three-way base for every
+# skill -- four days inside that window. Three upstream commits touch the skills tree in
+# the gap between `extraction_base` and that commit, adding 2,668 insertions across 16
+# skill directories. 1,024 of those are the two linters and their tests, which this kit
+# deliberately does not ship -- leaving exactly 1,644 insertions of skill content.
+#
+# Why that is worse than a mis-measurement: the refresh's own classification rule reads
+# "present at base, absent in ours, present in theirs" as a deliberate kit deletion --
+# KEEP IT DELETED. Content upstream added inside the window is present at `c05bf72d`, so
+# every line of it was eligible to be classified that way and dropped silently.
+#
+# Measured, not inferred: all 19 window-added lines of `skill-researcher/SKILL.md` are
+# absent from the shipped file, and that skill reports ZERO drift against the pin. Some
+# of those lines are correctly absent (they carry source-project rules), which is exactly
+# why this needs a per-skill read rather than a bulk re-merge.
+#
+# `affected` lists UPSTREAM directory names, so the drift check resolves them through the
+# correspondence map and picks up the renames. Recorded rather than computed so the debt
+# is visible without an upstream checkout; the check re-measures it and reports a
+# mismatch if this list is wrong.
+
+[extraction_window]
+kit_first_commit = "kit:002daddec7d7ec394b057d82670e061726ec47a9"
+base_used_by_refresh = "c05bf72df02c4cb808dab1305bcd294939eb4ae0"
+status = "unreviewed"
+affected = [
+  "ai-changelog",
+  "ai-docs-lookup",
+  "ai-improvement-tracker",
+  "hypothesis-validator",
+  "learning-consolidator",
+  "lemmi-python-conventions",
+  "lemmi-test-conventions",
+  "openai-realtime-quirks",
+  "prompt-engineering-conventions",
+  "session-retrospective",
+  "skill-content-reviewer",
+  "skill-creation-workflow",
+  "skill-creator",
+  "skill-researcher",
+  "skill-reviewer",
+  "task-learnings",
+]
+
+# --------------------------------------------------------------------------------------
+# Correspondence map.
+#
+# One row per shipped skill; `tests/test_upstream_sync.py` fails if that stops being
+# true, which is what keeps this table from rotting into decoration.
+#
+# `name`      — the directory under the shipped skills tree.
+# `upstream`  — the directory under `skills_path` upstream. EMPTY means no upstream
+#               counterpart exists; such a row must be `kit-origin`.
+# `direction` — provenance, not "has it diverged". Every carried skill has some kit-side
+#               divergence (that is what the hygiene contract is for), so a field meaning
+#               "differs" would be a column of one value. This field means *which side
+#               authored it*, because that is what changes the sync action:
+#
+#     upstream-origin  Authored upstream; this repo's copy descends from it. New upstream
+#                      content is a backlog to port. The default.
+#     kit-origin       Authored HERE; upstream's copy descends from this repo. Upstream's
+#                      later edits are contributions to review, not a backlog to absorb.
+#                      A check that assumes upstream-is-newer reports these backwards.
+#                      Must cite `upstream_adopted` — the claim has to be falsifiable.
+#     divergent-both   Both lineages moved in ways that make a mechanical three-way merge
+#                      unsafe, measured, not suspected. Must carry `base` and `note`.
+#
+# `base`      — the ref whose content is the base for this skill's NEXT three-way merge.
+#               Defaults to `sync.upstream_commit`; present only where that is untrue.
+# `upstream_adopted` — for kit-origin rows: the upstream commit that received the copy.
+# `origin`    — for kit-origin rows: `kit:<sha>`, this repo's own first version. Prefixed
+#               because it is a commit in a DIFFERENT repository from every other SHA
+#               here, and an unprefixed one would be silently unresolvable.
+
+[[skills]]
+name = "agent-delegate"
+upstream = "agent-delegate"
+direction = "kit-origin"
+origin = "kit:a836bd5edcf3104a13f69f45b7c1db9fa48df22f"
+upstream_adopted = "aa31c33865a7bd4d6e3403fac871022619d3e7f3"
+note = "Entered this repo 2026-07-03 and upstream 2026-07-13, byte-identical at 3,153 bytes. Upstream is downstream. Real upstream advance since, once based correctly: +486 words, not the +921 a two-way gap reports."
+
+[[skills]]
+name = "ai-changelog"
+upstream = "ai-changelog"
+direction = "upstream-origin"
+
+[[skills]]
+name = "ai-docs-lookup"
+upstream = "ai-docs-lookup"
+direction = "upstream-origin"
+
+[[skills]]
+name = "ai-improvement-tracker"
+upstream = "ai-improvement-tracker"
+direction = "upstream-origin"
+
+[[skills]]
+name = "analyze-logs"
+upstream = "analyze-logs"
+direction = "upstream-origin"
+note = "This repo shipped it as `analyge-logs` (a typo) until the rename; the upstream spelling is the correct one. A name-keyed check would have reported it as an upstream-only skill for six weeks."
+
+[[skills]]
+name = "branch-diff-review"
+upstream = "branch-diff-review"
+direction = "upstream-origin"
+
+[[skills]]
+name = "branch-switch"
+upstream = "branch-switch"
+direction = "upstream-origin"
+
+[[skills]]
+name = "commit-message"
+upstream = "commit-message"
+direction = "upstream-origin"
+
+[[skills]]
+name = "consolidation-critic"
+upstream = "consolidation-critic"
+direction = "upstream-origin"
+
+[[skills]]
+name = "hypothesis-validator"
+upstream = "hypothesis-validator"
+direction = "upstream-origin"
+
+[[skills]]
+name = "initiative-cleanup"
+upstream = "initiative-cleanup"
+direction = "upstream-origin"
+
+[[skills]]
+name = "initiative-planner"
+upstream = "initiative-planner"
+direction = "upstream-origin"
+
+[[skills]]
+name = "kit-setup"
+upstream = ""
+direction = "kit-origin"
+note = "This kit's own installer skill. No upstream counterpart has ever existed; nothing to sync."
+
+[[skills]]
+name = "learning-consolidator"
+upstream = "learning-consolidator"
+direction = "upstream-origin"
+
+[[skills]]
+name = "openai-realtime-quirks"
+upstream = "openai-realtime-quirks"
+direction = "upstream-origin"
+note = "Slated for removal by the pack split (one provider's one API). When it goes, delete this row with it — the consistency gate will say so."
+
+[[skills]]
+name = "orchestrate"
+upstream = "orchestrate"
+direction = "kit-origin"
+origin = "kit:a836bd5edcf3104a13f69f45b7c1db9fa48df22f"
+upstream_adopted = "aa31c33865a7bd4d6e3403fac871022619d3e7f3"
+note = "Entered this repo 2026-07-03 as `fable-orchestrate` and upstream 2026-07-13 under that same name, byte-identical at 6,775 bytes. Upstream later renamed it after the model-specific name drew zero invocations across 47 sessions, and this repo has taken the rename. Two independent reasons a name-pair map fails on this row: the names differ, and the direction is backwards. Real upstream advance since, once based correctly: +4,094 words, not the +5,120 a two-way gap reports."
+
+[[skills]]
+name = "parallel-deep-research"
+upstream = "parallel-deep-research"
+direction = "upstream-origin"
+
+[[skills]]
+name = "parallel-session-safety"
+upstream = "parallel-session-safety"
+direction = "upstream-origin"
+
+[[skills]]
+name = "plan-critic"
+upstream = "plan-critic"
+direction = "upstream-origin"
+
+[[skills]]
+name = "post-task-review"
+upstream = "post-task-review"
+direction = "upstream-origin"
+
+[[skills]]
+name = "pr-comment-resolver"
+upstream = "pr-comment-resolver"
+direction = "upstream-origin"
+
+[[skills]]
+name = "pr-review-concise"
+upstream = "pr-review-concise"
+direction = "upstream-origin"
+
+[[skills]]
+name = "product-brief"
+upstream = "product-brief"
+direction = "upstream-origin"
+
+[[skills]]
+name = "python-conventions"
+upstream = "lemmi-python-conventions"
+direction = "upstream-origin"
+note = "Renamed on extraction to drop the org prefix. The upstream directory keeps the old name."
+
+[[skills]]
+name = "research-source-claim"
+upstream = "research-source-claim"
+direction = "upstream-origin"
+
+[[skills]]
+name = "research-source-planner"
+upstream = "research-source-planner"
+direction = "upstream-origin"
+
+[[skills]]
+name = "scout-review"
+upstream = ""
+direction = "kit-origin"
+note = "Kit original. Verified rather than assumed: zero commits touch a path of this name across all upstream refs, so it is not an upstream ancestor this repo fell behind on."
+
+[[skills]]
+name = "session-retrospective"
+upstream = "session-retrospective"
+direction = "divergent-both"
+base = "3dd2496d874552d6acaac3de6095abc4ec68c2b0"
+note = "The one skill the refresh deliberately did not carry, so its base is still the extraction point. A mechanical merge against `c05bf72d` was attempted and reverted: it reported 13 conflicts that all resolved to 'take upstream' and produced an extractor of 1,400 lines against upstream's 1,547, with 8 of 35 tests failing -- new function bodies without the constants they read. The ~1,100-word removal that was blamed for this is an artifact of that too-new base: upstream added schema v4 on 2026-07-05, three days AFTER this repo extracted, so a diff from `c05bf72d` renders the whole v4 feature set as a kit deletion. Against the true base above the edit set is four small hunks. The schema version is stated in the script and in both reference documents, so the skill moves whole or not at all, and upstream's newer `sweep_user_corrections.py` needs a portability read. Based correctly the merge yields 3 conflicts rather than 13, with zero in the extractor, its tests and the output-schema reference. A reconciliation was COMPLETE IN THE WORKING TREE but uncommitted when this record was written, so this row still describes the skill as unmerged: claiming it reconciled and being wrong would make the check report `in sync` for a skill ten commits behind, while claiming it behind and being wrong only produces a loud false positive. Whoever commits that reconciliation must drop this row's `base` override and its `divergent-both` direction in the same commit."
+
+[[skills]]
+name = "skill-content-reviewer"
+upstream = "skill-content-reviewer"
+direction = "upstream-origin"
+
+[[skills]]
+name = "skill-creation-workflow"
+upstream = "skill-creation-workflow"
+direction = "upstream-origin"
+
+[[skills]]
+name = "skill-creator"
+upstream = "skill-creator"
+direction = "upstream-origin"
+
+[[skills]]
+name = "skill-researcher"
+upstream = "skill-researcher"
+direction = "upstream-origin"
+
+[[skills]]
+name = "skill-reviewer"
+upstream = "skill-reviewer"
+direction = "upstream-origin"
+note = "Carries the largest measured kit-side divergence of any carried skill: of an apparent 2,275-word deficit, only +195 was real upstream advance and the other 91% is this repo's own generalization work. Not `divergent-both` — the three-way merge did carry cleanly. Recorded so the next maintainer does not read the raw gap as a backlog."
+
+[[skills]]
+name = "spec-driven-dev"
+upstream = "spec-driven-dev"
+direction = "upstream-origin"
+
+[[skills]]
+name = "stacked-pr-planner"
+upstream = "stacked-pr-planner"
+direction = "upstream-origin"
+
+[[skills]]
+name = "task-learnings"
+upstream = "task-learnings"
+direction = "upstream-origin"
+
+[[skills]]
+name = "test-conventions"
+upstream = "lemmi-test-conventions"
+direction = "upstream-origin"
+note = "Renamed on extraction to drop the org prefix. The upstream directory keeps the old name."
+
+[[skills]]
+name = "vertical-slice"
+upstream = "lemmi-vertical-slice"
+direction = "upstream-origin"
+note = "Renamed on extraction to drop the org prefix. The upstream directory keeps the old name."
+
+# --------------------------------------------------------------------------------------
+# Upstream skills deliberately not shipped.
+#
+# This half of the map is what lets the drift report distinguish "upstream added a skill
+# we have not noticed" from "upstream has a skill we decided against". Without it every
+# sync re-litigates all seven. A new upstream directory in neither table is reported as
+# undeclared — that is the addition signal.
+
+[[unported]]
+upstream = "feedback-audit"
+reason = "The source project's interview product: a feedback-quality rubric, a PII-redacting export preprocessor, and a product changelog document. Also routes prompt-change proposals through a skill this repo deleted, so porting it as written would resurrect a removed dependency."
+
+[[unported]]
+upstream = "interview-transcript-analysis"
+reason = "Same coupling: the source project's interview product. A public pack should not carry knowledge only its author can use."
+
+[[unported]]
+upstream = "prompt-domain-reviewer"
+reason = "One of four prompt-engineering skills removed from this pack as product-coupled. This repo was measurably AHEAD of upstream on this file at removal time (-14 words), which is evidence of extraction-time generalization rather than neglect."
+
+[[unported]]
+upstream = "prompt-eng-reviewer"
+reason = "Same removal. This repo was ahead of upstream here too (-7 words)."
+
+[[unported]]
+upstream = "prompt-engineering-conventions"
+reason = "Same removal: product-coupled prompt-engineering conventions."
+
+[[unported]]
+upstream = "review-prompts"
+reason = "Same removal. Deleting it is also why `feedback-audit` cannot be ported as written."
+
+[[unported]]
+upstream = "usage-guard"
+reason = "DEFERRED, not rejected — generically valuable (subscription-window management across parallel sessions) but 12,509 words of which 9,049 are PowerShell, tied to a Windows scheduled task and a statusline feed. It needs a cross-platform pass before it is portable; revisit as its own task, never inside a sync."
