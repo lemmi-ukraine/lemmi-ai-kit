@@ -117,11 +117,11 @@ an operator does?* Then it is Lane R.
 
 - `.ai/templates/*.md` are read at runtime by `spec-driven-dev` — path says J, behaviour says **R**.
 - `docs/onboarding/**` is narrative → **C** (it documents code); an operational runbook is **R**.
-- `prompts/**` never appears in a diff at all — those files are untracked deployment artifacts, and
-  changes to them route through `/review-prompts`, not through a PR lane.
+- Untracked deployment artifacts never appear in a diff at all, so they have no PR lane — route
+  changes to them through whatever review gate owns them, and say so in the plan.
 
 **Executable prose is Lane R, always.** It changes what every future session does and no test catches
-a wrong rule — in this repo the class includes a `PreToolUse` hook that *denies tool calls*. Treating
+a wrong rule — the class can include hooks that *deny tool calls*. Treating
 it as narrative is also the misclassification the "Rules File Backdoor" technique depends on, though
 note that attack's scope is rule files arriving from **outside** (shared repos, templates, poisoned
 PRs); the local argument stands on its own without it.

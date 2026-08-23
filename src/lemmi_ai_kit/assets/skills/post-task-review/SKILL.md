@@ -265,7 +265,6 @@ Present the review results using this structure:
 | Post-task review (steps 1–6) | yes/no | {what was reviewed} |
 | Documentation impact (step 7) | yes/no | {files checked} |
 | Learnings extraction (step 8) | yes/no | {entries appended} |
-| `/review-prompts` (if `prompts/` touched) | yes/no/n-a | {gate record path} |
 | Backend restart (if backend touched) | yes/no/n-a | {command} |
 | {any other gate this task triggered} | yes/no | {…} |
 ```
