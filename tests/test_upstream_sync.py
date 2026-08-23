@@ -103,6 +103,7 @@ def test_the_kit_origin_set_is_the_measured_one() -> None:
         "kit-setup",
         "orchestrate",
         "scout-review",
+        "test-planner",
     }
     # The two with an upstream counterpart are the ones a naive check reports backwards,
     # so those are the two that must carry re-checkable evidence.

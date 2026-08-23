@@ -322,6 +322,12 @@ direction = "upstream-origin"
 note = "Renamed on extraction to drop the org prefix. The upstream directory keeps the old name."
 
 [[skills]]
+name = "test-planner"
+upstream = ""
+direction = "kit-origin"
+note = "Authored in this repo 2026-08-23, never extracted. No upstream counterpart has ever existed; nothing to sync. Not to be confused with `test-conventions`, which is upstream-origin and belongs to the python pack."
+
+[[skills]]
 name = "vertical-slice"
 upstream = "lemmi-vertical-slice"
 direction = "upstream-origin"

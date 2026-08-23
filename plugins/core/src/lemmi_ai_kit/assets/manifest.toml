@@ -24,7 +24,13 @@ summary = "Safely stash, switch branch, and re-apply with conflict detection"
 name = "spec-driven-dev"
 profile = "core"
 invocation = "user"
-summary = "Spec-driven development pipeline with task-size detection and requirements/design/tasks gates"
+summary = "Spec-driven development pipeline with task-size detection and requirements/design/tasks/verification gates"
+
+[[skills]]
+name = "test-planner"
+profile = "core"
+invocation = "user"
+summary = "Derive a verification plan from an approved spec: conditions by id, one owning test level per case, a verification method per NFR"
 
 [[skills]]
 name = "post-task-review"

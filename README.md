@@ -1,6 +1,6 @@
 # lemmi-ai-kit
 
-Lemmi's shared AI configuration as a **Claude Code and Codex plugin** — 37 skills
+Lemmi's shared AI configuration as a **Claude Code and Codex plugin** — 38 skills
 (spec-driven dev, post-task review, the learnings loop, orchestration, research,
 code review) plus project seeding for `AGENTS.md`/`CLAUDE.md` and the `.ai/`
 scaffolding.
@@ -56,7 +56,7 @@ placeholders from your actual project:
 | `AGENTS.md` | AI-workflow rules; commands/conventions/restart/project-rules sections **detected from the project** (CI workflows, manifests, lockfiles) | project — edit freely |
 | `CLAUDE.md` | `@AGENTS.md` + the plugin skill index, pre-rendered | project — edit freely |
 | `.ai/learnings.md`, `.ai/ai-changelog.md`, `.ai/improvement-hypotheses.md` | empty intake/log files | project state — never overwritten |
-| `.ai/templates/` | spec templates (requirements/design/tasks) | kit-managed |
+| `.ai/templates/` | spec templates (requirements/design/tasks/test-cases/test-plan) | kit-managed |
 
 The files are yours to edit. Facts that can't be detected stay as honest
 `TODO(project)` stubs.

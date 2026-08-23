@@ -4,8 +4,8 @@ metadata:
   type: workflow
 description: >
   Spec-driven development pipeline for medium and large tasks. Auto-detects task size
-  based on scope analysis, then guides creation of requirements, design, and task
-  decomposition documents before implementation begins. Use when starting a new feature,
+  based on scope analysis, then guides creation of requirements, design, task decomposition,
+  and verification-plan documents before implementation begins. Use when starting a new feature,
   significant refactoring, or any task that touches multiple files or features. Creates
   specs in .specs/{task-name}/ directory.
 ---
@@ -137,14 +137,21 @@ Create two documents:
    - Risk Assessment (from `.ai/templates/design.md`)
 3. **If the Technical Approach or Design section exceeds ~60 lines**, move it into a separate `.specs/{task-name}/design.md` file and link to it from spec.md. Keep spec.md focused on Problem Statement + Scenarios + Risk.
 4. Create `.specs/{task-name}/tasks.md` — a task breakdown derived from the spec. Use `.ai/templates/tasks.md` as the starting template. Every file-to-modify in the spec should map to at least one task. Identify parallel groups where possible.
-5. Self-review using the Spec Quality Checklist at the bottom of this file.
-6. **Run the plan-critic self-review** (the `plan-critic` skill) — full review over spec.md + tasks.md (+ design.md if split out). Resolve all findings before continuing. If any Blockers or Questions remain, surface them in the presentation.
-7. **STOP.** Present to the user for approval. Wait for explicit approval before continuing.
-8. Only proceed to implementation after approval.
+5. Create `.specs/{task-name}/test-plan.md` — run the `test-planner` skill, which for a Medium task
+   produces a single document carrying the case table inline. Use `.ai/templates/test-plan.md`.
+   Author it **in parallel with step 4**, then reconcile the two: every `TC-` gets an implementing
+   task, and every task's `Test requirements` field cites `TC-` ids instead of prose. Skip this step
+   only when the change touches no executable code, and say so explicitly.
+6. Self-review using the Spec Quality Checklist at the bottom of this file.
+7. **Run the plan-critic self-review** (the `plan-critic` skill) — full review over spec.md + tasks.md + test-plan.md (+ design.md if split out). Resolve all findings before continuing. If any Blockers or Questions remain, surface them in the presentation.
+8. **STOP.** Present to the user for approval. Wait for explicit approval before continuing.
+9. Only proceed to implementation after approval.
 
 ### Large Tasks — Full Spec
 
-Create three separate documents in order, with a user approval gate after each:
+Create four documents, with a user approval gate after each. Requirements and design are strictly
+sequential. **Tasks and the verification plan are authored in parallel** — both derive from the
+same approved design, and neither is an input to the other until they are reconciled at the end.
 
 1. **Requirements**: Create `.specs/{task-name}/requirements.md`
    - Use `.ai/templates/requirements.md` as the starting template
@@ -186,7 +193,29 @@ Create three separate documents in order, with a user approval gate after each:
    - **Run the plan-critic self-review** (the `plan-critic` skill) — completeness-only pass (Dimensions 4–5 only). Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
    - **STOP.** Present to user. Wait for explicit approval before implementation.
 
-4. Proceed to implementation only after all three documents are approved.
+4. **Verification plan**: run the `test-planner` skill (only after design approved — **in parallel
+   with step 3**, not after it)
+   - Produces `.specs/{task-name}/test-cases.md`, then `.specs/{task-name}/test-plan.md`, each with
+     its own STOP gate. Templates: `.ai/templates/test-cases.md`, `.ai/templates/test-plan.md`
+   - Conditions are **harvested by id** from requirements (`AC-`, `UC-`, `NFR-`), never restated.
+     A second copy of a Gherkin scenario is a second source of truth that drifts on the first edit,
+     and nothing in this pipeline cross-checks the two
+   - Every case gets exactly one owning level, and every expected result cites the id it derives
+     from. An uncited expected value is a document defect, not a formatting nit — a model asked to
+     fill an expected-result column produces something plausible, specific, and wrong, and
+     plausibility is exactly what survives review
+   - **Run the plan-critic self-review** (the `plan-critic` skill) — verification pass. Resolve all
+     findings before continuing
+   - **Reconcile against `tasks.md` once both exist.** Bidirectional, and it is this stage's
+     completion gate: every `TC-` has an implementing task or a named out-of-scope owner, and every
+     task's `Test requirements` field cites `TC-` ids instead of prose. Parallel authoring means
+     the two documents are written blind to each other — without this pass they never meet
+   - **STOP.** Present to user. Wait for explicit approval before implementation.
+
+5. Proceed to implementation only after all four documents are approved.
+
+**Skip step 4** when the design touches no executable code (documentation-only or pure-config
+changes). Say so explicitly rather than silently omitting it.
 
 ## Stage Approval Protocol
 
@@ -358,7 +387,7 @@ will land across more than one PR names its layer there rather than discovering 
 ## State Contract
 
 - **State location:** `.specs/{task-name}/`
-- **State files:** `requirements.md`, `design.md`, `tasks.md`, `spec.md`
+- **State files:** `requirements.md`, `design.md`, `tasks.md`, `spec.md`, `test-cases.md`, `test-plan.md`
 - **State transitions:** draft → reviewed (plan-critic) → approved (user) → implementing → completed
 - **Cleanup:** owned by `initiative-cleanup`, not by this skill. Note its rules are the **inverse** of
   the intuitive ones this line used to state: a spec whose work **shipped** is *deleted* (the code and
@@ -401,6 +430,17 @@ Before presenting a spec for approval, verify:
 - [ ] Use Cases: Postconditions (Failure) stated, enforcing invariants (no partial writes, error logged)
 - [ ] Actors identified in the Actors section for all features with user-facing or multi-agent interaction
 - [ ] Adversarial coverage applied — Gherkin error Scenarios OR Use Case Exception Flows answer the 5 boundary questions (auth, validation, AI failure, race condition, resilience)
+- [ ] Stable ids present — every Gherkin Scenario carries an `@AC-{nn}` tag, every Use Case a `UC-{nn}`, every NFR an `NFR-{nn}`. Downstream documents cite ids; a citation to a title dies silently when the title is reworded
+
+**Verification** *(Medium and Large tasks whose design touches executable code)*
+- [ ] A verification plan exists — `test-plan.md`, plus `test-cases.md` for Large
+- [ ] Every condition cites a source id, and no Given/When/Then text is copied from requirements
+- [ ] Every condition names the design technique used to expand it into cases
+- [ ] Every case has exactly one owning level; upward moves carry a written reason and exclusions are stated
+- [ ] Every expected result cites the id it derives from — zero cases marked `[UNGROUNDED]`
+- [ ] Every NFR has a verification method, and no category the project's testing conventions ban is assigned `automated`
+- [ ] Deliberate non-coverage is stated with risk bands and rationale
+- [ ] Reconciliation with `tasks.md` is complete in both directions, or explicitly marked pending
 
 **Requirements Output Contract** — a requirements document is READY when ALL of the following are true:
 1. Every Gherkin Feature has at least 2 Scenarios (1 happy path, 1 error); every Use Case has a Main Success Scenario + at least 1 Exception Flow

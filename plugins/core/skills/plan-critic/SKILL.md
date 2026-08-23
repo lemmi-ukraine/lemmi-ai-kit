@@ -5,10 +5,10 @@ metadata:
   type: review
 description: >
   Implementation Plan Critic & Challenger. Performs a rigorous AI self-review of spec
-  documents (requirements.md, design.md, tasks.md, spec.md) before
+  documents (requirements.md, design.md, tasks.md, spec.md, test-cases.md, test-plan.md) before
   they are presented to the user. Catches security gaps, overengineering, missing failure
-  handling, breaking changes, and incomplete acceptance criteria. Use as a silent
-  pre-presentation step inside the spec-driven-dev pipeline.
+  handling, breaking changes, incomplete acceptance criteria, and ungrounded or duplicated
+  test coverage. Use as a silent pre-presentation step inside the spec-driven-dev pipeline.
 ---
 
 # Implementation Plan Critic & Challenger
@@ -75,6 +75,10 @@ Work through each dimension from [references/review-dimensions.md](references/re
 3. Stability & Resilience
 4. Impact & Affected Areas
 5. Plan Completeness
+6. Verification Coverage — **only when reviewing `test-cases.md` or `test-plan.md`**; skip it for
+   every other document. Dimension 5's testing bullets are about the *implementation's* tests and
+   do not substitute for this pass, so a verification plan reviewed without Dimension 6 has been
+   checked against nothing that applies to it.
 
 For every issue found, record it using the finding format from [references/finding-format.md](references/finding-format.md).
 
@@ -90,6 +94,22 @@ When reviewing `design.md`, verify consistency against `requirements.md`:
    satisfy it. Flag gaps as Major Completeness.
 
 Skip this step when reviewing `spec.md` (medium tasks) or `tasks.md`.
+
+### Step 2.6 — Citation Check (verification document reviews only)
+
+When reviewing `test-cases.md` or `test-plan.md`, verify the citations **mechanically**. Reading
+cannot do this job: a fabricated id and a real one are indistinguishable on the page, and a plausible
+citation is exactly what survives a reading pass.
+
+1. Extract every cited id from the verification document (`AC-`, `UC-`, `NFR-`) — the **bare**
+   form. In `requirements.md` a scenario id appears as the Gherkin tag `@AC-01`; the `@` is tag
+   syntax, not part of the id, so grep the bare form (it matches the tagged occurrence too).
+2. Grep `requirements.md` for each one. Any id with no match is a **fabricated citation — Blocker**.
+3. Grep the other direction: every id defined in `requirements.md` should appear either in the
+   traceability matrix or in the Non-Coverage table. An id in neither is untraced — flag as Major.
+4. Confirm no Given/When/Then text was copied across rather than cited. Flag as Major.
+
+Skip this step for every other document type.
 
 ### Step 3 — Apply the Universal Challenge Questions
 

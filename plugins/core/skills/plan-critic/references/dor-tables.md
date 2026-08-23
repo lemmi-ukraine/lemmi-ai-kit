@@ -30,3 +30,22 @@ Apply when reviewing `design.md`, `spec.md` (combined), or a Cursor plan:
 | Does the testing strategy cover scenario-level or use-case-step verification? | Untestable plan | Major |
 | Are the files to create and files to modify explicitly listed? | Implicit scope | Minor |
 | Are external AI service integration points documented with their failure modes? | Missing failure contract at AI boundary | Major |
+
+## Verification DoR Table
+
+Apply when reviewing `test-cases.md` or `test-plan.md`. Pair it with Dimension 6.
+
+| Verification question | If "No" or "Unknown" | Severity |
+|-----------------------|---------------------|----------|
+| Does every expected result cite the `AC-`/`UC-`/`NFR-` id or design contract it derives from? | Ungrounded assertions — the document encodes invented expectations that read as specific | Blocker |
+| Does every cited id actually exist in `requirements.md`? (verify by grep, not by reading) | Fabricated citation — traceability is decorative | Blocker |
+| Does every case have exactly one owning level? | Duplicate coverage — same assertion maintained at several levels, no authoritative failure | Major |
+| Does every condition name the design technique used to expand it? | Arbitrary case count — coverage that looks systematic and is not | Major |
+| Does every NFR have a verification method (`automated`/`observability`/`manual`/`accepted-unverified`)? | Unverifiable non-functional requirement | Major |
+| Is any test category the project's conventions ban assigned `automated`? | Plan produces work that must be deleted on sight | Major |
+| Is every `TC-` owned by an implementing task or a named out-of-scope party? | Planned verification nobody will perform | Major |
+| Does every task's `Test requirements` field cite `TC-` ids rather than prose? | Reconciliation incomplete — the two parallel documents never met | Major |
+| Is deliberate non-coverage stated with risk bands and rationale? | Silent gaps indistinguishable from oversights | Major |
+| Are risk bands taken from `design.md`'s existing Likelihood/Impact scores? | Two competing risk models in one spec | Major |
+| Is any Given/When/Then text copied from `requirements.md` rather than cited? | Second source of truth; drifts on first edit | Major |
+| Are upward level moves justified and excluded levels named? | Level drift toward slow, brittle high-level tests | Minor |

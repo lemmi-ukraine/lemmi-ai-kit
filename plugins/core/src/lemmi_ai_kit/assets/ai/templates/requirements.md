@@ -10,6 +10,16 @@
 >   - Both formats may coexist in the same document for different feature areas.
 > - `AI Pipeline Behavior` — include only when the feature involves AI model interaction (LLM calls, Realtime API, prompt construction). Omit otherwise.
 > - All other sections are mandatory.
+>
+> **Stable ids are mandatory.** Every Gherkin Scenario carries an `@AC-{nn}` tag, every Use Case an
+> `UC-{nn}`, every NFR an `NFR-{nn}`. Downstream documents — the test plan above all — cite these
+> ids, and a citation to a scenario *title* dies silently the moment the title is reworded. Number
+> sequentially within the document and **never renumber**: retire an id rather than reusing it.
+>
+> **The id is `AC-{nn}`. The leading `@` is Gherkin tag syntax, not part of the id** — it is how a
+> Scenario carries its id inside a `.feature` block, and nothing else. Every citation, matrix row and
+> grep uses the **bare** form. Keeping the two straight matters because a search for the bare id
+> finds the tagged occurrence, while a search for the tagged form silently misses every citation.
 
 ## Problem Statement
 
@@ -61,6 +71,9 @@
      - Scenario Outline + Examples = parameterized variants
      - Style: declarative ("Given the user is authenticated"), NOT imperative ("Given the user clicks login")
      - Length: max 7 steps per scenario (Given + When + Then + And/But combined)
+     - Id: every Scenario carries an `@AC-{nn}` tag on the line above it — its stable, greppable
+       handle. A Scenario Outline takes one tag for the whole outline. Downstream documents cite
+       the tag, never the title.
 
      For AI pipeline features: Given = context, When = trigger event, Then = observable output
 
@@ -82,17 +95,20 @@ Feature: {Feature title — one capability area}
     Given {shared precondition 1}
     And {shared precondition 2}
 
+  @AC-01
   Scenario: {Happy path — descriptive title}
     Given {additional context specific to this scenario, if any}
     When {the actor performs an action or an event occurs}
     Then {observable outcome 1}
     And {observable outcome 2, if needed}
 
+  @AC-02
   Scenario: {Error case — e.g., unauthorized access}
     Given {context that sets up the error condition}
     When {the same or related action}
     Then {expected error behavior}
 
+  @AC-03
   Scenario Outline: {Parameterized case title}
     Given {context with <variable>}
     When {action}
@@ -183,13 +199,19 @@ Feature: {Feature title — one capability area}
 
 <!-- Performance targets, security constraints, reliability expectations.
      All values must be quantifiable — no adjectives like "fast" or "reliable".
-     Mark "N/A" for categories that do not apply; do not delete sections. -->
+     Mark "N/A" for categories that do not apply; do not delete sections.
 
-- **Performance**: {e.g., "API response under 500ms at p95" | "N/A"}
-- **Security**: {e.g., "Requires JWT authentication with user ownership check" | "N/A"}
-- **Reliability**: {e.g., "Must handle WebSocket disconnects gracefully; reconnect within 3s" | "N/A"}
-- **Scalability**: {e.g., "Must support 100 concurrent sessions without degradation" | "N/A"}
-- **Observability**: {e.g., "All AI API calls logged with latency, token count, and model version" | "N/A"}
+     Each NFR carries an `NFR-{nn}` id. The test plan assigns each one a verification METHOD
+     downstream — automated test, observability, manual, or accepted-unverified. A target the
+     project's testing conventions forbid testing (performance and load targets, in projects
+     that ban those categories) gets observability and a named metric, not a test. State the
+     target here regardless; deciding how it is proven is not this document's job. -->
+
+- **`NFR-01` Performance**: {e.g., "API response under 500ms at p95" | "N/A"}
+- **`NFR-02` Security**: {e.g., "Requires JWT authentication with user ownership check" | "N/A"}
+- **`NFR-03` Reliability**: {e.g., "Must handle WebSocket disconnects gracefully; reconnect within 3s" | "N/A"}
+- **`NFR-04` Scalability**: {e.g., "Must support 100 concurrent sessions without degradation" | "N/A"}
+- **`NFR-05` Observability**: {e.g., "All AI API calls logged with latency, token count, and model version" | "N/A"}
 
 ## Scope
 

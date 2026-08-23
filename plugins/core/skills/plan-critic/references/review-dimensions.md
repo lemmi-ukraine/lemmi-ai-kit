@@ -118,3 +118,69 @@ Applies when the plan introduces: new endpoints, new auth flows, new service int
 > Automatic flag: "We'll figure out the details during implementation" is deferred planning, not a plan.
 > Automatic flag: A Feature with only happy-path Gherkin scenarios is incomplete.
 > Automatic flag: A Use Case with no Exception Flows is incomplete.
+
+---
+
+## Dimension 6 — Verification Coverage
+
+**Applies only when reviewing `test-cases.md` or `test-plan.md`.** Skip entirely for every other
+document — the testing bullets in Dimension 5 are about the *implementation's* tests and do not
+substitute for this pass.
+
+**Grounding**
+- Does every expected result cite the `AC-`/`UC-`/`NFR-` id or named design contract it derives
+  from? An uncited expected value is a **Blocker**, not a formatting nit. A model asked to fill an
+  expected-result column produces a value that is plausible, specific, and wrong — and plausibility
+  is exactly the property that survives review.
+- Are cases marked `[UNGROUNDED]` surfaced as open gaps rather than filled with invented values?
+- Does any condition cite an id that does not exist in the requirements document? (Fabricated
+  citation — Blocker. Check by grep, not by reading.)
+
+**Vacuous passes**
+- Can any case pass without proving anything? Three shapes: it iterates a population that may be
+  empty and is not guarded; its expected result is a falsy value (`None`, `False`, `[]`,
+  "rejected") that more than one code path produces; or its precondition cannot hold in the
+  target environment, so it is skipped rather than run. A case that passes for want of a
+  reachable precondition is indistinguishable from a correct one and never fails. Major.
+
+**No duplication of the requirements**
+- Is any Given/When/Then text copied from `requirements.md` rather than cited? Two copies of one
+  scenario diverge on the first requirement edit, and nothing cross-checks them. Flag as Major.
+
+**Technique discipline**
+- Does every condition name the design technique used to expand it into cases?
+- Is Boundary Value Analysis applied to anything without an order — a boolean, enum, or unordered
+  set? Those have no boundaries; the cases are noise displacing the rule combinations that matter.
+- Is a technique *named* but not actually applied — "Decision table" above three ad-hoc cases with
+  no table? That claims a rigour the cases do not have. Major.
+
+**Level assignment**
+- Does every case have exactly **one** owning level?
+- Is any case assigned to two or more levels without being a declared smoke case or a contract
+  pinned on both sides? That is duplication, not thoroughness — the same assertion maintained in
+  several places with no authoritative failure. Major.
+- Are upward level moves justified in writing, and are excluded levels named?
+- Where the project ships a language pack with its own test-type table, does the plan use that
+  table's level names — or has it invented a competing taxonomy? Major.
+
+**Verification method**
+- Does every NFR have a method (`automated` / `observability` / `manual` / `accepted-unverified`)?
+- Is any category the project's testing conventions **ban** assigned `automated`? Performance and
+  load targets in a project that forbids those tests must get observability and a named metric.
+  Producing a test the conventions require deleting on sight is a Major.
+
+**Reconciliation**
+- Does every `TC-` have an implementing task or a named out-of-scope owner?
+- Does every task's `Test requirements` field cite `TC-` ids rather than prose?
+- If `tasks.md` does not exist yet, is the reconciliation explicitly marked pending rather than
+  silently omitted?
+
+**Non-coverage**
+- Is what was deliberately not tested stated with a risk band and a rationale a reader could
+  disagree with? Silence is indistinguishable from an oversight.
+- Are risk bands taken from `design.md`'s existing Likelihood/Impact scores rather than a second,
+  freshly-invented scoring scheme? Two risk models in one spec is a Major.
+
+> Automatic flag: an expected result with no citation.
+> Automatic flag: a case listed at more than one level with no stated reason.
+> Automatic flag: a condition with no named technique.
