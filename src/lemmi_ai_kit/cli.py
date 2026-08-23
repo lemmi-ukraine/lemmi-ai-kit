@@ -23,7 +23,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from lemmi_ai_kit import __version__, checks, scaffold
-from lemmi_ai_kit.manifest import ManifestError, load_manifest
+from lemmi_ai_kit.manifest import ManifestError, assets_root, load_manifest
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -122,7 +122,11 @@ def _build_parser() -> argparse.ArgumentParser:
     audit_p.add_argument(
         "--skills-dir",
         metavar="DIR",
-        help="directory of skills to audit (default: <project>/.claude/skills)",
+        help=(
+            "directory of skills to audit (default: <project>/.claude/skills, or the "
+            "kit's own bundled skills tree when that is absent and the project is a "
+            "checkout of this repo)"
+        ),
     )
     audit_p.add_argument(
         "--fail-on",
@@ -142,6 +146,23 @@ def _project_root(raw: str | None) -> Path:
     if not root.is_dir():
         raise _UsageError(f"--project is not a directory: {root}")
     return root
+
+
+def _bundled_skills_dir(root: Path) -> Path | None:
+    """The kit's own shipped skills tree, but only when `root` is a checkout of this repo.
+
+    `None` when the bundled assets sit outside `root`. In an adopter's project the kit is
+    installed under site-packages or a plugin cache, and auditing *our* fleet instead of
+    theirs would answer a question they did not ask -- so that case keeps the "nothing to
+    audit" note rather than silently changing target.
+    """
+    try:
+        bundled = (assets_root() / "skills").resolve()
+    except OSError:
+        return None
+    if not bundled.is_dir():
+        return None
+    return bundled if bundled.is_relative_to(root.resolve()) else None
 
 
 def _parse_since(raw: str | None) -> date | None:
@@ -231,6 +252,14 @@ def _cmd_audit_skills(args: argparse.Namespace) -> int:
         skills_dir = Path(args.skills_dir).resolve()
     else:
         skills_dir = root / ".claude" / "skills"
+        if not skills_dir.is_dir():
+            # A gate that scans nothing reports green forever, and a green detector
+            # nobody can fail is worse than no detector because it is trusted. When
+            # this project IS the kit, audit the fleet it ships so `--fail-on` has
+            # something to fail on.
+            bundled = _bundled_skills_dir(root)
+            if bundled is not None:
+                skills_dir = bundled
 
     findings = checks.audit_skills(
         skills_dir,
