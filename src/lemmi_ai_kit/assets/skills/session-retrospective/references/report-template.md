@@ -17,16 +17,27 @@ Period: {from_date} to {to_date}
 
 {3-5 bullets — the highest-impact BEHAVIORAL findings, each with its occurrence count}
 
+## Prior-Report Reconciliation
+
+{REQUIRED when a prior report exists (Phase 4h) — one row per prior P1–P5 recommendation.
+Calibration: the 2026-06-22 report's "What Changed Since the 2026-06-21 Report" table.}
+
+| Prior recommendation | Status now | Check performed |
+|----------------------|-----------|-----------------|
+| {P1: rule text} | applied {date} ({file § section}) / still open / superseded by {what} | {grep/read evidence} |
+{still-open P1/P2 items are carried into this report's Recommendations explicitly}
+
 ## Behavioral Findings
 
 ### Recurring-Mistake Taxonomy
 {Cross-session error patterns from errorTaxonomy + deep-dives. A mistake recurring across multiple
 sessions is the highest-value finding.}
 
-| Category | Count | Sessions | Sample (redacted) | Already covered? |
+| Category | Count | Sessions | Sample (redacted) | Already covered? (effect join) |
 |----------|-------|----------|-------------------|------------------|
-| edit-stale-read | 20 | 0f65932c, 640fb5dd, … | "File has been modified since read" | Partial — learnings {date} |
-{one row per recurring class}
+| edit-stale-read | 20 | 0f65932c, 640fb5dd, … | "File has been modified since read" | Rule since {date} — 20 occurrences AFTER → prose failing, escalate Enforce-via |
+{one row per recurring class; the last column carries the 4a effect join — covered-since date +
+post-date occurrence count, and the escalation verdict when the trap recurs despite coverage}
 
 ### Tool Thrash / Wasted Effort
 {From behavior.reReads / repeatedCommands / buildTestLoops / staleReadEdits + deep-dive thrash.}
@@ -102,6 +113,36 @@ Volume: {stats.subAgent.files} agents, {bytes}, {msgs} msgs.}
 {Findings from the bounded deep-dive of emitted `sessions/sub/<id>/*.md`: errors hit, any
 WRONG/FABRICATED result returned to the orchestrator, internal thrash — each with the sub-agent
 transcript as evidence. State how many were scanned via taxonomy only (beyond the ≤6 cap).}
+
+## Hypothesis Evidence (feeds hypothesis-validator)
+
+{CONDITIONAL (4g) — include only when ≥1 PENDING hypothesis's Signal window overlaps this
+period AND the data speaks. Report-only: statuses are the hypothesis-validator's to change.}
+
+| Hypothesis (title + ref date) | Window state | Evidence FOR | Evidence AGAINST |
+|-------------------------------|--------------|--------------|------------------|
+{session ids / metrics per cell; "none observed" is a valid cell value}
+
+## Pipeline Health
+
+{REQUIRED — fixed per-window trend table; consumed by hypothesis-validator and the
+learning-consolidator. Data: aggregate.json, git history of `.ai/` data files,
+`PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint learnings --list-entries`. One table — not a dashboard.}
+
+| Metric | This window | Prior window |
+|--------|-------------|--------------|
+| Sessions analyzed (deep-dived) | {n} ({m}) | {n} ({m}) |
+| Main-thread errors — top categories | {cat: n, cat: n} | {…} |
+| Sub-agent errors (agents with errors / total) | {n}/{N} | {…} |
+| Learnings intake: added / drained since last window | {n} / {n} | {…} |
+| Hypotheses: opened / validated since last window | {n} / {n} | {…} |
+| **Findings the USER supplied that this data already contained** | {n} — list them | {…} |
+
+{The last row is the pipeline's own error rate (§4i Absence Sweep). A finding the user had to
+point out, which the extractor data already supported, is a defect in THIS skill — name it and
+fix the step that should have caught it. The 2026-08-01 run scored 2: a zero-invocation skill
+whose cause sat one join away in its own model-distribution data, and a permission-economy
+question it never asked despite measuring the friction.}
 
 ## Recommendations
 
