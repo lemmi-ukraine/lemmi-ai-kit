@@ -63,7 +63,13 @@ Each entry follows this structure. Append under the current date heading in
 Read the first ~30 lines of `.ai/ai-changelog.md` (after the header block) to check
 if today's date heading (`## YYYY-MM-DD`) already exists at the top of the entries.
 
-- If it exists: append the new entry under the last entry for that date.
+- If it exists: insert the new entry DIRECTLY UNDER the date heading — newest-first *within* the
+  day, matching the file's reverse-chronological contract. Do NOT append under the day's last
+  entry: a same-day append once landed between a drain entry and the self-review that reviews it,
+  and the lint (`check_date_headings`) cannot catch this — it checks heading order, not entry
+  order within a heading.
+  After inserting, re-read the day's entry titles top-to-bottom and confirm they read newest →
+  oldest.
 - If it does not exist: add a new date heading immediately after the `---` separator,
   before any existing date headings, then add the entry under it.
 

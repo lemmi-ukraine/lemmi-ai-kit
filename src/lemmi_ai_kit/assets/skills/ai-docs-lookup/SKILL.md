@@ -56,15 +56,15 @@ Use these sources in priority order. Fetch the most specific source for the ques
 
 ### OpenAI
 
-> **Known access issue**: `platform.openai.com/docs/*` returns HTTP 403. The `developers.openai.com` guide returns empty JS/CSS with no content. Use the **SDK raw source** URLs below for authoritative type and field verification.
+> **Access status (re-verified 2026-07-27)**: `developers.openai.com/api/docs/*` **renders fine via WebFetch** — guides, model cards, the changelog, deprecations, and pricing all return full content. The older "returns empty JS/CSS" note is stale. `platform.openai.com` still 301s to developers.openai.com (changelog) or returns 403 (blog/pricing). Try the `developers.openai.com` page **first** for conceptual, model-card, pricing, and deprecation facts; keep the **SDK raw source** URLs below as the authority for exact field literals and wire shapes, and cross-check schemas there.
 
 | Source | URL | Use for | Status |
 |---|---|---|---|
 | Realtime session types | `https://raw.githubusercontent.com/openai/openai-python/main/src/openai/types/beta/realtime/session.py` | TurnDetection fields, audio config, VAD params | **Working — use first** |
 | Realtime session update event | `https://raw.githubusercontent.com/openai/openai-python/main/src/openai/types/beta/realtime/session_update_event.py` | Session update wire format | Working |
 | Realtime incoming events | `https://raw.githubusercontent.com/openai/openai-python/main/src/openai/types/beta/realtime/` | All event types (list directory on GitHub) | Working |
-| Realtime API guide | `https://developers.openai.com/api/docs/guides/realtime` | Conceptual guide (may return empty content) | Unreliable |
-| Models overview | `https://platform.openai.com/docs/models` | Model IDs, context windows | May return 403 |
+| Realtime API guide | `https://developers.openai.com/api/docs/guides/realtime` | Conceptual guide, model cards, changelog, deprecations, pricing | **Working** (re-verified 2026-07-27) |
+| Models overview | `https://platform.openai.com/docs/models` | Model IDs, context windows | 403 — use the `developers.openai.com` model pages instead |
 | Python SDK README | `https://raw.githubusercontent.com/openai/openai-python/main/README.md` | SDK usage patterns, client setup | Working |
 
 ### Anthropic / Claude
@@ -101,6 +101,20 @@ If the fetched content is a navigation page (table of contents, no direct conten
 follow one specific link from it that targets the actual answer.
 
 Limit: fetch at most **2 pages** per question. Do not crawl indefinitely.
+
+> **A `WebSearch` result is a pointer to fetch, never a citable fact.** Its summarization step
+> fabricates *specific-sounding claims*, not just numbers. Asked for OpenAI Realtime voice
+> characteristics, WebSearch returned confident per-voice adjectives — "coral: warm and friendly",
+> "sage: calm and thoughtful" — presented as if from OpenAI's docs. A direct `WebFetch` of the
+> actual pages (`developers.openai.com/api/docs/guides/text-to-speech`,
+> `.../realtime-conversations`) showed **none of that text exists anywhere on OpenAI's docs**: the
+> real pages give zero textual voice-character description, only "for best quality use `marin` or
+> `cedar`." The invention was the search tool's, not the underlying page's — and adjectives like
+> those would have gone straight into a persona→voice mapping recommendation.
+>
+> Using WebSearch to LOCATE a doc URL is legitimate. Citing its summarized content is not: always
+> follow through with a `WebFetch` of the primary URL before using any characterization. This
+> generalizes the uncited-number caution to ANY specific claim.
 
 ### Step 3 — Extract and Answer
 

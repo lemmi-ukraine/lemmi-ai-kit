@@ -106,6 +106,60 @@ transcript that fires `_execute_confirmed_interrupt()` after speech already ende
   (e.g. "ask the next question on a different competency") must be self-contained against history or
   inject the needed state. Templates that only *transform existing content* (e.g. rephrase the
   previous question) are safe.
+- **The model self-drives every turn — there is NO cheap per-turn code injection.** With
+  `turn_detection.create_response=true` the model auto-creates each response from session
+  instructions + the FULL conversation history (it conditions on audio items even with
+  `input_audio_transcription` disabled — that knob only affects our text copy). Normal questions are
+  never code-injected (only the greeting trigger and the two override handlers send
+  `response.create`). So "the AI doesn't listen" is a PROMPT problem (anchor mass), and every
+  per-turn injection lever is LOSSY per the SDK types: `instructions` replaces the session prompt,
+  `input` replaces conversation context, `conversation:"none"` is out-of-band. A genuine
+  per-turn-code requirement means `create_response:false` + manual item injection + manual
+  `response.create` — a spec-gated session-mode change that IS the planner architecture, not a
+  tweak. Durable behavior changes go through `session.update`.
+- **User-triggered overrides fire in lifecycle states their text never anticipated** — post-close,
+  pre-first-question, mid-goodbye — and because the override replaces ALL session rules (including
+  the closing protocol), whatever it commands wins in that state (a post-close Skip re-opened a
+  finished session). Enumerate session-state × override-text when writing or reviewing one; prefer
+  gating the trigger by state in code/UI. When diagnosing "the AI ignored its closing/opening
+  rules", check whether an override turn was the actual actor before blaming the base prompt.
+- **Any NEW stateful content added to session instructions is invisible during every override.**
+  The corollary of "overrides replace session instructions": each time a feature adds state to the
+  session prompt (a retake coverage map, personalization, agenda state), every existing
+  `override_in_flight_response` template becomes a blind spot for it and must be re-audited —
+  either augmented with a compact digest of the new state, or shown not to need it (ask-differently
+  rephrases the same question → no topic selection → safe; skip selects the next question → needs
+  the digest). Treat "session instructions gained new state" as a trigger to enumerate all
+  `override_in_flight_response` call sites and record an augment-vs-safe decision for each.
+- **Under `create_response=true`, a prompt "stop and wait" is unimplementable.** The API auto-creates
+  a response after every detected candidate utterance, so an instruction to be silent gives the
+  forced response no legal output and the model reverts to its dominant trained pattern in that
+  prompt — for us, asking a question (the mains mandate "The question is ALWAYS the last element"
+  and Error Handling prescribes "[Brief answer]. Now, [next question]"). This produced 39 post-close
+  questions in one weekly window across 6/79 sessions. Two consequences: (1) **every** reachable
+  conversation state, including terminal ones, needs a positively specified reply shape
+  (condition→output), never a "be silent" instruction; (2) a state-scoped ban added to a large prompt
+  must NAME and explicitly override the pre-existing rules that fire on the same trigger — positional
+  recency and specificity alone did not hold here (the standing "no new question after the close"
+  rule existed and demonstrably failed).
+- **`reasoning` omission may be model-dependent — do not rely on the default either way.** 1.x
+  realtime models (`gpt-realtime`, `-mini`, `-1.5`) have no reasoning support at all. For
+  gpt-realtime-2.x there is a **reported but unconfirmed** default of effort `low` when the session
+  omits the key — the only source is a DevForum responder ("sps",
+  community.openai.com/t/gpt-realtime-model-default-reasoning/1387803, 2026-07-22) whose OpenAI
+  affiliation is *implied by wording but not verifiable*, and it is absent from the official docs;
+  the thread was re-read 2026-07-27 but **the behavior itself has never been measured here.** Treat
+  it as a hypothesis, not a fact. What follows regardless: a model bump can silently change latency
+  and conduct for key-omitting sessions, so **pin `reasoning` effort explicitly per feature** rather
+  than depending on any default. Confirming the 2.x default properly needs an A/B against a pinned-`low` session, not another
+  doc lookup.
+- **The model does not hold the session's configured language — it mirrors the speaker.** The
+  prompt language is a preference, not a constraint: one non-English answer flips the assistant
+  into that language for the remainder (with occasional fragments of the original resurfacing). Any
+  downstream consumer pinned to the configured language (Deepgram STT `language=en`) then silently
+  loses the session, and the drift is invisible in logs — conversation flow, VAD, and turn cadence
+  all look healthy. Features depending on the configured language need either prompt-hardening that
+  makes the assistant hold/redirect, or tolerance for drift.
 
 ## 7. Pacing: the model has no clock
 

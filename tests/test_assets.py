@@ -20,6 +20,43 @@ _FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"learnings\.md\s+20\d{2}-\d{2}"), "dated learnings citation"),
     (re.compile(r"retrospectives/20\d{2}"), "dated retrospective citation"),
     (re.compile(r"\.ai/backups/"), "source-project backup reference"),
+    # Extraction rewrote 19 of these across 8 skills; nothing tested for it, so every
+    # upstream refresh re-imported them on human diligence alone. Kit scripts ship
+    # inside the plugin, so a project-relative skills path is broken by construction --
+    # use ${CLAUDE_SKILL_DIR}/scripts/... instead. Bare `.claude/skills/` stays legal:
+    # 20+ assets legitimately discuss the project-local skills directory.
+    (
+        re.compile(r"\.claude/skills/[A-Za-z0-9_-]+/scripts/"),
+        "hard-coded skill-script path (use ${CLAUDE_SKILL_DIR})",
+    ),
+)
+
+# Charter DoD 4: zero references to infrastructure the kit does not ship.
+#
+# These are ASSET-ONLY on purpose, and are deliberately not part of `_FORBIDDEN`.
+# `_FORBIDDEN` is about contamination -- a machine path or a private project name is
+# wrong in any tracked file, which is why test_publication_hygiene.py imports it and
+# applies it repo-wide. This tuple is a different claim: it is about what the *shipped
+# pack* may point at. A research doc that analyses the port necessarily names the
+# upstream scripts, and `cli.py` necessarily contains `audit_skills` as its own
+# subcommand identifier -- neither is a portability defect, and allowlisting each one
+# would grow an exemption list with every future document.
+#
+# The two upstream scripts are replaced by `lemmi-ai-kit lint` / `audit-skills`.
+# Shipping them alongside the CLI would mean two implementations that disagree about
+# what is valid, so the names must not reappear on the next sync. The scripts the kit
+# DOES ship -- drain_audit, audit_cleanup_targets, probe_checker, extract_sessions --
+# are absent from this list on purpose.
+_ASSET_ONLY_FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"ai_files_lint"), "unshipped linter (use `lemmi-ai-kit lint`)"),
+    (re.compile(r"audit_skills"), "unshipped audit (use `lemmi-ai-kit audit-skills`)"),
+    # The stacked-PR document scaffolds to `.ai/`, never `docs/`.
+    (
+        re.compile(r"docs/git-stacked-pr-workflow"),
+        "stacked-PR doc path (scaffolds to .ai/, not docs/)",
+    ),
+    # Source-project product document, a declared non-goal of the port.
+    (re.compile(r"interview-prompt-changelog"), "source-project product document"),
 )
 
 # Files allowed to mention a pattern because they *teach or implement* the rule
@@ -63,7 +100,7 @@ def test_assets_have_no_contamination() -> None:
         rel = path.relative_to(root).as_posix()
         text = path.read_text(encoding="utf-8")
         allowed = _ALLOWLIST.get(rel, ())
-        for pattern, why in _FORBIDDEN:
+        for pattern, why in (*_FORBIDDEN, *_ASSET_ONLY_FORBIDDEN):
             if why in allowed:
                 continue
             for match in pattern.finditer(text):

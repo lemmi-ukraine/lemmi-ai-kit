@@ -95,6 +95,29 @@ CRITICAL rules (from Agent Skills spec):
 - Folder name must match the `name` field in frontmatter
 - Avoid README.md in skill directories — SKILL.md is the only recognized entrypoint
 
+Team-shareable pipelines package as ONE self-contained skill folder — never a parent folder of
+multiple skills. Multi-skill bundles break on partial copies (cross-skill relative paths) and can't
+upload to claude.ai as a unit. Write the multi-stage pipeline as non-skippable SKILL.md steps, the
+"critic" as a checklist reference file, and use section-marked assets (`SECTION: name` … `END:
+name`) so generated outputs inline only the sections they use.
+
+When the deliverable is a **copy-installable kit** (a whole loop another workspace installs, not one
+skill), four conventions make it safe and maintainable:
+
+1. Inside the kit, skills live under `skills/<name>/` — **never** a nested `.claude/skills/`, or the
+   host repo's Claude discovers duplicate skill names and one silently shadows the other.
+2. Ship the scaffold as a **mirrored tree** (`scaffold/.ai/…`) copy-able in one step. Root-anchored
+   `.gitignore` patterns with an internal slash (`.ai/tmp/`) don't match nested copies, so it commits
+   cleanly; give the scaffold's own ignore file the self-ignoring `*` + `!.gitignore` idiom.
+3. Keep ported scripts **byte-verbatim except deltas**, each commented `kit delta` AND listed in a
+   README "Deltas from upstream" table — that table doubles as the future manual-sync merge guide.
+4. Open the README install checklist with a **name-collision check** against the target repo's
+   existing skills.
+
+Verify the empty-state tooling passes on the scaffold (a fake-repo install exercise) before
+shipping, and remember the fleet audit does not reach the kit path — see the `skill-reviewer` note
+on out-of-tree skills.
+
 #### Step 2: Write the frontmatter
 
 Generate YAML frontmatter following these rules:
@@ -284,6 +307,20 @@ Run this checklist before presenting the skill to the user:
 After creating the skill files:
 
 1. If it's a project skill, add it to the project's `CLAUDE.md` skills listing
+1b. **Registration is not reachability — wire the CALLER in the same task.** `lemmi-ai-kit audit-skills`
+   verifies a skill is *listed*, never that any workflow *calls* it, so a skill nothing invokes
+   passes every gate and still only runs if a human remembers it exists. That is the same defect as
+   a rule with no detector, one level up: four stacked-PR skills shipped with
+   `stacked-pr-planner` asserting "`orchestrate`'s plan step calls this skill" — which was **false**;
+   nothing in `orchestrate`, `AGENTS.md` or the workflow doc referenced any of the four, and the
+   operator caught it, not the build. For any skill meant to be a pipeline step, the definition of
+   done includes the caller edit (the invoking skill's phase, the workflow doc's pointer, the
+   AGENTS.md pipeline diagram) **and the reverse pointer being true in both directions**. Check it
+   directly: grep the tracked tree for the skill's name outside its own directory and the ledgers —
+   zero non-listing hits means it is unreachable. "Wire it later" ships a skill whose own text lies
+   about how it is reached.
+2. **Append a changelog entry** — invoke the `ai-changelog` skill (read
+   `.claude/skills/ai-changelog/SKILL.md`) with a `SKILL-ADDED` entry containing:
 2. **Append a changelog entry** — invoke the `ai-changelog` skill with a `SKILL-ADDED` entry containing:
    the skill name, type, files created, and which workflows are affected
 3. **Record improvement hypothesis** — read the `ai-improvement-tracker` skill

@@ -4,8 +4,9 @@ description: >
   Safely stash current changes, switch to a target branch, and optionally apply
   the stash. Handles conflict detection, dirty worktree warnings, and stash
   management. Use when the user says "switch branch", "checkout to", "stash and
-  switch", "apply stash", or provides branch-switching git commands.
-disable-model-invocation: true
+  switch", "apply stash", or provides branch-switching git commands. Also invocable by the model
+  when a task requires working in a branch it does not currently have checked out — see
+  "Model-initiated switches" for the mandatory pre-switch backup.
 argument-hint: "<target-branch> [--apply-stash] [--no-stash]"
 metadata:
   type: task
@@ -28,6 +29,44 @@ cause data loss. Always:
 2. Show the user what will be stashed
 3. Confirm before applying stash if there are potential conflicts
 4. Never force-checkout or discard changes without explicit user approval
+
+## Model-initiated switches — the extra gate
+
+The model may invoke this skill (opened up 2026-08-08, to unblock layer-by-layer PR fix work). The
+guardrail that previously existed was `disable-model-invocation`; **what replaces it is this gate,
+not trust.** The data-loss incident above happened once and the tree has only gotten more
+contended since — a real measurement from 2026-08-08: **617 untracked files, 46 stashes, three
+worktrees, and a parallel session that moved `HEAD` mid-task.** A stash-and-switch across that is
+where work disappears.
+
+**Before any model-initiated switch, take a durable backup. This step is not skippable, and it is
+cheap — it costs one command and it is the only thing standing between a bad switch and lost work.**
+
+```bash
+D=".ai/pre-switch-backups/$(date +%Y-%m-%d)-<target-branch>"
+mkdir -p "$D"
+git diff                                  > "$D/unstaged-tracked.patch"
+git diff --cached                         > "$D/staged-tracked.patch"
+git ls-files --others --exclude-standard  > "$D/untracked-inventory.txt"
+git stash list                            > "$D/stash-list.txt"
+git rev-parse HEAD                        > "$D/head-at-backup.txt"
+```
+
+Then **report the backup path to the user before switching.** A backup nobody knows about is not a
+backup.
+
+Three refusals that are absolute for a model-initiated switch — stop and hand back to the user:
+
+| Condition | Why | Check |
+|---|---|---|
+| Another worktree holds the target branch | git refuses the checkout, and it fails *after* the stash — the worst moment | `git worktree list` |
+| Files staged by another session | Switching carries or conflicts with an index you did not build; never stash someone else's staged work | `git diff --cached --name-only` non-empty and not yours |
+| The switch is part of a cascade, rebase, or force-push | Boundary operation — `parallel-session-safety` §10 | any of those in the plan |
+
+**Prefer not switching at all.** Most work that seems to need a checkout does not: `git show
+<ref>:<path>` and `git ls-tree` read any branch's content in place, and an existing worktree can be
+addressed with `git -C <path>`. Reach for a switch only when you must *write* to a branch, and never
+create a new worktree to avoid one (standing user rule, 2026-08-07).
 
 ## Pipeline
 

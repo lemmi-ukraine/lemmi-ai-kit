@@ -89,6 +89,12 @@ _ALLOWLIST: dict[str, tuple[str, ...]] = {
     ".github/PULL_REQUEST_TEMPLATE.md": ("absolute macOS home path",),
     # Documents the scan-scope finding that produced this test.
     "docs/research/2026-08-22-i3-part-b-handoff.md": ("source-project reference",),
+    # Documents the finding that produced the skill-script pattern: its evidence table
+    # records where each upstream script actually lives, which is the banned shape. The
+    # table IS the finding, so redacting it would remove the evidence, not a slip.
+    "docs/research/2026-08-22-i2-portability-triage.md": (
+        "hard-coded skill-script path (use ${CLAUDE_SKILL_DIR})",
+    ),
     # This file quotes `C:\Users\someone` in the comment explaining the narrowing.
     "tests/test_publication_hygiene.py": (_DRIVE_LETTER_REASON,),
 }

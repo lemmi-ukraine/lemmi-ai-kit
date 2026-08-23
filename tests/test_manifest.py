@@ -16,7 +16,12 @@ def test_manifest_loads_and_matches_asset_dirs() -> None:
     # load_manifest() itself enforces the bijection between [[skills]] entries
     # and assets/skills/* directories, so loading successfully is the assertion.
     manifest = load_manifest()
-    assert len(manifest.skills) == 29
+    # No literal here on purpose. This test already asserts manifest <-> asset-dir
+    # equality below, and a hard-coded total rots on every legitimate catalog change --
+    # whoever adds a skill bumps it mechanically, which defeats the guard while looking
+    # like maintenance. The catalog size is pinned where a human can see it drift:
+    # README.md, enforced against this manifest by tests/test_readme_counts.py.
+    assert manifest.skills, "manifest ships no skills"
     names = {s.name for s in manifest.skills}
     assert "task-learnings" in names
     assert "openai-realtime-quirks" in names

@@ -4,6 +4,9 @@ description: >
   Testing conventions for the Python backend. Integration-first philosophy,
   DI-based mocking, timeout decorators, base class rules, factory usage,
   and banned patterns. Use when writing, reviewing, or scaffolding test files.
+user-invocable: false
+metadata:
+  type: reference
 ---
 
 # Test Conventions — Python Backend
@@ -87,8 +90,7 @@ async def test_create_order_stores_record(self, order_service, async_session):
 
 ## Integration Test Structure
 
-A comprehensive integration test class covers every case in one place
-(examples use a placeholder `order` feature):
+A comprehensive integration test class covers every case in one place:
 
 ```python
 class TestOrderServiceIntegration:
@@ -207,7 +209,7 @@ def service(self, async_session, mock_http_client_factory):
 | `override_cloud_storage_service` | DI override for `get_cloud_storage_service` |
 | `mock_http_client_factory` | Mock HTTP factory for internal HTTP APIs |
 | `override_http_client_factory` | DI override for `get_http_client_factory` |
-| `profile_service_stub` | `StubProfileService` instance (example per-feature stub service) |
+| `profile_service_stub` | `StubProfileService` |
 
 ---
 
@@ -252,8 +254,6 @@ orders = await OrderFactory.create_batch_async(session, 5)
 order = await OrderFactory.create_async(session, title="Custom Title", user_id=42)
 ```
 
----
-
 ## Test Naming
 
 ```
@@ -290,7 +290,7 @@ For positive cases, the `when_<condition>` part can be omitted:
 | Anti-pattern | Correct approach |
 |---|---|
 | `unittest.mock.patch("app.features.X.ConcreteClient")` | Inject mock via constructor or DI override fixture |
-| Real OpenAI / GCS / internal API calls in tests | Use `mock_openai_client`, `mock_cloud_storage_client`, `mock_http_client_factory` |
+| Real OpenAI / GCS / internal HTTP APIs calls in tests | Use `mock_openai_client`, `mock_cloud_storage_client`, `mock_http_client_factory` |
 | Performance benchmarks / load tests | Not done in this project — delete if found |
 | `@pytest.mark.external` | External services are always mocked — marker is meaningless |
 | `@pytest.mark.crud` as standalone marker | CRUD tests are unit tests — use `@pytest.mark.unit` |
@@ -307,6 +307,29 @@ For positive cases, the `when_<condition>` part can be omitted:
   re-exported, or the mock silently doesn't apply. After a bulk file move, run a dedicated grep for
   `patch("app.<old_path>` across `tests/` — string targets raise no import error and fail silently —
   and include underscore-prefixed helpers (`_get_*`), which public-API grep patterns miss.
+- **A shared-script check that reads live repo state makes every unit test of its caller
+  repo-state-dependent.** Give the read an injection seam and have synthetic-fixture tests pass it
+  explicitly — an `archive_text=…` parameter on the check, which would otherwise let the repo's real
+  archive fire a NOTE nondeterministically inside the synthetic-text tests. The failure is invisible at authoring time and fires later on unrelated repo
+  activity (a quiet week → a drain-due NOTE → a passing test breaks). Corollary: around any check
+  that can emit unrelated scheduling NOTEs, assert the **absence of the specific message** — never
+  `notes == []`, which couples the test to every future note the checker learns to emit.
+- **A `model_validator`-decorated method is not callable from a test.** basedpyright rejects
+  `config.require_resolved_voice()` with *"Object of type PydanticDescriptorProxy… is not callable"*:
+  the decorator leaves a descriptor proxy as the *static* type even though Pydantic swaps in the
+  unwrapped function at class-build time, so the call works at runtime and fails the gate. Don't
+  reach for `# type: ignore`. Put the check in a plain property/method that the validator *calls*
+  (`_ = self.voice_value`) — one raise site, ordinary Python that both the type checker and the test
+  can address — and reach the branch with `model_construct`, which skips validation by design. When
+  introducing a nullable field, also test that a *sibling* missing required field still reports
+  itself: a new guard can otherwise hijack the error and report a symptom as the cause.
+- **For a behaviour-preserving rewrite, copy the old implementation into the test as an oracle —
+  never import it.** An import goes tautological the moment the original changes, and the copy keeps
+  the comparison honest after the original is deleted. It also lets you *measure* behaviour instead
+  of deriving it: `AudioSegment.silent()` defaults to 11025 Hz and is resampled on append, losing a
+  fixed 2–3 frames per gap (1000 ms produced 47,996 bytes, not 48,000) — a deficit that is not a
+  ratio and cannot be computed. Enumerate the edge branches as named scenarios, and add tests that
+  fail if someone "fixes" a deliberately preserved defect, each with the reason inline.
 - **Removing a catch-all `@handle_errors` decorator surfaces latent fixture bugs.** A defensive
   decorator silently absorbs `TypeError`/`AttributeError` from under-specified mocks, so "passing"
   tests were buggy. Expect a wave of failures; fix the fixtures (prefer explicit
@@ -314,6 +337,74 @@ For positive cases, the `when_<condition>` part can be omitted:
 - **Converting an attribute to a `@property` breaks stubs built via `object.__new__`.** Those stubs
   assign the attribute directly and now hit "property has no setter". Set the underlying state
   (`_shutdown_state = …`), not the derived alias; grep tests for write-sites when adding a property.
+- **`ASGITransport` does not run the application lifespan.** Any registry or DI singleton needed
+  during *request resolution* must be populated by `create_application()` itself — lifespan may
+  rebuild or refresh it for runtime startup, but cannot be its only writer. When adding lifespan
+  wiring, ask whether request handlers need the state, and test `create_application()` **without**
+  lifespan before considering the wiring complete.
+- **Assert infinite-stream semantics at the service generator, not over HTTP.** `ASGITransport`
+  waits for the response body to finish, so a never-ending `StreamingResponse` hangs before a test
+  can inspect frames. Exercise the service's managed async iterator directly for
+  snapshot/replay/heartbeat/disconnect behavior, and keep HTTP tests for *terminating* outcomes —
+  auth errors, 429, list/history, route shape, OpenAPI. Never weaken a production stream just to
+  make an in-memory transport finish. Tests that hand-consume a stream must mirror the route
+  contract: cancel, then `aclose()`, then call `release()` explicitly.
+- **Splitting one predicate into two silently unpins its equivalence test.** A test that asserts
+  "SQL twin == pure filter" guards nothing after the split unless it is re-pointed at the correct
+  twin AND the fixture gains a row where the two new predicates disagree — without that row it
+  keeps passing no matter which predicate it pins, and its stale docstring reads as if the old
+  invariant still holds. When splitting any predicate, treat every test that pins it as requiring
+  re-pointing, add the distinguishing fixture row, and assert the two predicates genuinely differ
+  on it; grep sibling docs/READMEs for the old pairing claim too — it was echoed stale in two.
+  (The live case split one row-eligibility predicate into two narrower ones, with an integration
+  test still pinning the old pairing.)
+- **More double/coverage traps** — monkeypatch retargeting after import hoisting, package-attr
+  shadowing, model-derived AI-response fixtures, `MagicMock(wraps=)`, `spec=`-truthy children and
+  `getattr` probes, unset-`AsyncMock` state-machine branches, required-collaborator doubles,
+  structured-log field assertions, set-site vs honor-site flag tests,
+  accept-tests-that-encode-the-hole, real-seam pass-through tests, parse-based sync tests:
+  [references/test-doubles-gotchas.md](references/test-doubles-gotchas.md). Consult it whenever a
+  test passes suspiciously easily or a mock feeds a comparison/arithmetic site.
+
+## Assertions That Pass For The Wrong Reason
+
+Three shapes where green means nothing. All three were live in this repo for months.
+
+- **An expected falsy result with more than one legitimate cause proves nothing.**
+  `validate_jwt_token` returns `None` both for a malformed/missing user-id AND for an expired token.
+  While a shared fixture token was expired, `test_token_with_invalid_user_id_format` and
+  `test_token_with_missing_user_id` kept passing — on expiry, never on the malformed-field logic they
+  name. The intended path went untested for ~11 months and nothing signalled it. Either **isolate the
+  cause** (assert a distinguishing error message or field, not the bare `None`/`False`/`[]`) or
+  **neutralize the others** in the fixture. Confirmed by the fix: once expiry was corrected both
+  assertions still passed — for the first time actually exercising the intended branch.
+- **A frozen `exp`/`nbf`/`iat` in a pasted "real token" is a wall-clock time bomb.** Three files
+  hand-rolled `jwt.encode()` around a captured production payload keeping literal
+  `"nbf": 1755442078, "exp": 1786978078` — `iat + 365 days`, valid for exactly one year, then 12
+  tests began failing every run once the clock crossed it. Invisible at write time; a full year of
+  green CI. The correct pattern already existed one file over (`tests/fixtures/auth.py`
+  `create_jwt_token()` uses `datetime.now(UTC) + timedelta(...)`), so this was a hand-rolled
+  divergence from a documented convention. **Never keep a captured token's absolute claims** —
+  recompute relative to run time, preserving only offsets that matter. Cheap sweep:
+  `grep -rn '"exp":\s*[0-9]\{9,10\}' tests/` (it found all 15 live occurrences and correctly skipped
+  2 deliberately-expired negative-test literals).
+- **A skipped gate reads green.** A test guarded by `is_file()` + `pytest.skip` reports success in
+  CI, where the file it needs can never exist. A skip is not a pass; count skips per run.
+
+## Being Inside A Tool's `include` Is Not Being Gated
+
+A type checker's `include` list in `pyproject.toml` may cover `tests/` while the **canonical gate
+command** named in AGENTS.md narrows to the source package — in which case `tests/` looks
+type-checked and is not. Measured on one such repo: test files using the project's own
+`@pytest.fixture(autouse=True)` convention report `reportUnusedFunction`, and pre-existing files
+using the same convention report the identical error, because an autouse fixture is by definition
+never called by name.
+
+So: **check what scope the gate command actually passes**, not what the config includes. When a type
+error appears in a test file you just wrote, probe two pre-existing files using the same convention
+*before* treating it as your regression or silencing it — a repo-wide pattern silenced in one new
+file is worse than the error, because it makes that file diverge. Report the canonical scope's result
+and any extra scope's result separately, naming both.
 
 ## Pre-Writing Checklist
 

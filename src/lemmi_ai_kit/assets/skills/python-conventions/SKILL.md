@@ -27,7 +27,10 @@ For the rules themselves, see AGENTS.md § Conventions.
 
 ```python
 # GOOD: backend/app/features/jobs/enums/job_status.py — one class per file
-class JobStatus(str, Enum):
+from enum import StrEnum
+
+
+class JobStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -37,8 +40,8 @@ class Job(Base):
     ...
 
 # BAD: backend/app/features/jobs/enums.py (multiple enums in one file)
-class JobStatus(str, Enum): ...
-class JobType(str, Enum): ...
+class JobStatus(StrEnum): ...
+class JobType(StrEnum): ...
 ```
 
 ```python
@@ -210,6 +213,45 @@ except ImportError:
     ns = None
 ```
 
+Dev-only LIBRARIES belong in `[dependency-groups].dev`, not `[project.dependencies]` — prod
+`uv sync --locked` then drops them (local `uv run` and the test images keep them). Any code path
+importing a prod-absent dep must degrade gracefully (`try/except ImportError` → 404, not a 500).
+Run `uv lock` after moving a dep between groups.
+
+### Consolidated Typing & Extraction Gotchas (2026-07-16 drain)
+
+- **Pydantic `Field()` defaults must use the keyword**: `x: bool = Field(default=False, …)`, never
+  positional `Field(False, …)`/`Field(None, …)` — basedpyright's Pydantic integration treats a
+  positional first arg as not-a-default, so every construction site errors "argument missing" even
+  though runtime accepts omission. When a "field is required" error hits a field that visibly has a
+  default, check for the positional form before touching call sites.
+- **Wholesale `basedpyright backend` is structurally red on this host** (venv lacks native/observability
+  deps that Docker has). The meaningful local gate is the SCOPED run over touched files, compared to
+  the recorded scoped baseline; when recording a baseline, state its scope.
+- **Type-checker probes go under the configured `include` roots** (`backend/`, `tests/`) — pyright-family
+  checkers skip dot-dirs (`.ai/tmp/` probes silently analyze NOTHING and report 0/0/0). Put one
+  `reveal_type()` in every probe: zero information notes = the checker never ran, not "no findings".
+- **Changing a return type? Sweep EVERY `return`** including bare `return` inside mid-function
+  `try/except` — a bare return means `return None` and only the type checker reliably catches it.
+- **Extracting state/helpers across a class/module boundary makes private names a contract** — drop the
+  leading underscore in the same pass (definition + all readers/writers). Type extension-point Protocol
+  methods as `def …(…) -> Awaitable[X]` (not `async def`) so decorated/wrapped implementations satisfy
+  them structurally.
+- **Extracting a method that participates in a recursion/retry cycle: map where the cycle TERMINATES
+  first** — a decorator (`@handle_errors()`, retry wrappers) on the re-entrant call is often the
+  load-bearing bound; calling the extracted undecorated inner method turns a bounded loop infinite.
+  Preserve the exact re-entry path, not just the body.
+- **Never key a lifecycle hook on `isinstance(x, ConcreteType)`** — a later wrapper/composite changes
+  the runtime type and the hook silently never fires. Put the lifecycle method on the shared Protocol
+  (or forward it through the wrapper) and broaden the hook.
+- **A Protocol's behavioral contract ("never raises", idempotent) is unenforced** — nothing fails when
+  one implementation violates it. Review all implementations side by side (scrutinize the newest and
+  the production default) and add a conformance test parametrized over every implementation.
+- **A boolean env-var parse must agree with the field's declared default**: default-False opt-in →
+  `value in ("1","true","yes","on")`; default-True → `not in ("0","false","no")`. Copying the
+  wrong-polarity parse silently enables a kill switch on garbage/empty input; add a regression test
+  feeding `{"", typo, true, false}`.
+
 ### Thin Typed Wrappers Expose Explicit Methods
 
 A wrapper that forwards everything via `__getattr__` returning `Any` erases method signatures for
@@ -316,45 +358,10 @@ result = repository.get_by_id(id)  # sync in async context
 
 ### Async Task Lifecycle & Concurrency
 
-```python
-# Always await fire-and-forget coroutines. An un-awaited coroutine emits a RuntimeWarning
-# to stderr (NOT the app logger) and its work is silently dropped — static analysis won't flag it.
-await progress_updater.update(...)     # GOOD
-progress_updater.update(...)           # BAD: "coroutine ... was never awaited"
-
-# Application-level fire-and-forget I/O (work that outlives the request) → BackgroundTaskRegistry,
-# so it drains on graceful shutdown. Per-session infra loops with their own start/stop may stay raw.
-get_background_task_registry().create_task(coro, name=f"invoice-{id}")     # GOOD (app-level I/O)
-asyncio.create_task(coro)                                                  # BAD for app-level I/O
-
-# A raw create_task body nobody awaits MUST self-guard, or a raise surfaces as a loop-level
-# "Task exception was never retrieved". Use Exception (not BaseException) so CancelledError propagates.
-async def _run() -> None:
-    try:
-        await do_work()
-    except Exception:
-        logger.exception("background task failed")
-
-# Set a one-time/idempotency flag right AFTER the committing step, before any fallible awaited tail —
-# else a mid-sequence raise leaves the action half-applied AND repeatable (e.g. a replayed client command).
-timer.extend(...); self._extension_used = True
-try:
-    await reconfigure()       # fallible tail, guarded
-except Exception:
-    logger.exception("reconfigure failed")
-
-# A callback that may fire as a side-effect of work done under a lock must read shared state and
-# early-exit BEFORE acquiring the same lock — else the lock-holder awaiting the task deadlocks.
-if self._shutdown_state is ShutdownState.SHUTTING_DOWN:
-    return                    # fast path, no lock
-
-# asyncio.Event.wait() is a GATE, not a serializer: all waiters resume at once, so a boolean
-# check-then-act after it is still racy. Wrap the whole check-then-act in asyncio.Lock when idempotent.
-
-# ContextVar payloads use default=None, never a mutable default (ruff B039) — a shared dict/list
-# leaks across every context that never calls .set().
-ai_meta: ContextVar[dict | None] = ContextVar("ai_meta", default=None)
-```
+Fire-and-forget awaiting, `BackgroundTaskRegistry` vs raw `create_task`, self-guarding task
+bodies, idempotency-flag placement, lock-reentrancy in callbacks, `asyncio.Event` as a gate,
+and `ContextVar` mutable defaults:
+[references/coding-patterns.md § Async Task Lifecycle](references/coding-patterns.md#async-task-lifecycle--concurrency).
 
 ## Settings Examples
 
@@ -381,6 +388,35 @@ Pass `ruff check --fix` / `ruff format` the EXACT files you edited (e.g. `git st
 never a parent directory — directory-scoped autofix silently reformats unrelated, pre-existing files
 in that tree and folds them into your changeset. At review time, `git status` every change and revert
 edits to files outside the task's scope.
+
+**The verdict depends on the scope you pass**: `ruff check backend` (the canonical gate) exits 0
+while `ruff check backend tests` exits 1 on 35 pre-existing violations across 25 files. Always
+REPORT ruff with its scope spelled out, and confirm violations outside `backend` predate your branch
+before treating them as yours.
+
+## Hot Paths & Logging Boundaries
+
+`asyncio.to_thread` does not fix pure-Python CPU work (GIL-bound, `--cpu 1` on dev) — use a
+strided/bulk rewrite guarded by the old implementation as an oracle. Client-supplied free text
+destined for logs must be truncated and non-printable-stripped at the receive site. Worked examples:
+[references/coding-patterns.md § Hot Paths](references/coding-patterns.md#hot-paths-gil-bound-work-and-bulk-rewrites).
+
+## Leaf Packages Must Not Import `app.core.*`
+
+In `app/schemas/` and `app/constants/`, log with stdlib `logging.getLogger(__name__)`, **never**
+`log_event` — `app/core/__init__.py:18` re-exports the whole core package, so one such import pulls
+`numpy` into a leaf module. `backend/app/schemas/` has **zero** `app.*` imports today; keep it that
+way. Mechanism, the grep, and the detector:
+[references/coding-patterns.md](references/coding-patterns.md).
+
+## Call-Site and Serialization Traps
+
+Two defect classes a reviewer reading one function cannot see, plus one serialization rule:
+a function that grows a parameter its only caller never passes is dead code with a passing
+gate (`if <new_param> is not None:` is a review flag); a validator that gains a check can start
+failing its own caller's in-progress state; and never build YAML/JSON/TOML by f-string
+interpolation — use `json.dumps(value)`, whose escapes are valid in both. Mechanisms, measured
+instances, and the fixture corollary: [references/coding-patterns.md](references/coding-patterns.md).
 
 ## Shared Helpers
 

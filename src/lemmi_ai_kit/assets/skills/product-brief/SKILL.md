@@ -171,6 +171,11 @@ After self-review passes, ask the user:
 > "Brief is in `tasks/FEATURE-{slug}.md`. Anything to adjust before this goes to the team?
 > When you're ready to implement, run `/spec-driven-dev` on this task."
 
+**If the work spans several sessions, route to `/initiative-planner` instead of `/spec-driven-dev`.**
+This brief is then the initiative's level-1 **PDR**, and that skill's step 1 appends the charter
+block it needs — Goal, Hypothesis, Expected value, Falsifiers — none of which this template emits.
+`/spec-driven-dev` is the level-3 skill: it specs one slice, after the initiative is decomposed.
+
 ## Edge Cases
 
 - **No UX content needed** (purely backend feature): Omit the "UX Content" section from the
