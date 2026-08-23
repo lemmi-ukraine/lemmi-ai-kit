@@ -1,25 +1,39 @@
-"""The hygiene contract, applied to every tracked file — not just the asset tree.
+"""The hygiene contract, applied to every file git would publish -- not just assets.
 
-`test_assets.py` rejects nine patterns, but all five of its scans start at
-`assets_root()`. Every top-level tree added since — `docs/`, the community files,
-anything future — was unguarded, so a banned pattern could reach a committed path
-with nothing checking it. The Part B handoff's own mention of the source project is
-exempt on the merits, but nothing verified it: it passed because the scan never
-looked.
+`test_assets.py` defines the forbidden patterns, but every one of its scans starts
+at `assets_root()`. Every top-level tree added since -- `docs/`, the community
+files, anything future -- was unguarded, so a banned pattern could reach a
+committed path with nothing checking it. The Part B handoff's own mention of the
+source project is exempt on the merits, but nothing verified it: it passed because
+the scan never looked.
+
+**This docstring states no counts, deliberately.** It used to say `test_assets.py`
+"rejects nine patterns" and referred to "the nine regexes"; `_FORBIDDEN` had by then
+grown to ten, and the tenth -- the skill-script path rule -- was the one nobody had
+counted. A hand-written number going stale inside the module whose entire subject is
+a check that stopped looking is the failure describing itself. Replacing nine with
+ten would only have reset the clock, so the relationship the prose used to assert is
+asserted by `test_every_imported_pattern_is_carried_over` instead, where it is
+recomputed on every run.
 
 Three deliberate design choices:
 
-**The patterns are imported, not restated.** Duplicating the nine regexes would let
-the two contracts drift, and a pattern guarded inside `assets/` but not outside is
-exactly the gap this file exists to close. One definition, two scopes.
+**The patterns are imported, not restated.** Duplicating them would let the two
+contracts drift, and a pattern guarded inside `assets/` but not outside is exactly
+the gap this file exists to close. One definition, two scopes.
 
-**Scope is tracked files only.** That is the set which becomes public, and it keeps
-untracked local scratch out of scope rather than failing a developer's run for files
-they never intend to commit. A tracked file is a published file.
+**Scope is everything git would publish: tracked files, plus untracked files that
+are not ignored.** `--others --exclude-standard` pulls in the second group on
+purpose. An untracked, unignored file is one `git add .` away from being published,
+and catching it before that commit is worth more than sparing a developer a failure
+on a scratch file -- which `.gitignore` already exempts, and which is where scratch
+belongs. (An earlier version of this note claimed the scope was tracked files only.
+It never was; the enumeration below has always passed `--others`.)
 
 **The drive-letter pattern is narrowed rather than exempted per file.** See
-`_TIGHTENED_DRIVE_LETTER` — excusing a whole pattern for a whole file would blind that
-file to real violations of it, which is the same failure this test exists to catch.
+`_TIGHTENED_DRIVE_LETTER` -- excusing a whole pattern for a whole file would blind
+that file to real violations of it, which is the same failure this test exists to
+catch.
 """
 
 import re
@@ -70,10 +84,13 @@ _FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = tuple(
 # rule that bans it — same principle as test_assets.py's _ALLOWLIST. Per-pattern,
 # never blanket, and kept minimal: every entry is a file it would be wrong to rewrite.
 _ALLOWLIST: dict[str, tuple[str, ...]] = {
-    # Defines the patterns, so its own source necessarily contains them. Only five of
-    # the nine self-match: /home/\w, the two dated-citation regexes, and (under the
-    # tightened rule above) the drive-letter one use metacharacters where a literal
-    # would be, so they do not match their own source.
+    # Defines the patterns, so its own source necessarily contains them -- but only
+    # those written as literals. The rest (/home/\w, the two dated-citation regexes,
+    # the skill-script path rule, and under the tightened rule above the drive-letter
+    # one) use a metacharacter where a literal would be, so they do not match their
+    # own source and must not be listed here. That is a rule, not a tally: it
+    # classifies the next pattern too, and
+    # test_the_allowlist_has_no_stale_entries fails on an entry that stops matching.
     "tests/test_assets.py": (
         "absolute macOS home path",
         "machine-specific host rule",
@@ -209,3 +226,29 @@ def test_the_tightened_pattern_still_catches_real_paths() -> None:
         assert not _TIGHTENED_DRIVE_LETTER.search(escape), (
             f"{escape!r} is a source escape, not a path"
         )
+
+
+def test_every_imported_pattern_is_carried_over() -> None:
+    """The local set is the imported set with exactly one substitution.
+
+    This is what the docstring used to assert as a count, moved somewhere it gets
+    recomputed. A pattern added to `test_assets.py` and dropped here -- by a bad
+    merge, or by someone rebuilding this tuple by hand -- would leave the whole repo
+    surface unguarded against it while both files still looked maintained.
+    """
+    assert [why for _, why in _FORBIDDEN] == [why for _, why in _ASSET_FORBIDDEN], (
+        "the local pattern set no longer mirrors test_assets.py._FORBIDDEN; it is "
+        "built by comprehension over it, so a difference here means the import or "
+        "the substitution below has been edited into something else"
+    )
+
+    substituted = [
+        why
+        for (local, why), (shared, _) in zip(_FORBIDDEN, _ASSET_FORBIDDEN, strict=True)
+        if local is not shared
+    ]
+    assert substituted == [_DRIVE_LETTER_REASON], (
+        f"expected exactly one locally substituted pattern "
+        f"({_DRIVE_LETTER_REASON!r}), found {substituted!r}. Every other pattern "
+        "must be the shared object itself, or the two contracts have forked."
+    )
