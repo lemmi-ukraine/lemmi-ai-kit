@@ -95,6 +95,13 @@ _ALLOWLIST: dict[str, tuple[str, ...]] = {
     "docs/research/2026-08-22-i2-portability-triage.md": (
         "hard-coded skill-script path (use ${CLAUDE_SKILL_DIR})",
     ),
+    # Enumerates what the extraction STRIPPED, so its evidence list necessarily quotes
+    # the shapes the contract bans -- a hard-coded linter invocation and a machine-specific
+    # rule. Redacting them would delete the finding, not a slip.
+    "docs/research/2026-08-23-extraction-window-debt-measured.md": (
+        "hard-coded skill-script path (use ${CLAUDE_SKILL_DIR})",
+        "machine-specific host rule",
+    ),
     # This file quotes `C:\Users\someone` in the comment explaining the narrowing.
     "tests/test_publication_hygiene.py": (_DRIVE_LETTER_REASON,),
 }
