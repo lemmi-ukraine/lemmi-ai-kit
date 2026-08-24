@@ -99,6 +99,25 @@ It is a *pre-publish* gate: run deliberately, once, on a tree cleaned for publis
 built the same way — throwaway checkouts in `tmp_path`, and the single test that touches this
 checkout asserts only that the guard can **measure** it, never that the answer is clean.
 
+**Corrected 2026-08-24 — "a tree cleaned for publishing" was not sufficient, and this document
+originally implied it was.** `lemmi-ai-kit-c2` measured it from a genuinely empty state and it
+reproduces on a clean clone: `python -m lemmi_ai_kit publish-check` imports the package from
+*inside* the payload, so seven `.pyc` land **before** the git probe runs. From zero, a plain run
+reports `gitignored in the payload (7)` and exits 1 having created all seven. `git clean -Xdf`
+followed by a plain re-run is therefore a loop, and the gate was **unpassable by construction** —
+the strongest possible pressure toward the one edit §2 and §4 both refuse.
+
+**Run it as `python -B -m lemmi_ai_kit publish-check`** (or with `PYTHONDONTWRITEBYTECODE=1`).
+That invocation produced the program's first `PUBLISH CHECK PASSED`, exit 0, on the real repo.
+The guard now detects the condition and prints that command beside the `git clean`.
+
+Also measured, because it was the obvious fix and it does not work: setting
+`sys.dont_write_bytecode` at the top of `__init__.py` takes seven to **one**, never zero —
+CPython writes a module's cache entry before the module body executes, so `__init__.pyc` lands
+first regardless. The flag has to be on the interpreter.
+
+**Whoever runs the flip drill: use the `-B` form.** Without it, step 1 cannot pass on this repo.
+
 ## 5. Correction to a standing rule in the kickoff
 
 The pathspec-commit rule now in the kickoff is right in intent and **fails as written**:

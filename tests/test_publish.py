@@ -13,6 +13,7 @@ and turn a blocking probe green.
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -316,6 +317,76 @@ def test_the_guard_changes_nothing(tmp_path: Path) -> None:
         check=False,
     )
     assert staged.stdout == b""
+
+
+# --- the guard must not dirty its own subject -----------------------------------------
+#
+# Found by `lemmi-ai-kit-c2` against a genuinely empty tree, and confirmed here on a
+# clean clone: from zero .pyc, a plain `python -m lemmi_ai_kit publish-check` reports
+# `gitignored in the payload (7)` and exits 1, having written all seven itself. Under
+# `-B` the same invocation exits 0. The gate was unpassable by construction.
+#
+# Nothing above could have caught it. Every other test builds a throwaway repo that does
+# not contain this package, and the one test that touches the real checkout deliberately
+# asserts only measurability, never the verdict.
+
+
+def test_the_guard_knows_when_it_writes_bytecode_into_its_own_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = tuple(sorted(f"plugins/{pack}" for pack in PACKS))
+
+    monkeypatch.setattr(sys, "dont_write_bytecode", False)
+    assert publish.writes_bytecode_into_payload(_REPO_ROOT, payload), (
+        "this package lives inside the payload, so importing it dirties what it measures"
+    )
+
+    monkeypatch.setattr(sys, "dont_write_bytecode", True)
+    assert not publish.writes_bytecode_into_payload(_REPO_ROOT, payload), (
+        "-B / PYTHONDONTWRITEBYTECODE is the invocation that makes the gate passable"
+    )
+
+
+def test_a_checkout_that_does_not_contain_this_package_is_not_self_dirtying(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The condition is about geography, not about bytecode being on."""
+    repo = _both(tmp_path)
+    monkeypatch.setattr(sys, "dont_write_bytecode", False)
+    assert not publish.writes_bytecode_into_payload(repo, ("plugins/core",))
+
+
+def test_the_bytecode_remedy_appears_only_when_the_guard_caused_it(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`git clean` alone is not sufficient here, and the printed remedy must say so."""
+    ignored = next(
+        probe
+        for probe in publish._probes(("plugins/core",), self_written=True)  # pyright: ignore[reportPrivateUsage]
+        if probe.label == "gitignored in the payload"
+    )
+    text = "\n".join(ignored.remedy)
+    assert "python -B -m lemmi_ai_kit publish-check" in text
+    assert "PYTHONDONTWRITEBYTECODE=1" in text
+    assert "NOT SUFFICIENT ON ITS OWN HERE" in text
+    # Order matters: the destructive command first, then why it is not enough. The
+    # reverse invites a clean-and-publish that silently re-dirties the tree.
+    assert text.index("git clean -Xdf") < text.index("NOT SUFFICIENT")
+
+    clean = next(
+        probe
+        for probe in publish._probes(("plugins/core",), self_written=False)  # pyright: ignore[reportPrivateUsage]
+        if probe.label == "gitignored in the payload"
+    )
+    assert not any("-B" in line for line in clean.remedy), (
+        "a checkout the guard did not dirty must not be told to work around that"
+    )
+
+    # And end to end: a fixture repo does not contain this package, so no -B advice.
+    repo = _both(tmp_path)
+    _write(repo / "plugins" / "core" / "__pycache__" / "x.cpython-311.pyc", "x")
+    assert main(["publish-check", "--repo", str(repo)]) == 1
+    assert "PYTHONDONTWRITEBYTECODE" not in capsys.readouterr().out
 
 
 # --- cannot-measure is never clean ---------------------------------------------------

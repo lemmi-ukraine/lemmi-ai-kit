@@ -47,10 +47,27 @@ after importing it, and a green self-run is not evidence of anything.
 The obvious fix is to exempt `__pycache__`. It is refused: six `.pyc` files under
 `plugins/core/src/` ARE the original finding, and a guard blind to the exact bytes that
 motivated it is a gate that reports green for a reason unrelated to what it measures.
-The tension is real and stays. It is resolved by *when* the guard runs -- immediately
-before publishing, on a tree cleaned for publishing -- not by narrowing what it sees;
-`tests/test_publish.py` therefore asserts against throwaway checkouts, and asserts only
-measurability, never cleanliness, against this one.
+
+**An earlier version of this note said the tension was "resolved by *when* the guard runs
+-- immediately before publishing, on a tree cleaned for publishing". That was wrong, and
+was measured wrong on a clean clone.** Cleaning first does not help, because the guard
+re-creates the files between the clean and the probe: from zero `.pyc`, a plain run
+reports `gitignored in the payload (7)` and exits 1, having written all seven itself. The
+gate was unpassable by construction, and the printed `git clean` remedy could not clear
+it. See `writes_bytecode_into_payload` for the measurements, including why no in-process
+fix reaches zero.
+
+What resolves it is *how* the guard is invoked -- `python -B -m lemmi_ai_kit
+publish-check`, which passes -- so the tool now detects the condition and prints that
+command beside the `git clean` it would otherwise leave the operator running in a loop.
+Disclosure rather than exemption: an unpassable gate is the strongest possible pressure
+toward the `__pycache__` exemption refused above, which is the one edit that would
+actually blind it.
+
+`tests/test_publish.py` asserts against throwaway checkouts, and asserts only
+measurability, never cleanliness, against this one -- a deliberate choice that is also
+exactly why the suite could not have caught this: the single test in the real tree was
+designed not to look at the verdict.
 """
 
 from __future__ import annotations
@@ -58,6 +75,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -273,8 +291,55 @@ def payload_roots(root: Path) -> tuple[str, ...]:
     return (".",) if "." in found else tuple(sorted(found))
 
 
-def _probes(payload: tuple[str, ...]) -> tuple[Probe, ...]:
+def writes_bytecode_into_payload(root: Path, payload: tuple[str, ...]) -> bool:
+    """Does running this command drop bytecode into the very payload it measures?
+
+    True in the ordinary case, and that is the whole problem: this package sits at
+    `${CLAUDE_PLUGIN_ROOT}/src/lemmi_ai_kit`, i.e. *inside* the pack directory the
+    marketplace declares as the payload, so importing it writes seven `.pyc` into the
+    very tree being measured -- and CPython writes a module's cache entry *before* the
+    module body executes, so they land before any line of this file runs.
+
+    Measured on a clean clone: `git clean -Xdf` then `python -m lemmi_ai_kit
+    publish-check` reports `gitignored in the payload (7)` and exits 1, having created
+    all seven itself. The same invocation under `-B` exits 0. **So the gate was
+    unpassable by construction, and `git clean` alone can never clear it.**
+
+    There is no in-process fix: setting `sys.dont_write_bytecode` at the top of
+    `__init__.py` takes it from seven to ONE, never zero, because `__init__.pyc` is
+    written before that assignment runs. Measured too. The flag has to be on the
+    interpreter -- `-B`, or `PYTHONDONTWRITEBYTECODE=1` -- which is why this function
+    exists to *report* the condition rather than to fix it.
+    """
+    if sys.dont_write_bytecode:
+        return False
+    try:
+        here = Path(__file__).resolve()
+        base = root.resolve()
+    except OSError:  # pragma: no cover - unresolvable path
+        return False
+    return any(
+        here.is_relative_to(base if spec == "." else base / spec) for spec in payload
+    )
+
+
+def _probes(
+    payload: tuple[str, ...], *, self_written: bool = False
+) -> tuple[Probe, ...]:
     spec = " ".join(payload)
+    # Ordered so the operator reads the destructive command first and the reason it is
+    # not sufficient immediately after -- the reverse order invites a clean-and-publish.
+    bytecode_remedy: tuple[str, ...] = (
+        (
+            "NOT SUFFICIENT ON ITS OWN HERE. This command imports the package from",
+            "inside the payload, so a plain re-run recreates every .pyc it just asked",
+            "you to delete. Measure without writing any:",
+            "  python -B -m lemmi_ai_kit publish-check",
+            "  (or set PYTHONDONTWRITEBYTECODE=1)",
+        )
+        if self_written
+        else ()
+    )
     return (
         Probe(
             # `-uall` is load-bearing, not tidiness. Without it git collapses an
@@ -321,6 +386,7 @@ def _probes(payload: tuple[str, ...]) -> tuple[Probe, ...]:
                 "-X removes ONLY ignored files, so tracked and untracked work survives.",
                 "Read the preview before the delete: this is the one remedy here that",
                 "destroys something.",
+                *bytecode_remedy,
             ),
         ),
     )
@@ -346,7 +412,9 @@ def check(root: Path) -> Report:
 
     results = tuple(
         ProbeResult(probe=probe, paths=_records(_git(root, probe.argv)))
-        for probe in _probes(payload)
+        for probe in _probes(
+            payload, self_written=writes_bytecode_into_payload(root, payload)
+        )
     )
     return Report(
         root=root, payload=payload, tracked=len(set(tracked)), results=results

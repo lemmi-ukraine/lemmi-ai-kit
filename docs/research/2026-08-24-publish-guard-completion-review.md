@@ -37,6 +37,7 @@ more tests — a different question. Both defects below fell out of the first tw
 | **3** | My first probe of my own checker was itself blind | **method** | `probe_checker` reported `positive=0 … verdict=UNUSABLE`. The guard was fine; my probe's `$(dirname …)` never ran, because `shell=True` is `cmd.exe` on Windows |
 | 4 | The guard has **two** independent detections, not three | overstatement | Probe 2 is a strict subset of probe 1 — every untracked non-ignored payload file also appears in `status`. Its value is scoping, not detection |
 | 5 | The premise itself is **inherited, not re-measured** | unverified | See §5 |
+| **6** | **The guard blocked on files it created itself** — added after this review closed | **gate unpassable by construction** | Importing the package writes seven `.pyc` into the payload *before* the probe runs. From a genuinely clean tree, a plain run reported `gitignored in the payload (7)` and exited 1, having made all seven. `git clean` then a plain re-run is a loop. Found by `lemmi-ai-kit-c2`; see §7 |
 
 Findings 1 and 2 are the same defect at two depths, and finding 3 is why I trust 1 and 2:
 the instrument that certified the guard first certified *itself* as broken, loudly, before
@@ -181,3 +182,49 @@ two defects that twenty-five tests did not.
 hedging; it is the numeric form of the rule this guard already applies to verdicts, where
 cannot-measure exits 2 rather than 0. A guard that undercounts what ships has adopted the
 failure mode of the leak it was built to stop.
+
+## 7. Added 2026-08-24, after this review closed — the guard blocked on its own output
+
+`lemmi-ai-kit-c2` ran the guard from a genuinely empty starting state, which nothing in this
+review had done. Reproduced here on a fresh `git clone`, so the measurement is independent:
+
+```
+git clean -Xdf -- plugins/core plugins/python     →  0 .pyc
+
+python    -m lemmi_ai_kit publish-check  →  BLOCKED gitignored (7)   exit 1   7 .pyc after
+python -B -m lemmi_ai_kit publish-check  →  PUBLISH CHECK PASSED     exit 0   0 .pyc after
+```
+
+Importing the package writes its bytecode into the payload **before** the git probe runs, so the
+guard manufactured all seven of its own findings. `git clean` followed by a plain re-run is a
+loop, and **the gate was unpassable by construction** — from a tree that was genuinely clean.
+
+That is this document's §2 warning arriving from the direction it did not check. §4 of the
+handoff argues that a permanently red gate drives whoever is publishing toward a `__pycache__`
+exemption, and that the exemption is the one edit that would truly blind the detector. A gate
+that cannot pass *even when the tree is clean* is the strongest possible version of that
+pressure — and I built it while writing the warning about it.
+
+**The obvious fix does not work, and was measured rather than assumed.** Setting
+`sys.dont_write_bytecode = True` at the top of `__init__.py` takes seven to **one**, never zero:
+CPython writes a module's cache entry before the module body executes, so `__init__.pyc` lands
+before that assignment can run. There is no in-process fix; the flag must be on the interpreter.
+
+**What shipped:** `writes_bytecode_into_payload` detects the condition — bytecode caching on,
+*and* this package resolving inside the declared payload — and the ignored-file remedy then
+carries the invocation that actually works, after the `git clean` it would otherwise leave the
+operator repeating. Disclosure, not exemption.
+
+### Why neither the suite nor this review could have caught it
+
+Every test but two builds a throwaway repo that does not contain this package, and the one test
+touching the real checkout **deliberately asserts only measurability, never the verdict** — a
+choice made because several sessions write this tree, and defended in §1 of the handoff. It was
+the right call and it is exactly what made this invisible: the single test positioned to see the
+bug was designed not to look at the answer.
+
+**Carry forward, and it generalises past this guard: a check that runs inside its own subject
+must be measured from the subject's clean state, by something that is not the check.** Every
+probe in §4 asked *what does git do?*. None asked *what does running this command do to the tree
+it measures?* — and that question needed a starting state this session never created, because
+the session's own tooling had dirtied the tree before the first probe.
