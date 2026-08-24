@@ -1,0 +1,31 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "version": "{{VERSION}}",
+  "description": "{{DESCRIPTION}}",
+  "author": {
+    "name": "{{AUTHOR_NAME}}",
+    "url": "{{AUTHOR_URL}}"
+  },
+  "homepage": "{{REPOSITORY}}",
+  "repository": "{{REPOSITORY}}",
+  "license": "{{LICENSE}}",
+  "keywords": [
+    "skills",
+    "{{PACK}}",
+    "agents-md"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "{{DISPLAY_NAME}}",
+    "shortDescription": "{{DESCRIPTION}}",
+    "longDescription": "{{DESCRIPTION}}",
+    "developerName": "{{AUTHOR_NAME}}",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive"],
+    "websiteURL": "{{REPOSITORY}}",
+    "defaultPrompt": [
+      "Review this code against the {{DISPLAY_NAME}} conventions.",
+      "Which {{PACK}} conventions apply to the file I am editing?"
+    ]
+  }
+}

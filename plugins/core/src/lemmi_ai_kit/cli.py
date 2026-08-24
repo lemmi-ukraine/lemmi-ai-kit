@@ -12,6 +12,8 @@ NOT a user-facing installer — it is the deterministic helper the plugin's
   subset of the skill-review checklist.
 - `publish-check` — the pre-publish guard: refuse to publish while the plugin
   payload carries files git does not track. Maintainer-facing, not adopter-facing.
+- `new-pack` — scaffold a new plugin pack from the repo's pack template.
+  Maintainer-facing: it runs in a checkout, and it registers nothing.
 
 `lint` and `audit-skills` exist because a skill cannot address a *sibling* skill's
 script portably; see `checks.py` for why that made them subcommands instead. All
@@ -22,13 +24,17 @@ sessions.
 from __future__ import annotations
 
 import argparse
+import re
+import tomllib
 from datetime import date, datetime
 from pathlib import Path
+from typing import cast
 
 from lemmi_ai_kit import __version__, checks, publish, scaffold
 from lemmi_ai_kit.manifest import (
     PACKS,
     ManifestError,
+    assets_root,
     load_manifest,
     repository_root,
     skills_root,
@@ -158,6 +164,52 @@ def _build_parser() -> argparse.ArgumentParser:
         "--repo",
         metavar="DIR",
         help="checkout to inspect (default: nearest ancestor of the working directory with .git/)",
+    )
+
+    new_pack_p = sub.add_parser(
+        "new-pack",
+        help="scaffold a new plugin pack from plugins/_template",
+        description=(
+            "Copies the pack template into `plugins/<name>/`, substituting the "
+            "placeholders and renaming the example skill. Maintainer-facing: it runs "
+            "in a checkout of the kit. It deliberately REGISTERS NOTHING -- the "
+            "marketplace manifests, the pack enum and the asset manifest are reviewed "
+            "chokepoints, and it prints them as a checklist instead of editing them."
+        ),
+    )
+    new_pack_p.add_argument(
+        "name",
+        help="pack directory name, e.g. `rust` (becomes plugins/<name>/)",
+    )
+    new_pack_p.add_argument(
+        "--skill",
+        metavar="NAME",
+        help="name for the pack's first skill (default: <name>-conventions)",
+    )
+    new_pack_p.add_argument(
+        "--plugin-name",
+        metavar="NAME",
+        help="plugin id in both marketplaces (default: lemmi-ai-kit-<name>)",
+    )
+    new_pack_p.add_argument(
+        "--display-name",
+        metavar="TEXT",
+        help="human-readable name (default: derived from the plugin name)",
+    )
+    new_pack_p.add_argument(
+        "--description",
+        metavar="TEXT",
+        help="one-line description for both plugin manifests",
+    )
+    new_pack_p.add_argument(
+        "--repo",
+        metavar="DIR",
+        help="checkout to write into (default: nearest ancestor of the working directory with .git/)",
+    )
+    new_pack_p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="report what would be written without writing",
     )
 
     return parser
@@ -473,6 +525,378 @@ def _cmd_list() -> int:
     return 0
 
 
+# --- `new-pack` ---------------------------------------------------------------------------
+
+# The skeleton `new-pack` copies. Deliberately NOT a pack: neither marketplace manifest
+# lists it, and every pack enumeration in this package -- `shipped_skill_dirs()`,
+# `available_packs()`, and the test modules that follow them -- iterates the `PACKS`
+# literal instead of globbing `plugins/*`. That is what keeps a skill directory in here
+# invisible to `load_manifest()`, which raises on an unlisted skill dir and would redden
+# the whole suite on the day the template was added.
+PACK_TEMPLATE = "plugins/_template"
+
+# The template's own README documents the template, not the pack, so it is the one file
+# that is not copied. Matched against the relative posix path, so only the top-level one
+# is skipped and a `skills/<name>/README.md` would still be copied (and still be a bug).
+_TEMPLATE_ONLY: frozenset[str] = frozenset({"README.md"})
+
+# Renamed to the author's skill name on copy.
+_TEMPLATE_SKILL_DIR = "example-skill"
+
+# Substituted in these; anything else is copied byte for byte.
+_TEMPLATE_TEXT_SUFFIXES: frozenset[str] = frozenset(
+    {".md", ".json", ".toml", ".txt", ".yaml", ".yml"}
+)
+
+_PLACEHOLDER_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
+
+# The charset `tests/test_plugin.py` asserts every plugin name against. Refused here
+# rather than at test time, because the failure it produces there names the generated
+# manifest rather than the argument that caused it.
+_PACK_NAME_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
+
+# Words a title-caser gets wrong, listed rather than guessed from length -- `ai` is an
+# initialism and `go` is a language name, and both are two letters. This only produces
+# the DEFAULT display name; `--display-name` overrides it.
+_INITIALISMS: frozenset[str] = frozenset(
+    {"ai", "ml", "cli", "api", "sdk", "sql", "db", "ui", "ux", "os", "io", "js", "ts"}
+)
+
+
+def _project_metadata(repo: Path) -> dict[str, object]:
+    """`[project]` from the checkout's `pyproject.toml`, or a usage error naming why not."""
+    path = repo / "pyproject.toml"
+    try:
+        data = cast(
+            "dict[str, object]", tomllib.loads(path.read_text(encoding="utf-8"))
+        )
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise _UsageError(
+            f"could not read pyproject.toml under {repo.name}: {exc}"
+        ) from None
+    project = data.get("project")
+    if not isinstance(project, dict):
+        raise _UsageError(
+            "pyproject.toml has no [project] table, so a pack's version, repository "
+            "and license cannot be derived -- and every one of those is asserted "
+            "against it by the suite"
+        )
+    return cast("dict[str, object]", project)
+
+
+def _required_string(table: dict[str, object], key: str, where: str) -> str:
+    value = table.get(key)
+    if not isinstance(value, str) or not value:
+        raise _UsageError(f"pyproject.toml [project] has no usable {where}")
+    return value
+
+
+def _owner_url(repository: str) -> str:
+    """The owner page for a repository URL: the same URL with its last segment dropped."""
+    head, _, tail = repository.rstrip("/").rpartition("/")
+    return head if head and tail else repository
+
+
+def _default_display_name(plugin_name: str) -> str:
+    """`lemmi-ai-kit-rust` -> `Lemmi AI Kit Rust`. A default, not a rule."""
+    return " ".join(
+        word.upper() if word in _INITIALISMS else word.capitalize()
+        for word in plugin_name.split("-")
+        if word
+    )
+
+
+def _pack_substitutions(
+    repo: Path,
+    *,
+    pack: str,
+    skill: str,
+    plugin_name: str,
+    display_name: str,
+    description: str,
+) -> dict[str, str]:
+    """Every `{{KEY}}` the template may use, with the derivable half derived.
+
+    Version, repository, license and author come from `pyproject.toml` rather than from
+    flags on purpose: `test_plugin.py` asserts a pack's version and repository against
+    that file and `test_license.py` asserts its license against `LICENSE`, so a value
+    typed in here would be a test failure waiting on the next release bump -- and it
+    would be the wrong value the first time somebody authors a pack in a fork.
+    """
+    project = _project_metadata(repo)
+    urls = project.get("urls")
+    repository = _required_string(
+        cast("dict[str, object]", urls) if isinstance(urls, dict) else {},
+        "Repository",
+        "urls.Repository",
+    )
+    authors = project.get("authors")
+    author_name = ""
+    if isinstance(authors, list) and authors:
+        first = cast("list[object]", authors)[0]
+        if isinstance(first, dict):
+            raw = cast("dict[str, object]", first).get("name")
+            author_name = raw if isinstance(raw, str) else ""
+    if not author_name:
+        raise _UsageError(
+            "pyproject.toml [project] names no author, so the pack cannot credit one"
+        )
+
+    return {
+        "PACK": pack,
+        "SKILL_NAME": skill,
+        "PLUGIN_NAME": plugin_name,
+        "DISPLAY_NAME": display_name,
+        "DESCRIPTION": description,
+        "VERSION": _required_string(project, "version", "version"),
+        "LICENSE": _required_string(project, "license", "license"),
+        "REPOSITORY": repository,
+        "AUTHOR_NAME": author_name,
+        "AUTHOR_URL": _owner_url(repository),
+    }
+
+
+def _render_template(text: str, subs: dict[str, str], where: str) -> str:
+    """Substitute, then refuse anything still holding a placeholder.
+
+    Failing loudly is the point. Passing an unknown key through would write a literal
+    `{{...}}` into a marketplace listing, and the only things that read that listing are
+    a plugin host and whoever is deciding whether to install.
+    """
+    rendered = _PLACEHOLDER_RE.sub(lambda m: subs.get(m.group(1), m.group(0)), text)
+    unresolved = sorted({m.group(1) for m in _PLACEHOLDER_RE.finditer(rendered)})
+    if unresolved:
+        raise _UsageError(
+            f"{where}: template placeholder(s) with no value: "
+            f"{', '.join(unresolved)} -- give them a value in _pack_substitutions, or "
+            "drop them from the template"
+        )
+    return rendered
+
+
+def _pack_layout(template: Path, skill: str) -> list[tuple[Path, Path]]:
+    """(source, destination relative to the new pack) for every file that gets copied."""
+    pairs: list[tuple[Path, Path]] = []
+    for source in sorted(p for p in template.rglob("*") if p.is_file()):
+        relative = source.relative_to(template)
+        if relative.as_posix() in _TEMPLATE_ONLY:
+            continue
+        parts = list(relative.parts)
+        if len(parts) > 2 and parts[0] == "skills" and parts[1] == _TEMPLATE_SKILL_DIR:
+            parts[1] = skill
+        pairs.append((source, Path(*parts)))
+
+    # Guard the template, not the argument. A template missing one of these still copies
+    # cleanly and produces a pack the suite rejects with an error naming the generated
+    # manifest instead of the skeleton that omitted it.
+    produced = {destination.as_posix() for _, destination in pairs}
+    required = (
+        ".claude-plugin/plugin.json",
+        ".codex-plugin/plugin.json",
+        f"skills/{skill}/SKILL.md",
+    )
+    missing = [name for name in required if name not in produced]
+    if missing:
+        raise _UsageError(
+            f"{PACK_TEMPLATE} cannot produce a valid pack: no {', '.join(missing)} "
+            f"(the example skill directory must be named `skills/{_TEMPLATE_SKILL_DIR}/`)"
+        )
+    return pairs
+
+
+def _relative_to_repo(path: Path, repo: Path, fallback: str) -> str:
+    """`path` as a repo-relative posix path, or `fallback` when it sits outside `repo`."""
+    try:
+        return path.resolve().relative_to(repo.resolve()).as_posix()
+    except (OSError, ValueError):
+        return fallback
+
+
+def _package_dir_relative(repo: Path) -> str:
+    """Where this package sits inside `repo`, as a repo-relative posix path.
+
+    Two cases, both derived. Normally the running package IS the target checkout's, so
+    the answer falls straight out of `Path(__file__)`. When `--repo` names a DIFFERENT
+    checkout -- which the round-trip test does deliberately -- the running package is
+    somewhere else entirely, so it is located inside the target by its own directory
+    name. Neither spelling puts a repo-layout path literal into this file, which ships
+    inside a plugin payload where no `plugins/<pack>/` exists above it.
+    """
+    here = Path(__file__).resolve().parent
+    inside = _relative_to_repo(here, repo, "")
+    if inside:
+        return inside
+    for candidate in sorted((repo / "plugins").glob(f"*/src/{here.name}")):
+        if candidate.is_dir():
+            return candidate.relative_to(repo).as_posix()
+    return here.name
+
+
+def _registration_steps(
+    repo: Path, pack: str, plugin_name: str
+) -> list[tuple[str, str]]:
+    """The chokepoints a new pack must be registered in, and what to add to each.
+
+    Derived, not written down. The marketplace pair comes from the same constant the
+    publish guard reads, so a manifest added there appears here too. The two package
+    paths are computed because spelling either as a literal would put a repo-layout path
+    into a file that ships inside a plugin payload, where there is no `plugins/<pack>/`
+    above it.
+    """
+    package_dir = _package_dir_relative(repo)
+    assets = _relative_to_repo(
+        assets_root(), repo, f"{package_dir}/{assets_root().name}"
+    )
+    source = f"./plugins/{pack}"
+    steps: list[tuple[str, str]] = [
+        (
+            relative,
+            f'add "{plugin_name}" with source {source} -- copy the `source` syntax '
+            "this file's existing entries use (the two hosts spell it differently)",
+        )
+        for relative in publish.MARKETPLACE_MANIFESTS
+        if (repo / relative).is_file()
+    ]
+    steps += [
+        (
+            f"{package_dir}/manifest.py",
+            f'add "{pack}" to Pack, PACKS and PACK_PLUGIN_NAMES, and map its profile '
+            "in pack_for_profile()",
+        ),
+        (f"{assets}/manifest.toml", "one [[skills]] entry per skill in the pack"),
+        (
+            "docs/upstream-sync.toml",
+            "one row per skill (tests/test_upstream_sync.py asserts the correspondence "
+            "in both directions)",
+        ),
+        (
+            "README.md",
+            "update the skill counts (tests/test_readme_counts.py derives them from "
+            "the asset manifest)",
+        ),
+    ]
+    return steps
+
+
+def _cmd_new_pack(args: argparse.Namespace) -> int:
+    if args.repo is None:
+        repo = publish.checkout_root()
+    else:
+        repo = Path(args.repo).resolve()
+        if not repo.is_dir():
+            raise _UsageError(f"--repo is not a directory: {args.repo}")
+
+    template = repo / PACK_TEMPLATE
+    if not template.is_dir():
+        raise _UsageError(
+            f"no pack template at {PACK_TEMPLATE} under {repo.name} -- `new-pack` runs "
+            "in a checkout of the kit, not in an adopter's project"
+        )
+
+    pack: str = args.name
+    if _PACK_NAME_RE.fullmatch(pack) is None:
+        raise _UsageError(
+            f"pack name {pack!r} must match {_PACK_NAME_RE.pattern} -- it becomes both "
+            "a directory name and a plugin name, and the suite asserts that charset"
+        )
+    destination = repo / "plugins" / pack
+    if destination.exists():
+        raise _UsageError(
+            f"plugins/{pack} already exists -- `new-pack` never writes over a pack"
+        )
+
+    skill: str = args.skill or f"{pack}-conventions"
+    if checks.SKILL_NAME_RE.match(skill) is None:
+        raise _UsageError(
+            f"skill name {skill!r} must match {checks.SKILL_NAME_RE.pattern} -- the "
+            "audit rejects a skill whose directory name does not"
+        )
+
+    plugin_name: str = args.plugin_name or f"lemmi-ai-kit-{pack}"
+    if _PACK_NAME_RE.fullmatch(plugin_name) is None:
+        raise _UsageError(
+            f"plugin name {plugin_name!r} must match {_PACK_NAME_RE.pattern}"
+        )
+    display_name: str = args.display_name or _default_display_name(plugin_name)
+    # Shaped like the existing packs' descriptions rather than like a placeholder: this
+    # string lands in two marketplace listings, and a default that reads as unfinished
+    # is one somebody ships anyway.
+    description: str = (
+        args.description
+        or f"{pack.capitalize()} conventions for projects using the "
+        "Lemmi AI Kit core plugin."
+    )
+
+    subs = _pack_substitutions(
+        repo,
+        pack=pack,
+        skill=skill,
+        plugin_name=plugin_name,
+        display_name=display_name,
+        description=description,
+    )
+    layout = _pack_layout(template, skill)
+
+    # Render everything before writing anything: a placeholder with no value must fail
+    # with no pack on disk, not with a half-written one somebody has to clean up.
+    rendered: list[tuple[Path, str | bytes]] = []
+    for source, relative in layout:
+        if source.suffix in _TEMPLATE_TEXT_SUFFIXES:
+            where = f"{PACK_TEMPLATE}/{source.relative_to(template).as_posix()}"
+            rendered.append(
+                (
+                    relative,
+                    _render_template(source.read_text(encoding="utf-8"), subs, where),
+                )
+            )
+        else:
+            rendered.append((relative, source.read_bytes()))
+
+    dry_run: bool = args.dry_run
+    prefix = "[dry-run] " if dry_run else ""
+    print(
+        checks.ascii_safe(
+            f"{prefix}lemmi-ai-kit {__version__} new-pack -> plugins/{pack}"
+        )
+    )
+    for relative, _ in rendered:
+        print(checks.ascii_safe(f"{prefix}  plugins/{pack}/{relative.as_posix()}"))
+
+    if not dry_run:
+        for relative, payload in rendered:
+            target = destination / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if isinstance(payload, str):
+                target.write_text(payload, encoding="utf-8", newline="\n")
+            else:
+                target.write_bytes(payload)
+
+    print(
+        checks.ascii_safe(
+            f"\n{prefix}{len(rendered)} file(s), plugin `{plugin_name}`, skill `{skill}`"
+        )
+    )
+    print(
+        checks.ascii_safe(
+            "\nnot done yet -- register the pack. `new-pack` edits none of these: each "
+            "is a reviewed chokepoint, and adding a plugin to a published marketplace "
+            "listing is a decision, not a side effect of scaffolding."
+        )
+    )
+    for index, (where, what) in enumerate(
+        _registration_steps(repo, pack, plugin_name), 1
+    ):
+        print(checks.ascii_safe(f"  {index}. {where}"))
+        print(checks.ascii_safe(f"     {what}"))
+    print(
+        checks.ascii_safe(
+            "\nthen `uv run pytest` -- the suite is what tells you the pack is real. "
+            "The whole path is in docs/authoring-a-pack.md."
+        )
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -487,6 +911,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_audit_skills(args)
         if args.command == "publish-check":
             return _cmd_publish_check(args)
+        if args.command == "new-pack":
+            return _cmd_new_pack(args)
     except (ManifestError, OSError, _UsageError, publish.PublishCheckError) as exc:
         print(f"error: {exc}")
         return 2

@@ -1,0 +1,10 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "displayName": "{{DISPLAY_NAME}}",
+  "version": "{{VERSION}}",
+  "description": "{{DESCRIPTION}}",
+  "author": { "name": "{{AUTHOR_NAME}}", "url": "{{AUTHOR_URL}}" },
+  "repository": "{{REPOSITORY}}",
+  "license": "{{LICENSE}}",
+  "skills": ["./skills/"]
+}
