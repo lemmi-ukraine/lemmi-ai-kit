@@ -348,6 +348,48 @@ the defect. C-1 owns one file. Recording a defect you could have fixed is the we
 is the correct one when the alternative is a Clean Up session writing into another session's
 declared file set while that session's neighbours are actively writing the same tree.
 
+### This session amended a concurrent writer's commit, and the recovery is why §0 exists
+
+Recorded because this repository publishes what its workflow catches, and this one it caught
+afterwards rather than before.
+
+The first commit of this record landed as `603590f` with a **malformed subject line: a bare `@`.**
+The message was passed with PowerShell here-string syntax (`-m @'…'@`) through the Bash tool, where
+`@` is an ordinary character — so the shell delivered a message beginning and ending with a literal
+`@`. The environment offers both shells and they take different syntax; this is the failure mode of
+using one's quoting in the other, and it is silent.
+
+The recovery attempt did the real damage. `git commit --amend -F <file>` was chained behind a
+`git log -1` check with `&&`. **A verification chained to the action it is meant to gate does not
+gate it** — the shell ran both, and the output arrived too late to stop anything. In the interval,
+the concurrent writer of §0 had committed `8c2c55b` on top. The amend therefore rewrote *their*
+commit, producing `269db27`: their tree, their parent, this session's message.
+
+Restored with `git reset --soft 8c2c55b` after verifying the two commits were message-only
+divergent:
+
+```
+tree 8c2c55b   794ea4cfc8c98dfaa5a637077b2be2ae7c72816d
+tree 269db27   794ea4cfc8c98dfaa5a637077b2be2ae7c72816d
+parent, both   603590f
+```
+
+`--soft` moves the ref without touching index or working tree, so the writer's uncommitted edits
+were never at risk. Verified after: `git diff --cached` empty, their four in-progress paths still
+present.
+
+**`603590f`'s `@` subject is left in history deliberately.** Correcting it means rewriting a commit
+that a concurrent writer has already built on, in a checkout three sessions share — which is the
+exact manoeuvre that makes work disappear, traded against a cosmetic subject line. The commit's body
+is intact and its content is this file.
+
+Two rules this pays for, neither of which was in the working brief:
+
+1. **Re-probe `HEAD` in its own call before any history rewrite**, and read the result, in a shared
+   checkout. `--amend` is not a local edit when someone else may have committed since.
+2. **Never chain a safety check to a destructive command with `&&`.** The check must be a separate
+   call whose output is read first.
+
 ---
 
 ## 8. Where this record's verification stops
