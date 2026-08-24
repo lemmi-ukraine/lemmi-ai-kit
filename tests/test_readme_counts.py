@@ -87,7 +87,6 @@ _MANIFEST_FILES: tuple[str, ...] = (
 )
 
 
-
 def _shipped_skill_count() -> int:
     return len(load_manifest().skills)
 
