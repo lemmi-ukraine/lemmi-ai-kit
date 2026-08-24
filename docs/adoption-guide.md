@@ -88,8 +88,9 @@ That is the whole decision. Authoring a pack earns its cost only when you would
 otherwise be copying the same conventions into a second `AGENTS.md` by hand.
 
 Contributing a pack *back* to this repository so other companies get it is a
-third, separate, entirely optional step — and it is not documented yet (see
-[What is not built yet](#what-is-not-built-yet-and-what-is-not-verified)).
+third, separate, entirely optional step. It **is** documented now: [CONTRIBUTING.md](../CONTRIBUTING.md)
+for where a pack goes and what this repo does and does not check, and
+[docs/authoring-a-pack.md](authoring-a-pack.md) for the mechanics.
 
 ---
 
@@ -525,10 +526,17 @@ conventions, and nothing else would justify a new pack — not a framework, not 
 team, not a domain. (A framework axis gets added only if a language pack ever
 actually splits under its own weight, and none has.)
 
-**Authoring is not documented yet.** There is no pack template, no scaffolding
-command, and no `docs/authoring-a-pack.md` in this repository today. Until there
-is, stay in `### Project rules` — it costs you nothing to move the rules later,
-since a pack skill is the same markdown in a different file.
+**Authoring is documented, and it assumes you have cloned this repository.** There is a
+pack template (`plugins/_template/`), a scaffolding command (`new-pack`), and
+[docs/authoring-a-pack.md](authoring-a-pack.md). What that document does not do is state
+the contents of the files it tells you to create — it points at the template and at the
+existing packs — so it works as a checklist beside a clone and not as a specification on
+its own. That was measured, not assumed: an author with no access to the clone completes
+none of it.
+
+None of which you need. **If you are not sure you want a pack, stay in `### Project rules`**
+— it costs you nothing to move the rules later, since a pack skill is the same markdown in
+a different file.
 
 ---
 
@@ -624,7 +632,7 @@ wastes your afternoon.
 
 | Gap | What it means for you |
 |---|---|
-| **No pack template, no scaffolding command, no `docs/authoring-a-pack.md`** | You cannot follow a documented path to author a pack today. Stay in `### Project rules`; moving rules into a pack later is a copy-paste, not a migration |
+| **Pack authoring assumes a clone** | The template, the `new-pack` command and [the authoring document](authoring-a-pack.md) all exist. What the document does not carry is the contents of the files it asks you to create, so it reads as a checklist next to a checkout rather than a standalone spec — measured by having someone try it without one. Fine if you are working from a clone; a wall if you are not |
 | **No documented private-pack path** | Serving a pack from your own private marketplace should work — both hosts support it — but it has not been tested here and this guide will not walk you through an unverified path |
 | **No packs beyond core and Python** | Go, TypeScript, Rust and the rest have no pack. See [C](#c-your-language-has-no-pack) |
 | **No pre-merge review of contributed packs** | The path itself is now documented — see [CONTRIBUTING.md](../CONTRIBUTING.md) for where a pack goes, how first-party packs are named, and what to do about a merged pack that turns out to be harmful. What does **not** exist is a review bar: **merged does not mean vetted.** Since a skill is instructions an agent follows — and can direct shell commands inside whoever installs it — read a third-party pack before you install it, exactly as you would a dependency |
