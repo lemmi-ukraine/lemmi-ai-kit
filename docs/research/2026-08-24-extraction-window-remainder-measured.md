@@ -155,3 +155,60 @@ stage wired in at `eefaa23`. Larger is the expected direction for a skill the ki
 below 0.75 resolves to committed bytecode, a deliberately substituted linter, or a correctly stripped
 host-specific reference. That is a reassuring result — and it is now evidence rather than assertion,
 which is the only reason it is worth writing down.
+
+---
+
+## Progress — the two 0% skills are recovered (2026-08-24, orchestration, inline)
+
+Seven consecutive subagent dispatches died on API 529s, so the two highest-value items were done
+inline rather than delegated. Both pushed. Every failed agent died clean — the 7 skill directories
+were verified untouched after each.
+
+| Skill | Carriage before | After | Commit |
+|---|---:|---:|---|
+| `skill-researcher` | **0%** | **74%** | `ac19b23` |
+| `skill-content-reviewer` | **0%** | **94%** | `8fb2316` |
+
+**The residual absences in both are deliberate, not omissions:** a `(project rules)` header framing,
+a parenthetical crediting the source project's own review loop, a site-crawlability note scoped to
+"this environment" (recovered in generalised form instead), and one dated internal citation.
+
+**The pair had to move together.** Upstream added them in the same commit and they form one contract:
+`skill-researcher` emits inline source markers and states that its own brief is a claim;
+`skill-content-reviewer` independently verifies the top load-bearing claims rather than trusting
+skill-brief agreement. Recovering either alone leaves the contract half-wired.
+
+**One of these was worse than missing content.** `skill-content-reviewer` shipped
+*"DO verify claims against the Research Brief as ground truth"* — a rule upstream had already
+corrected. The kit was not merely behind; it was shipping a superseded instruction that told
+reviewers to trust exactly the artifact this program keeps getting burned by. That is the sharpest
+argument in the record for paying the rest of this debt: a wrong-and-live rule looks identical to a
+current one until someone reads the window.
+
+## The remaining worklist, adjudicated where the diff has been read
+
+**`task-learnings` (19 absent) — diff read in full, NOT executed.** It spans `SKILL.md` and
+`references/learnings-format.md` and needs generalisation, not a merge, which is why it was not
+rushed inline:
+
+- **RECOVER:** the dedup-check-first step · *"NEVER append at the file end or under whatever section
+  happens to be last — a chronological catch-all misleads the consolidator's clustering"* · verify
+  placement **structurally**, not by eyeballing · the canonical-category set as a single source of
+  truth shared with `learning-consolidator`, with `SKILL.md` linking rather than restating it · the
+  intake-buffer-drains-to-homes lifecycle model · and the Step 6 row *"invariant a future edit could
+  silently break → co-located code comment at the exact site"*, which is fully generic.
+- **REPOINT, do not drop:** the placement self-check calls the unshipped `ai_files_lint.py` by a
+  hard-coded skill-script path. The kit substitutes its own CLI — recover the instruction pointed at
+  `lemmi_ai_kit lint`.
+- **CORRECTLY ABSENT:** the `backend/app/core/<module>/README.md` and
+  `backend/app/features/<feature>/README.md` layout, the `docs/onboarding/` sync rule, the named
+  legacy section headers, one machine-specific runner rule, and two dated internal citations. The
+  *idea* behind the subsystem row — a gotcha scoped to one module belongs in that module's README
+  rather than the global rules — is generic and should be recovered without the paths.
+
+**`hypothesis-validator` (11), `session-retrospective` (9), `python/test-conventions` (16) — not yet
+adjudicated.** The first two are expected to be mostly correctly-absent on the evidence sampled
+above, but expected is not measured and neither has had every line read. `test-conventions` remains
+the hard one: portable technique wearing source-project internals, a rewrite rather than a merge.
+
+**`status` stays `"unreviewed"`.** 36 of 92 lines are now resolved.
