@@ -42,6 +42,53 @@ so a value typed into the template would be a test failure waiting on the next
 release bump. The full placeholder table is in
 [`plugins/_template/README.md`](../plugins/_template/README.md).
 
+**`--skill` takes one name and is not repeatable.** It names the pack's *first*
+skill. A multi-skill pack is one `new-pack` run plus a directory per additional
+skill, each registered by hand in step 4 below — there is no repeat form, and
+passing `--skill` twice keeps only the last. `--author` is a bare string
+(`--author "Some Team"`), paired with `--author-url`.
+
+### What the two manifests actually contain
+
+You will read both files in step 1 of registration, and they do **not** share a
+schema — so here they are rather than a pointer to them.
+
+`plugins/<pack>/.claude-plugin/plugin.json` — eight keys, `skills` an **array**:
+
+```json
+{
+  "name": "...", "displayName": "...", "version": "...", "description": "...",
+  "author": { "name": "...", "url": "..." },
+  "repository": "...", "license": "...",
+  "skills": ["./skills/"]
+}
+```
+
+`plugins/<pack>/.codex-plugin/plugin.json` — same identity keys, then three things
+Claude's has no equivalent for: `homepage`, `keywords`, and an `interface` block.
+`skills` here is a **bare string, not an array** — the one difference that will not
+announce itself:
+
+```json
+{
+  "name": "...", "version": "...", "description": "...",
+  "author": { "name": "...", "url": "..." },
+  "homepage": "...", "repository": "...", "license": "...",
+  "keywords": ["skills", "<pack>", "agents-md"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "...", "shortDescription": "...", "longDescription": "...",
+    "developerName": "...", "category": "Developer Tools",
+    "capabilities": ["Interactive"], "websiteURL": "...",
+    "defaultPrompt": ["...", "..."]
+  }
+}
+```
+
+`new-pack` fills every one of these from the template. They are written out here
+because the failure mode is editing them later — by hand, from memory of the other
+host's shape.
+
 ## 2. Register it — seven edits `new-pack` does not make
 
 The command prints this list and performs none of it. That is deliberate: adding
@@ -138,6 +185,35 @@ project that installs a different language pack still resolves. This is enforced
 name.
 
 The reverse direction is fine. A pack skill may name core skills freely.
+
+### The `SKILL.md` frontmatter contract
+
+`audit-skills` checks these, and §3's `--fail-on major` is what turns them into a
+gate. The template's skeleton already satisfies every one; this is the list so a
+failure is readable rather than a surprise.
+
+| Rule | Failure if broken |
+|---|---|
+| Opening **and** closing `---` delimiters | frontmatter unparseable — and the body then loads with *empty* metadata, so `/name` still works while auto-matching dies silently |
+| `name` equals the skill's **directory** name | name/directory mismatch |
+| `name` matches `^[a-z0-9]+(-[a-z0-9]+)*$` | charset or length violation |
+| `description` ≤ **1024** characters | over the per-skill spec cap; rejected |
+| `description` + `when_to_use` ≤ **1536** | over the listing cap — silently truncated in the menu, which is why it is checked |
+| `metadata.type` ∈ `reference · review · task · workflow` | missing or unknown type |
+| `SKILL.md` ≤ **500** lines | past this, detail belongs in `references/` |
+
+### A profile is not a pack, and the mapping is one-to-many
+
+Step 3 of registration asks for a **profile**, which is easy to read as a synonym
+for the pack. It is not. A profile groups skills by *what they are for*; a pack is
+what ships them. `core` ships **four** profiles — `core`, `skill-authoring`,
+`research`, `orchestration` — while `python` ships one.
+
+For a new pack the practical rule is the simple case: **add one profile named
+after your pack, and map it to your pack** in `pack_for_profile()`. Anything that
+does not map explicitly falls through to `core`, so a profile you add without
+touching that function silently files your skills under the core pack — and the
+suite will not tell you, because both halves are individually consistent.
 
 Keep the axis to **language, and only language** — not a framework, not a team,
 not a domain. That is CONTRIBUTING.md's rule and it is the question to settle in
