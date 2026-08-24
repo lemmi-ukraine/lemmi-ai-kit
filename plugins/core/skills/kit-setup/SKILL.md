@@ -44,8 +44,8 @@ If no Python ≥ 3.11 exists on the machine, use uv if available
 same `PYTHONPATH`); as a last resort, replicate the scaffold by hand: copy
 `templates/AGENTS.md`, `ai/*` from `${PLUGIN_ROOT}/src/lemmi_ai_kit/assets/`
 (only files that don't exist), and render CLAUDE.md's `{{SKILLS_*}}` placeholders
-from `src/lemmi_ai_kit/assets/manifest.toml` (user-invocable entries use their
-pack namespace, such as `/lemmi-ai-kit-core:<name>`).
+from `${PLUGIN_ROOT}/src/lemmi_ai_kit/assets/manifest.toml` (user-invocable
+entries use their pack namespace, such as `/lemmi-ai-kit-core:<name>`).
 
 Run it from the project root and read its report. It is safe to re-run; add
 `--dry-run` first if the project already has some of the files and you want to
