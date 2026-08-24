@@ -1,4 +1,4 @@
-# Orchestration self-review — eleven defects, and every one is a class this session was cataloguing
+# Orchestration self-review — twelve defects, and ten are a class this session was cataloguing
 
 **Dated:** 2026-08-24. **Scope:** the orchestration session from takeover (`7c1c237`) to `e4ebf60` —
 42 commits on `main`, 12 authored directly, the rest dispatched and verified.
@@ -34,9 +34,33 @@ FAQ and the `docs/` split. The planning trees got their first backup, twice.
 | 10 | **My dispatch pattern caused a scratchpad collision.** Sibling agents wrote probe scripts to one shared directory; one was silently overwritten mid-run and failed with a traceback from code its author never wrote | Told every agent to use the same scratchpad without namespacing |
 | 11 | **Ran four concurrent writers against a plan that derives max 2.** Stated openly each time, but it is still a deviation I chose | Judged the constraint's rationale (a non-checkpointable restructure) inapplicable. Defensible; not free |
 
+### #12, added after this review was written — and it is the same defect as #2
+
+**I broke CI's `ruff format --check` step and it stayed red on `main` for five commits, four of
+them mine.**
+
+Found by a session doing unrelated work, then bisected: `579c949` is clean, **`386a507` is red**, and
+`386a507` is mine — the commit that derived three hardcoded pack enumerations. I edited
+`tests/test_readme_counts.py`, ran the suite, saw 249 green, and pushed. The formatter was never run.
+
+**Why it survived five commits:** `pytest` and `ruff format --check` are separate CI steps, so a
+green suite says nothing about the other three. Every session that touched the tree afterwards —
+including me, four more times — verified with the suite and inherited the red.
+
+**The aggravating part is that I had already written the fix into other people's briefs.** Every
+agent brief I sent that day carried the four-gate discipline. I did not run it myself, in the same
+hours, on my own commits.
+
+Fixed by another session (`d12f839`) before I noticed. Two more of my own gate failures were caught
+**before** committing immediately afterwards — a `basedpyright` private-usage error and a
+`ruff format` diff in `tests/test_assets.py` — for the single reason that I finally ran all four.
+
+**The rule this pays for:** a green check is evidence about that check. "Verified" means every gate
+the pipeline runs, and if you cannot name which gates you ran, you have not verified anything.
+
 ## The pattern, and it is uncomfortable
 
-**Nine of eleven are instances of the failure class this session spent the day documenting.** I wrote
+**Ten of twelve are instances of the failure class this session spent the day documenting.** I wrote
 "a guard that has never been shown to fail has not been shown to work", then published F20 without
 firing its probe against a known-positive. I wrote "the scan surface, not the pattern, decides what a
 guard sees", then asserted a coverage gap from one guard's surface. I wrote "a rule that has never
