@@ -403,7 +403,7 @@ either: chat is not a reconciliation source.
   analyzed, per-window error counts by category (main + sub-agent), learnings intake added/drained
   since the last window, hypotheses opened/validated. Data sources: `aggregate.json`, git history of
   the `.ai/` data files, and
-  `PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint learnings --list-entries` for intake counts. One markdown table, not a dashboard.
+  `PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint learnings --list-entries` for intake counts. One markdown table — not a dashboard, and not a new JSON artifact.
   **Caveat the error counts** — inflated by gates whose known-GOOD state is a non-zero exit (`ruff`
   with findings, `grep` finding nothing); name it beside the number. And when crediting a rule for a
   behaviour change, count **"carried the rule and violated it anyway"** separately (a sub-agent whose

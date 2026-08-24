@@ -189,9 +189,9 @@ rather than guessing.
    canonical headers are listed in learnings-format.md). NEVER append at the file end or under
    whatever section happens to be last — a chronological catch-all misleads the consolidator's
    clustering.
-3. **Verify placement structurally, and run the lint — it is REQUIRED, not optional.**
-   The new `### [YYYY-MM-DD] title` block must sit between its section's `##` header and the next
-   `## ` header. Then run, and read the verdict:
+3. **Verify placement structurally — not by eyeballing — and run the lint: it is REQUIRED,
+   not optional.** The new `### [YYYY-MM-DD] title` block must sit between its section's `##`
+   header and the next `## ` header. Then run, and read the verdict:
 
    ```bash
    PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint learnings
@@ -241,6 +241,8 @@ If a finding reveals a gap in existing project rules:
 | Convention ambiguity resolved | Relevant project rule files (`.claude/skills/`, AGENTS.md, or equivalent) | Add clarification |
 | Skill instructions were insufficient | Relevant skill (project-local; kit skills are plugin-managed — record an upstream proposal in `.ai/learnings.md`) | Extend instructions |
 | New coding pattern to enforce | `AGENTS.md` conventions section | Append to relevant subsection |
+| Subsystem-specific gotcha (scoped to ONE module or feature) | That subsystem's own `README.md` — not the global rules | Add a concise bullet in its conventions/gotchas section; create the README if absent. A gotcha that only binds inside one module belongs where that module's next reader will meet it, not in a file everyone loads |
+| Invariant a future edit could silently break | Co-located code comment at the exact site | Add a short comment stating the constraint the code can't show |
 
 **Rules for updating rules:**
 - Always explain the rationale in the learnings entry first

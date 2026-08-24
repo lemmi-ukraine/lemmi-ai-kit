@@ -1,5 +1,9 @@
 # Learnings Entry Format Reference
 
+**Single source of truth** for the `.ai/learnings.md` entry format AND the canonical category
+set. Both the producer (`task-learnings`) and the consumer (`learning-consolidator`) defer to
+this file — do not restate the category list in a SKILL.md; link here instead.
+
 ## Entry Structure
 
 Every entry in `.ai/learnings.md` must follow this exact format (the four routing fields are
@@ -203,7 +207,11 @@ them when reading; never add NEW entries under a non-canonical section.
 
 **Why it's bad:** This is a task-specific fix with no broader lesson. Does not help future tasks.
 
-## Consolidation Guidance
+## Lifecycle: Intake Buffer → Homes
+
+`.ai/learnings.md` is a **lean intake buffer**, not a knowledge store. Entries accumulate
+between consolidations; then `/learning-consolidator` (~weekly, whenever any entries have
+accumulated — do NOT wait for the file to grow large) drains each entry to its home:
 
 - **Universal convention or anti-pattern** → `AGENTS.md`
 - **Cross-cutting pattern** → the relevant `.claude/skills/*` skill
