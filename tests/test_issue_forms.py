@@ -46,6 +46,23 @@ the same class of defect as the silent non-render this module exists to catch.
 - **Anything across files.** Two forms may carry the same `name`; only `id` uniqueness
   *within* one form is checked, because that is the rule GitHub enforces.
 
+## Where the element rules knowingly differ from GitHub's published reference
+
+Two places, in opposite directions, both recorded here rather than left for someone to
+rediscover from a confusing failure:
+
+- **Stricter:** a `markdown` element carrying an `id` or a `validations` block is
+  rejected. GitHub's syntax reference documents neither as supported there. If it in
+  fact tolerates them, this fails loudly on a form that renders -- the same trade this
+  module takes everywhere else.
+- **Looser:** `validations: {required: ...}` on a `checkboxes` element is accepted,
+  though the reference documents no `validations` for that type (per-option `required`
+  is the mechanism). Being wrong in the strict direction here would redden the suite
+  over a form GitHub renders fine, so this one is left permissive on purpose.
+
+Neither shape appears in the four files today, so both are statements about the next
+form somebody writes, not about anything shipped.
+
 ## The parser was checked against a real one before being trusted
 
 A hand-rolled parser is itself an instrument, and an unverified instrument is the
