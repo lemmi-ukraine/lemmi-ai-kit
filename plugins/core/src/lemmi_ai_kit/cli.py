@@ -376,7 +376,15 @@ def _cmd_publish_check(args: argparse.Namespace) -> int:
             continue
         print(checks.ascii_safe(f"         {result.probe.consequence}"))
         for path in result.paths[:_MAX_LISTED]:
-            print(checks.ascii_safe(f"           - {path}"))
+            # A trailing slash means git stopped at a nested repository and cannot say
+            # how many files are inside. Marked, because an unmarked directory entry
+            # reads as one file.
+            note = (
+                " <- a whole directory git cannot look inside; all of it ships"
+                if path.endswith("/")
+                else ""
+            )
+            print(checks.ascii_safe(f"           - {path}{note}"))
         hidden = len(result.paths) - _MAX_LISTED
         if hidden > 0:
             print(checks.ascii_safe(f"           ... and {hidden} more"))
@@ -387,10 +395,13 @@ def _cmd_publish_check(args: argparse.Namespace) -> int:
             print(checks.ascii_safe(f"           {line}"))
 
     if report.extra:
+        # "at least" is not hedging. When a nested repo is in the set the true number is
+        # unknowable to git, and a guard about what ships must not print a floor as a total.
+        floor = "at least " if report.undercounts else ""
         print(
             checks.ascii_safe(
-                f"\na plugin install would copy {report.tracked + report.extra} file(s) "
-                f"out of the payload: {report.tracked} tracked + {report.extra} that git does not track"
+                f"\na plugin install would copy {floor}{report.tracked + report.extra} file(s) "
+                f"out of the payload: {report.tracked} tracked + {floor}{report.extra} that git does not track"
             )
         )
 

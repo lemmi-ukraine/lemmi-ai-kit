@@ -97,6 +97,21 @@ class ProbeResult:
     def blocks(self) -> bool:
         return bool(self.paths)
 
+    @property
+    def collapsed(self) -> tuple[str, ...]:
+        """Entries git reports as a whole directory instead of file by file.
+
+        With `-uall` in play only ONE thing still does this: a nested git repository.
+        Git will not look inside another repo, so it reports the directory and stops --
+        `plugins/core/skills/nested/`, one entry, however many files are in there. A
+        vendored clone or someone's scratch checkout is exactly that shape, and the copy
+        would take all of it.
+
+        The entry still blocks, which is what matters. What it cannot do is say how many
+        files it stands for, so every count derived from it is a floor.
+        """
+        return tuple(path for path in self.paths if path.endswith("/"))
+
 
 @dataclass(frozen=True)
 class Report:
@@ -112,13 +127,31 @@ class Report:
         return any(result.blocks for result in self.results)
 
     @property
+    def _payload_probes(self) -> tuple[ProbeResult, ...]:
+        return tuple(r for r in self.results if r.probe.label != _WORKTREE)
+
+    @property
     def extra(self) -> int:
         """Payload files a `plugin install` would copy that git does not track.
 
         Probes 2 and 3 are disjoint by construction -- `--others` without `--ignored`
-        excludes ignored files -- so this is a sum, not a union.
+        excludes ignored files -- so this is a sum, not a union. Verified rather than
+        assumed: an untracked tree and an ignored `.pyc` under the same pack appear in
+        exactly one probe each.
+
+        A FLOOR, not a total, whenever `undercounts` is true. See `ProbeResult.collapsed`.
         """
-        return sum(len(r.paths) for r in self.results if r.probe.label != _WORKTREE)
+        return sum(len(r.paths) for r in self._payload_probes)
+
+    @property
+    def undercounts(self) -> bool:
+        """Is `extra` a floor rather than a total?
+
+        The number must not be printed bare when this is true. A guard whose whole
+        subject is "what actually ships" cannot report a count that is silently low --
+        that is the same class of defect as the leak it exists to catch.
+        """
+        return any(result.collapsed for result in self._payload_probes)
 
 
 def _git(root: Path, argv: tuple[str, ...]) -> bytes:
@@ -244,8 +277,12 @@ def _probes(payload: tuple[str, ...]) -> tuple[Probe, ...]:
     spec = " ".join(payload)
     return (
         Probe(
+            # `-uall` is load-bearing, not tidiness. Without it git collapses an
+            # untracked directory to a single entry, so a six-file drop under a pack
+            # reported as "working tree (1)" -- a guard about what ships, undercounting
+            # what ships, by six to one. Measured; there is a test.
             label=_WORKTREE,
-            argv=("status", "--porcelain", "-z"),
+            argv=("status", "--porcelain", "-uall", "-z"),
             consequence="whoever publishes ships whatever is dirty at that instant",
             remedy=(
                 "decide per file, then re-run:",

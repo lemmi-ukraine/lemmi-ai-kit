@@ -190,6 +190,63 @@ def test_the_shipped_file_count_is_reported(
     assert "would copy 4 file(s) out of the payload" in capsys.readouterr().out
 
 
+# --- counting: a guard about what ships cannot undercount what ships -------------------
+
+
+def test_an_untracked_directory_is_counted_file_by_file(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The `-uall` regression. Without it git collapses the drop to a single entry.
+
+    Measured before the fix: six files under a pack reported as `working tree (1)`.
+    A guard whose subject is "what actually ships" reporting six as one is the same
+    class of defect as the leak it exists to catch.
+    """
+    repo = _both(tmp_path)
+    for index in range(6):
+        _write(repo / "plugins" / "core" / "drop" / f"f{index}.md", "x\n")
+
+    assert main(["publish-check", "--repo", str(repo)]) == 1
+    out = capsys.readouterr().out
+    assert "working tree (6)" in out
+    assert "untracked in the payload (6)" in out
+    assert "at least" not in out, "every file here is countable; do not hedge"
+
+    report = publish.check(repo)
+    assert report.extra == 6
+    assert not report.undercounts
+
+
+def test_a_nested_repository_blocks_and_its_count_is_marked_a_floor(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The limit `-uall` cannot fix, so it is disclosed instead of being wrong quietly.
+
+    Git will not look inside another repository: a vendored clone or someone's scratch
+    checkout under a pack is ONE entry however many files it holds. It still blocks --
+    that is the part that matters -- but the arithmetic derived from it is a floor, and
+    an unmarked directory entry in that list reads as a single file.
+    """
+    repo = _both(tmp_path)
+    nested = repo / "plugins" / "core" / "skills" / "vendored"
+    nested.mkdir(parents=True)
+    for index in range(3):
+        _write(nested / f"s{index}.md", "s\n")
+    _git(nested, "init", "-q")
+    _git(nested, "add", "-A")
+    _git(nested, "commit", "-q", "-m", "inner")
+
+    assert main(["publish-check", "--repo", str(repo)]) == 1
+    out = capsys.readouterr().out
+    assert "plugins/core/skills/vendored/" in out
+    assert "a whole directory git cannot look inside" in out
+    assert "at least" in out, "the total is unknowable, so it must not print as exact"
+
+    report = publish.check(repo)
+    assert report.undercounts
+    assert report.extra == 1, "one entry standing for three files -- hence the floor"
+
+
 # --- the refusal carries its remedy ---------------------------------------------------
 #
 # Half a control otherwise. A publisher told only "no", at the moment they are trying to
