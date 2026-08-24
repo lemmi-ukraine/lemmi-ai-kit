@@ -32,7 +32,8 @@ much clearer bug than a skill behaving differently from your expectation.
 
 ## Setting up
 
-Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
+Requires [uv](https://docs.astral.sh/uv/). **You do not need to install Python
+yourself** — `.python-version` pins 3.11 and `uv sync` provisions it for you.
 
 ```bash
 git clone https://github.com/lemmi-ukraine/lemmi-ai-kit
@@ -42,9 +43,9 @@ uv sync --dev
 
 ## The four checks
 
-CI runs exactly these four, in this order, on every pull request — there is no
-`branches:` filter on the `pull_request` trigger, so your PR gets the full job
-whatever it is based on. Run them locally first:
+These four are the gates: CI runs exactly them, in this order, on every pull request,
+and there is no `branches:` filter on the `pull_request` trigger, so your PR gets the
+full job whatever it is based on. Run them locally first:
 
 ```bash
 uv run ruff check .            # lint
@@ -64,12 +65,43 @@ while the payload carries anything git does not track, so running the checks is 
 to block a publish afterwards, with a failure naming files you never wrote:
 
 ```bash
-export PYTHONDONTWRITEBYTECODE=1        # once per shell, then run the four as above
+export PYTHONDONTWRITEBYTECODE=1          # bash / zsh
 ```
+
+```powershell
+$env:PYTHONDONTWRITEBYTECODE = "1"        # PowerShell
+```
+
+**Do not skip the PowerShell form if that is your shell.** `export` is not a PowerShell
+command: it errors and **the variable is not set**, and nothing downstream tells you.
+The four checks still pass, and `git status` still reports a clean tree — the stray
+bytecode is gitignored, so the usual "am I clean?" reflex answers yes while the publish
+path is already blocked. Measured on a fresh clone: six `.pyc` files written, then
+`PUBLISH BLOCKED (1 of 3 probe(s) non-empty)`.
+
+To check and clear that state:
+
+```bash
+uv run python -B -m lemmi_ai_kit publish-check     # exit 0 clean, 1 blocked, 2 could-not-measure
+git clean -Xdn -- plugins/core plugins/python      # preview what would be removed
+git clean -Xdf -- plugins/core plugins/python      # remove it
+```
+
+Gate on `!= 0`, not on `== 1`: exit 2 means the check could not measure and is **not** a pass.
 
 **Run all four, not just `pytest`.** They are separate CI steps, so a green suite says
 nothing about the other three — a formatting failure sat on `main` for five commits
 because the sessions touching it ran only the tests.
+
+**CI runs one more step that is not a gate.** *Upstream drift report* is marked
+`continue-on-error`, so it cannot fail your PR — it reports how far the shipped skills
+have drifted from the project they were extracted from. **A red X there does not mean
+your change broke something**, and there is nothing for you to fix.
+
+**CI runs on Linux only — there is no OS matrix.** The review criteria below lead with
+whether a change works in a fresh repo on another OS, and CI does not test that. If you
+are on Windows or macOS, your local run is evidence CI cannot produce, so say so in the
+pull request.
 
 ## The hygiene contract — why a prose-only PR can fail CI
 
