@@ -47,11 +47,14 @@ PRE-PLANNING                PLANNING                    IMPLEMENTATION          
 /product-brief              /spec-driven-dev            [auto-loaded]               /post-task-review
 (task)                      (workflow)                  convention skills           (workflow)
    │                           │                            │                          │
-   └─→ tasks/FEATURE-*         ├─→ plan-critic              │                          ├─→ task-learnings
-                               │   (review)                 │                          │   (task)
+   └─→ tasks/FEATURE-*         ├─→ test-planner             │                          ├─→ task-learnings
+                               │   (task)                   │                          │   (task)
                                │                            │                          │
-                               └─→ .specs/{name}/                                     └─→ /commit-message
-                                   (state files)                                          (task)
+                               ├─→ plan-critic                                        └─→ /commit-message
+                               │   (review)                                               (task)
+                               │
+                               └─→ .specs/{name}/
+                                   (state files)
 
 SKILL CREATION                          PERIODIC (weekly/biweekly)
 ──────────────                          ──────────────────────────
@@ -161,5 +164,26 @@ Uses: research-source-planner (task), research-source-claim (task), parallel-dee
 - Make real external API calls in tests, or patch concrete clients instead of using protocol-based DI overrides.
 
 ### Project rules
-> TODO(project): add project-specific do-nots here as they are discovered
-> (the `task-learnings` → `/learning-consolidator` loop will promote them).
+
+Everything above this heading is shipped by the kit and is refreshed when the kit
+updates. **Nothing below it is ever generated, overwritten, or reordered** —
+`kit-setup refresh` rewrites only its own marked blocks — which is what makes this
+the one place in the file a convention can safely live.
+
+A rule belongs here when it is a do-not, specific to THIS repository, that a
+newcomer would otherwise learn by breaking something. Three near-misses go
+elsewhere instead: a universal rule belongs in the sections above or in a skill; a
+single subsystem's gotcha belongs in that subsystem's README, next to the code it
+constrains; and one still being argued about stays in `.ai/learnings.md` until it
+settles.
+
+State the rule and its reason in the same breath. A rule with no reason attached
+is dropped the first time it is inconvenient, and nobody can tell later whether
+dropping it was fine.
+
+Rules arrive two ways: by promotion, when `/learning-consolidator` drains an entry
+`task-learnings` put in `.ai/learnings.md`, or by hand the moment one is known —
+from an existing `CONTRIBUTING.md`, a house style, or a decision made in review.
+
+*None recorded yet. That is a legitimate state: it means none have been
+established, which is not the same as nobody having looked.*
