@@ -95,14 +95,72 @@ claims and the primary does not, the finding is **not** that the interview is ce
 **it serves someone joining an existing codebase, not its author.** Different product, different
 pitch, different audience. The charter gets rewritten rather than closed.
 
-## Step 4 — the run · **NOT YET RUN**
+## Step 4 — the run · **RUN 2026-08-24**
 
-A hand-driven interview plus code read, one session per arm. **Not the shipped `kit-setup`** — this
-is a probe, not a prototype. No new files under `plugins/`.
+A hand-driven code read by `lemmi-ai-kit-b1`, then labelling by the operator in conversation.
+**Not the shipped `kit-setup`** — a probe, not a prototype. No new files under `plugins/`, and no
+file was written into the arm.
 
-## Step 5 — labelling · **NOT YET RUN**
+**12 claims** were derived. The derivation was **blind** as pre-registered: the arm's `AGENTS.md`,
+`CLAUDE.md`, `.ai/` and AI-oriented code comments were not read while deriving, so no claim could be
+laundered out of existing documentation. Scope was the layout, the persistence/observability seam,
+the AI-provider composition, the test topology and the dependency surface. **12 is what one pass
+produced, not a ceiling** — several subsystems were not read at all, and their absence is not
+evidence that they are well documented.
 
-## Step 6 — verdict · **NOT YET RUN**
+`already-written-down` was assigned mechanically by the session, per the pre-registration, by
+grepping each claim's key term across the arm's documentation set. The probe was controlled: a term
+known to be present hit 3 of 3 top-level documents, 44 files in `docs/` and 146 in `.ai/`, so a zero
+means absent rather than a broken search.
+
+**No claim, quotation, path or measurement from the arm is recorded here.** The working list stayed
+outside this repository and was destroyed after labelling. Counts and verdict only — which is all
+the test needs, and all a public repository may carry about a private one.
+
+## Step 5 — labelling · **COMPLETE 2026-08-24**
+
+| Label | Count |
+|---|---|
+| **`did-not-know`** | **6** |
+| `knew-but-unwritten` | 4 |
+| `already-written-down` | 2 |
+| **`wrong`** | **0** |
+| **Total** | **12** |
+
+**The qualifier the first verdict row demands was asked separately**, so it could not be inferred
+from the count: of the six `did-not-know` claims, the operator identified **four** as ones that
+would change a rule they would actually write into `AGENTS.md`. They cover three distinct areas —
+a configuration flag with an undocumented second effect, two parallel structures kept in sync by
+hand, and the construction path for a core abstraction.
+
+## Step 6 — verdict · **PREMISE HOLDS**
+
+Read off row 1 of the frozen table: **≥3 `did-not-know` claims that change a rule the operator would
+actually write** — measured 4, against a threshold of 3.
+
+> **Build `I5-D2`–`I5-D7`. At n=1 this licenses the MINIMAL shape only, not the full set** — per the
+> charter's own Minimal viable initiative section, and per the warning there against funding the
+> build half in the same breath as the test half.
+
+**The `wrong` gate did not fire.** Zero wrong claims, so `I5-D5` (provenance per claim) stays a
+deliverable ranked among others rather than becoming an unconditional precondition. It is still in
+the licensed set.
+
+### What this result is not
+
+- **n = 1, and there was no control arm.** The control existed to distinguish *"the method has no
+  signal"* from *"this operator knows this one repository unusually well"* — a distinction that
+  matters when the result is null. **This result is not null**, so the missing control weakens the
+  generalisation but not the finding: something was found, and a control cannot unfind it.
+- **The confound the operator raised cuts in favour here.** The premise was tested against a real
+  hand-written `AGENTS.md` at roughly 270 lines of code per line of map — a strong baseline, not a
+  vacuum. Six `did-not-know` claims survived that. On a project with no `AGENTS.md`, the population
+  I5 actually targets, the yield should be higher, not lower.
+- **It licenses the minimal shape and nothing else.** One arm, one operator, one pass over part of
+  one codebase. It does not license the full deliverable set, and it says nothing about whether an
+  adopter who is *new* to a codebase gets the same value — the charter's own third outcome.
+- **The derivation was an agent reading code, not the shipped tooling.** Whether `kit-setup` can
+  produce claims of this quality is a separate question that `I5-D2` has to answer.
 
 ---
 
