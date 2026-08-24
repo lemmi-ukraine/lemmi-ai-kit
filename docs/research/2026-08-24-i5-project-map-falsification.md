@@ -19,32 +19,33 @@ Both must be named here **before** the run.
 
 | Arm | Project | Why this one |
 |---|---|---|
-| **Primary** | **`<private-source-project>`** — named by the operator 2026-08-24, before the run | The project this kit was extracted from. The operator knows it cold, which is what the premise requires |
+| **Primary** | **The private source project this kit was extracted from** — fixed by the operator 2026-08-24, before the run. Not named here; it is named in the operator's own records, which is where identifying detail about a private repository belongs | The operator knows it cold, which is what the premise requires |
 | **Control** | **not run** — recorded as a gap, not skipped silently | See the limitation below |
+
+> **Why this record carries no detail about the arm.** The subject is a **private** repository, and
+> this file is tracked in a repo that goes public. Naming it, or describing its internals, is the
+> "source-project reference" this project's own publication-hygiene contract bans — and the contract
+> caught exactly that in an earlier revision of this file. The derived claims and the raw
+> measurements live outside this repository. **Only counts and the verdict come back here**, which is
+> all the falsification test needs: the arm has to be *fixed* before the run, not *published*.
 
 The control arm can be a public repository. It does not need to be Lemmi's.
 
 ### The confound the operator raised, recorded BEFORE the run
 
-**The operator's objection, verbatim in substance:** `<private-source-project>` already has an `AGENTS.md`, a
-map, and AI-oriented comments in the code, so a derived map may find nothing simply because
+**The operator's objection, verbatim in substance:** the arm already has a hand-written `AGENTS.md`,
+a map, and AI-oriented comments in its code, so a derived map may find nothing simply because
 everything worth saying is already written.
 
 **It is a real confound and it is recorded here rather than discovered afterwards.** Measured
-2026-08-24:
+2026-08-24; the figures themselves stay in the operator's records, since sizing a private
+repository is still describing it. The one ratio the argument turns on:
 
-| | |
-|---|---|
-| `AGENTS.md` | (count withheld) |
-| `CLAUDE.md` · `README.md` | 57 · 554 lines |
-| `docs/` markdown · `.ai/` | 48 files · 4,390 files |
-| the application code | **(counts withheld)** |
-| AI-oriented code markers | 41 files |
+> **Roughly 270 lines of application code per line of hand-written `AGENTS.md`.**
 
-**Why the run proceeds anyway.** At roughly **266 lines of code per line of `AGENTS.md`**, the prior
-documentation is a strong *baseline*, not a ceiling. The premise is being tested against a real
-hand-written map rather than against a vacuum, which makes a **positive** result stronger than it
-would be on an undocumented repo.
+**Why the run proceeds anyway.** At that ratio the prior documentation is a strong *baseline*, not a
+ceiling. The premise is being tested against a real hand-written map rather than against a vacuum,
+which makes a **positive** result stronger than it would be on an undocumented repo.
 
 **What this costs, stated so the verdict cannot be over-read.** A `did-not-know = 0` outcome here
 must be reported as *"refuted on an unusually well-documented repository"* — the hardest available
