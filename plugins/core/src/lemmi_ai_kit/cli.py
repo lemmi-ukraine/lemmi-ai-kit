@@ -784,14 +784,14 @@ def _registration_steps(
     steps += [
         (
             f"{package_dir}/manifest.py",
-            f'add "{pack}" to Pack, PACKS and PACK_PLUGIN_NAMES, and map its profile '
-            "in pack_for_profile()",
+            f'add "{pack}" to Pack, PACKS and PACK_PLUGIN_NAMES, add its profile to '
+            "PROFILES, and map that profile in pack_for_profile()",
         ),
         (f"{assets}/manifest.toml", "one [[skills]] entry per skill in the pack"),
         (
             "docs/upstream-sync.toml",
-            "one row per skill (tests/test_upstream_sync.py asserts the correspondence "
-            "in both directions)",
+            "one row per skill, SORTED BY NAME, each with an explicit `upstream` "
+            "(empty string when there is no counterpart)",
         ),
         (
             "README.md",
