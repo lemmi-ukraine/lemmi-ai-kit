@@ -95,3 +95,62 @@ insists on a per-skill read rather than a bulk re-merge.
   the safe direction for a worklist but means 92 is a ceiling, not a total.
 - **It reads only the 7 unreviewed skills.** The other 9 affected are taken as settled on the
   W-window record's evidence, not re-measured here.
+
+---
+
+## Appendix — a byte-size screen across all 38 shipped skills, and why its worst numbers are noise
+
+Run 2026-08-24 on request, with a caveat stated up front: **a two-way kit-vs-upstream size gap is the
+metric handoff §8 forbids as a refresh measure**, because it cannot separate (a) upstream content the
+kit is missing, from (b) content the kit strips on purpose, from (c) portability prose extraction
+*added*. 7 of 26 "behind" skills once needed nothing. So this is a **screen** — it says where to look,
+never whether something is wrong.
+
+Mapping came from the correspondence map in `upstream-sync.toml`, **not from directory names**: three
+skills were renamed on extraction and `test-conventions` ships in the **python** pack.
+
+**Scan surface:** 38 map rows · 38 shipped dirs found by `SKILL.md` presence · 43 upstream dirs.
+
+### The four lowest ratios, and what each one actually is
+
+| Skill | kit/up | The gap, in full |
+|---|---:|---|
+| `learning-consolidator` | **0.18** | `scripts/ai_files_lint.py` (46KB) + its test (25KB) — **the linter the kit substitutes its own CLI for** — plus **247KB of upstream committed `__pycache__/*.pyc`** |
+| `session-retrospective` | **0.45** | **197KB of upstream committed `.pyc`, and nothing else.** `extract_sessions.py` itself ships |
+| `test-conventions` | **0.70** | `references/docker-runner-gotchas.md` (9.4KB) + `README.md` (596B) |
+| `skill-reviewer` | **0.71** | `scripts/audit_skills.py` (13KB) — the other linter the kit replaces |
+
+**Upstream's skills tree carries 9 committed `.pyc` files totalling 737,318 bytes.** In a byte
+comparison that is pure noise, and it produces the two most alarming ratios in the table. A reader who
+took 0.18 at face value would conclude `learning-consolidator` lost 82% of its content; it lost none.
+
+### The one gap that needed a judgement, and it is correctly absent
+
+`docker-runner-gotchas.md` is titled **"Docker Test-Runner Gotchas (this host)"**. It documents
+`docker-compose.test.yaml` runners by name (`test-runner-parallel`, `test-runner-fast`), cites
+`.ai/learnings.md` with a date, and points at the source project's `AGENTS.md` gate-output rule —
+machine-specific and project-specific infrastructure the extraction contract strips.
+
+**And the pointer went with it.** Upstream's `SKILL.md:318` links to that reference; the kit's
+`SKILL.md` links only to `references/test-doubles-gotchas.md`, which it ships. **No orphaned
+reference** — the file and its link were dropped together, which is what a correct deliberate drop
+looks like and is exactly what §8 warns is indistinguishable from loss by a size metric alone.
+
+### Set completeness, independently confirmed
+
+**8 upstream directories map to no shipped skill, and all 8 are accounted for by recorded rulings:**
+`feedback-audit` and `interview-transcript-analysis` (out, OP-5) · `usage-guard` (deferred, §5d) ·
+`openai-realtime-quirks` (dropped, OQ-2) · the four prompt skills (removed, D1). **3 shipped skills
+have no upstream counterpart** and are `kit-origin` by the map: `kit-setup`, `scout-review`,
+`test-planner`.
+
+**6 skills are LARGER than upstream** — `plan-critic` 1.29, `analyze-logs` 1.22, `spec-driven-dev`
+1.05 among them. That is genericization and portability prose the kit added, plus the verification
+stage wired in at `eefaa23`. Larger is the expected direction for a skill the kit has worked on.
+
+### Verdict
+
+**The screen surfaced no content-loss defect beyond the 92 window lines measured above.** Every ratio
+below 0.75 resolves to committed bytecode, a deliberately substituted linter, or a correctly stripped
+host-specific reference. That is a reassuring result — and it is now evidence rather than assertion,
+which is the only reason it is worth writing down.
