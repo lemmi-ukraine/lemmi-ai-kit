@@ -98,6 +98,17 @@ _ALLOWLIST: dict[str, tuple[str, ...]] = {
         "source-project reference",
         "source-project backup reference",
     ),
+    # The repo's own scaffolded AGENTS.md -- this project dogfooding its own template
+    # (I3 DoD 11). It states the rule against absolute paths, so it must quote the shapes
+    # it bans, exactly as `assets/templates/AGENTS.md` does.
+    #
+    # Worth knowing why this entry is needed at all: the source template is ALREADY
+    # allowlisted for this same reason in `test_assets.py`, but that scan starts at
+    # `assets_root()` and this one deliberately excludes it (`_ALREADY_COVERED`). So one
+    # file's content is legitimate at its template path and a violation at its scaffolded
+    # path, and only running the scaffold on this repo reveals it. Any adopter who runs
+    # `kit-setup` and has a comparable scan will meet the same thing.
+    "AGENTS.md": ("absolute macOS home path",),
     # Explains the contract to contributors, so it must quote what it bans.
     "CONTRIBUTING.md": (
         "absolute macOS home path",
