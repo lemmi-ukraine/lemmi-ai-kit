@@ -162,6 +162,44 @@ the licensed set.
 - **The derivation was an agent reading code, not the shipped tooling.** Whether `kit-setup` can
   produce claims of this quality is a separate question that `I5-D2` has to answer.
 
+### The operator's correction, added after the verdict — it does not change the verdict, it bounds it
+
+**Raised 2026-08-24 on reading the result:** the behaviour that matters is the kit **proactively
+asking** about conventions and project description. The arm has all of that written down already;
+for other adopters it will not work like that.
+
+**This run measured the DERIVE half and never touched the ASK half.** Twelve claims, all produced
+by reading code. Zero questions were put to the operator about their project — only about labels.
+So the verdict licenses *"deriving from code finds things the author did not know"* and says
+**nothing** about whether an interview is necessary, sufficient, or better.
+
+**And the arm is the favourable case for derivation, not the typical one.** It carries a
+hand-written map, a documented convention set and AI-oriented code comments. Derivation had the
+most to work with there. Where the arm is *un*favourable is the population I5 targets: an adopter
+whose conventions were never written down anywhere. Code states structure; it does not state
+intent, rationale, or a convention someone decided in a meeting. **No amount of reading recovers
+what was never written — only asking does.**
+
+**First-hand evidence from this same session, in a different project.** Running the shipped
+scaffold on this repository (I3 DoD 11, `5fa106c`) produced an `AGENTS.md` with **three
+`TODO(project)` markers** — commands, conventions, and restart behaviour. The tool detected what it
+could and stopped. **Nothing prompted for the rest**; they were filled by hand because the person
+running it happened to know the answers. An adopter who does not know them receives a file with
+three holes and no question. That is the gap this correction names, observed rather than argued,
+and it is the strongest single argument in this document for `I5-D2`.
+
+**Design input for `I5-D2`, which the charter already scopes as "the interview half":**
+
+1. The charter's ordering — *code read first, questions only cover what code cannot state* — is
+   **confirmed by this run and should be treated as measured, not assumed.** Six `did-not-know`
+   claims came from code alone; asking for those would have wasted the adopter's attention.
+2. The question set should target exactly the three things the scaffold currently stubs, since
+   those are the measured holes: **commands, project-specific conventions, and lifecycle**.
+3. The four rule-changing claims clustered on **couplings and pairings** — a flag with a second
+   undocumented effect, two structures kept in sync by hand, one construction path for a core
+   abstraction. Not facts about parts, facts about *relations between* parts. Whatever `I5-D2`
+   derives should be biased toward that shape.
+
 ---
 
 ## The objection this record must answer when it is filled in
