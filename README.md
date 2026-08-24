@@ -104,7 +104,7 @@ Layout:
 - `.agents/plugins/marketplace.json` — Codex marketplace catalog for the packs
   in `plugins/*`.
 - `plugins/core/` — the `lemmi-ai-kit-core` plugin: per-host manifests plus
-  35 language-agnostic skills under `skills/`.
+  36 language-agnostic skills under `skills/`.
 - `plugins/python/` — the `lemmi-ai-kit-python` plugin: per-host manifests plus
   2 Python-specific skills under `skills/`.
 - `plugins/core/src/lemmi_ai_kit/assets/manifest.toml` — the skill registry (name, profile,
