@@ -16,7 +16,7 @@ have to hard-code one pack name's length and would quietly stop matching the day
 pack with a different name is added -- failing open, which is the failure mode this
 file exists to remove.
 
-Two exemptions, on different grounds, and neither is a blanket:
+One exemption, and it is not a blanket:
 
 **Dated research records under `docs/research/`.** These describe the tree as it
 stood on the date in their filename, and several quote the old path *as the
@@ -25,21 +25,26 @@ them would destroy the record rather than fix a defect. The exemption is keyed o
 the dated filename convention, so an undated document dropped in that directory is
 still scanned.
 
-**`CONTRIBUTING.md` and `SECURITY.md`, which are genuinely wrong today.** They are
-not exempt: they are a known, open defect, recorded below as a strict xfail rather
-than an allowlist entry. An allowlist entry would assert it is *correct* for those
-files to carry the old path, which is false -- `CONTRIBUTING.md` still tells a new
-contributor to create their skill under a dead directory, and one of its links is
-dead on arrival. A strict xfail states the opposite: this is broken, it is measured,
-and the moment someone fixes it the XPASS turns red and this scaffolding must be
-deleted. Neither file was in this session's ownership, which is why the defect is
-recorded here rather than repaired here.
+`CONTRIBUTING.md` and `SECURITY.md` were the second exemption and are no longer
+exempt at all. When this guard was written they carried seven stale references
+between them, including a dead link and an instruction to create a skill under a
+directory that does not exist; both were outside that session's ownership, so the
+defect was recorded as a **strict xfail** rather than an allowlist entry. That
+distinction was the point: an allowlist asserts a file is *right* to carry the
+pattern, while a strict xfail asserts it is broken, measured, and will turn the
+suite red the moment someone fixes it without knowing the tripwire was there.
+
+Both files were corrected under S-4 and the xfail was retired in the same commit,
+which is the only sequencing that never leaves the tree red for a reason
+unrelated to the change. They are now covered by the ordinary scan below. The
+episode is kept here because the next person to find an unfixable defect needs
+the pattern, not the outcome: record it as a failing expectation with an owner,
+never as a permission.
 """
 
 import re
 from pathlib import Path
 
-import pytest
 from test_publication_hygiene import (
     _tracked_text_files,  # pyright: ignore[reportPrivateUsage]
 )
@@ -57,9 +62,6 @@ _PACKAGE_PATH = re.compile(
 # Dated research records describe the tree on the date in their name.
 _DATED_RESEARCH = re.compile(r"^docs/research/\d{4}-\d{2}-\d{2}-")
 
-# Open defect, not an exemption. See the module docstring.
-_KNOWN_STALE: tuple[str, ...] = ("CONTRIBUTING.md", "SECURITY.md")
-
 # Defines the pattern, so its own source and prose necessarily contain the shape.
 _THIS_FILE = "tests/test_repo_path_references.py"
 
@@ -76,13 +78,11 @@ def _prefixless_references(relative: str) -> list[str]:
 
 
 def _scanned_files() -> list[str]:
-    """The published set, less the two documented exemptions and this file."""
+    """The published set, less the dated research records and this file."""
     return [
         relative
         for relative in _tracked_text_files()
-        if relative != _THIS_FILE
-        and relative not in _KNOWN_STALE
-        and not _DATED_RESEARCH.match(relative)
+        if relative != _THIS_FILE and not _DATED_RESEARCH.match(relative)
     ]
 
 
@@ -105,21 +105,22 @@ def test_no_published_file_points_at_a_prefixless_package_path() -> None:
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "CONTRIBUTING.md and SECURITY.md still name the pre-split package path; "
-        "both were outside the ownership of the session that added this guard. "
-        "When they are corrected this turns XPASS and fails -- at which point "
-        "delete this test and _KNOWN_STALE, and the files fall under the scan "
-        "above."
-    ),
-)
-def test_the_known_stale_documents_have_been_corrected() -> None:
-    violations = [
-        line for relative in _KNOWN_STALE for line in _prefixless_references(relative)
-    ]
-    assert not violations, "\n".join(violations)
+def test_the_contributor_facing_documents_are_in_scope() -> None:
+    """The two files that carried the original defect must stay scanned.
+
+    They were a strict xfail until S-4 fixed them. Naming them explicitly costs
+    one assertion and prevents the quiet regression: if either is renamed, moved
+    under `docs/research/`, or dropped from the published set, the scan above
+    would keep passing while no longer looking at the documents a new
+    contributor actually reads.
+    """
+    scanned = set(_scanned_files())
+    for relative in ("CONTRIBUTING.md", "SECURITY.md"):
+        assert relative in scanned, (
+            f"{relative} is no longer in the scanned set. It is a document new "
+            "contributors follow, and it carried the defect this file was "
+            "written for; it must not drop out of scope silently."
+        )
 
 
 def test_the_scan_is_not_vacuous() -> None:

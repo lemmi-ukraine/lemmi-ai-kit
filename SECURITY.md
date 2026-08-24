@@ -43,7 +43,7 @@ skill and your working tree.
   document.
 - Anything in `kit-setup` or the support CLI that writes outside its declared
   target directory, or that overwrites a file it declared it would not touch.
-- A path traversal or injection in `src/lemmi_ai_kit/` — particularly `scaffold`,
+- A path traversal or injection in `plugins/core/src/lemmi_ai_kit/` — particularly `scaffold`,
   which takes a caller-supplied target path.
 - A skill that instructs an agent to weaken a security control (disable a check,
   commit a secret, bypass a review gate).
