@@ -197,6 +197,27 @@ def service(self, async_session, mock_http_client_factory):
 # mock_http_client_factory is provided by conftest.py
 ```
 
+### Decorator-Gated Endpoints (`@enforce_quota`)
+
+When a decorator gates the endpoint — quota, entitlement, rate limit — test the rejection
+path by overriding the gating service's DI factory with a mock that **raises**. This drives
+the decorator's real error-shaping (status code + `errorCode` payload) with no internal
+patching:
+
+```python
+exhausted = AsyncMock(spec=QuotaService)
+exhausted.check_or_raise.side_effect = QuotaExceededError("limit reached")
+test_app.dependency_overrides[get_quota_service] = lambda: exhausted
+
+response = await async_client.post(url, json=payload, headers=auth_headers)
+assert response.status_code == 402
+assert response.json()["errorCode"] == ERROR_CODE_QUOTA_EXCEEDED
+```
+
+Patching the decorator or its check helper instead asserts your own mock's behaviour — the
+test keeps passing even if the real decorator stops shaping the response. Same shape for any
+decorator whose dependency is injected: make the dependency fail, let the decorator run.
+
 ### Available fixtures from `conftest.py`
 
 | Fixture | Provides |
@@ -253,6 +274,14 @@ orders = await OrderFactory.create_batch_async(session, 5)
 # With overrides
 order = await OrderFactory.create_async(session, title="Custom Title", user_id=42)
 ```
+
+### Shared Builders for Many-Parameter Services
+
+When several test files construct the same many-parameter service inline — a service wired
+from a dozen collaborators, rebuilt at each call site — add one shared keyword-override
+builder under `tests/fixtures/` so a future signature change lands in one place, not in
+every test that names it. Factories cover DB entities; builders cover service objects wired
+from mocks.
 
 ## Test Naming
 
