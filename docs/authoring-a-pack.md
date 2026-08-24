@@ -69,7 +69,11 @@ each was met while writing this document rather than imagined:
   optional. The record refuses an unsorted table on the grounds that it makes
   every future diff unreviewable, and refuses a missing `upstream` because an
   absent field cannot be told from an unanswered question.
-- **Step 7 is a chokepoint by design, not an oversight.** The `kit-origin` set is
+- **Step 7 is a chokepoint by design, not an oversight.** A **kit-origin** skill is
+  one this repository wrote, as opposed to one carried in from the upstream project
+  the kit was extracted from — that is what step 5's `upstream` field records, and
+  `upstream = ""` is what makes a skill kit-origin. A pack you author is kit-origin
+  by definition, so **step 7 applies to every skill in it.** The `kit-origin` set is
   pinned as a literal so that a future edit quietly flipping a direction has to
   argue with a test. A genuinely new kit-origin skill costs one deliberate line.
 
@@ -89,46 +93,40 @@ uv run python -B -m lemmi_ai_kit publish-check
 than merely present. `audit-skills` holds the new skills to the fleet's rules
 (frontmatter, the 500-line cap, resolvable links). `publish-check` refuses while
 the payload carries anything git does not track, and your new pack is now part of
-that payload; the `-B` is load-bearing, since without it the command writes
-bytecode into the very tree it is measuring.
+that payload.
 
-### Two tests fail for every third pack, for reasons unrelated to your pack
+**Use `-B` for every command that touches this package, not just this one.** Any
+import of `lemmi_ai_kit` writes `__pycache__/*.pyc` under `plugins/core/src/` —
+which is untracked bytecode inside the payload, exactly what `publish-check`
+refuses on. Measured: a bare `python -c "import lemmi_ai_kit"` run from *outside*
+the repository still deposited a `.pyc` inside it. So an author who follows steps 1
+and 2 without `-B` poisons the check before ever reaching step 3, and the failure
+names files they never wrote. `PYTHONDONTWRITEBYTECODE=1` in your shell does the
+same job for a whole session.
 
-Measured 2026-08-24 by generating `plugins/rust` and registering it in a
-throwaway clone. **Both are hardcoded pack enumerations, and both fail by
-construction — no correct pack can satisfy either.** They are recorded here
-rather than fixed because they belong to another owner; fix them in the same pull
-request as the third pack, and the fix is derivation in both cases.
+### Three pack enumerations were hardcoded. All three are now derived.
 
-**`tests/test_plugin.py:54`**
+Measured 2026-08-24 by generating `plugins/rust` and registering it in a throwaway
+clone. Two of them failed **by construction** — no correct third pack could satisfy
+either — and a third failed more quietly. All three were fixed in `386a507`, so
+**you should not need to touch them.** They are kept here because the shape recurs
+and the next one will look just like them:
 
-```python
-assert (root / "kit-setup").is_dir() or (root / "python-conventions").is_dir()
-```
+| Was | Failed how |
+|---|---|
+| `tests/test_plugin.py` asserted a sentinel skill per existing pack | A third pack ships neither, so its author met a red suite for a reason unrelated to their work |
+| `tests/test_publish.py` wrote out the payload pair | The very next test in the same file already derived it from `PACKS`, so the literal added no coverage and cost every future pack a red suite |
+| `tests/test_readme_counts.py` hand-listed six manifest paths | Quieter and worse: it did not fail a new pack, it silently **stopped checking** one |
 
-One sentinel skill per existing pack. A third pack ships neither. What it is
-actually asserting is that the skills path is not an empty directory, which is
-derivable: any pack must ship at least one subdirectory holding a `SKILL.md`.
+The fix in every case was derivation from `PACKS` or from what the marketplaces
+declare — the pattern `tests/test_license.py` and `publish.payload_roots()` already
+used. **If your pack makes a test fail for a reason that has nothing to do with your
+pack, suspect a hardcoded enumeration before you suspect your work.**
 
-**`tests/test_publish.py:522`**
-
-```python
-assert report.payload == ("plugins/core", "plugins/python")
-```
-
-The pair written out. The very next test in the same file already derives that
-set as `tuple(sorted(f"plugins/{pack}" for pack in PACKS))`, and says in its own
-docstring that adding a pack must not need an edit there — so the hardcoded copy
-above it adds no coverage and costs every future pack a red suite.
-
-With those two derived, a generated-and-registered third pack takes the suite to
-**249 passed / 6 skipped**, `tests/test_plugin.py` 7 of 7.
-
-A third instance of the same shape survives in `tests/test_readme_counts.py:78`,
-which hand-enumerates six manifest paths. It does not fail a new pack — it does
-something quieter, which is to stop checking one. `tests/test_license.py` had the
-identical defect and now derives its set from
-`publish.payload_roots()`; that is the pattern to copy.
+With those derived, a generated-and-registered third pack leaves the suite green and
+`tests/test_plugin.py` at 7 of 7. **Establish your own baseline before you start** —
+run `pytest` on a clean checkout and write the number down — rather than comparing
+against a figure printed here, which rots on the next test anyone adds.
 
 ## 4. What goes in the pack
 
