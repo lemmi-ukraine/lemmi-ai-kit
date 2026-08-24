@@ -161,6 +161,7 @@ the practice on its own merits rather than on ours.
 | A short answer to one question | [FAQ](docs/faq.md) |
 | Move an existing install off the older single `lemmi-ai-kit` plugin | [Migrating from 0.1.0](docs/migrating-from-0.1.0.md) — the renamed prefixes, and the files in your own repository that do not fix themselves |
 | Report a bug, propose a skill, or open a pull request | [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
+| Work on the kit itself rather than use it | [Working on the kit](docs/working-on-the-kit.md) — the repository layout, the support CLI, and what a version bump has to touch |
 | Report a vulnerability, or understand what a skill can do on your machine | [SECURITY.md](SECURITY.md) |
 
 **Read the threat model before you install.** A skill is instructions an agent
@@ -168,76 +169,6 @@ follows, and some of them run shell commands in your repository with your agent'
 permissions. There is no sandbox between a skill and your working tree. That is the
 premise of the tool rather than a defect in it, but it should be a decision you made
 on purpose.
-
-## Working on the kit itself
-
-Everything below this line is for people changing the kit, not people using it.
-
-### Support CLI
-
-The Python package is not an installer. It is the deterministic helper the
-`kit-setup` skill shells out to, and a development tool for this repository:
-
-```sh
-PYTHONPATH=plugins/core/src python3 -m lemmi_ai_kit list
-PYTHONPATH=plugins/core/src python3 -m lemmi_ai_kit scaffold <target> --dry-run
-```
-
-Subcommands are `scaffold`, `list`, `lint`, `audit-skills` and `publish-check`;
-Python 3.11 or newer is required, since the manifest is read with `tomllib`.
-
-`scaffold` never copies skills and never overwrites an existing seed file, which is
-what makes re-running it safe. `--force` updates the kit-managed `.ai/templates/`
-and `--dry-run` writes nothing. `--reseed` is the blunt one: it resets seed files to
-their templates, so it will discard a customized `AGENTS.md` or a non-empty `.ai/`
-log. It is not an upgrade path — see
-[Migrating from 0.1.0](docs/migrating-from-0.1.0.md) for what to do instead.
-
-The `kit-setup` skill runs the helper straight from the plugin
-cache by putting the plugin root's `src/` on `PYTHONPATH`; Claude Code supplies
-`CLAUDE_PLUGIN_ROOT` and Codex supplies `PLUGIN_ROOT`, with `CLAUDE_PLUGIN_ROOT` set
-too for compatibility. No pip install is involved anywhere in that path.
-
-### Development
-
-```sh
-uv sync --dev
-uv run ruff check .
-uv run ruff format .
-uv run basedpyright
-uv run pytest
-```
-
-Those four checks are what CI runs. [CONTRIBUTING.md](CONTRIBUTING.md) explains the
-hygiene contract they enforce and why a documentation-only pull request can fail it.
-VS Code settings and extension recommendations ship in `.vscode/`.
-
-### Versioning
-
-There is no publish pipeline — the marketplaces serve this repository directly, so
-pushing to `main` is the release. CI gates code quality only. When bumping the
-version, change it in `pyproject.toml` and in every pack manifest under
-`plugins/*/{.claude-plugin,.codex-plugin}/plugin.json` together; a test enforces
-that they agree.
-
-### Layout
-
-- `.claude-plugin/marketplace.json` — Claude Code marketplace catalog for the packs
-  in `plugins/*`.
-- `.agents/plugins/marketplace.json` — Codex marketplace catalog for the same packs.
-- `plugins/core/` and `plugins/python/` — the two plugins: per-host manifests plus
-  the skill directories under `skills/`.
-- `plugins/core/src/lemmi_ai_kit/assets/manifest.toml` — the skill registry (name,
-  pack, invocation, summary). `list` and the rendered `CLAUDE.md` index both read
-  from it, and tests enforce that it stays in sync with `plugins/*/skills/*`.
-- `plugins/core/src/lemmi_ai_kit/assets/templates/` — the `AGENTS.md` and `CLAUDE.md`
-  seeds used by `scaffold`.
-- `plugins/core/src/lemmi_ai_kit/assets/ai/` — the `.ai/` scaffolding: empty state
-  logs plus the spec templates.
-- `plugins/core/src/lemmi_ai_kit/{cli,scaffold,manifest}.py` — the support scripting.
-- [docs/syncing-from-upstream.md](docs/syncing-from-upstream.md) — the procedure for
-  refreshing the pack from the repository it was extracted from, and the drift
-  measurement that procedure depends on.
 
 ## License
 
