@@ -3,11 +3,19 @@
 Skills are NOT copied here — they ship with the Claude Code plugin and load from
 the plugin cache. This module places only the files a project owns and edits:
 
-- **managed** — owned by the kit and safe to update on upgrade: `.ai/templates/`.
-  Overwritten only with `force`.
+- **managed** — owned by the kit and safe to update on upgrade. Overwritten only
+  with `force`. Defined by rule rather than by a path list: everything shipped under
+  `.ai/` that is not one of the stateful logs below. Today that is `.ai/templates/`
+  **and** `.ai/git-stacked-pr-workflow.md` — which is why naming the templates
+  directory alone was wrong, and why a downstream document repeated it as
+  "`--force` refreshes the templates only".
 - **seeds** — written once, then owned by the project: `AGENTS.md`, `CLAUDE.md`
   and the stateful `.ai/*.md` logs (learnings, changelog, hypotheses). Never
   touched on re-scaffold unless `reseed` is passed explicitly.
+
+No counts here on purpose. `plan()` is the authority: a number in this docstring
+goes stale the moment a template ships, which is how a downstream document came to
+promise nine files when eleven are planned.
 """
 
 from __future__ import annotations
