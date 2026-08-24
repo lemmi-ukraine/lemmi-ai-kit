@@ -37,6 +37,7 @@ _FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
     ),
 )
 
+
 # Charter DoD 4: zero references to infrastructure the kit does not ship.
 #
 # These are ASSET-ONLY on purpose, and are deliberately not part of `_FORBIDDEN`.
@@ -53,6 +54,26 @@ _FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
 # must not reappear on the next sync. The scripts the kit DOES ship -- drain_audit,
 # audit_cleanup_targets, probe_checker, extract_sessions -- are absent from this list
 # on purpose.
+def _cli_subcommands() -> tuple[str, ...]:
+    """Every subcommand the CLI actually declares, from the parser that declares them.
+
+    Hand-listing these went stale the moment `new-pack` and `publish-check` shipped: the
+    pattern below covered four of six, so `lemmi-ai-kit new-pack <x>` in a shipped asset
+    passed the guard that exists to catch exactly that. Deriving it means a seventh
+    subcommand is covered by existing, not by someone remembering.
+    """
+    from lemmi_ai_kit.cli import _build_parser  # pyright: ignore[reportPrivateUsage]
+
+    for action in _build_parser()._actions:  # pyright: ignore[reportPrivateUsage]
+        choices = getattr(action, "choices", None)
+        if choices:
+            return tuple(sorted(str(name) for name in choices))
+    raise AssertionError("the CLI parser declares no subcommands -- probe is broken")
+
+
+_SUBCOMMAND_ALTERNATION = "|".join(re.escape(sub) for sub in _cli_subcommands())
+
+
 _ASSET_ONLY_FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
     (
         re.compile(r"ai_files_lint"),
@@ -71,7 +92,7 @@ _ASSET_ONLY_FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
     # The bare plugin name stays legal -- it is the marketplace id and the
     # `/lemmi-ai-kit-core:<skill>` invocation prefix.
     (
-        re.compile(r"lemmi-ai-kit\s+(?:lint|audit-skills|scaffold|list)\b"),
+        re.compile(rf"lemmi-ai-kit\s+(?:{_SUBCOMMAND_ALTERNATION})\b"),
         "console-script invocation (plugin installs place no console script)",
     ),
     # The stacked-PR document scaffolds to `.ai/`, never `docs/`.
@@ -200,3 +221,34 @@ def test_ai_state_files_ship_empty() -> None:
         assert not re.search(r"^### \[?20\d{2}-", text, re.MULTILINE), (
             f"{name} ships with dated entries"
         )
+
+
+def test_the_console_script_pattern_covers_every_subcommand() -> None:
+    """Positive control for a guard that silently covered four of six.
+
+    A pattern listing subcommands by hand cannot fail when a new one ships -- it just
+    stops covering it. This asserts the opposite direction: for every subcommand the
+    parser declares, the guard matches a realistic invocation of it. The negative case
+    is asserted too, so a pattern degenerating to "match anything" fails here rather
+    than passing everywhere.
+    """
+    pattern = next(pat for pat, why in _ASSET_ONLY_FORBIDDEN if "console-script" in why)
+    subs = _cli_subcommands()
+    assert len(subs) >= 6, f"expected at least 6 subcommands, probe saw {subs}"
+
+    uncovered = [
+        sub for sub in subs if not pattern.search(f"run lemmi-ai-kit {sub} now")
+    ]
+    assert not uncovered, (
+        f"the console-script guard does not cover: {uncovered}. Add nothing by hand -- "
+        "the alternation is derived, so an uncovered subcommand means the derivation broke"
+    )
+
+    # It must NOT match the bare plugin name, which is legal: it is the marketplace id
+    # and the `/lemmi-ai-kit-core:<skill>` invocation prefix.
+    for legal in (
+        "install lemmi-ai-kit from the marketplace",
+        "/lemmi-ai-kit-core:commit-message",
+        "the lemmi-ai-kit repository",
+    ):
+        assert not pattern.search(legal), f"guard is over-broad: it matched {legal!r}"
