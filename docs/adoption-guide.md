@@ -53,8 +53,8 @@ inventory instead, as **Check that it worked** below shows.
 
 **Core is genuinely language-agnostic, and that is enforced rather than
 promised.** No core skill names a Python-pack skill; where a core skill needs to
-reach for language conventions it refers to them by role ("the installed coding
-conventions skill"), not by name. A test in this repository
+reach for language conventions it refers to them by role ("the installed
+coding-conventions skill"), not by name. A test in this repository
 (`tests/test_pack_boundaries.py`) fails if that ever stops being true.
 
 ### What the kit does not do
@@ -153,18 +153,20 @@ claude plugin install lemmi-ai-kit-core@lemmi
 ```
 
 **The two clients do not spell "here" the same way, and the difference is not
-cosmetic.** Codex was verified with `.`; Claude Code rejects `.` outright with
-`Invalid marketplace source format` and was verified with `./`. Each form above
-is the one actually run against that client — neither spelling has been shown to
-work on the other, so use the line matching your client rather than assuming the
-trailing slash is optional.
+cosmetic.** Claude Code rejects a bare `.` outright with `Invalid marketplace
+source format`; the run that installed it used `./`, and that is the form above.
+The Codex run used a local directory path, but the record of it does not pin
+which spelling was typed, so treat the Codex line as the documented form rather
+than as a transcript. Either way, use the line matching your client and do not
+assume the trailing slash is optional — on one of these clients it is the
+difference between an install and an error.
 
 ### How verified each of these is
 
 Be aware of what has and has not been proven, because the two install paths are
 not equally exercised:
 
-- **Codex, from a local clone — verified.** Run on 2026-08-23 with codex-cli
+- **Codex, from a local clone — verified.** Run on 2026-08-22 with codex-cli
   0.149.0 against an isolated `CODEX_HOME`. Both packs installed and enabled,
   and every skill file the manifest listed that day physically materialized. A
   core-only install was separately confirmed to carry the core skills and **no**
@@ -201,8 +203,10 @@ count worth trusting — it is the one your machine actually has.
 **Most of these do appear in your `/` menu — but not all of them, and that is
 correct.** The user-invocable ones show up; the rest are auto-loaded or internal by
 design, so the menu is always the shorter list. `plugin details` prints the full
-inventory by name, and the `invocation` column in the catalog tells you which is which —
-that is the answer for your install, rather than a number this page would have to keep
+inventory by name, and the `CLAUDE.md` that [section 4](#4-set-up-a-project) writes
+sorts that same inventory under three headings — User-Invocable, Auto-Loaded, and
+Internal Pipeline Skills — so you can see which is which. That is the answer for your
+install, rather than a number this page would have to keep
 true. The Python pack is the clean illustration: both of its skills are auto-loaded, so
 it adds **no** new menu entries — a `/` menu that does not change after installing it is
 a successful install, not a failed one.
@@ -232,10 +236,12 @@ rather than guessing.
 | `AGENTS.md` | Your AI workflow rules. Commands, conventions, restart steps and project rules detected from the project | **yours** — edit freely |
 | `CLAUDE.md` | `@AGENTS.md` plus the skill index, pre-rendered | **yours** — edit freely |
 | `.ai/learnings.md`, `.ai/ai-changelog.md`, `.ai/improvement-hypotheses.md` | Empty intake and log files the learnings loop appends to | **yours** — never overwritten |
-| `.ai/templates/design.md`, `requirements.md`, `tasks.md` | Spec templates used by `spec-driven-dev` | kit-managed — refreshed on update |
+| `.ai/templates/design.md`, `requirements.md`, `tasks.md`, `test-cases.md`, `test-plan.md` | Spec and verification templates used by `spec-driven-dev` and `test-planner` | kit-managed — refreshed on update |
 | `.ai/git-stacked-pr-workflow.md` | Reference doc for the stacked-PR workflow | kit-managed |
 
-Nine files, all additive. Nothing else in your repository is touched.
+Every file in that table, all additive. Nothing else in your repository is
+touched, and this page prints no total for the same reason it prints no skill
+count: the set is whatever the scaffold reports when you run it.
 
 ### Running it without an agent
 
@@ -268,17 +274,18 @@ the guide is short.
 ### `### Project rules`
 
 The `AGENTS.md` that `kit-setup` writes ends with a section that exists purely
-for you:
+for you. It is not a `TODO` stub: it explains what belongs there, and then states
+its own empty state and stops.
 
 ```markdown
-### Project rules
-> TODO(project): add project-specific do-nots here as they are discovered
-> (the `task-learnings` → `/learning-consolidator` loop will promote them).
+*None recorded yet. That is a legitimate state: it means none have been
+established, which is not the same as nobody having looked.*
 ```
 
-Replace that stub with your own rules. It sits directly beneath the kit's own
-rule sections, so your agent reads the kit's conventions and yours as one
-document — and yours come last, so they win where they disagree.
+Write your rules under that heading, and replace that italic line once you have a
+real one. The section sits directly beneath the kit's own rule sections, so your
+agent reads the kit's conventions and yours as one document — and yours come
+last, so they win where they disagree.
 
 There is nothing to register and no schema to satisfy. It is a markdown section
 in a file you own.
@@ -390,7 +397,7 @@ Against a project that already has an `AGENTS.md`, that prints:
 
 ```text
 [dry-run] lemmi-ai-kit 0.1.0 scaffold -> /path/to/your/project
-[dry-run] written: 4  seeded: 4  overwritten: 0  unchanged: 0
+[dry-run] written: 6  seeded: 4  overwritten: 0  unchanged: 0
 
 [dry-run] kept 1 project-owned seed file(s) (use --reseed to overwrite):
   - AGENTS.md
@@ -401,8 +408,9 @@ written — `--dry-run` only reports.
 
 > **The one destructive flag:** `--reseed` *does* overwrite `AGENTS.md`,
 > `CLAUDE.md` and your `.ai/` state logs with fresh templates. There is no reason
-> to pass it during adoption. (`--force` is milder — it refreshes the kit-managed
-> `.ai/templates/` only.)
+> to pass it during adoption. (`--force` is milder — it touches only the
+> kit-managed files, which are `.ai/templates/` and `.ai/git-stacked-pr-workflow.md`,
+> and never a seed file.)
 
 #### So how do you get the kit's content into a file it refuses to write?
 
@@ -477,7 +485,8 @@ Then, in the project directory:
 /lemmi-ai-kit-core:kit-setup
 ```
 
-Answer its questions, let it write the nine files, and commit them:
+Answer its questions, let it write the files from
+[section 4](#what-it-writes-and-who-owns-it), and commit them:
 
 ```sh
 git add AGENTS.md CLAUDE.md .ai/
@@ -490,7 +499,7 @@ you work, `task-learnings` writes observations to `.ai/learnings.md`, and runnin
 ones into `AGENTS.md`. You do not have to seed it up front.
 
 If you are **not** on Python, install core only and read [C](#c-your-language-has-no-pack)
-— it is two paragraphs and it is the answer to "where do my language's rules go".
+— it is short, and it is the answer to "where do my language's rules go".
 
 ---
 
@@ -515,6 +524,13 @@ Then put your Go conventions in `### Project rules`, exactly as in
 [section 5](#5-the-seam--where-your-conventions-attach). That is the entire path.
 No fork, no pack, nothing published, and you keep receiving core updates.
 
+One rough edge to expect, because it is easier to delete than to be surprised by:
+the `AGENTS.md` template is the same for every language, so the file you are
+seeded with carries a `### Python rules (Python projects)` block whatever your
+project is written in. No core skill depends on it. Delete the block; it sits
+outside every marker, so `kit-setup refresh` will not put it back, and the
+scaffold will not either unless you pass `--reseed`.
+
 #### When to author a pack instead
 
 Author one when **a second repository needs the same conventions**. One repo is a
@@ -531,8 +547,9 @@ pack template (`plugins/_template/`), a scaffolding command (`new-pack`), and
 [docs/authoring-a-pack.md](authoring-a-pack.md). What that document does not do is state
 the contents of the files it tells you to create — it points at the template and at the
 existing packs — so it works as a checklist beside a clone and not as a specification on
-its own. That was measured, not assumed: an author with no access to the clone completes
-none of it.
+its own. The assumption is enforced rather than merely implied: run `new-pack` outside a
+git checkout and it exits non-zero with `not inside a git checkout`, and no prose in the
+document recovers you from there.
 
 None of which you need. **If you are not sure you want a pack, stay in `### Project rules`**
 — it costs you nothing to move the rules later, since a pack skill is the same markdown in
@@ -632,7 +649,7 @@ wastes your afternoon.
 
 | Gap | What it means for you |
 |---|---|
-| **Pack authoring assumes a clone** | The template, the `new-pack` command and [the authoring document](authoring-a-pack.md) all exist. What the document does not carry is the contents of the files it asks you to create, so it reads as a checklist next to a checkout rather than a standalone spec — measured by having someone try it without one. Fine if you are working from a clone; a wall if you are not |
+| **Pack authoring assumes a clone** | The template, the `new-pack` command and [the authoring document](authoring-a-pack.md) all exist. What the document does not carry is the contents of the files it asks you to create, so it reads as a checklist next to a checkout rather than a standalone spec. The assumption is hard: `new-pack` exits non-zero outside a git checkout. Fine if you are working from a clone; a wall if you are not |
 | **No documented private-pack path** | Serving a pack from your own private marketplace should work — both hosts support it — but it has not been tested here and this guide will not walk you through an unverified path |
 | **No packs beyond core and Python** | Go, TypeScript, Rust and the rest have no pack. See [C](#c-your-language-has-no-pack) |
 | **No pre-merge review of contributed packs** | The path itself is now documented — see [CONTRIBUTING.md](../CONTRIBUTING.md) for where a pack goes, how first-party packs are named, and what to do about a merged pack that turns out to be harmful. What does **not** exist is a review bar: **merged does not mean vetted.** Since a skill is instructions an agent follows — and can direct shell commands inside whoever installs it — read a third-party pack before you install it, exactly as you would a dependency |
