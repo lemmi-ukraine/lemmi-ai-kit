@@ -31,8 +31,10 @@ recommends outdated approaches, or omits critical trade-offs.
 
 ## When This Skill Activates
 
-Invoked by the `skill-creation-workflow` after the skill is built. Never invoked
-directly by users.
+Invoked by the `skill-creation-workflow` after the skill is built — the workflow pastes this
+SKILL.md into an Agent-tool prompt (deliberate: it must inject the Research Brief and topic
+inline). The frontmatter `context: fork` / `agent` / `allowed-tools` applies only when invoked
+directly via the Skill tool, which remains supported. Never invoked directly by users.
 
 ## Input
 
@@ -58,12 +60,14 @@ For each factual claim or recommendation in the skill:
 |-------|----------|-------------------|
 | **Correctness** | Is this claim factually accurate? | CRITICAL |
 | **Currency** | Is this still the current best practice, or has it been superseded? | MAJOR |
-| **Attribution** | Is this backed by the Research Brief or verifiable sources? | MINOR |
+| **Attribution** | Is this backed by the Research Brief or verifiable sources? | MAJOR for load-bearing claims; MINOR otherwise |
 | **Precision** | Is terminology used correctly and consistently? | MAJOR |
 
-Verify claims against the Research Brief. If the skill states something the Research
-Brief doesn't support, flag it — the skill builder may have introduced unsupported
-claims from training data.
+Check claims against the Research Brief — but the brief is itself a sub-agent CLAIM, not ground
+truth. If the skill states something the brief doesn't support, flag it (the builder may have
+introduced unsupported claims from training data). AND for the skill's top 3-5 load-bearing
+claims, verify independently (web/codebase) even when the brief agrees — agreement between the
+skill and the brief is not verification; an error in the brief propagates otherwise.
 
 For claims you're uncertain about, perform targeted web searches to verify.
 
@@ -142,7 +146,8 @@ Check the skill's warnings and anti-patterns against the Research Brief:
 For the skill's most impactful recommendations (top 3-5):
 
 1. **Web-verify**: Search for the current state of the recommendation. Has anything
-   changed since the Research Brief was written?
+   changed since the Research Brief was written? Spot-verify the brief itself here too —
+   this is the independent check on the researcher's claims, not just a currency check.
 2. **Version check**: If the skill references specific tools/frameworks, are version
    numbers or features still current?
 3. **Deprecation scan**: Is any recommended approach deprecated or on a deprecation path?
@@ -215,6 +220,11 @@ If the skill relates to this project's codebase:
   one that's thorough. Penalize only when brevity causes oversimplification.
 - Do NOT add content for completeness sake — every addition must prevent a concrete
   mistake or enable a concrete improvement
-- DO verify claims against the Research Brief as ground truth
+- DO check claims against the Research Brief as the PRIMARY REFERENCE — and treat the brief
+  itself as a sub-agent claim: independently verify the top load-bearing claims (skill-brief
+  agreement is not verification)
 - DO perform web searches when uncertain about currency or accuracy
 - DO flag unsupported claims that the skill builder may have introduced from training data
+- Negative verdicts are claims too: before reporting "no contradiction" / "composes cleanly"
+  for two rules or sections, OPEN both and trace the interaction — cross-section all-clears
+  are the highest-risk unverified claims
