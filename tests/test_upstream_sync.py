@@ -645,16 +645,22 @@ def test_the_recorded_window_is_the_measured_one() -> None:
 
     The 2026-08-23 refresh based every skill on a commit four days INSIDE this repo's
     extraction window, so upstream's own additions from that gap were eligible to be
-    classified as deliberate kit deletions and kept deleted. Measured, not inferred:
-    all 19 window-added lines of `skill-researcher/SKILL.md` are absent from the shipped
-    file while that skill reports zero drift against the pin. Deriving this list from
-    the record would test nothing.
+    classified as deliberate kit deletions and kept deleted. The proof was
+    `skill-researcher`: all 19 of its window-added lines absent from the shipped file
+    while it reported ZERO drift against the pin, because drift counts upstream commits
+    since a base that is four days wrong.
+
+    Reviewed and paid on 2026-08-24 -- the record's comment block says what was carried.
+    This test now pins the REVIEWED state for the same reason it pinned the open one:
+    deriving the affected list from the record would test nothing, and a later edit that
+    quietly reopens or deletes the table should have to argue with a test.
     """
     window = load_sync_record().window
     assert window is not None, "the extraction-window debt is no longer recorded"
-    assert window.status == "unreviewed", (
-        "if the window has been reviewed, say so in `status` and record what was "
-        "carried -- do not delete the table without a note"
+    assert window.status == "reviewed-2026-08-24", (
+        "the window was reviewed on 2026-08-24 and the record carries the note saying "
+        "what was carried. If it is reviewed again, move this pin and update that note "
+        "-- do not delete the table, and do not silently return it to `unreviewed`"
     )
     assert window.kit_first_commit.startswith("kit:")
     assert len(window.affected) == 16, (

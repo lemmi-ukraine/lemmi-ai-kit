@@ -74,10 +74,31 @@ synced_on = "2026-08-23"
 # is visible without an upstream checkout; the check re-measures it and reports a
 # mismatch if this list is wrong.
 
+# REVIEWED 2026-08-24. What was carried, since the table stays rather than being deleted:
+#
+# All 16 affected directories are settled. Seven were paid by the W-window (carriage 11% ->
+# 84%); two no longer ship (`openai-realtime-quirks` dropped by OQ-2, `prompt-engineering-
+# conventions` removed by D1); the remaining seven were measured line by line and every
+# window-added line given an explicit RECOVER / REPOINT / SUPERSEDED / CORRECTLY-ABSENT
+# verdict across four sessions. Records: docs/research/2026-08-24-extraction-window-
+# {remainder-measured,batch-core,test-conventions}.md.
+#
+# Measured before and after, same probe, whole shipped directory per skill:
+#   829 window-added lines | 737 present -> 776 present | 92 absent -> 53 absent | 89% -> 94%
+#
+# The residual 53 are NOT unexamined. They are: lines the kit deliberately strips (unshipped
+# linters, hard-coded skill-script paths, machine-specific rules, source-project layout,
+# dated citations); lines the kit is AHEAD on, where it inserted text mid-line so an exact
+# match fails; and lines recovered in generalised form, which a substring probe still counts
+# as absent. That last class is why the percentage understates the work and why 53 is a
+# ceiling rather than a debt.
+#
+# The proof case is closed: `skill-researcher` was 19 window lines with ZERO shipped and zero
+# drift reported. It is now 14 of 19, and the five that remain were reworded on purpose.
 [extraction_window]
 kit_first_commit = "kit:002daddec7d7ec394b057d82670e061726ec47a9"
 base_used_by_refresh = "c05bf72df02c4cb808dab1305bcd294939eb4ae0"
-status = "unreviewed"
+status = "reviewed-2026-08-24"
 affected = [
   "ai-changelog",
   "ai-docs-lookup",
