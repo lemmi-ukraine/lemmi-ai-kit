@@ -178,22 +178,124 @@ you did.
    not see is how "35 language-agnostic skills" stayed on the landing page,
    wrong, with the suite green.
 
-## Contributing a language or domain pack
+## Contributing a pack
 
-**Partly open.** The pack split has landed: the repo now ships a core pack and a
-`python` pack from their own skills directories, so a language pack is a shape
-that exists rather than a plan. What is still undefined is how an **external**
-pack — one living in its own repository — registers itself with this marketplace.
+A **pack** is a plugin: its own directory under `plugins/`, its own per-host
+manifests, its own `skills/` tree. The repo already serves two that way — `core`
+and `python` — so a third means following a shape that exists rather than
+inventing one.
 
-So there are two answers depending on what you want:
+Read [You probably do not need to author a
+pack](docs/adoption-guide.md#2-you-probably-do-not-need-to-author-a-pack) first.
+Most people who reach for a pack want a `### Project rules` section in their own
+repository, which costs nothing, ships nothing, and stays private.
 
-- **You want your own conventions in your own projects.** You probably do not
-  need to author a pack at all. Attach them in your own repo as an overlay; see
-  [the adoption guide](docs/adoption-guide.md), which leads with exactly this.
-- **You want a pack contributed back here.** Open a **pack contribution** issue
-  describing the pack and what it would contain. That is genuinely useful now —
-  the shape of the first few requests is what the external-pack authoring path
-  gets designed against.
+If you do want one contributed back here, **open a pack-contribution issue before
+you write it.** The axis question below is much cheaper to settle in an issue
+than in a pull request.
+
+### Where it goes
+
+| | |
+|---|---|
+| Directory | `plugins/<pack>/`, a sibling of `core` and `python` |
+| Skills | `plugins/<pack>/skills/<name>/SKILL.md` — same frontmatter rules as any other skill |
+| Registration | the manifest in the **core** pack registers the skills of *every* pack, so [Adding a skill](#adding-a-skill) above applies unchanged |
+| Catalogs | both marketplace manifests, `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`, list every pack |
+| Axis | **language, and only language** — not a framework, not a team, not a domain. See [when to author a pack instead](docs/adoption-guide.md#when-to-author-a-pack-instead) |
+
+The mechanics — the two `plugin.json` files, the marketplace entries, the
+skeleton to copy — are the subject of
+[`docs/authoring-a-pack.md`](docs/authoring-a-pack.md) and the template in
+[`plugins/_template/`](plugins/_template/). This section does not restate them on
+purpose: a layout written down twice drifts, and the copy in the contributing
+guide is the one nobody re-runs. **If those two paths are not in your checkout,
+they have not landed yet** — they arrive with the pack-mechanism work. Until they
+do, `plugins/python/` is the worked example, and it is small enough to read end
+to end.
+
+### Naming, so a reader can tell who wrote a pack
+
+**Every pack Lemmi authors is named `lemmi-ai-kit-<something>` and declares
+`"author": {"name": "lemmi-ukraine", ...}` in both of its `plugin.json` files. A
+pack Lemmi did not author does neither** — it carries its author's own name in
+the plugin name and its author's own identity in the `author` field. The plugin
+name is the signal a person reads at a glance; the `author` field is the one a
+script can read.
+
+That is a labelling rule, not a quality judgement, and a pull request that takes
+the `lemmi-ai-kit-` prefix for a pack Lemmi did not write will be asked to
+rename. The reason is the next section: **nothing in this repo certifies a pack**,
+so the name is the only provenance an adopter has, and a borrowed prefix destroys
+it.
+
+To check what you are looking at: in the repo, read `author` in the pack's
+`plugins/<pack>/.claude-plugin/plugin.json`. On an installed pack, the plugin
+name you installed is the name that carries the claim.
+
+### What this repo checks, and what it does not
+
+**There is no pre-merge review bar for a contributed pack, and merged does not
+mean vetted.** That is a decision rather than an oversight, and it should be read
+literally: a pack being in this repository is not evidence that anyone has
+audited it.
+
+[Review expectations](#review-expectations) below describes what the maintainer
+actually reads on a pull request, and a pack contribution gets that reading like
+anything else. It is one person's attention, not a gate: no named standard a pack
+must clear, no sign-off, no audit. Nothing in that section entitles a reader to
+treat a merged pack as checked.
+
+What does run on every pull request is [the four checks](#the-four-checks), and
+what they enforce is **shape, not substance**:
+
+- the manifest and the skill directories agree in both directions, so nothing
+  ships unregistered and nothing is registered that does not ship;
+- every `SKILL.md` opens with valid frontmatter whose `name` matches its
+  directory;
+- every relative reference inside a skill resolves to a file that ships;
+- nothing carries an absolute path, a machine-specific workaround, or a pointer
+  at a repository the reader cannot open — the [hygiene
+  contract](#the-hygiene-contract--why-a-prose-only-pr-can-fail-ci);
+- the version agrees across every manifest, and every pack's declared source path
+  resolves to a directory that exists;
+- no core skill names a pack skill.
+
+Not one of those reads what a skill tells an agent to *do*. **The checks cannot
+tell whether a skill's advice is correct, whether the commands it instructs are
+safe to follow, or whether it does what its own description says.** A green pull
+request is a well-formed pack. That is the whole of what it certifies.
+
+So, for anyone installing rather than contributing:
+
+> **A skill is instructions an agent executes in your repository, with your
+> agent's permissions, and there is no sandbox between the two.** Read a pack
+> before you install it — `SKILL.md` is plain markdown, and reading it is the
+> entire audit. [SECURITY.md](SECURITY.md#threat-model--read-this-part) sets out
+> why, and it says the same about first-party packs.
+
+### If a merged pack turns out to be harmful
+
+"No review bar" describes what happens **before** a merge. It says nothing about
+after one, and after one there is a route.
+
+**Email support@lemmi.io, and do not open a public issue.**
+[SECURITY.md](SECURITY.md#reporting-a-vulnerability) is the procedure, and it
+covers a merged community pack exactly as it covers a first-party skill: the same
+address, the same acknowledgement window, and the same commitment to either a fix
+or a stated decision not to fix. A rough report of a real problem is worth
+sending; it does not have to be a polished one.
+
+Two things specific to packs:
+
+- **Removal at the source is a commit.** The marketplaces serve this repository
+  directly and there is no publish pipeline, so dropping a pack from the catalogs
+  takes effect as soon as it is pushed. What that does to a copy already
+  installed on a machine is your client's behaviour rather than this repo's — so
+  if you are the one exposed, remove it locally too instead of waiting for an
+  update to reach you.
+- **Tell the pack's author as well.** The `author` field names them, which is the
+  second reason the naming rule above earns its keep.
 
 ## Review expectations
 
