@@ -92,12 +92,14 @@ Uses: product-brief (task)
 - Hand off to `/spec-driven-dev` when the brief is approved and the team is ready to implement.
 
 ### Spec-driven development
-Uses: spec-driven-dev (workflow), plan-critic (review)
+Uses: spec-driven-dev (workflow), test-planner (task), plan-critic (review)
 - Auto-detect task size before implementation using scope analysis.
 - Small tasks (1–3 files, single concern): implement directly.
 - Medium tasks (4–10 files, new components): create a lightweight spec in `.specs/{task-name}/spec.md`.
-- Large tasks (10+ files, multi-feature, architectural): create full spec (requirements.md, design.md, tasks.md) in `.specs/{task-name}/`.
-- Large tasks: present requirements → get approval → write design → get approval → write tasks → get approval → implement.
+- Large tasks (10+ files, multi-feature, architectural): create full spec (requirements.md, design.md, tasks.md, test-cases.md + test-plan.md) in `.specs/{task-name}/`.
+- Large tasks: present requirements → approval → design → approval → then tasks and the verification plan **in parallel**, each with its own approval → implement.
+- Verification planning (`test-planner`) runs for Medium and Large tasks whose design touches executable code; skip it otherwise and say so. It harvests conditions by id from requirements rather than restating scenarios, gives every case exactly one owning test level, and assigns each NFR a verification method (automated / observability / manual / accepted-unverified).
+- Because tasks and the verification plan are written in parallel, reconcile them before implementing: every `TC-` needs an implementing task, and every task's `Test requirements` field cites `TC-` ids rather than prose.
 - At each spec gate, iterate if the user requests changes. Challenge changes that are technically unsound or contradict prior approvals — once, with reasoning — then defer to the user.
 - All spec documents must be written to `.specs/{task-name}/` as actual files. IDE-specific plan tools do not substitute for file creation.
 - Large tasks with natural phase boundaries: use phased execution with intermediate quality gates to reduce context load and catch drift early.
@@ -113,7 +115,7 @@ Uses: post-task-review (workflow), task-learnings (task), commit-message (task)
 ### Plan self-review (plan-critic)
 Uses: plan-critic (review) — **universal, not limited to spec-driven-dev**
 - **Before presenting ANY plan, spec, or design document to the user**, run the plan-critic self-review. This applies to bug-fix plans, feature specs, refactoring plans, and any other structured plan.
-- Invoke the `plan-critic` skill after writing: `spec.md` (medium tasks), `design.md` (large tasks), `tasks.md` (large tasks, completeness-only), or any bug-fix/task plan.
+- Invoke the `plan-critic` skill after writing: `spec.md` (medium tasks), `design.md` (large tasks), `tasks.md` (large tasks, completeness-only), `test-cases.md` / `test-plan.md` (Dimension 6 plus the citation check), or any bug-fix/task plan.
 - Resolve all Blocker and Major findings silently before presenting. Minor findings are fixed without mention.
 - If any Blockers or Questions cannot be resolved without user input, surface them prominently at the top of the presented document — do not suppress them.
 
