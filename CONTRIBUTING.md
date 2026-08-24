@@ -57,6 +57,20 @@ uv run pytest                  # tests
 runs in strict mode over `plugins/core/src/` and `tests/` only — the asset tree
 and both packs' skills trees are excluded, since they are prose, not code.
 
+**Prefix every one of them with `PYTHONDONTWRITEBYTECODE=1`, or export it once for
+the session.** All four import the package, and each import writes `__pycache__/*.pyc`
+under `plugins/core/src/` — inside the pack payload. `publish-check` refuses to publish
+while the payload carries anything git does not track, so running the checks is enough
+to block a publish afterwards, with a failure naming files you never wrote:
+
+```bash
+export PYTHONDONTWRITEBYTECODE=1        # once per shell, then run the four as above
+```
+
+**Run all four, not just `pytest`.** They are separate CI steps, so a green suite says
+nothing about the other three — a formatting failure sat on `main` for five commits
+because the sessions touching it ran only the tests.
+
 ## The hygiene contract — why a prose-only PR can fail CI
 
 `tests/test_assets.py` is the permanent enforcement of one promise: **assets must

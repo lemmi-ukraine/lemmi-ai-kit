@@ -1,0 +1,14 @@
+# Line endings are normalised to LF in the repository, whatever a contributor's
+# local `core.autocrlf` happens to be. Measured before this file was added:
+# `git ls-files --eol` reported ZERO tracked files stored CRLF, so this pins the
+# behaviour the repository already has rather than changing any content.
+#
+# It matters because the repository takes outside pull requests: without it, a
+# contributor whose git is configured differently can commit CRLF, and the diff
+# arrives as every line of a file changed.
+* text=auto eol=lf
+
+# Binary-ish assets git should not touch.
+*.png binary
+*.jpg binary
+*.ico binary
