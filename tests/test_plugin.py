@@ -51,7 +51,12 @@ def _assert_skills_path_resolves(plugin_root: Path, skills: str | list[str]) -> 
         assert ".." not in rel
         root = plugin_root / rel
         assert root.is_dir(), f"plugin skills path missing: {plugin_root / rel}"
-        assert (root / "kit-setup").is_dir() or (root / "python-conventions").is_dir()
+        # Derived, not enumerated: the point is that the declared path actually ships
+        # skills, not that it ships one particular skill. Naming a sentinel per pack
+        # fails every pack added later, which `new-pack` now makes routine.
+        assert any((d / "SKILL.md").is_file() for d in root.iterdir() if d.is_dir()), (
+            f"{plugin_root / rel} declares a skills path that ships no skill"
+        )
 
 
 def test_no_root_plugin_manifest_remains() -> None:

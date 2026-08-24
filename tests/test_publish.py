@@ -519,7 +519,7 @@ def test_this_checkout_is_measurable() -> None:
     """
     report = publish.check(_REPO_ROOT)
 
-    assert report.payload == ("plugins/core", "plugins/python")
+    assert report.payload == tuple(sorted(f"plugins/{pack}" for pack in PACKS))
     assert report.tracked > 50, (
         f"only {report.tracked} tracked file(s) under the payload -- the pathspec is "
         "probably wrong, which would make the untracked and ignored probes vacuous"

@@ -50,7 +50,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, cast
 
-from lemmi_ai_kit.manifest import load_manifest
+from lemmi_ai_kit.manifest import PACKS, load_manifest
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -76,13 +76,16 @@ _PACK_QUALIFIERS: dict[str, str] = {
 
 # Manifests whose prose is indexed by a marketplace, so it must carry no count.
 _MANIFEST_FILES: tuple[str, ...] = (
+    # The two marketplace catalogs are per-repo, not per-pack.
     ".claude-plugin/marketplace.json",
     ".agents/plugins/marketplace.json",
-    "plugins/core/.claude-plugin/plugin.json",
-    "plugins/core/.codex-plugin/plugin.json",
-    "plugins/python/.claude-plugin/plugin.json",
-    "plugins/python/.codex-plugin/plugin.json",
+    # Pack manifests are DERIVED. Enumerating them by hand meant a pack added later was
+    # silently never scanned -- the guard would not fail, it would just stop looking,
+    # which is the failure mode this module exists to prevent.
+    *(f"plugins/{pack}/.claude-plugin/plugin.json" for pack in sorted(PACKS)),
+    *(f"plugins/{pack}/.codex-plugin/plugin.json" for pack in sorted(PACKS)),
 )
+
 
 
 def _shipped_skill_count() -> int:
