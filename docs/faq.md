@@ -152,6 +152,27 @@ Your `AGENTS.md`, `CLAUDE.md` and `.ai/` files are yours and are never updated b
 you. There is no separate release channel either — the marketplaces serve this
 repository directly, so the published state of `main` is the release.
 
+## My `/lemmi-ai-kit:...` commands stopped working. What happened?
+
+The kit used to install as one plugin called `lemmi-ai-kit`. It now installs as
+packs, so the prefix you type is `/lemmi-ai-kit-core:<name>`, and the install
+command changed with it. The old plugin id is gone from both marketplace catalogs:
+it cannot be reinstalled and will never be updated again.
+
+**The version number will not tell you which one you have** — both declare `0.1.0`,
+because pushing to `main` is the release and the string did not move across the
+split. The plugin *name* in `plugin list` is the discriminator.
+
+**And your own repository does not fix itself.** The `CLAUDE.md` in your project
+still carries the old prefixes, and re-running scaffolding will not touch it: seed
+files are never overwritten, so it reports the file kept and changes nothing. Do
+**not** reach for `--reseed` to force it — that resets seed files to their
+templates, and it will take a customized `AGENTS.md` and a non-empty `.ai/` log with
+it. A find-and-replace is the fix.
+
+[Migrating from 0.1.0](migrating-from-0.1.0.md) has the whole path, including the
+four skills that were renamed and the one that was dropped.
+
 ## What happens if I run setup again later?
 
 `/lemmi-ai-kit-core:kit-setup refresh` re-runs project detection and compares each

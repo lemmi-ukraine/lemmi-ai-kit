@@ -69,6 +69,11 @@ Core skills are then invoked as `/lemmi-ai-kit-core:<name>` — for example
 `/lemmi-ai-kit-core:commit-message`. Some never appear in your `/` menu, which is
 correct: those are loaded automatically or called by another skill in a pipeline.
 
+**Already running the older single `lemmi-ai-kit` plugin?** The prefix you type and
+the install command both changed when it split into packs, and the version number
+did not move, so `plugin list` will not tell you which one you have.
+[Migrating from 0.1.0](docs/migrating-from-0.1.0.md) is the short version.
+
 ### Codex
 
 Both packs ship a Codex manifest and install from the same catalog:
@@ -154,6 +159,7 @@ the practice on its own merits rather than on ours.
 |---|---|
 | Put this into a repository, especially one that already has conventions | [Adoption guide](docs/adoption-guide.md) — install, the seam, four worked situations, and an explicit list of what is not built yet |
 | A short answer to one question | [FAQ](docs/faq.md) |
+| Move an existing install off the older single `lemmi-ai-kit` plugin | [Migrating from 0.1.0](docs/migrating-from-0.1.0.md) — the renamed prefixes, and the files in your own repository that do not fix themselves |
 | Report a bug, propose a skill, or open a pull request | [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
 | Report a vulnerability, or understand what a skill can do on your machine | [SECURITY.md](SECURITY.md) |
 
@@ -180,9 +186,14 @@ PYTHONPATH=plugins/core/src python3 -m lemmi_ai_kit scaffold <target> --dry-run
 Subcommands are `scaffold`, `list`, `lint`, `audit-skills` and `publish-check`;
 Python 3.11 or newer is required, since the manifest is read with `tomllib`.
 
-`scaffold` never copies skills and never overwrites an existing seed file —
-`--reseed` resets seeds, `--force` updates the kit-managed `.ai/templates/`, and
-`--dry-run` writes nothing. The `kit-setup` skill runs it straight from the plugin
+`scaffold` never copies skills and never overwrites an existing seed file, which is
+what makes re-running it safe. `--force` updates the kit-managed `.ai/templates/`
+and `--dry-run` writes nothing. `--reseed` is the blunt one: it resets seed files to
+their templates, so it will discard a customized `AGENTS.md` or a non-empty `.ai/`
+log. It is not an upgrade path — see
+[Migrating from 0.1.0](docs/migrating-from-0.1.0.md) for what to do instead.
+
+The `kit-setup` skill runs the helper straight from the plugin
 cache by putting the plugin root's `src/` on `PYTHONPATH`; Claude Code supplies
 `CLAUDE_PLUGIN_ROOT` and Codex supplies `PLUGIN_ROOT`, with `CLAUDE_PLUGIN_ROOT` set
 too for compatibility. No pip install is involved anywhere in that path.
