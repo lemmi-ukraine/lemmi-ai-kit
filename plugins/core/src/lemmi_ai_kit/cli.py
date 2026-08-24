@@ -10,10 +10,13 @@ NOT a user-facing installer — it is the deterministic helper the plugin's
 - `lint` — validate the project's `.ai/` pipeline data files.
 - `audit-skills` — audit a project's `.claude/skills/` against the mechanical
   subset of the skill-review checklist.
+- `publish-check` — the pre-publish guard: refuse to publish while the plugin
+  payload carries files git does not track. Maintainer-facing, not adopter-facing.
 
-The last two exist because a skill cannot address a *sibling* skill's script
-portably; see `checks.py` for why that made them subcommands instead. Both are
-read-only and write nothing, so they are safe to run from parallel sessions.
+`lint` and `audit-skills` exist because a skill cannot address a *sibling* skill's
+script portably; see `checks.py` for why that made them subcommands instead. All
+three are read-only and write nothing, so they are safe to run from parallel
+sessions.
 """
 
 from __future__ import annotations
@@ -22,7 +25,7 @@ import argparse
 from datetime import date, datetime
 from pathlib import Path
 
-from lemmi_ai_kit import __version__, checks, scaffold
+from lemmi_ai_kit import __version__, checks, publish, scaffold
 from lemmi_ai_kit.manifest import (
     PACKS,
     ManifestError,
@@ -139,6 +142,22 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=("none", "blocker", "major", "minor"),
         default="none",
         help="exit 1 when a finding at this severity or worse is present (default: none)",
+    )
+
+    publish_p = sub.add_parser(
+        "publish-check",
+        help="pre-publish guard: refuse to publish while the payload carries untracked or ignored files",
+        description=(
+            "`plugin install` copies the WORKING tree, not the git tree, so anything "
+            "sitting under a pack directory ships to whoever installs. Exit 0 clean, "
+            "1 blocked, 2 could not be measured. There is deliberately no flag to "
+            "excuse a path: the tree must be EMPTY, not 'only my files'."
+        ),
+    )
+    publish_p.add_argument(
+        "--repo",
+        metavar="DIR",
+        help="checkout to inspect (default: nearest ancestor of the working directory with .git/)",
     )
 
     return parser
@@ -317,6 +336,81 @@ def _fails_threshold(findings: list[checks.AuditFinding], threshold: str) -> boo
     return checks.SEVERITIES.index(worst) <= checks.SEVERITIES.index(threshold.upper())
 
 
+# How many offending paths to name per probe. A tree with hundreds of dirty files is
+# already answered by the first screenful, and the count above the list is the number
+# that blocks -- so truncation costs nothing, but it is announced rather than silent.
+_MAX_LISTED = 25
+
+
+def _cmd_publish_check(args: argparse.Namespace) -> int:
+    if args.repo is None:
+        root = publish.checkout_root()
+    else:
+        root = Path(args.repo).resolve()
+        if not root.is_dir():
+            raise _UsageError(f"--repo is not a directory: {root}")
+
+    report = publish.check(root)
+
+    # The checkout's NAME, not its path: this output gets pasted into hand-offs, and an
+    # absolute path is portable to exactly one machine (and trips the hygiene scan).
+    print(
+        checks.ascii_safe(
+            f"lemmi-ai-kit {__version__} pre-publish check -> {root.name}"
+        )
+    )
+    print(
+        checks.ascii_safe(
+            f"payload: {', '.join(report.payload)} ({report.tracked} tracked file(s))\n"
+        )
+    )
+
+    previous_blocked = False
+    for result in report.results:
+        if previous_blocked:
+            print()
+        previous_blocked = result.blocks
+        status = "BLOCKED" if result.blocks else "ok     "
+        print(checks.ascii_safe(f"{status} {result.probe.label} ({len(result.paths)})"))
+        if not result.blocks:
+            continue
+        print(checks.ascii_safe(f"         {result.probe.consequence}"))
+        for path in result.paths[:_MAX_LISTED]:
+            print(checks.ascii_safe(f"           - {path}"))
+        hidden = len(result.paths) - _MAX_LISTED
+        if hidden > 0:
+            print(checks.ascii_safe(f"           ... and {hidden} more"))
+        # The remedy travels with the refusal. A publisher told only "no", at the moment
+        # they are trying to ship, is a publisher who goes looking for a --force.
+        print(checks.ascii_safe("         to clear it:"))
+        for line in result.probe.remedy:
+            print(checks.ascii_safe(f"           {line}"))
+
+    if report.extra:
+        print(
+            checks.ascii_safe(
+                f"\na plugin install would copy {report.tracked + report.extra} file(s) "
+                f"out of the payload: {report.tracked} tracked + {report.extra} that git does not track"
+            )
+        )
+
+    blocking = sum(1 for result in report.results if result.blocks)
+    if blocking:
+        print(
+            checks.ascii_safe(
+                f"\nPUBLISH BLOCKED ({blocking} of {len(report.results)} probe(s) non-empty). "
+                "Commit it, delete it, or do not publish -- there is no third option here."
+            )
+        )
+        return 1
+    print(
+        checks.ascii_safe(
+            "\nPUBLISH CHECK PASSED (the payload is exactly the git tree)"
+        )
+    )
+    return 0
+
+
 def _cmd_scaffold(args: argparse.Namespace) -> int:
     target = Path(args.target).resolve()
     if not target.is_dir():
@@ -380,7 +474,9 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_lint(args)
         if args.command == "audit-skills":
             return _cmd_audit_skills(args)
-    except (ManifestError, OSError, _UsageError) as exc:
+        if args.command == "publish-check":
+            return _cmd_publish_check(args)
+    except (ManifestError, OSError, _UsageError, publish.PublishCheckError) as exc:
         print(f"error: {exc}")
         return 2
     parser.error(f"unknown command: {args.command}")
