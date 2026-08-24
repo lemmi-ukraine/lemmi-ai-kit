@@ -1,23 +1,32 @@
-# Session handoff — S-3 step 2 delivered, steps 3 and 4 still open. Read this first.
+# Session handoff — the guard is in and the publish path is GREEN. Read this first.
 
-**Date:** 2026-08-24 · **Executed:** S-3 step 2 (the pre-publish guard) — complete and committed.
+**Date:** 2026-08-24, at session close · **Executed:** S-3 step 2 (the pre-publish guard), complete.
 **Paths held:** `plugins/core/src/lemmi_ai_kit/publish.py`, `plugins/core/src/lemmi_ai_kit/cli.py`,
-`tests/test_publish.py`, and the two documents from this session. Nothing else was written.
+`tests/test_publish.py`, this file, and the companion review. Nothing else was written.
 `assets/templates/AGENTS.md` and every pre-existing file under `docs/research/` were left alone.
 
-**One-line state:** the guard exists, is certified, and currently **refuses to publish** — correctly.
-S-3 steps 1 and 4 can now be *run* rather than reasoned about; step 3 remains impossible while the
-repo is private.
+**One-line state:** run as `python -B …`, the guard reports **`PUBLISH CHECK PASSED`, exit 0**, on
+this checkout. S-3 step 1 passes for the first time in this program.
 
-**What orchestration needs from this document, in priority order:**
+```
+porcelain 0 · untracked under plugins/ 0 · ignored under plugins/ 0
+PUBLISH CHECK PASSED (the payload is exactly the git tree)
+```
 
-1. **Do not wire `publish-check` into CI** (§4). One line, and the reason matters more than the rule.
-2. **Correct the commit-pathspec rule in the kickoff** — as written it fails on new files (§5).
-3. Decide who runs S-3 step 4's F1/F2/F3 re-check; this session did not (§3).
+**What orchestration must act on, in priority order:**
 
-Companion document: [2026-08-24-publish-guard-completion-review.md](2026-08-24-publish-guard-completion-review.md)
-— adversarial review. **It found two defects in shipped behaviour after the suite was green; read it
-before quoting any count the guard prints.**
+1. **The drill's invocation is `python -B -m lemmi_ai_kit publish-check`** (§2). Without `-B` the
+   gate cannot pass on this repo *even from a clean tree*. This is the single most important line
+   in this document.
+2. **Do not wire `publish-check` into CI** (§5). The reason matters more than the rule.
+3. **The kickoff's pathspec-commit rule fails as written on a new file** (§6).
+4. **S-3 step 4's F1/F2/F3 re-check is unassigned** (§4). This session did not do it and says so.
+
+> This file was refreshed at session close and **supersedes the mid-session version**, which had
+> accumulated two correction blocks. Nothing is lost: the companion
+> [completion review](2026-08-24-publish-guard-completion-review.md) holds the full audit trail,
+> including both corrections and the finding that arrived after the review closed. **Read it
+> before quoting any count the guard prints.**
 
 ---
 
@@ -25,102 +34,93 @@ before quoting any count the guard prints.**
 
 **Asked:** the operator pasted S-3's four-step block with no instruction.
 
-**Delivered:** step 2 only, which is the only step that was executable.
+**Delivered:** step 2, which was the only step executable when the session started — S-3 runs after
+S-1 and S-2, and S-2 was still under decision. Five commits:
 
-- **Step 1** is an assertion, not work. Run at session start it failed on all three probes
-  (10 dirty entries, 2 untracked and 6 ignored under `plugins/`) — V-1's leak reproduced exactly.
-- **Step 2** was explicitly "pulled forward deliberately" and gated on nothing. Built.
-- **Step 3** (F8) cannot run: the repo is private, so the advertised `owner/repo` form is
-  untestable, and there is no `claude` or `codex` binary on this machine's `PATH`.
-- **Step 4** not done — see §3.
+```
+c88d152  the guard
+34360e2  fix: it undercounted what it said would ship
+5757c96  the completion review and the first version of this handoff
+8c01f2e  correct the collapse bound: unbounded, not six to one
+68139d5  fix: it blocked on bytecode it wrote itself
+```
 
-The drill as a whole was not runnable: S-3 states it runs *after* S-1 and S-2, and S-2 was still
-under decision when this session started.
+## 2. The invocation is part of the control
 
-## 2. The deliverable
+```
+uv run python -B -m lemmi_ai_kit publish-check     # require exit 0
+```
 
-`uv run python -m lemmi_ai_kit publish-check [--repo DIR]` — committed in `c88d152`
-(875 insertions across three files), plus an uncommitted fix round from the review.
+**`-B` is not optional and not a preference.** The package lives inside the payload, so importing
+it writes seven `.pyc` there *before* the git probe runs — the guard then blocks on files it
+created itself. Measured on a clean clone: from zero `.pyc`, a plain run reports
+`gitignored in the payload (7)` and exits 1 having made all seven; the same invocation under `-B`
+exits 0. `git clean -Xdf` followed by a plain re-run is a loop.
 
-**Exit 0 clean · 1 blocked · 2 could-not-measure.** Gate on `!= 0`. A script testing `== 1` reads
+Also measured, because it is the fix anyone would try first and it does **not** work: setting
+`sys.dont_write_bytecode` at the top of `__init__.py` takes seven to **one**, never zero. CPython
+writes a module's cache entry before the module body executes, so `__init__.pyc` lands regardless.
+The flag has to be on the interpreter.
+
+The guard now detects the condition and prints the `-B` command beside the `git clean` — but only
+when it actually caused the findings. Verified: on this checkout under `-B`, with pre-existing
+`.pyc` from other sessions' test runs, it printed the `git clean` remedy and *not* the `-B` advice,
+because clean alone was sufficient there.
+
+**Gate on `!= 0`, never on `== 1`.** Exit 2 means *could not measure* — no git, not a work tree, no
+marketplace manifest, or a payload pathspec matching nothing tracked. A script testing `== 1` reads
 "I could not measure" as a pass, which is the failure the third exit code exists to prevent.
 
-Five decisions, each argued in the module docstring so they survive a reader who never sees this file:
+## 3. What the guard is, and the five decisions behind it
 
-| Decision | Why it is not the obvious alternative |
+Three probes — `git status --porcelain -uall`, `ls-files --others`, `ls-files --others --ignored`
+— the last two scoped to the payload. Each is argued in the module docstring, so a reader who
+never sees this file still gets the reasoning.
+
+| Decision | Why not the obvious alternative |
 |---|---|
 | No escape-hatch flag | An excuse-a-path flag restores the judgement call the guard removes — made by whoever is publishing, about their own mess, under time pressure |
-| Cannot-measure is exit 2, never 0 | A gate that scans nothing reports green forever, and a green detector nobody can fail is worse than none because it gets trusted |
-| Payload read from both marketplace manifests, unioned | A third pack comes under the guard by being *listed*. Hardcoding `plugins/` would have let it escape silently |
+| Could-not-measure is exit 2, never 0 | A gate that scans nothing reports green forever, and a green detector nobody can fail is worse than none because it gets trusted |
+| Payload read from **both** marketplace manifests, unioned | A third pack comes under the guard by being *listed*. Hardcoding `plugins/` would let it escape silently |
 | Every refusal names its remedy, and runs none | Refusing without saying what to run is the pressure that produces a `--force`. Running the fix would make "the tree is clean" a side effect of asking rather than a fact someone established |
-| `__pycache__` is **not** exempted | The six `.pyc` under `plugins/core/src/` *are* V-1's finding. Exempting the directory is the attractive wrong fix — see §4 |
+| `__pycache__` is **not** exempted | Those `.pyc` *are* V-1's finding. Exempting them is the attractive wrong fix — see §5 |
 
-**The remedy text carries one thing no reviewer asked for and every reader needs:** adding an
-untracked payload file to `.gitignore` does **not** stop it shipping. It moves the file from the
-second probe to the third. That is the fix a reader invents unprompted, and it fails *silently in
-the direction of shipping*.
+**Three probes, but two independent detections.** With `-uall`, probe 2 is a strict subset of
+probe 1 and can never fire when probe 1 is silent; it earns its place by scoping and by supplying
+the "would copy N files" arithmetic. The genuinely independent one is the ignored-file probe, and
+it is **certified**: `probe_checker` reports `CAN-SEE` against a fixture whose
+`git status --porcelain` is empty while a `.pyc` sits under the payload — V-1's leak rebuilt from
+scratch, caught, invisible to `status`.
 
-### Certified, not asserted
+**One remedy is worth repeating here** because a reader invents it unprompted and it fails
+*silently in the direction of shipping*: adding an untracked payload file to `.gitignore` does not
+stop it shipping. It moves the file from the second probe to the third.
 
-Two `probe_checker` stamps, both `CAN-SEE` (review §3). The load-bearing one uses a positive
-fixture whose `git status --porcelain` is **empty** while a `.pyc` sits under the payload — V-1's
-leak rebuilt from scratch, caught by the guard, invisible to `status`.
-
-## 3. State of S-3, as of this writing
-
-**The tree is live — several sessions are writing it, and any count below is a timestamp, not a
-property.** Run the command; do not quote this table.
+## 4. State of S-3
 
 | Step | State |
 |---|---|
-| 1 — assert the tree is clean | **Runnable now.** Failing, correctly: `__pycache__` is always regenerating, and peers hold uncommitted work |
-| 2 — the guard | **Done.** `c88d152` + the review's fix round |
-| 3 — F8, the public path | **Blocked, and will stay blocked until the flip.** No `claude`/`codex` binary here either, so even the local half cannot be re-run from this session |
-| 4 — re-check F1/F2/F3 + README count | **Half done, and I am saying which half.** The README-count claim holds — `test_readme_counts.py` derives the number from the manifest rather than asserting a literal, and the suite is green. **F1/F2/F3 were not re-checked.** I would have been guessing at program rows I had not read, and a re-check nobody performed is worse recorded as done than as open |
+| 1 — assert the tree is clean | **PASSES**, under `-B`. First time. It is a timestamp, not a property — several sessions write this tree; re-run it, do not quote it |
+| 2 — the guard | **Done**, five commits |
+| 3 — F8, the public path | **Blocked until the flip.** The repo is private, so the advertised `owner/repo` form is untestable, and there is no `claude` or `codex` binary on this machine — the local half could not be re-run either |
+| 4 — re-check F1/F2/F3 + README count | **Half done, and this says which half.** The README-count claim holds: `test_readme_counts.py` derives the number from the manifest rather than asserting a literal, and the suite is green. **F1/F2/F3 were not re-checked** — that would have been guessing at program rows this session had not read, and a re-check nobody performed is worse recorded as done than as open |
 
-**The critical path I escalated mid-session has since resolved on its own terms.** At the time of
-my first report `assets/templates/AGENTS.md` was the only dirty path in the repository and was
-frozen pending OQ-5. It landed as `d317027` while this session was working. That escalation is
-moot; `lemmi-ai-kit-90`'s handoff carries the live version of that thread, including OQ-5's
-unconsumed answer.
+## 5. Do not put `publish-check` in CI
 
-## 4. Do not put `publish-check` in CI
-
-CI's own `pytest` run imports the package, which writes
-`plugins/core/src/lemmi_ai_kit/__pycache__/*.pyc` under the payload. The guard would therefore be
+CI's own `pytest` imports the package, writing `.pyc` under the payload, so the guard would be
 **red on every green build**.
 
-**The reason to record is not the rule but what the rule invites.** Faced with a permanently red
-gate, the fix anyone reaches for is exempting `__pycache__` — and that exemption blinds the guard
-to the exact six files that were V-1's finding. A guard that cannot see the thing it was built for
-still reports green, which is how this program's §7 instruments failed.
+**Record the consequence, not just the rule.** Faced with a permanently red gate the fix anyone
+reaches for is exempting `__pycache__` — and that exemption blinds the guard to the exact files
+that were V-1's finding. This is not hypothetical: the guard shipped *unpassable* for two commits,
+which is the strongest possible version of that pressure, and it was built by the same session
+that wrote the warning against it.
 
-It is a *pre-publish* gate: run deliberately, once, on a tree cleaned for publishing. Its tests are
-built the same way — throwaway checkouts in `tmp_path`, and the single test that touches this
-checkout asserts only that the guard can **measure** it, never that the answer is clean.
+It is a pre-publish gate: run deliberately, once, on a tree cleaned for publishing, with `-B`.
 
-**Corrected 2026-08-24 — "a tree cleaned for publishing" was not sufficient, and this document
-originally implied it was.** `lemmi-ai-kit-c2` measured it from a genuinely empty state and it
-reproduces on a clean clone: `python -m lemmi_ai_kit publish-check` imports the package from
-*inside* the payload, so seven `.pyc` land **before** the git probe runs. From zero, a plain run
-reports `gitignored in the payload (7)` and exits 1 having created all seven. `git clean -Xdf`
-followed by a plain re-run is therefore a loop, and the gate was **unpassable by construction** —
-the strongest possible pressure toward the one edit §2 and §4 both refuse.
+## 6. Correction to a standing rule in the kickoff
 
-**Run it as `python -B -m lemmi_ai_kit publish-check`** (or with `PYTHONDONTWRITEBYTECODE=1`).
-That invocation produced the program's first `PUBLISH CHECK PASSED`, exit 0, on the real repo.
-The guard now detects the condition and prints that command beside the `git clean`.
-
-Also measured, because it was the obvious fix and it does not work: setting
-`sys.dont_write_bytecode` at the top of `__init__.py` takes seven to **one**, never zero —
-CPython writes a module's cache entry before the module body executes, so `__init__.pyc` lands
-first regardless. The flag has to be on the interpreter.
-
-**Whoever runs the flip drill: use the `-B` form.** Without it, step 1 cannot pass on this repo.
-
-## 5. Correction to a standing rule in the kickoff
-
-The pathspec-commit rule now in the kickoff is right in intent and **fails as written**:
+The pathspec-commit rule is right in intent and **fails as written**:
 
 ```
 git commit -- plugins/core/src/lemmi_ai_kit/publish.py
@@ -128,37 +128,56 @@ error: pathspec '…/publish.py' did not match any file(s) known to git
 ```
 
 A partial commit can only name paths git already tracks, so a **new** file needs `git add` first —
-and the pathspec has to be on *both* commands, or the `add` is the unprotected step:
+and the pathspec must be on *both* commands, or the `add` is the unprotected step:
 
 ```
 git add    -- <paths>
 git commit -- <paths> -m ...
 ```
 
-This matters because the rule exists precisely for sessions adding new files. Both commits from
-this session used the two-step form, with the index checked empty beforehand rather than assumed.
+This matters precisely because the rule exists for sessions adding new files. All five commits here
+used the two-step form, with the index checked empty beforehand rather than assumed.
 
-## 6. Open, and explicitly not mine
+## 7. Open, unverified, and explicitly not mine
 
 - **The guard's premise is inherited, not re-measured.** Every probe measures *git state*. That git
-  state equals what an install copies is V-1's finding; no binary on this machine could re-verify
-  it. Attested is not the same as re-measured, and F8 is where that gets closed.
-- **Not probed:** symlinks under a pack, case-only collisions, the `./` payload form end to end,
-  and performance on a large tree. Review §5 lists why each is a plausible route to a wrong answer.
-- **S-3 step 2 has no companion documentation outside the code.** `README`, `CONTRIBUTING` and the
-  kickoff are other initiatives' files; the guard is documented in its own docstring and here.
+  state equals what an install copies is V-1's measurement; no binary on this machine could
+  re-verify it. **F8 is where that closes** — until then the guard is precise about git, and
+  trusting-by-proxy about publishing.
+- **Not probed:** symlinks under a pack; case-only collisions; the `./` payload form end to end
+  (unit-tested only); performance on a large tree.
+- **A known limit, disclosed rather than hidden:** a nested git repository is one entry in every
+  probe — git will not look inside another repo. It still *blocks*; it cannot be *counted*, so the
+  arithmetic prints "at least" and the entry is marked.
+- **Nothing is pushed.** `origin/main` is far behind, and that backlog long predates this session.
+  Consistent with every handoff in this directory; flagged so it is not assumed otherwise.
 
-## 7. Durable anchors
+## 8. What the review found, and why it matters to the next reviewer
+
+Three defects in shipped behaviour, all **after** a green suite, none found by adding tests:
+
+1. the working-tree probe collapsed an untracked subtree to one entry at its topmost untracked
+   ancestor — an undercount of *unbounded* ratio, in the direction of looking clean;
+2. a nested repo cannot be counted, and the total was printing a floor as if exact;
+3. the guard blocked on bytecode it wrote itself, making the gate unpassable by construction.
+
+The first two came from ten minutes of `mktemp -d` characterising what git actually does. The third
+came from `lemmi-ai-kit-c2` running it from a clean state — a state this session never had, because
+its own tooling had dirtied the tree before its first probe.
+
+**Carry-forward for whoever builds the next gate: a check that runs inside its own subject must be
+measured from that subject's clean state, by something that is not the check.**
+
+## 9. Durable anchors
 
 ```
-c88d152                                          the guard
-d317027                                          AGENTS.md landed; the freeze I escalated is over
-plugins/core/src/lemmi_ai_kit/publish.py         353 lines, five decisions in the docstring
-tests/test_publish.py                            27 tests, 515 lines
-plugins/core/skills/post-task-review/scripts/probe_checker.py    the instrument that caught my own blind probe
+c88d152 34360e2 5757c96 8c01f2e 68139d5    this session's five commits
+plugins/core/src/lemmi_ai_kit/publish.py   the five decisions, in the module docstring
+tests/test_publish.py                      30 tests at 68139d5
+plugins/core/skills/post-task-review/scripts/probe_checker.py   caught this session's own blind probe
+docs/research/2026-08-24-publish-guard-completion-review.md      the audit trail
 docs/research/2026-08-23-v1-restructure-review.md                V-1 §2, the finding this implements
-docs/research/2026-08-24-s2-closed-oq5-answered-handoff-to-orchestration.md   the live OQ-5 thread
 ```
 
-Full suite at handoff: **223 passed, 6 skipped**. `ruff check .` clean repo-wide, `ruff format
---check` clean, `basedpyright` 0 errors.
+At close: **227 passed, 6 skipped**; `ruff check .` clean repo-wide; `ruff format --check` clean;
+`basedpyright` 0 errors; `git status --porcelain` empty.

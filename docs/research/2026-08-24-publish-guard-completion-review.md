@@ -1,9 +1,19 @@
 # The pre-publish guard — self-challenge and completion review
 
 **Dated:** 2026-08-24, after `c88d152` landed and before the fixes below were committed.
-**Reviews:** S-3 step 2 — `plugins/core/src/lemmi_ai_kit/publish.py` (353 lines), its
-`publish-check` subcommand in `plugins/core/src/lemmi_ai_kit/cli.py`, and
-`tests/test_publish.py` (27 tests, 515 lines).
+**Reviews:** S-3 step 2 — `plugins/core/src/lemmi_ai_kit/publish.py`, its `publish-check`
+subcommand in `plugins/core/src/lemmi_ai_kit/cli.py`, and `tests/test_publish.py`.
+
+**Sizes, anchored to commits rather than to this file, because an unanchored one rots on the
+next commit — which is what happened here.** An earlier draft of this line said "353 lines,
+27 tests, 515 lines" with no anchor; those were true at `34360e2` and were already stale by
+`68139d5`, in the header of the document whose §2 is about counts that read low.
+
+| at | `publish.py` | `test_publish.py` |
+|---|---|---|
+| `c88d152` as reviewed | 316 lines | 25 tests, 458 lines |
+| `34360e2` after §2's fixes | 353 lines | 27 tests, 515 lines |
+| `68139d5` after §7's fix | 421 lines | 30 tests, 586 lines |
 **Method:** adversarial, against real git behaviour rather than against my own report. Five
 probes run in throwaway checkouts, asking what git *actually does* rather than what the tests
 assume. **Two defects in shipped behaviour were found this way, both after a green 25-test
