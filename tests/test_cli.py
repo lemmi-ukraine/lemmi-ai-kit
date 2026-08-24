@@ -220,6 +220,57 @@ def test_the_generated_pack_passes_the_audit_that_gates_this_repo(
     )
 
 
+def test_new_pack_can_credit_an_author_who_is_not_this_repo(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """CONTRIBUTING.md makes `author` a provenance label, not metadata: a pack this
+    repo's owner did not write must carry its own author in BOTH manifests. Derived
+    defaults would quietly claim otherwise on the path of least resistance."""
+    repo = _fixture_checkout(tmp_path)
+    assert (
+        main(
+            [
+                "new-pack",
+                "demo",
+                "--repo",
+                str(repo),
+                "--plugin-name",
+                "someone-else-demo",
+                "--author",
+                "someone-else",
+                "--author-url",
+                "https://example.invalid/someone-else",
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    pack_root = repo / "plugins" / "demo"
+    project = _project(repo)
+    for host in (".claude-plugin", ".codex-plugin"):
+        data = _json(pack_root / host / "plugin.json")
+        assert data["name"] == "someone-else-demo"
+        author = cast(dict[str, Any], data["author"])
+        assert author["name"] == "someone-else"
+        assert author["url"] == "https://example.invalid/someone-else"
+        # ...while the claims the suite derives are still derived.
+        assert data["version"] == project["version"]
+        assert data["license"] == project["license"]
+
+
+def test_new_pack_defaults_the_author_to_this_package(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _fixture_checkout(tmp_path)
+    assert main(["new-pack", "demo", "--repo", str(repo)]) == 0
+    capsys.readouterr()
+
+    expected = cast(list[dict[str, str]], _project(repo)["authors"])[0]["name"]
+    data = _json(repo / "plugins" / "demo" / ".claude-plugin" / "plugin.json")
+    assert cast(dict[str, Any], data["author"])["name"] == expected
+
+
 def test_new_pack_names_every_registration_chokepoint(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

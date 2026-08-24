@@ -202,6 +202,20 @@ def _build_parser() -> argparse.ArgumentParser:
         help="one-line description for both plugin manifests",
     )
     new_pack_p.add_argument(
+        "--author",
+        metavar="NAME",
+        help=(
+            "author credited in both plugin manifests (default: the package author "
+            "from pyproject.toml). REQUIRED, with --plugin-name, for a pack this "
+            "repo's owner did not write: the author field is a provenance label"
+        ),
+    )
+    new_pack_p.add_argument(
+        "--author-url",
+        metavar="URL",
+        help="author URL (default: the repository URL with its last segment dropped)",
+    )
+    new_pack_p.add_argument(
         "--repo",
         metavar="DIR",
         help="checkout to write into (default: nearest ancestor of the working directory with .git/)",
@@ -614,14 +628,22 @@ def _pack_substitutions(
     plugin_name: str,
     display_name: str,
     description: str,
+    author: str | None,
+    author_url: str | None,
 ) -> dict[str, str]:
     """Every `{{KEY}}` the template may use, with the derivable half derived.
 
-    Version, repository, license and author come from `pyproject.toml` rather than from
-    flags on purpose: `test_plugin.py` asserts a pack's version and repository against
-    that file and `test_license.py` asserts its license against `LICENSE`, so a value
-    typed in here would be a test failure waiting on the next release bump -- and it
-    would be the wrong value the first time somebody authors a pack in a fork.
+    Version, repository and license come from `pyproject.toml` rather than from flags
+    on purpose: `test_plugin.py` asserts a pack's version and repository against that
+    file and `test_license.py` asserts its license against `LICENSE`, so a value typed
+    in here would be a test failure waiting on the next release bump -- and the wrong
+    value the first time somebody authors a pack in a fork.
+
+    The AUTHOR defaults to the same file and is overridable, which the others are not.
+    CONTRIBUTING.md makes the `author` field a provenance label rather than metadata:
+    a pack this repo's owner did not write must carry its own author in both manifests,
+    and a default that silently claimed otherwise would produce exactly the mislabelling
+    the rule exists to prevent -- on the path of least resistance.
     """
     project = _project_metadata(repo)
     urls = project.get("urls")
@@ -630,16 +652,18 @@ def _pack_substitutions(
         "Repository",
         "urls.Repository",
     )
-    authors = project.get("authors")
-    author_name = ""
-    if isinstance(authors, list) and authors:
-        first = cast("list[object]", authors)[0]
-        if isinstance(first, dict):
-            raw = cast("dict[str, object]", first).get("name")
-            author_name = raw if isinstance(raw, str) else ""
+    author_name = author or ""
+    if not author_name:
+        authors = project.get("authors")
+        if isinstance(authors, list) and authors:
+            first = cast("list[object]", authors)[0]
+            if isinstance(first, dict):
+                raw = cast("dict[str, object]", first).get("name")
+                author_name = raw if isinstance(raw, str) else ""
     if not author_name:
         raise _UsageError(
-            "pyproject.toml [project] names no author, so the pack cannot credit one"
+            "pyproject.toml [project] names no author and --author was not given, so "
+            "the pack cannot credit one"
         )
 
     return {
@@ -652,7 +676,7 @@ def _pack_substitutions(
         "LICENSE": _required_string(project, "license", "license"),
         "REPOSITORY": repository,
         "AUTHOR_NAME": author_name,
-        "AUTHOR_URL": _owner_url(repository),
+        "AUTHOR_URL": author_url or _owner_url(repository),
     }
 
 
@@ -834,6 +858,8 @@ def _cmd_new_pack(args: argparse.Namespace) -> int:
         plugin_name=plugin_name,
         display_name=display_name,
         description=description,
+        author=args.author,
+        author_url=args.author_url,
     )
     layout = _pack_layout(template, skill)
 
