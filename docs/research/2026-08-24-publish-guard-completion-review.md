@@ -32,7 +32,7 @@ more tests — a different question. Both defects below fell out of the first tw
 
 | # | Finding | Class | Consequence |
 |---|---|---|---|
-| **1** | `git status --porcelain` collapses an untracked **directory** to one entry | **undercount in shipped behaviour** | Six files dropped under a pack reported as `working tree (1)`. A guard whose entire subject is "how many files actually ship" was off by six to one, in the direction of looking safer |
+| **1** | `git status --porcelain` collapses an untracked subtree to one entry at its **topmost untracked ancestor** | **undercount in shipped behaviour** | One entry for a subtree of *any* size — six files reported as `working tree (1)` in the fixture, but the ratio is unbounded. A guard whose entire subject is "how many files actually ship" undercounting in the direction of looking safer |
 | **2** | A **nested git repository** is one entry in *every* probe, even with `-uall` | **undercount that cannot be fixed** | Git will not look inside another repo. A vendored clone under `plugins/` is `nested/`, one entry, however many files — and `extra` printed that floor as an exact total |
 | **3** | My first probe of my own checker was itself blind | **method** | `probe_checker` reported `positive=0 … verdict=UNUSABLE`. The guard was fine; my probe's `$(dirname …)` never ran, because `shell=True` is `cmd.exe` on Windows |
 | 4 | The guard has **two** independent detections, not three | overstatement | Probe 2 is a strict subset of probe 1 — every untracked non-ignored payload file also appears in `status`. Its value is scoping, not detection |
@@ -55,6 +55,27 @@ This one deserves its rank: reporting six files as one is *the same class of err
 leak the guard exists to catch — a count that is silently low, in the direction of looking
 clean. Had it shipped, the guard's most quotable output line would have been wrong exactly
 when a large accidental drop made it matter most.
+
+**Corrected in place, 2026-08-24 — the ratio above understates it.** `lemmi-ai-kit-c2`
+challenged the 6:1 framing, and re-measuring settles it in their favour: git collapses to
+the **topmost entirely-untracked ancestor directory**, at any depth, not to the directory
+holding the files.
+
+```
+tracked:   plugins/core/skills/demo/SKILL.md
+untracked: plugins/core/a/b/c/f1.md … f6.md
+$ git status --porcelain     →  ?? plugins/core/a/     ← one entry, three levels up
+```
+
+So **the undercount is unbounded, not six-to-one**: a single entry stands for an untracked
+subtree of any size. Six-to-one was the instance I happened to build. The fix is unchanged —
+`-uall` enumerates all of it either way — but the severity is not, and a bound quoted from
+one fixture is exactly the kind of number this document exists to distrust.
+
+One qualification the peer's own fixture surfaces: their shape had *no* tracked file under
+`plugins/`, which in the guard's real path does not produce a wrong count at all — it trips
+the vacuous-payload check and exits 2. The unbounded undercount needs the shape above, where
+the pack has tracked content *and* an untracked subtree. That is the realistic one.
 
 ### Finding 2 — the limit that gets disclosed instead of hidden
 
