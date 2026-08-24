@@ -197,11 +197,14 @@ It prints `Skills (N)` followed by every skill name. Read the names. That is the
 step that separates a real install from a green message, and it is also the only
 count worth trusting — it is the one your machine actually has.
 
-**Most of those skills will not appear in your `/` menu, and that is correct.**
-Only the user-invocable ones do; the rest are auto-loaded or internal by design,
-so the menu is always the shorter list. The Python pack adds two auto-loaded
-skills and **no** new menu entries — a `/` menu that does not change after
-installing it is a successful install, not a failed one.
+**Most of these do appear in your `/` menu — but not all of them, and that is
+correct.** The user-invocable ones show up; the rest are auto-loaded or internal by
+design, so the menu is always the shorter list. `plugin details` prints the full
+inventory by name, and the `invocation` column in the catalog tells you which is which —
+that is the answer for your install, rather than a number this page would have to keep
+true. The Python pack is the clean illustration: both of its skills are auto-loaded, so
+it adds **no** new menu entries — a `/` menu that does not change after installing it is
+a successful install, not a failed one.
 
 ---
 
