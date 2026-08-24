@@ -624,14 +624,14 @@ wastes your afternoon.
 | **No pack template, no scaffolding command, no `docs/authoring-a-pack.md`** | You cannot follow a documented path to author a pack today. Stay in `### Project rules`; moving rules into a pack later is a copy-paste, not a migration |
 | **No documented private-pack path** | Serving a pack from your own private marketplace should work — both hosts support it — but it has not been tested here and this guide will not walk you through an unverified path |
 | **No packs beyond core and Python** | Go, TypeScript, Rust and the rest have no pack. See [C](#c-your-language-has-no-pack) |
-| **No documented way to contribute a pack back** | The review bar, namespacing, and ownership rules for third-party packs are unsettled. Since a skill is instructions an agent follows — and can direct shell commands inside whoever installs it — that tier does not open until those controls are named |
+| **No pre-merge review of contributed packs** | The path itself is now documented — see [CONTRIBUTING.md](../CONTRIBUTING.md) for where a pack goes, how first-party packs are named, and what to do about a merged pack that turns out to be harmful. What does **not** exist is a review bar: **merged does not mean vetted.** Since a skill is instructions an agent follows — and can direct shell commands inside whoever installs it — read a third-party pack before you install it, exactly as you would a dependency |
 | **No guided onboarding interview** | `kit-setup` does the *detection* half well — it reads your manifests, lockfiles and CI. It does not yet do the *interview* half: asking you about your project, your existing conventions, and your architecture, then producing a project map and derived conventions from your actual code. Today you get detection plus whatever you write into `### Project rules` yourself |
 
 ### Not verified
 
 | Gap | What it means for you |
 |---|---|
-| **Claude Code install path is documentation-verified only** | The commands follow the documented interface; they have not been executed end-to-end against this repository. The Codex path has |
+| **Both local install paths are verified; neither remote one is** | The Claude Code local-marketplace path was executed end to end against this repository on 2026-08-23 and asserted on the materialized inventory **by name**, not on a green "installed" message. The Codex local path was exercised on 2026-08-22 against isolated fixtures. What neither host has done is the `owner/repo` shorthand — see the row below |
 | **The `owner/repo` marketplace shorthand has not been exercised** | If it fails on either host, use the clone-and-add-local fallback in [section 3](#if-the-ownerrepo-shorthand-does-not-resolve), which is verified |
 | **Nested `AGENTS.md` pickup in a monorepo** | Scaffolding per-package works. Whether your host reads the nested file is untested — see [D](#one-monorepo--works-with-a-caveat-you-should-know-about) for how to check it in two minutes |
 

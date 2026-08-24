@@ -5,13 +5,16 @@ body:
   - type: markdown
     attributes:
       value: |
-        **This path is not open yet, and that is exactly why this form is useful.**
+        **The pack path is open. Tell us which language or domain you need.**
 
-        The repo currently ships one plugin from one skills directory. Splitting it
-        into a core pack plus sibling language packs — and defining how an external
-        pack registers itself — is planned but not built. The shape of the first few
-        requests here is what that authoring path gets designed against, so a
-        request filed now carries more weight than one filed later.
+        The kit ships a core pack plus sibling language packs, and
+        [CONTRIBUTING.md](../../CONTRIBUTING.md) documents how to contribute one:
+        where it goes, how it is named, and what this repo does and does not check.
+        **There is no pre-merge review bar, so merged does not mean vetted.** Read
+        that section before installing anyone's pack, including your own.
+
+        This form is still the most useful thing you can send: the requests filed
+        here are the signal that decides which pack gets built next.
 
   - type: input
     id: pack
