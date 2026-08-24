@@ -64,9 +64,10 @@ cited; this section only says where the judgement will be easy and where it will
 cluster on things the kit deliberately does not ship: `python .claude/skills/<name>/scripts/ai_files_lint.py`
 and `audit_skills.py` (the two linters the kit **substitutes its own CLI** for), hard-coded
 `.claude/skills/<name>/scripts/` paths (banned — `${CLAUDE_SKILL_DIR}` instead), the
-`interview-transcript-analysis` skill (ruled out of the port by OP-5), and machine-specific rules
-("never `uv run` on this Windows host"). Their 98% and 90% carriage is consistent with a refresh that
-worked and stripped what it was supposed to.
+`interview-transcript-analysis` skill (ruled out of the port by OP-5), and machine-specific rules —
+one of which names the developer OS and forbids a particular runner on it. (Quoting that line
+verbatim here would itself trip the hygiene guard, which is the point of the rule.) Their 98% and 90%
+carriage is consistent with a refresh that worked and stripped what it was supposed to.
 
 **Likely RECOVER — `skill-content-reviewer` (18) and `skill-researcher` (19), the two at 0%.** The
 absent content is generic reviewer craft with no source-project coupling. From

@@ -28,7 +28,10 @@ You produce a **Research Brief** that the skill builder uses as source material.
 
 ## When This Skill Activates
 
-Invoked by the `skill-creation-workflow`. Never invoked directly by users.
+Invoked by the `skill-creation-workflow` — which pastes this SKILL.md into an Agent-tool prompt
+(deliberate: the workflow must inject topic/scope/answers inline). The frontmatter
+`context: fork` / `agent` / `allowed-tools` applies only when invoked directly via the Skill
+tool, which remains supported. Never invoked directly by users.
 
 ## Input
 
@@ -99,6 +102,19 @@ Prioritize sources by authority:
 5. **Academic sources** (when methodology or theory matters)
 
 Avoid: blog posts that just restate docs, SEO-optimized listicles, outdated tutorials.
+
+**Source discipline:**
+- Gate each candidate source for RELEVANCE before analyzing it; prefer a few authoritative
+  sources over tens. Soft budget: ~8-12 sources — if the topic genuinely demands more, say so
+  explicitly.
+- Apply SIFT lateral reading to any source whose authority is unclear (protocol:
+  `research-source-planner` SKILL.md, relevance-challenge step).
+- Numbers: NEVER carry a figure from a WebFetch/WebSearch summary — summaries fabricate
+  figures. Read the number at the authoritative source, or write
+  `UNVERIFIED HINT: ~X — confirm at source`, or omit it.
+- Some sites are not crawlable by the agent's web tools (reddit.com is a common one). Use an
+  alternative source or record the gap explicitly — never let an uncrawlable source become a
+  silent omission.
 
 #### 3b. Map the Approach Landscape
 
@@ -203,6 +219,11 @@ Produce a Research Brief in this structure:
 
 ## Key Sources
 {Numbered list of authoritative sources consulted, with brief relevance notes}
+
+<!-- Every load-bearing claim above must carry an inline source marker — [S3] for a Key Source,
+     or file:line for codebase findings. The downstream content review treats the brief as a
+     sub-agent CLAIM and independently verifies top claims; unattributed claims are treated
+     as unverified and may be struck. -->
 
 ## Recommendations for Skill Content
 1. {Specific recommendation for what the skill should cover}
