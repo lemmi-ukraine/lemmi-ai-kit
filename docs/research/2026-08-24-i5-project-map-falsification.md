@@ -19,10 +19,48 @@ Both must be named here **before** the run.
 
 | Arm | Project | Why this one |
 |---|---|---|
-| **Primary** | *(unfilled)* | A real project the operator knows cold. The premise is that a derived map tells the code's own author something new; anything less familiar tests a weaker claim |
-| **Control** | *(unfilled)* | A real project **nobody in this loop wrote**. Exists to separate *"the method has no signal"* from *"this operator knows this one repo unusually well"* |
+| **Primary** | **`<private-source-project>`** — named by the operator 2026-08-24, before the run | The project this kit was extracted from. The operator knows it cold, which is what the premise requires |
+| **Control** | **not run** — recorded as a gap, not skipped silently | See the limitation below |
 
 The control arm can be a public repository. It does not need to be Lemmi's.
+
+### The confound the operator raised, recorded BEFORE the run
+
+**The operator's objection, verbatim in substance:** `<private-source-project>` already has an `AGENTS.md`, a
+map, and AI-oriented comments in the code, so a derived map may find nothing simply because
+everything worth saying is already written.
+
+**It is a real confound and it is recorded here rather than discovered afterwards.** Measured
+2026-08-24:
+
+| | |
+|---|---|
+| `AGENTS.md` | (count withheld) |
+| `CLAUDE.md` · `README.md` | 57 · 554 lines |
+| `docs/` markdown · `.ai/` | 48 files · 4,390 files |
+| the application code | **(counts withheld)** |
+| AI-oriented code markers | 41 files |
+
+**Why the run proceeds anyway.** At roughly **266 lines of code per line of `AGENTS.md`**, the prior
+documentation is a strong *baseline*, not a ceiling. The premise is being tested against a real
+hand-written map rather than against a vacuum, which makes a **positive** result stronger than it
+would be on an undocumented repo.
+
+**What this costs, stated so the verdict cannot be over-read.** A `did-not-know = 0` outcome here
+must be reported as *"refuted on an unusually well-documented repository"* — the hardest available
+case — and **not** as "refuted for the population I5 targets," which is an adopter installing the
+kit into a project with no `AGENTS.md` at all. If the verdict table's second or third row fires,
+that qualification travels with it into every document that cites this result.
+
+**Two protocol adjustments, both made before deriving anything:**
+
+1. **The derivation is blind.** Claims are produced from the code only. `AGENTS.md`, `CLAUDE.md`,
+   `.ai/` and the AI comment markers are not read while deriving, so no claim can be laundered out
+   of the existing documentation and then counted as derived from code.
+2. **`already-written-down` is labelled mechanically, by the session, not by the operator.** Each
+   claim is checked against those documents *after* derivation. That label is a fact about the repo,
+   not about the operator's memory, so it does not need their judgement — and removing it from their
+   burden leaves them the three labels that genuinely require it.
 
 ## Step 2 — the claim definition and scoring rule · **FROZEN**
 
