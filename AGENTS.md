@@ -224,8 +224,83 @@ Rules arrive two ways: by promotion, when `/learning-consolidator` drains an ent
 `task-learnings` put in `.ai/learnings.md`, or by hand the moment one is known —
 from an existing `CONTRIBUTING.md`, a house style, or a decision made in review.
 
-*None recorded yet. That is a legitimate state: it means none have been
-established, which is not the same as nobody having looked.*
+Every rule below was paid for. The measured cost is stated because a rule with no
+cost attached is the first one dropped.
+
+#### Guards
+
+- **Never report a guard's coverage without firing it at a known-positive first.**
+  Not *"the probe found nothing"* — *"the probe found the thing I planted, then found
+  nothing."* A false coverage finding was published here by a session that had recorded
+  the same defect four hours earlier, and three guards were found silently covering a
+  subset of what their names claimed.
+- **State a guard's scan surface in numbers the test itself asserts.** A test named for
+  every published file scanned 43 of 144 and passed. If the name and the coverage can
+  drift apart, they will.
+- **If a guard has two scan surfaces, assert they are disjoint.** A file in both is being
+  judged by a rule that does not apply to it — and two scans read as *better* covered,
+  not worse. This check found a real defect on its first run three separate times, twice
+  in its own author's work.
+- **Never hand-write a count you can derive.** Ten instances paid for, the most recent
+  inside a document about not hand-writing counts. Derive it, or state the command that
+  answers it and no number at all.
+
+#### The four checks
+
+- **Run all four — `ruff check`, `ruff format --check`, `basedpyright`, `pytest` — not
+  just the suite.** They are separate CI steps, so a green suite is evidence about the
+  suite. A formatting failure sat on `main` for five commits because sessions ran only
+  the tests, and four of those commits were the author of this rule.
+- **Prefix every `uv run` with `PYTHONDONTWRITEBYTECODE=1`.** All four import the package
+  and write `__pycache__` under `plugins/core/src/`, which is inside the pack payload —
+  so running the checks is enough to make `publish-check` refuse afterwards, with a
+  failure naming files you never wrote. `export` is bash; PowerShell needs
+  `$env:PYTHONDONTWRITEBYTECODE = "1"`, and getting that wrong sets nothing silently.
+
+#### Measuring
+
+- **A zero is not a finding until the probe has been shown able to see anything.** This
+  repository has produced: `grep -riF -e` matching nothing with all three flags, an
+  `ast.Assign` walk missing an annotated assignment, a pathspec matching a directory name
+  and returning 0 where the same pattern with `/**` returned 95, and a shell `|| echo 0`
+  that made every clean result compare unequal to zero. Print the scan surface beside the
+  hits.
+- **`git rev-list origin/main..HEAD` counts against a local cached ref, not the remote.**
+  `git fetch` first, or the number describes your last fetch. It reported 8 unpushed
+  commits that were already published.
+- **Two independent instruments must agree before a count decides that work is done.**
+  Every wrong count here came from one instrument trusted alone.
+
+#### This is a shared checkout
+
+Several sessions write this one tree at once. There are no branches for isolation and no
+worktrees; concurrency is bought with disjoint paths and nothing else.
+
+- **Run `git status --porcelain` before your first write and record what you see.**
+  "The tree was dirty when I arrived" is unrecoverable ten minutes later, and this is the
+  only countermeasure that has ever worked here.
+- **`git add -- <paths>` then `git commit -- <paths>`, options before the `--`.** The index
+  is shared: a bare `git commit` sweeps a peer's staged files into yours. Measured — a
+  session found another's work staged seconds after its own commit.
+- **`git commit --amend` rewrites whatever `HEAD` points at now, not the commit you
+  meant.** A peer committed in the gap between one session's commit and its amend, and the
+  amend landed on the peer's commit. Note also that `check && action` sequences but does
+  not gate — the output is read after the action has run.
+- **Never `git clean -fd` or `-fdx`, and never `git restore` a path you do not own.**
+  There is no reflog for uncommitted work. `-fdx` additionally destroys `tasks/` and
+  `.specs/`, which are untracked by operator ruling and exist in no commit.
+- **Asking is not the control — waiting is.** A session cited the ownership register
+  correctly, asked whether a file was contested, and wrote it before the answer arrived.
+  Path partition has no defence against that, or against one path set assigned twice, or
+  against a rename sweep that crosses every file at once.
+
+#### Documents
+
+- **Run every command before you write it into a document.** A shipped guide contained a
+  marketplace command the Claude CLI rejects outright; only running it caught that.
+- **A rule that has never been executed has not been tested.** The commit-pathspec rule
+  above was wrong twice, and both defects were found by the first session that followed it
+  literally rather than by anyone reading it.
 
 ---
 
