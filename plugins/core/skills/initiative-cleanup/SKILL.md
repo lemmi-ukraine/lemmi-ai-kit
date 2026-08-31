@@ -367,12 +367,12 @@ git grep -l '<the path or its parent dir>'   # cited by a TRACKED file? then it 
 # and: could you regenerate it? production query / log export / retention-bound API call => NO
 ```
 
-**Measured twice**, most recently 2026-08-09: `.ai/tmp/` was 168 MB, of which 124 MB `logs/` and
-4.4 MB corpus tree are INPUT class, while **54 tracked files cited paths inside it**. An
-earlier blanket delete took the raw exports and every derived artifact, unrecoverable. Full tables,
-the incident, and the `.ai/corpora/` structural fix:
-[references/tmp-classification.md](references/tmp-classification.md). **Until that lands, `.ai/tmp/`
-is swept per file, never wholesale.**
+**Both populations have been lost this way.** A blanket delete took the raw inputs and every
+artifact derived from them — nothing gitignored is in the recycle bin, and the inputs were past
+their retention window, so they were not regenerable. A separate sweep was proposed against a tree
+tracked files were actively citing. What must never be swept grows over time; the hazard does not.
+Tables, the two checks, and the structural fix: [references/tmp-classification.md](references/tmp-classification.md).
+**Until that lands, the scratch tree is swept per file, never wholesale.**
 
 ## Step 5 — Comment-reduction pass over the code the initiative added
 

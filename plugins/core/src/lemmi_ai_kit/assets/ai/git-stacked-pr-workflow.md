@@ -126,7 +126,7 @@ git log --oneline origin/dev..<top> | grep -c '<your fix marker>'   # must equal
 > ```bash
 > git branch --format='%(objectname) %(refname:short)' | sort > .ai/tmp/refs-before
 > # ...cascade...
-> git branch --format='%(objectname) %(refname:short)' | sort | diff /tmp/refs-before -
+> git branch --format='%(objectname) %(refname:short)' | sort | diff .ai/tmp/refs-before -
 > ```
 Run the fast suite after the FIRST layer of a stacked change, not after the last — one session
 landed 13 commits before its first suite run, which then found 14 failures + 4 errors the static

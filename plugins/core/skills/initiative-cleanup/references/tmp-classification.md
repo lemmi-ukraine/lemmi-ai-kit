@@ -17,27 +17,25 @@ git grep -l '<the path or its parent dir>'
 #    against data with retention, the answer is NO regardless of how temporary the path looks.
 ```
 
-## Measured, twice
 
-**(a)** `.ai/tmp/` was deleted mid-initiative and took **both the raw exports and every derived
-artifact** — not in the Recycle Bin, unrecoverable, the measurement corpus had no copy anywhere.
+## Why this needs a rule rather than judgement
 
-**(b)** One measured inventory found `.ai/tmp/` holding **124 MB of `logs/`, a 4.4 MB corpus tree
-of raw export data, and 36 data files over 200 KB — while 43 TRACKED files cited `.ai/tmp`
-paths**, including the SKILL.md of a skill that *writes there by design*. A blanket sweep would
-have destroyed the corpora and broken 43 live citations at once.
+Both populations have been lost this way. A scratch directory deleted mid-initiative took the raw
+inputs **and** every artifact derived from them — nothing in a gitignored tree is in the recycle
+bin, and the inputs were no longer regenerable because the upstream window had rolled. Separately, a
+blanket sweep was proposed against a tree that tracked files were actively citing, which would have
+broken those citations at the same time.
 
-Re-measured days later: `.ai/tmp/` was **168 MB**, of which 124 MB `logs/` and the 4.4 MB corpus
-tree are INPUT class, and **54 tracked files** cited paths inside it. The population grows; the
-hazard does not shrink.
+The shape to remember: **the population that must never be swept grows over time, and the hazard
+does not shrink.** Sweeping per file is the safe default until the two populations live at different
+paths.
 
-## Recommended structural fix — operator decision, not a default
+## Structural fix — operator decision, not a default
 
-Give the input class its own gitignored home that cleanup never touches — e.g. `.ai/corpora/` — and
-leave `.ai/tmp/` as true scratch. That makes the disposition a property of the path again instead of
-a judgment call per file.
+Give the input class its own gitignored home that cleanup never touches, and leave the scratch tree
+as true scratch. That makes disposition a property of the path again instead of a judgement call per
+file.
 
-It is not free: every skill that writes these paths (`analyze-logs` among them) and their
-reference docs would need repointing, so it belongs in
-its own change, not in a cleanup run. **Until that lands, `.ai/tmp/` is swept per file, never
-wholesale.**
+It is not free: every skill that writes these paths, and their reference docs, need repointing, so
+it belongs in its own change rather than inside a cleanup run. **Until that lands, sweep per file,
+never wholesale.**
