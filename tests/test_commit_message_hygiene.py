@@ -193,6 +193,10 @@ def test_the_scan_catches_a_planted_leak(tmp_path: Path) -> None:
 
     (repo / "f.txt").write_text("y", encoding="utf-8")
     run("add", "f.txt")
+    # The count here is deliberately absurd. An earlier draft of this fixture reused
+    # the real file count from the leak it imitates, which republishes the private
+    # figure in the very file written to stop that -- a fixture is a published file
+    # like any other.
     run(
         "commit",
         "-qm",
