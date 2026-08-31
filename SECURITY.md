@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Email **support@lemmi.io**. Do not open a public issue for a security report.
+Email **andrii.shafar@lemmi.io**. Do not open a public issue for a security report.
 
 Include what you can: what an attacker can do, the file or skill involved, and
 the steps to reproduce. A partial report is worth sending — a rough description

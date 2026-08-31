@@ -4,7 +4,7 @@ Thanks for considering a contribution. This kit is a plugin of skills — mostly
 markdown, with a small Python support package — so most contributions are prose,
 and the review bar is about accuracy and portability rather than cleverness.
 
-- **Maintainer / reviewer:** support@lemmi.io
+- **Maintainer / reviewer:** andrii.shafar@lemmi.io
 - **Security issues:** do not open a public issue — see [SECURITY.md](SECURITY.md)
 - **Conduct concerns:** see [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
@@ -325,7 +325,7 @@ So, for anyone installing rather than contributing:
 "No review bar" describes what happens **before** a merge. It says nothing about
 after one, and after one there is a route.
 
-**Email support@lemmi.io, and do not open a public issue.**
+**Email andrii.shafar@lemmi.io, and do not open a public issue.**
 [SECURITY.md](SECURITY.md#reporting-a-vulnerability) is the procedure, and it
 covers a merged community pack exactly as it covers a first-party skill: the same
 address, the same acknowledgement window, and the same commitment to either a fix
@@ -345,7 +345,7 @@ Two things specific to packs:
 
 ## Review expectations
 
-- **Reviewer:** support@lemmi.io. One maintainer, so expect days rather than
+- **Reviewer:** andrii.shafar@lemmi.io. One maintainer, so expect days rather than
   hours.
 - **What review looks for**, in this order: does it work in a fresh repo on
   another OS; does the skill's own description match what it actually does; is it

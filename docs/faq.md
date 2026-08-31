@@ -240,7 +240,7 @@ Lemmi maintains it, with one reviewer, so expect days rather than hours.
 
 - **A bug, or a skill that misbehaves** — open one of the
   [issue forms](../.github/ISSUE_TEMPLATE).
-- **A security problem** — email **support@lemmi.io**, and do not open a public
+- **A security problem** — email **andrii.shafar@lemmi.io**, and do not open a public
   issue. [SECURITY.md](../SECURITY.md) has the scope and the response expectations.
 - **A code-of-conduct concern** — the same address; see
   [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md).
