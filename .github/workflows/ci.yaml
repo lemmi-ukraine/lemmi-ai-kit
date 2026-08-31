@@ -31,6 +31,16 @@ jobs:
       - name: Tests (pytest)
         run: uv run pytest
 
+      # A FIFTH gate, and it is not covered by any of the four above. Its 500-line skill
+      # cap fires on ordinary SKILL.md edits, and several shipped skills sit within a
+      # couple of lines of it -- so a routine content change can cross it while ruff,
+      # ruff format, basedpyright and pytest all stay green. That happened on 2026-08-31:
+      # two skills went 499 -> 512 and 493 -> 518 in one change, and only a hand-run of
+      # this command caught it. `--fail-on major` is the level section 7 specifies: minor
+      # findings are review input, and gating on them makes the suite brittle.
+      - name: Skill audit (audit-skills)
+        run: uv run python -B -m lemmi_ai_kit audit-skills --fail-on major
+
       # Charter DoD 5: the drift check ships as a non-blocking report and is promoted to
       # a gate only once it has been observed to be accurate. See the promotion criteria
       # in docs/syncing-from-upstream.md section 7.
