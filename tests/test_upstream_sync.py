@@ -190,6 +190,7 @@ def _write(
     extra: str = "",
     extraction_base: str = _SHA_B,
     upstream_commit: str = _SHA_A,
+    sync_extra: str = "",
 ) -> Path:
     path = tmp_path / "record.toml"
     _ = path.write_text(
@@ -200,6 +201,7 @@ upstream_skills_commit = "{upstream_commit}"
 extraction_base = "{extraction_base}"
 skills_path = ".claude/skills"
 synced_on = "2026-01-01"
+{sync_extra}
 {skills}
 {unported}
 {extra}
@@ -827,3 +829,71 @@ def test_the_shipped_record_holds_up_against_real_upstream() -> None:
     assert not drift.unresolved, f"correspondence map errors: {drift.unresolved}"
     assert not drift.undeclared, f"undeclared upstream skills: {drift.undeclared}"
     assert not drift.vanished, f"vanished upstream skills: {drift.vanished}"
+
+
+# --- carried_note: the pin held on purpose ------------------------------------------------
+
+
+def test_a_record_without_a_carried_note_loads_with_none(tmp_path: Path) -> None:
+    """The field is optional: every record predating it must still load."""
+    assert load_sync_record(_write(tmp_path, _VALID_ROWS)).carried_note is None
+
+
+def test_a_carried_note_is_loaded_and_stripped(tmp_path: Path) -> None:
+    record = load_sync_record(
+        _write(tmp_path, _VALID_ROWS, sync_extra='carried_note = "  already carried  "')
+    )
+    assert record.carried_note == "already carried"
+
+
+def test_a_blank_carried_note_is_treated_as_absent(tmp_path: Path) -> None:
+    """Whitespace must not produce a header block with nothing in it."""
+    record = load_sync_record(
+        _write(tmp_path, _VALID_ROWS, sync_extra='carried_note = "   "')
+    )
+    assert record.carried_note is None
+
+
+def test_a_non_string_carried_note_is_rejected(tmp_path: Path) -> None:
+    with pytest.raises(SyncRecordError, match="carried_note"):
+        _ = load_sync_record(
+            _write(tmp_path, _VALID_ROWS, sync_extra="carried_note = 7")
+        )
+
+
+def test_the_carried_note_prints_above_behind_and_only_when_behind(
+    tmp_path: Path, synthetic_upstream: tuple[Path, str, str]
+) -> None:
+    """The note exists to be seen at the moment BEHIND is misread. Two halves:
+
+    it must appear when there is drift to explain, and it must NOT appear when there is
+    none -- a permanent banner is one a reader stops seeing, which is how this mitigation
+    would decay back into the TOML comment it replaced.
+    """
+    repo, base, _ = synthetic_upstream
+    rows = _VALID_ROWS.replace(_SHA_A, base)
+    note = "already carried, do not re-port"
+
+    record = load_sync_record(
+        _write(
+            tmp_path,
+            rows,
+            upstream_commit=base,
+            extraction_base=base,
+            sync_extra=f'carried_note = "{note}"',
+        )
+    )
+    drift = measure_drift(repo, record)
+    assert drift.behind, "the fixture must produce drift, or this test proves nothing"
+
+    text = format_report(record, drift)
+    assert note in text
+    assert text.index("CARRIED WITHOUT MOVING THE PIN") < text.index("BEHIND -"), (
+        "the note must sit ABOVE the list it explains, or it is read too late"
+    )
+
+    # Negative half: identical record with no note -> no banner at all.
+    quiet = load_sync_record(
+        _write(tmp_path, rows, upstream_commit=base, extraction_base=base)
+    )
+    assert "CARRIED WITHOUT MOVING THE PIN" not in format_report(quiet, drift)

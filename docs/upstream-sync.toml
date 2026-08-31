@@ -69,6 +69,17 @@ skills_path = ".claude/skills"
 
 synced_on = "2026-08-23"
 
+# Printed by the drift check, directly above its BEHIND list. It exists because the note
+# that used to live in the comment block above is invisible to the loader and to anyone
+# running the report -- the mitigation has to reach the surface where the problem appears.
+carried_note = """2026-08-31: every BEHIND skill below has ALREADY been carried. Do not re-port them.
+The whole advance came from ONE open upstream pull request; its head SHA would be
+rewritten by a rebase or squash-merge, so pinning it would leave the pin unresolvable
+and the check measuring nothing. The pin is held instead, which costs this loud false
+positive. Verify before acting: `git diff --numstat <pin>..<ref> -- <skill dir>`.
+When that PR merges: move upstream_commit to the merge commit, refresh synced_on,
+delete this note and the CARRIED block above, then re-run."""
+
 # --------------------------------------------------------------------------------------
 # The extraction window is not a point, and one earlier base got this wrong.
 #

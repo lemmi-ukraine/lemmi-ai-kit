@@ -125,6 +125,7 @@ class SyncRecord:
     extraction_base: str
     skills_path: str
     synced_on: str
+    carried_note: str | None
     skills: tuple[SkillRow, ...]
     unported: tuple[UnportedRow, ...]
     window: ExtractionWindow | None
@@ -285,6 +286,19 @@ def load_sync_record(path: Path | None = None) -> SyncRecord:
     skills_path = _require_str(sync_table, "skills_path", "[sync]")
     synced_on = _require_str(sync_table, "synced_on", "[sync]")
 
+    # Optional. Present only while content has been carried WITHOUT moving the pin --
+    # which happens when the source ref is an open PR head that a rebase or squash-merge
+    # would rewrite, making a pin that names it unresolvable. Holding the pin makes the
+    # report list carried skills as BEHIND, and that false positive is only useful if the
+    # reader can see WHY from the report itself: a note buried in a TOML comment is
+    # invisible to this loader and to anyone running the check.
+    raw_note = sync_table.get("carried_note")
+    if raw_note is not None and not isinstance(raw_note, str):
+        raise SyncRecordError("[sync] carried_note must be a string")
+    carried_note = (
+        raw_note.strip() if isinstance(raw_note, str) and raw_note.strip() else None
+    )
+
     raw_skills = data.get("skills")
     if not isinstance(raw_skills, list) or not raw_skills:
         raise SyncRecordError("the record must contain a non-empty [[skills]] list")
@@ -320,6 +334,7 @@ def load_sync_record(path: Path | None = None) -> SyncRecord:
         extraction_base=extraction_base,
         skills_path=skills_path,
         synced_on=synced_on,
+        carried_note=carried_note,
         skills=rows,
         unported=tuple(unported),
         window=window,
@@ -704,6 +719,13 @@ def format_report(record: SyncRecord, drift: DriftReport | None, why: str = "") 
             "  VANISHED - declared upstream skills that no longer exist there:"
         )
         lines += [f"    - {name}" for name in drift.vanished]
+        lines.append("")
+
+    if drift.behind and record.carried_note:
+        lines.append(
+            "  CARRIED WITHOUT MOVING THE PIN - read this before porting anything:"
+        )
+        lines += [f"    {line}" for line in record.carried_note.splitlines()]
         lines.append("")
 
     if drift.behind:

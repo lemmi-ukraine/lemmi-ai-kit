@@ -260,8 +260,23 @@ record beside it is one `grep` away from staying true; written as free prose, it
 confident false statement that a reader will act on. State the debt AND the command that re-measures
 it, always together.
 
-**Current outstanding debt:** the extraction-window review (§3c) is `reviewed-2026-08-24` with a
-residual of 53 window-added lines, each classified. Nothing else is deferred.
+**Current outstanding debt, and the correction this section needed twice.** The
+extraction-window review (§3c) is `reviewed-2026-08-24` with a residual of 53 window-added lines,
+each classified.
+
+The second item is the one this section originally said did not exist. **19 tracked skills report
+`BEHIND` while their content is already carried.** The 2026-08-31 sync took the whole upstream
+advance from a single OPEN pull request, and pinning an open branch head is unsafe — a rebase or
+squash-merge rewrites it, leaving the pin unresolvable and the check measuring nothing. The pin is
+held instead, and the cost is a standing false positive.
+
+That mitigation is only useful if it reaches the reader at the moment the false positive does, so
+`[sync] carried_note` in the record is **printed by the report directly above its `BEHIND` list**.
+It was a TOML comment first, which the loader cannot see and the report never printed — the same
+defect as the one this section is about: a correction filed somewhere the symptom does not lead.
+
+Clearing it: when that pull request merges, move `sync.upstream_commit` to the merge commit, refresh
+`synced_on`, delete `carried_note`, and re-run. The report should go clean for those 19.
 
 ## 7. Promotion criteria — when a report becomes a gate
 
