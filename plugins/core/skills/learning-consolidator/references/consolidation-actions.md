@@ -380,11 +380,32 @@ Hand-counting does not catch this at drain scale. The 2026-07-31 drain's manual 
 including a rule the same consolidation then cross-referenced from a skill as if it existed —
 a dangling pointer to knowledge it had just deleted.
 
-Run it against the pre-drain snapshot (Phase 5 requires taking one before any deletion):
+Run it against the pre-drain snapshot (Phase 5 requires taking one before any deletion). **The
+second argument is mandatory, and which ref is correct depends on whether the promotions are
+committed yet — this is the step's sharpest edge:**
 
 ```bash
+# Promotions still UNCOMMITTED (drain and promote in one session): HEAD is the pre-promotion state.
 python "${CLAUDE_SKILL_DIR}/scripts/drain_audit.py" <pre-drain-snapshot>.md HEAD
+
+# Promotions ALREADY COMMITTED (the mandated promote -> commit -> delete order, or a later
+# session finishing the drain): pass the commit BEFORE the promotion commit, never HEAD.
+python "${CLAUDE_SKILL_DIR}/scripts/drain_audit.py" <pre-drain-snapshot>.md <promo-commit>~1
 ```
+
+Passing `HEAD` after the promotions are committed makes the haystack ("lines ADDED since ref")
+nearly empty, so every entry reads as a loss. Omitting the ref is the opposite and more dangerous
+failure: the audit then greps each target's CURRENT contents, where a token that predates the drain
+counts as a landing. Measured on one buffer — `landed 96 / LOSS 7` with no ref versus
+`landed 78 / LOSS 25` in sound mode, hiding **18** candidate losses behind pre-existing tokens. Only
+the sound-mode figure may be quoted.
+
+**Reconcile the report's coverage before trusting it.** The entry splitter matches only
+`### [`-prefixed headings, so entries headed `### YYYY-MM-DD — Title` are invisible and nothing
+reports the gap — the script prints its own parsed count as though it were the file's, and the
+`lint` subcommand does not check the heading form either. On one drain that was **6 of 115** entries,
+three of them dispositioned KEEP. Always check `entries scanned` against
+`grep -c '^### ' <snapshot>` and hand-adjudicate the difference.
 
 For each entry the script extracts its most distinctive backticked identifiers and greps every
 promotion surface (AGENTS.md, CLAUDE.md, `docs/`, skills, cursor rules, kiro steering, module and

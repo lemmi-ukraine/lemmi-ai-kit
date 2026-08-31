@@ -55,7 +55,15 @@ You verify each entry against the current codebase before deciding its fate.
    `.ai/consolidation-plan-2026-08-03.md` is headed "EXECUTED" and lost **18 of its 37** promotions:
    uncommitted edits in a tree several sessions were stashing through, and the only symptom was the
    buffer failing to shrink (work looked pending AND done, so neither artifact contradicted the
-   other). Run `git log --oneline --all --grep=CONSOLIDATION -- AGENTS.md`; with no commit naming
+   other). Run `git log --oneline --all -i --grep=consolidat --grep='drain the learnings' -- AGENTS.md`
+   — **two patterns, case-insensitive, because the single `--grep=CONSOLIDATION` form is a false
+   negative.** Measured: it returned empty while the drain had landed and committed as *"chore(ai):
+   drain the learnings buffer 114 -> 2, promoting into rules and skills"* — the changelog *entry*
+   is headed `CONSOLIDATION:` but the commit message is not, and this check reads commit messages.
+   Following it literally would have re-verified 93 already-landed promotions. Settle any ambiguity
+   on the artifact rather than the message: `git show <sha>:.ai/learnings.md | grep -c '^### '`
+   against the post-drain count, plus `git merge-base --is-ancestor <sha> HEAD`. With no commit
+   naming
    that drain, re-verify each promotion at its **named target** and treat still-present entries as
    un-drained rather than duplicates.
 1. Read `.ai/learnings.md` in full.
@@ -339,7 +347,10 @@ After all promotions are executed:
    - Category sections with no entries are removed (avoid empty sections)
    - File header and instructions are preserved
 6. **Verify LANDING — mandatory, and NOT step 5's check.** Step 5 proves entries left the buffer; it
-   is blind to an entry removed whose knowledge reached no home. Run `drain_audit.py` on the snapshot
+   is blind to an entry removed whose knowledge reached no home. Run
+   `drain_audit.py <snapshot> <base-ref>` — **the ref is not optional**, and which one is correct
+   depends on whether the promotions are committed; reconcile `entries scanned` against
+   `grep -c '^### ' <snapshot>`, then adjudicate every flagged row
    and adjudicate every flagged row: [§ Drain Landing Audit](references/consolidation-actions.md#drain-landing-audit).
 
 ### Phase 6: Cross-Reference Verification

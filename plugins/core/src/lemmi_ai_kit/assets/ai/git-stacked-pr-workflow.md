@@ -174,6 +174,76 @@ first, or compare against the OIDs `ls-remote` actually printed — never mix th
 Re-verify after every force-push rather than trusting the push's own report. A `push --dry-run`
 confirms the push would be *accepted*, not that the chain is *connected*.
 
+**Ancestry is necessary and not sufficient — also assert remote SHA == local SHA, per branch.**
+A rejected push leaves the old ref in place, and the *old* chain is internally consistent, so every
+adjacent pair still answers "ancestor" while three branches sit on the pre-sync base. Measured: a
+stack sync reported success having stranded three branches, and the tell only surfaced when a PR
+opened from one of them showed **19 commits / 100 files** for a change that was really
+**1 commit / 9 files**, because head and base had diverged.
+
+```bash
+git rev-parse <branch> origin/<branch>     # the two SHAs must be identical, per branch
+```
+
+Stop at the first failing pair. Pushing a higher layer onto a broken link buries the break.
+
+## Cascading a stack after fixes land at the bottom
+
+**Switch to `--onto` at the first branch whose base needed a conflict resolution.** A plain
+`git rebase <base>` relies on patch-id matching to skip commits already present upstream, which
+holds only while the lower branch was rewritten *mechanically*. Resolving a conflict **changes the
+patch**, so its patch-id no longer matches the copy the upper branch carries; git then replays the
+lower branch's old commit on top of the new one and conflicts against your own resolution. Measured
+on a 13-branch cascade: the first five rebased cleanly and the sixth blew up.
+
+```bash
+git rebase --onto <newbase> <old-base-tip> <branch>
+```
+
+**Derive `<old-base-tip>` from `git merge-base`, not from a pre-cascade tag, whenever a link was
+already broken.** If an upper branch had forked from an older tip, the tag is not the true fork
+point — using it replayed 16 commits where 4 were expected. `git merge-base <lower-tip> <upper-tip>`
+(both pre-cascade) is the honest answer.
+
+**Cheap proof that nothing duplicated:** `git rev-list --count <base>..<branch>` against its
+pre-cascade count. An unchanged count is the check; a grown one is the alarm.
+
+### A branch whose own tip is a merge commit must be MERGED, not rebased
+
+`git rebase` does not preserve merge structure — it replays both sides of an existing merge commit
+as one flat sequence, so content the merge already brought in gets replayed a second time out of
+context. The symptom is a **false conflict** in which a later commit's entire diff appears to already
+exist in "ours".
+
+```bash
+git log --format='%H %P' -1 <tip>    # two parents = the tip is a merge; do not plain-rebase
+```
+
+Use `git merge <new-upstream>` instead: a real 3-way merge against the true historical merge-base. It
+resolves cleanly in this shape, and because the result's first parent is the branch's own unchanged
+tip, it often pushes as a **fast-forward** rather than a force-push.
+
+### Dropping exactly one isolated commit, without an interactive rebase
+
+Pass the unwanted commit **itself** (not its parent) as the `<upstream>` argument — the replay
+covers only commits strictly after it:
+
+```bash
+git rebase --onto <newbase> <the-unwanted-commit> <branch>
+```
+
+Confirm two things first, or this silently drops work: (a) nothing later depends on what the commit
+introduced (`git grep` for its content across the full range), and (b) the very next commit still
+applies with its original content (`git show --stat` after). Used to excise a redundant migration
+merge-revision from a 14-branch scripted sync where `git rebase -i` was not an option.
+
+### Separate FIXING from CASCADING into different sessions
+
+Having each branch fix *and* cascade across a 14-deep stack costs ~48 force-pushes, and every cascade
+rewrites the branches the next session was briefed against — so each brief goes stale before it is
+used. Fix-only sessions that commit but **never push**, followed by a single cascade session, cost
+~13. Tell the fix sessions *why* they must not push, or they will helpfully push.
+
 ## Collapsing a stack
 
 Advancing a root PR's head branch past a child's head makes **GitHub automatically mark that direct

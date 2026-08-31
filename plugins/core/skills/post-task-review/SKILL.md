@@ -33,7 +33,17 @@ and convention compliance. Steps 7–8 are documentation and learnings extension
 2. **Detailed File-by-File Review** — Check every function for correctness, edge cases, resource cleanup
 3. **Project Conventions Review** — Imports, one-class-per-file, feature structure, logging, exceptions (see AGENTS.md § Conventions).
 4. **Self-Challenge** — Ask adversarial questions: "What could go wrong?", "What if input is empty?"
-   Three verified traps to include: (a) any claim grounded in a NAMED config/settings field is
+   **The sharpest question is not "is my reasoning correct?" but "what did I not look at, and how do
+   I know that list is complete?"** — [references/claim-boundaries.md](references/claim-boundaries.md)
+   carries four measured cases where the reasoning was right about everything it examined and the
+   conclusion was still wrong, so re-reading confirmed it every time: an eliminate-the-candidates
+   argument that never enumerated the third candidate (the fix deleted a file rather than adding
+   one); two independent derivations that agreed on a value while **two of the consumer's three
+   inputs** were missing; a stated 40%-coverage caveat that sat beside its own headline instead of
+   gating it (re-measured, the effect collapsed and reversed); and a pytest **collection** error
+   generalised into "the tree does not import", written into a hand-off as verified state when the
+   application's own one-line import check exits 0.
+   Three further verified traps: (a) any claim grounded in a NAMED config/settings field is
    unverified until the field's description/usage is read — a name that pattern-matches the claim
    ("tolerance" ≈ leniency) is a false friend; (b) every COUNT written into a ledger/changelog entry
    (samples changed, files touched) must be recomputed from the diff at write time — working memory
@@ -104,6 +114,15 @@ and convention compliance. Steps 7–8 are documentation and learnings extension
    probe cannot see for you: a manifest check cannot flag a file that was never in the manifest
    (pair it with a set-difference against the live tree), and a self-check whose fixtures share
    provenance with the code under test measures well-formedness, not validity.
+   **The probe answers "can this checker see?" and nothing about whether your FIXTURES model
+   anything real — six measured ways a green probe certifies a wrong instrument are in
+   [references/fixture-design.md](references/fixture-design.md):** a negative fixture that does not
+   *resemble* the target (one unbounded `sk-` pattern halted a pipeline on a branch name AND
+   silently rewrote 119 real paths); a probe aimed at the pure half while the network-adjacent half
+   held the API semantics (an empty-body APPROVE read as unanswered); fixture **decay**, where the
+   commit that fixes the defect is what breaks the fixture; **shared provenance**, where inverting
+   the match took a live count 16 → 51; a marker-gated linter's silent zero for files it never
+   opened; and a text-matching tool that must normalise CRLF before comparing.
    (k) **Reading your own side of a contract cannot establish what the other side populates.**
    Two claims about a resume-resolution contract were refuted this way: the producing side was never
    opened, and the consuming side's code was consistent with several possible producer behaviours.
@@ -127,7 +146,16 @@ and convention compliance. Steps 7–8 are documentation and learnings extension
    over the original artifact, and **re-derive every figure a fix touched** rather than carrying the
    pre-fix number forward. A correction carries more authority than the claim it replaces, which is
    what makes an unreviewed fix round expensive.
-6. **Run Linting and Diagnostics** — `ruff check --fix` on all modified files, `read_lints` on all modified files
+6. **Run Linting and Diagnostics** — `ruff check --fix` on all modified files, `read_lints` on all modified files.
+   **Before quoting any gate result, check you are reading the question you actually asked** —
+   [references/reading-gate-output.md](references/reading-gate-output.md) carries five measured cases
+   where the command ran, exited as designed, printed a true statement, and answered the wrong
+   question: `--stat`'s proportional bars rescaling (nearly voided a clean 441-pass run), a torn-tree
+   check that cannot see what a test reads **off disk** (a parity test passed against another
+   branch's manifest), a long gate that **started before** the file it judged existed (where a clean
+   result is silent, so absence proves nothing — use the delta across runs), an `||`-chained redirect
+   that skipped its fallback and faked a data-loss alarm, and git-blob-vs-worktree comparison, which
+   is a **line-ending** test and reported 0 of 22 archived files identical when all 22 were perfect.
 
 ### Step 7: Documentation Impact Analysis
 

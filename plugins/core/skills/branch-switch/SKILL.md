@@ -195,6 +195,29 @@ When a stash-pop, FF-pull, or merge conflicts on append-only logs (`.ai/learning
    still has its full field set — a 3-way merge can pull an entry's trailing field (`- **Category**`)
    out as common context and silently attach it to the next entry.
 
+## A big merge's real hazard is DOC-TRUTH, not code
+
+Measured: a long-lived integration branch (185 ahead) merged into a branch 7 ahead whose 5-of-7
+commit subjects had **patch-id-identical twins** already upstream via other PRs. The handoff
+predicted 2 conflicting files; the merge produced **1** — the feature README, where both sides
+appended *different* bullets at the same EOF anchor. The predicted *code* file auto-merged as a true
+composition of both sides.
+
+Patch-id-identical duplicates make textual divergence collapse at merge time, so surviving conflicts
+concentrate in **append-heavy prose** — and the resolution risk there is that the kept prose asserts
+**live-state claims**. One side's bullets claimed a particular enum value was unreachable and that a
+kill switch was in no env file; either could have been falsified by the other side of the very merge
+being resolved.
+
+- **Resolve doc conflicts against the POST-merge tree** — `git grep` each kept claim's symbols —
+  never against either parent alone.
+- **Sweep open sibling PRs for content that will invalidate the kept text**, and write the expiry
+  next to it. One of those two claims retires the moment an open PR merges; that was recorded inline
+  where the text was kept.
+- **For files that auto-merged, diff the result against BOTH parents** (`git diff HEAD -- <f>` and
+  `git diff <other> -- <f>`) to see what actually composed, then let the type and lint checks
+  arbitrate the composition.
+
 ## What NOT to Do
 
 - Do NOT use `git checkout .` or `git restore .` to discard changes — this destroys work

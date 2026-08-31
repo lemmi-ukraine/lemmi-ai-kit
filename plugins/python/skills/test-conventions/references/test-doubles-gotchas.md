@@ -112,3 +112,96 @@ contract.
   the actual row count and objects before writing a fix for that narrative — a wrong-but-plausible
   theory yields a "fix" that is at worst a no-op, so it passes review and quality gates while the
   real (test-setup) bug survives.
+
+## A shared double is a CLAIM about the outside world, and a wrong claim degrades to green
+
+A double asserts what the real dependency does. When that assertion is wrong AND the caller
+**degrades gracefully**, a broken fixture becomes a vacuous pass rather than a failure.
+
+### 1. A stub path must be DERIVED from the client's constants, never hand-copied
+
+Measured: a mock-API fixture stubbed `/api/internal/<resource>/parse` while the calling service used
+`/api/v1/internal/...`. The missing `/v1` meant **every** call through that client 404'd in the
+containerised suite, for as long as the stub had existed — hidden because the caller degraded on
+error. The tests that finally failed named an unrelated feature entirely, so nothing pointed at the
+stub.
+
+```bash
+grep -oE '"/api[^"]*"' <source root> -r | sort -u   # diff against the stub paths
+```
+
+Hand-copying a route into a fixture forks it from the constant the client actually uses, and nothing
+re-joins them. Derive the stub's paths from the client's own constants, or assert equality between
+the two sets in a test.
+
+### 2. Fabricated ids must sit OUTSIDE the real id band
+
+Measured: a fixture minted ids as `md5(content) % 10000` — inside the real id band, where
+production records ran 2859—3159. The double was *too realistic*, so a mock id leaking into real
+data could never be spotted on sight. That is the exact property that let fabricated ids survive in
+production for months. Put fabricated ids somewhere no real id can reach.
+
+### 3. An `__init__` assignment silently kills the method it shadows
+
+A mock response class defines `def raise_for_status(self)` that raises on `status >= 400` — and
+`__init__` then assigns `self.raise_for_status = MagicMock()`, which **shadows it**. So a factory
+called with `status_code=500` returns a response that does not raise: the request "succeeds" and the
+body parses.
+
+Found only because a new test asserting *"a 500 must raise"* failed against **correct** production
+code. The dangerous direction is the inverse — a test asserting success under an injected 500
+passes and reads as error-path coverage.
+
+```bash
+# before trusting any double's error-path behaviour:
+grep -n 'self\.<method_name> = ' <the double>   # inside __init__ ⇒ the method is dead
+```
+
+### 4. A stale double becomes a silent no-op when its seam is wrapped in `except Exception`
+
+Measured: a cleanup helper gained a call reading three new attributes off the session object; the
+suite's stub session predated them. The `AttributeError` raised **inside** the `except Exception`
+that exists so a failed cleanup degrades to teardown — correct production behaviour — and
+converted the test failure into *"nothing happened"*. Five tests failed on assertions naming the
+cleanup; **not one named the missing attribute**, and the swallowed traceback never reached pytest's
+output.
+
+```bash
+git grep -l "<SeamFunction>" -- tests/   # in the SAME edit that widens what the seam reads
+```
+
+Two lessons. Grep the doubles when widening a seam, rather than waiting for a suite that will give
+you a misleading failure instead of a stack trace. And when a degradation path swallows an exception,
+make the swallow point **name the attribute** — a `logger.exception` was present here and the
+runner never surfaced it, so the information existed and was unreachable exactly when it was needed.
+
+> The file's own docstring already warned about this hazard **for three other attributes** and it
+> recurred anyway, because the warning listed the attributes instead of stating the rule.
+
+---
+
+**When any of these is corrected, expect previously-passing tests to change behaviour, and read that
+as signal rather than regression.** Removing a fallback that swallowed transport errors will fail
+tests that look unrelated to the subsystem — the fallback was holding up everything else that went
+through that call. Budget a full-suite run for it, not a targeted one.
+
+## A docstring that weighs exactly TWO options can lock in the defect it warns about
+
+Measured: a parser discarded an open START event when a second arrived, and a test asserted exactly
+that. Its docstring justified the expectation: *"keeping the first would mint a single pair covering
+two turns, which places the later turn's data at the earlier turn's offset — the exact
+desynchronisation this work exists to remove."*
+
+Every clause is true and the conclusion is still wrong, because the comparison is **binary** —
+keep-the-first versus keep-the-second — and the correct answer is a third option the docstring
+never names: **emit BOTH**. Discarding the first produces the *same* failure the docstring warns
+about, so the test locked in the defect it was written to prevent while reading as a considered
+trade-off.
+
+- When a test docstring argues its expectation by weighing two alternatives, **treat the enumeration
+  itself as the thing to check**: ask what a third option would be, and whether the stated harm also
+  follows from the chosen branch.
+- A docstring that reasons about a trade-off is **more** dangerous than a bare assertion — it
+  reads as already-audited, so reviewers stop at the reasoning instead of the option set.
+- Grep-able symptom: any invariant joining two lists **positionally** with no test asserting
+  `len(a) == len(b)`.

@@ -120,6 +120,8 @@ git diff HEAD -- AGENTS.md   # then sum added minus removed characters; /4 ≈ t
 A low-frequency design concern on the always-loaded surface dilutes attention on every rule beside
 it. Report the net token delta explicitly — an unmeasured cost is an unchallenged one.
 
+**Characters are the binding number; bullets and lines are not.** Measured on a drain that promoted 9 entries into `AGENTS.md` as *extensions of existing bullets*: **55 bullets before and after, +7 lines (2.2%)** — clean against the declared metric — while the same change was **+6.8 KB (~1,700 tokens), +13.1%**. Because each bullet is one very long line, extending bullets grows cost without moving either declared metric, which is exactly the "gameable by cramming" evasion that hypothesis's own risk clause named, reached without anyone intending to game it. **A metric chosen because it is easy to count will be satisfied in the way that is easy to count.**
+
 > **Caught:** a validation-gate rule and an `asyncio.wait_for` rule moved off the always-loaded
 > surface to homes whose triggers fire more reliably than "always"; a PowerShell quoting clause
 > dropped because its rationale was already co-located in the script it guards.

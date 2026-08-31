@@ -253,3 +253,35 @@ citation can be a bare filename in a list. Check that the citing document reprod
 that it mentions the path. (2) Matching on a **basename** conflates distinct files across
 directories, so `design.md` matches every spec's design doc; match on the repo-relative path.
 Regression cases for both now live with `cmd_extraction` / `_cites_this_file` / `OPEN_STATE_MARKERS`.
+
+---
+
+## A removal sweep must cover the target's OWN directory
+
+Excluding it answers *"does another **other** initiative depend on this?"* — a different question,
+whose opposite answer silently licenses the deletion. Measured: a sweep run as
+`git grep -l "<file>" -- ':!<its own dir>'` returned UNCITED for all 22 candidates; re-run without
+the exclusion, **12 were cited** — by the `plan.md` that was staying and named the very scripts it
+drove. Exclude the target FILE, never its directory, and state which question the pathspec answers
+next to the number it produces.
+
+## Step 4a-ter - Does the NEXT operational step read this file?
+
+**Every gate this skill has asks about the artifact's own lifecycle** - is the work implemented, is
+it cited, is it a decision record. **None asks whether work still owed depends on it**, and a
+completed gate record and a live runbook look identical to a kind-classifier.
+
+Measured: three archive waves cut an initiative directory from 158 files to 7, each wave gated by
+artifact kind, citation checks and byte verification. Wave 1 archived a review packet - the 10-item
+**pre-upload gate** - and the baseline checksums recording which files had changed. **The upload had
+not happened.** Every gate passed; both files were restored at session close.
+
+The packet was *correctly* classified as a completed review surface while being the procedure for
+work still owed. So before archiving any file, ask:
+
+- Is there an operational step for this initiative that has **not** happened yet - an upload, a
+  deploy, a migration run, a verification pass?
+- If so, does this file carry its instructions, its baseline, or its checklist?
+
+A "yes" to both keeps the file, whatever the kind classifier says. Record the pending step next to
+the decision so the next cleanup does not re-litigate it.

@@ -209,9 +209,14 @@ Rules for the table:
   varying depth is only legitimate if the variance is recorded.
 - `Status` is a claim with a date — write the date in the cell. See step 7. Prefer the vocabulary the
   repo's boards already use (`on a branch · parked · delegated · deployed—verify · done`).
-- **Commit the file.** Writing under `.specs/` does not track it — `.specs/` is not gitignored, but a
-  new file there is untracked until `git add`, and an untracked single copy is exactly F7. Verify:
-  `git ls-files --error-unmatch .specs/{initiative}/topology.md` → exit 0.
+- **Track the file — and land its commit with the initiative's first code commit, not before it.**
+  Writing under `.specs/` does not track it: `.specs/` is not gitignored, but a new file there is
+  untracked until `git add`, and an untracked single copy is exactly F7. So it must reach a commit.
+  But a `.specs/` commit that lands *ahead* of the code reads to the next session as a decision that
+  shipped. The topology is written **before the first commit** (above) and *committed with* it.
+  Verify at that point: `git ls-files --error-unmatch .specs/{initiative}/topology.md` → exit 0.
+  **If the project keeps `.specs/` untracked by its own ruling, that ruling wins** — check the
+  project's rules first and say which regime you are under.
 - **Never write an absolute local path into this table** — a drive-letter path, or one anchored at a
   user's home directory, works for exactly one engineer. Keep paths repo-relative.
 
@@ -234,6 +239,22 @@ re-raised. The split happened two days later at the cost of a closed PR and 7 or
 
 **A risk noticed once and not escalated is functionally unnoticed. A trigger that must be re-read to
 fire has the same failure mode — so make them commands.**
+
+> **Any topology revision must sweep the PENDING DISPATCH BRIEFS in the same edit session.** A brief
+> encodes the topology's fork base and tree-state expectations *as preconditions with expected
+> results* — which is exactly what makes it safe, and exactly what makes every pending brief stale
+> the moment the topology moves. Measured: a topology flipped from siblings-off-trunk to one linear
+> chain hours after **three** briefs had been written against the old shape. All three still said
+> *"expect trunk, clean tree"* and *"fork from trunk/current HEAD"*; a worker following any of them
+> would have stop-and-reported on a false alarm or forked outside the chain. The plan documents were
+> re-synced in that same session and the briefs were not — they live in a different directory and no
+> re-planned document referenced them as things-to-update. **The trigger tables covered branches and
+> deliverables, not briefs.**
+>
+> Addendum each stale brief with the new fork base, expected tree state, and diff anchors —
+> trunk-anchored self-check diffs blame lower chain layers on the worker. And a brief parked in
+> another session's scratch directory is one cleanup away from deletion: copy it into the durable
+> hand-off directory byte-perfect before amending.
 
 Each trigger is a command **with an expected result** — the `parallel-session-safety` §9 contract
 ("preconditions and verification are commands, never prose"). Escaped pipes below are markdown table

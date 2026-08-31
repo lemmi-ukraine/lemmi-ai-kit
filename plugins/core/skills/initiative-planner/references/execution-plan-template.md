@@ -142,8 +142,11 @@ Per class, not per row. What belongs here:
   override, so its tier is real rather than advisory.
 - **Cross-session peer** — owns a branch, or needs its own context window and its own approval loop.
   **It is not a tool call:** a brief goes out, the result returns as `.ai/handoffs/{date}-{slug}.md`.
-  It cannot be spawned and cannot be awaited. It **inherits the operator's session model**, so the
-  tier column is a recommendation.
+  It is normally **operator-driven, and that is a choice rather than a limit** — an earlier version
+  of this template asserted it "cannot be spawned and cannot be awaited", which was retracted
+  upstream as false. The CLI does offer non-interactive and background invocation; the flags move,
+  so **probe `claude --help` this session** rather than assuming capability in either direction. It
+  **inherits the operator's session model**, so the tier column is a recommendation.
 - **External CLI worker** — only if `command -v` found it this session. Probe, do not assume.
 
 State once here what every brief carries (the delegation contract lives in `roadmap.md` §5), and

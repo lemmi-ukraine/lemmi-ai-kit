@@ -183,6 +183,15 @@ Each question must produce either a confident answer or a finding:
    flagged cases lacking a property looked decisive until the base rate showed 85% of the population
    lacks it (p ≈ 0.23).
 
+**Does the better fix live in a repo you cannot see?** When a capability spans two repos and
+only one is checked out here, the accessible repo's solution reads as the *obvious* plan — not
+because it is technically better, but because it is the only one directly investigable. Measured:
+a request to simulate a dropped connection and reconnect defaulted to a new standalone script in the
+backend — the only repo checked out — without weighing that the frontend already owned the reconnect
+path. Ask explicitly, before proposing where new cross-repo capability should live: *does the other
+repo already have a working implementation this would duplicate or diverge from?* If you cannot
+check, say so and name who can — do not let "the repo I can read" become "the repo it belongs in".
+
 ### Step 4 — Resolve What You Can
 
 For each finding:

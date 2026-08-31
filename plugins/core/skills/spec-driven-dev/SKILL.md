@@ -400,9 +400,18 @@ will land across more than one PR names its layer there rather than discovering 
 
 - All specs live in `.specs/{task-name}/` at the project root
 - `{task-name}` uses lowercase with hyphens (e.g., `voice-recording-upload`, `sse-progress-migration`)
-- **Commit the spec.** Writing under `.specs/` does not track it — the directory is not gitignored,
-  but a new file there stays untracked until `git add`, and an untracked spec is a single copy with
-  no history. Verify: `git ls-files --error-unmatch .specs/{task-name}/spec.md` → exit 0
+- **Track the spec — but commit it WITH the implementing code, never ahead of it.** Writing under
+  `.specs/` does not track it: the directory is not gitignored, but a new file there stays untracked
+  until `git add`, and an untracked spec is a single copy with no history. So it must reach a commit.
+  **The timing is the part that is not negotiable:** a `.specs/` commit lands together with, or
+  after, the code it specifies. A spec committed ahead of its implementation publishes a plan as
+  though it were a decision that shipped, and the next session reads it as the state of the tree.
+  Verify at the point the code commit is prepared:
+  `git ls-files --error-unmatch .specs/{task-name}/spec.md` → exit 0.
+  > **A project may override this and keep `.specs/` untracked entirely** (`.gitignore`, or
+  > `.git/info/exclude` for a local-only ruling). Check the project's own rules before planning a
+  > spec commit — where such a ruling exists it wins, and this bullet is the thing to stop
+  > following. Say which you are under.
 - **Disposition at the end is `initiative-cleanup`'s call, and it inverts the intuition:** a spec
   whose work SHIPPED gets deleted (relocate anything durable to the code-adjacent home, leave a
   changelog pointer); a spec that was ABANDONED or parked is KEPT, with its revival trigger. See

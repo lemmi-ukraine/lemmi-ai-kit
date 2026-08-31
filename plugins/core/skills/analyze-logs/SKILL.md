@@ -353,6 +353,29 @@ See [references/analysis-examples.md](references/analysis-examples.md) for calib
 - Do NOT group unrelated errors just because they happen close in time.
 - Do NOT skip codebase verification — "I think the code does X" is not evidence.
 
+## A per-connection "rate" on a streaming protocol is a CONSTANT plus a rate
+
+A platform's `httpRequest.requestSize` on a websocket row **includes the ~1.8-2.3 kB upgrade
+request**, which arrives at t=0. It does also accumulate streamed payload (one row in a real corpus
+carries 40 MB, which cannot be a header), so `requestSize / latency` is a usable per-connection
+inbound rate — *except* for a long connection that then sends nothing, where that fixed constant
+divided by a growing duration produces a small non-zero number **presenting as a sustained rate**.
+
+Measured: a reported **18-38 B/s** inbound "trickle" on streaming sockets was the whole basis for a
+watchdog detector design. The decisive test was scaling, not magnitude — across the faulted cohort,
+duration scaled **x2.11** (60.2 s -> 126.8 s) while total bytes scaled **x1.03**. A genuine
+per-second trickle had to scale x2.11. Net of the handshake baseline those connections sent
+**151-531 bytes over 60-127 s** (1.2-8.8 B/s) — fewer bytes than one media frame. The "trickle" was
+neither pings nor payload: a fixed handshake, a handful of control frames, then true silence.
+
+The same corpus **reproduced the source document's numbers exactly**, which confirmed the artefact
+rather than contradicting the measurement — so agreement with the prior figure was not evidence the
+interpretation was right.
+
+> Before calling any low per-connection rate a "rate": subtract the handshake baseline (estimate it
+> from connections too short to have streamed anything) and **test whether total bytes scale with
+> duration**. State the window and the baseline alongside any such figure.
+
 ## Querying the Log Platform Directly
 
 When the user needs to search the platform rather than a downloaded file, the method is the same on

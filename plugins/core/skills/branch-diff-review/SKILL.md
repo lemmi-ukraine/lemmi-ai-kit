@@ -96,6 +96,39 @@ git diff HEAD --stat                         # snapshot the dirty set BEFORE rev
 If the base advanced after the branch forked, two-dot renders the base's own new commits as phantom
 deletions in your diff.
 
+**Existence first, relations second — an ancestry check cannot detect a branch that was never
+created.** `git merge-base --is-ancestor A B` answers *"is A below B"*, which is only meaningful once
+**both refs resolve**, so it is structurally incapable of reporting the absence you are worried about.
+Measured on one dispatch brief: of three named layers, two branches did not exist local or remote and
+the third resolved to the *same SHA as the base*, so the range held **zero commits** — and a reader
+running the ancestry check against the two refs that did resolve would have read the chain as healthy.
+
+```bash
+git rev-parse --verify --quiet <ref>    # exit 0, PER REF, before any relational check
+```
+
+> **A precondition containing a `<placeholder>` has not been checked and cannot be run** — it is
+> prose wearing a monospace font. In the measured case, two blocks six lines apart in one brief
+> differed exactly here: one pinned concrete refs *with their expected outputs*, the other gave a
+> command template. What separated them was not command-vs-prose but **concrete refs with expected
+> outputs vs a template**.
+
+**If the range resolves EMPTY, you are in a different mode — do not write an empty-but-complete
+report.** "Nothing to review" and "reviewed, found nothing" are opposite results: the second is a
+*verdict* whose coverage section is load-bearing evidence; the first is a **precondition failure**
+whose coverage section is necessarily empty. Following the "empty report" guidance literally here
+would produce eight sections of coverage claims about a nonexistent diff, which reads to any later
+citer as a completed clean review. Instead:
+
+1. Lead with a **precondition-failure block** carrying the exit codes.
+2. State explicitly which dispatch questions became unanswerable and must be re-dispatched.
+3. **Review the committed substrate the missing work will build on**, and file those findings against
+   the *future* owning layer — the missing layers are not arbitrary, each was specified to build on
+   committed code. In the measured case this produced two Majors and four pre-emptive constraints on
+   code not yet written, including a race proven by executing the committed blobs.
+4. Mark every such finding **pre-emptive, naming the owning branch**, so a later reader cannot mistake
+   an obligation for a live defect.
+
 **Check whether it matters on THIS pair before arguing about it:**
 
 ```bash
@@ -146,6 +179,15 @@ target is **UNKNOWN** from inside this repo — its definition is not a readable
 reported file set against step 1's `git diff --stat <base>...HEAD` and state which basis produced the
 findings. If they disagree, step 1's three-dot argument is the one to keep, and re-run scoped to the
 file list. Do not skip this: without it, the most-emphasised rule in step 1 may be decorative.
+
+> **If you did not run `/code-review`, say so in the Gates section — with the reason and the exact
+> command a reader could run instead.** A prescriptive dispatch brief supplies enough structure that
+> the review never *feels* incomplete: there is always a next named thing to check, so this delegation
+> step is easy to skip without noticing, unlike a step whose omission leaves a visible gap. Measured:
+> every finding in one report traced to the brief's own named questions, produced entirely by
+> hand-directed `git show`/`git diff`/`git grep`, and the first draft did not disclose that the
+> designated finding-generation engine never ran. **The trigger to check yourself: when all your
+> findings trace to the brief's questions rather than to a general sweep.**
 
 **All eight `pr-review-concise` steps, classified** — an unclassified step is one a reader will apply
 or drop at random:
@@ -238,7 +280,14 @@ not-reviewed sections is a finished review, not a failed one.
    `.specs/*/plan.md` names the initiative, or a recent orchestration file sits in `.ai/handoffs/`.
    Otherwise **state that it was skipped**. Count what is already there before adding to it
    (`ls .ai/handoffs/*.md | wc -l`); one more unread brief is the failure mode, not the safe
-   default. If written, check it with `python -m lemmi_ai_kit lint handoffs`, attributing findings **by
+   default. **That crowding sentence is the RATIONALE for why this gate is conditional — it is not
+   a fourth overriding condition.** Evaluate the three listed triggers *mechanically, as commands*
+   (`ls .specs/<initiative>/plan.md`; `ls -1t .ai/handoffs/*.md | head`); once any one resolves, the
+   action is in scope, and a crowded output directory is an argument for making the artifact worth
+   reading, not for withholding it. Measured: a review skipped the handoff citing this clause and a
+   directory count of 222 — condition 2 was genuinely unmet, but condition 3 **was** met, and the
+   operator asked for the handoff in their very next message. Counting the directory is a measurement
+   that feels like evidence while being irrelevant to whether THIS work has a consumer. If written, check it with `python -m lemmi_ai_kit lint handoffs`, attributing findings **by
    filename** — the target lints every handoff, not only yours.
 
 ## Example — the verification line, wrong and right

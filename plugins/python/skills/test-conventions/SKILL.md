@@ -435,6 +435,21 @@ error appears in a test file you just wrote, probe two pre-existing files using 
 file is worse than the error, because it makes that file diverge. Report the canonical scope's result
 and any extra scope's result separately, naming both.
 
+## Making a Hook Fail Closed Expands the Caller Contract
+
+Converting an implicit fallback into a registered factory whose getter **raises when unset** is
+usually right — a silently absent provider had been ending jobs with no tasks, no error and no row.
+But the raise fires at every construction site, including ones no spec lists. Measured: the spec
+named 7 files; the raise broke **4 tests in an 8th** that built the object directly and had no reason
+to know a registration now existed. Those tests patch the consumer wholesale, so the object the hook
+produces is discarded unused — they broke purely on the hook being **consulted at all**.
+
+- Before making a hook fail closed, take a **caller census** by grepping the call-site symbol
+  tree-wide (`git grep -n '<function>('`) — never from the spec's file list, which enumerates the
+  files the author thought about, and scaffolding is exactly what gets forgotten.
+- Budget a registration fixture **with teardown** for each test module the census finds; a
+  module-level hook leaks between tests otherwise.
+
 ## Pre-Writing Checklist
 
 Before writing any test:

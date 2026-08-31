@@ -48,7 +48,7 @@ python "$S" kinds      --root .specs/<initiative>          # Step 3b — per-fil
 python "$S" evidence   --symbol <SymbolTheWorkIntroduced>  # Step 4a — CODE vs DOC-ONLY vs ABSENT
 python "$S" extraction --target <scaffolding file>         # Step 4a-bis — is the reasoning elsewhere?
 python "$S" fundep     --target <path being moved>         # Step 4b-bis — does a PROGRAM read this?
-python "$S" refs       --target .specs/<name>              # Step 4b — inbound refs + authority guard
+python "$S" refs       --target .specs/<name>              # Step 4b — inbound refs; never exclude the target's OWN dir
 python "$S" coverage   --root .specs --plan <plan.md>      # Step 6 — whole population dispositioned?
 ```
 
@@ -238,7 +238,7 @@ systematically misses queries — "the checklist survived" and "the means of exe
 two separate gates.
 
 **Never delete another session's uncommitted work.** Anything in `git status` that this initiative did
-not produce is out of scope — list it, do not touch it.
+not produce is out of scope — list it, do not touch it. **Step 4a-ter** — does work still owed read it? [references/self-review-gate.md](references/self-review-gate.md).
 
 ## Step 3b - Classify by artifact KIND
 

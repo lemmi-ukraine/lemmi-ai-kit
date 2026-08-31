@@ -388,6 +388,35 @@ A risk whose mitigation is "be careful" is not mitigated.
 **Record what is NOT decided.** A plan that hides its open questions gets them decided by whoever
 commits first.
 
+## Step 7b — Two ways an initiative's own documents mislead the session reading them
+
+Both measured inside one initiative, and neither is a documentation-quality problem you can fix by
+writing more carefully — they are properties of a doc *set* that has been revised.
+
+**A layer's dispatch brief is silent on cross-layer sequencing, and silence is not clearance.** A
+brief for validating one layer treated *"push and deploy"* as a next step gated only on the
+operator's say-so. A same-day orchestration doc — written by a different, orchestration-level
+session — showed that layer was one of a sequential chain merging as **one bottom-up train**
+after the remaining layer, review and resolve were all done: *"must not be left half-run."* The layer
+brief was internally correct and complete about its own scope, and simply had no reason to restate
+sequencing that lives elsewhere.
+
+> Before treating "deploy this branch" as ready in a multi-layer initiative, open
+> `.specs/{initiative}/topology.md` or the orchestration session's own wave handoff and confirm the
+> sibling layers plus review and resolve are also done.
+
+**A short label (B1, L2, I-6) means different things in different documents of the same set.**
+One document's board used "B1" for one branch while another's own row **locally reused** "B1"/"B4"
+for a completely different pair — resolvable only from that row's plain-English text and an
+independent grouping on the board. A superseded plan marked *"never executed"* added a **third**
+numbering on top. A bare `grep` for "B1" surfaces every referent with nothing to disambiguate them.
+
+> Never trust a short label in isolation across a `.specs/{initiative}/` set that has been through
+> multiple planning revisions. Cross-check against a status board carrying **concrete branch names**,
+> or a plain-English restatement. Treat a label reused *locally* within one row or table as a
+> distinct scope from the same label on an outer board. Superseded plans are a live source of stale
+> colliding labels — consult them **last**, not first-found-by-grep.
+
 ## Step 8 — Re-plan triggers and status re-verification
 
 **A 23-row session register nobody re-opens is fiction by wave 3.** Two rules, both mirroring

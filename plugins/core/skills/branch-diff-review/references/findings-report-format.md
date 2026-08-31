@@ -124,6 +124,33 @@ Every finding downgraded, retracted, escalated, or reframed, **with the Part A o
 
 A severity change with no recorded output is the banned re-rating and must not appear here.
 
+**An operator's live answer is a THIRD mechanism, and it needs its own dated section.** This log is
+built for Part A/B tool-grounded reconsideration — *"the Part A output that moved it"*. A direct
+operator answer is neither a tool output nor self-reconsideration; it is a distinct, always-
+authoritative source that the severity rules already name (*only the operator may set `accepted` on a
+Blocker or Major*) without ever giving it a place to be recorded.
+
+Editing the findings table and detail sections in place to match such an answer, with nothing marking
+**where** the resolution came from, looks identical to a finding that was Minor/accepted from the
+first draft — which is precisely the "citation outliving verification" failure this whole format
+exists to prevent, moved one layer up.
+
+So when an open finding is resolved by a live, timestamped operator answer *after* the report already
+exists:
+
+1. Add a dedicated dated **`## Operator decisions`** section naming the question asked, the answer
+   given, and which findings it changed.
+2. Update the findings table and detail headers to match.
+3. Add a Corrections-log line whose mechanism is explicitly **`operator input`**, distinguishing it
+   from Part A/B.
+
+Measured: a report shipped with two open findings (an unverified "no new breakage" claim, and a
+Question awaiting another team's reply). Asked directly, the operator accepted the first's evidence
+and supplied a fact that settled the second outright — moving it from Question to Minor. Both
+changes would otherwise have been indistinguishable from original drafting.
+
+**Never let a post-hoc operator answer overwrite a finding's history silently.**
+
 ### 8. What was good (do not delete this section)
 
 Code review "is less about defects than expected" — its larger value is change understanding and

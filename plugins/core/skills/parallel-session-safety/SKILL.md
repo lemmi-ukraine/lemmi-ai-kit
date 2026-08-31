@@ -78,6 +78,27 @@ Treat a stale-read failure on an **owned** file as possible pre-completion:
 - Still run the required gate and a fresh final-state grep — the files mutated under you.
 - **Report provenance honestly**: "verified, not authored".
 
+## 3b. VERIFY-don't-reapply has a BRANCH-level twin, and a worktree grep is blind to it
+
+Section 3 catches a peer editing the file under you. The costlier version is a peer who **already
+fixed it, on a branch you are not on** — and no amount of grepping the working tree can see that.
+
+Measured: a session found a false capability claim in two skills, swept the tree for every phrasing,
+found five sites, and rewrote them all. A peer branch pushed the previous day had already rewritten
+two of those five **and shipped the working tool the claim said was impossible**. The tree-wide sweep
+was correct and still missed it — the fix was one commit away on an unmerged branch, so every
+`grep -r` over the worktree returned the unfixed text. Both branches then owned the same two files,
+guaranteeing a merge conflict, and the duplicate half had to be reverted.
+
+- **Before editing any shared skill, rule, or always-loaded doc, ask whether the fix already exists
+  elsewhere:** `git log --all -S'<distinctive symbol or phrase>' --oneline`. One call. It surfaces
+  the commit on any branch, merged or not.
+- `git branch -a --contains <sha>` then tells you whether it is reachable from where you stand.
+- If a peer branch already covers a site, **hand that file back** — revert your version rather than
+  competing. Keep only the sites the other branch did not touch, and say which those are.
+- The residue to check afterwards: a changelog entry describing work that lives on **another**
+  branch is a dangling claim on yours. It reads as fact and the file it names is absent.
+
 ## 4. Shared repo-root artifacts are collision surfaces
 
 A skill that writes a repo-root artifact by default (a tracking index, a progress file,
@@ -381,6 +402,13 @@ Four rules follow.
 Corollary for claims: "verified unchanged" and "staged" are **perishable** here. Only a content hash
 or a commit SHA survives long enough to be quoted in a hand-off; re-derive anything else at write
 time (§7, §9).
+
+> **Five measured failure modes, with the exact commands for each, are in
+> [references/shared-index-protocol.md](references/shared-index-protocol.md):** contention is
+> per-LINE and defeats both standard guards (12a); a held index is a lock that blocked four
+> planned sessions (12b); work done AFTER staging silently invalidates the staged set (12c);
+> `git push` answering "Everything up-to-date" means you are not on that branch (12d); and how
+> to back up a tree for a multi-branch history operation (12e).
 
 ---
 

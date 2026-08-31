@@ -369,6 +369,10 @@ Sub-agent output is **untrusted**. Apply BOTH checks; drop anything that fails:
    added *after* (or between) the occurrences, it is NOT false causation — reframe as "now covered"
    rather than "the rule failed". Quote the rule's date.
 
+3. **Dispatched == returned.** Reconcile every fan-out worker BEFORE writing; one returning after the report is written is dropped in silence. State `dispatched N == returned M + dropped K`.
+4. **The report-completeness gate, mechanical, last thing before presenting.** Run `python "${CLAUDE_SKILL_DIR}/scripts/check_report.py" --report .ai/retrospectives/{date}-retrospective.md`:
+   0 = complete, 1 = findings over `sections`/`workers`/`durability`, 2 = could-not-measure. **Never claim completion under anything but 0.** [references/report-gate.md](references/report-gate.md).
+
 ### Phase 6 — Generate Report
 
 Use [references/report-template.md](references/report-template.md). Write to
@@ -449,6 +453,8 @@ that behavior as friction; default approved 2026-07-02, D-3):
    automatically for feature work never engages — the 2026-08-02 session's highest-impact changes
    (a hook + two always-loaded rules) shipped with no changelog entry, no hypothesis, and no test
    until an explicit end-of-session audit caught all three.
+   **Writing the entry is not landing it** — an uncommitted append is one `git checkout` from invisibility; assert reachability with `check_report.py --check durability`.
+
 2. **Auto-append the P4 items to `.ai/learnings.md`** following the `task-learnings` placement
    rules (non-destructive intake; feeds `/learning-consolidator`). Behavioral P4s take
    `Category: interaction` under `## Interaction & Workflow Friction` so the consolidator can

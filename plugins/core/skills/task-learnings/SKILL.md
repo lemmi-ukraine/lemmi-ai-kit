@@ -63,11 +63,23 @@ a valid result, not a skipped step.**
 
    ```bash
    python "../session-retrospective/scripts/extract_sessions.py" \
-     .ai/tmp/task-learnings/ --session <SESSION-ID> --digest --self-check
+     .ai/tmp/task-learnings/<SESSION-ID>/ --session <SESSION-ID> --digest --self-check
    ```
 
-   Output dir is `.ai/tmp/task-learnings/` — **never `.ai/tmp/retro/`**, which a running
-   retrospective owns (the extractor clears stale transcripts under its own output dir).
+   **The output dir is scoped BY SESSION ID, and that is load-bearing — do not collapse it back
+   to `.ai/tmp/task-learnings/`.** The extractor clears stale transcripts under its own output
+   dir, so a fixed shared path makes this mandatory step **self-colliding by construction** in a
+   checkout that routinely runs parallel sessions. Measured: one run printed
+   `Clearing 1 stale transcript file(s) from a previous run` — deleting another session's
+   transcripts — and ~7 minutes later a second session replaced `interaction-digest.md` wholesale
+   (109 tool calls, one session, replaced by 187 tool calls from another on a different branch).
+   The clobber is silent and bidirectional: the "Clearing ..." line reads as routine progress and
+   the replaced digest carries no marker. The danger is specific — step 6's rule 3 requires every
+   count you write to be locatable in the digest, so a session re-reading it to confirm a figure
+   can read **another session's numbers and attribute them to itself**. The session id is already
+   mandatory above (it is the last segment of the scratchpad path), so scoping costs nothing.
+
+   Also **never `.ai/tmp/retro/`**, which a running retrospective owns.
 
 3. **Verify the pick before trusting the digest.** stderr prints the resolved id and the session's
    `first user message`. If that message is not one YOU received, you measured someone else's
@@ -81,7 +93,7 @@ a valid result, not a skipped step.**
    learnings append — but do **not** write interaction entries from recollection to compensate.
    State that the measurement failed and move on.
 
-6. **Read `.ai/tmp/task-learnings/interaction-digest.md`** and derive candidates from it:
+6. **Read `.ai/tmp/task-learnings/<SESSION-ID>/interaction-digest.md`** and derive candidates from it:
    - *counted repetition signals* — already filtered to the re-read threshold (default 6, tunable
      via `--rereads-min`; the digest records why 3 is compliance rather than thrash);
    - *agent error classes with ≥2 occurrences* — decompose before calling any of it agent quality;

@@ -210,7 +210,7 @@ the calling skill, not the extractor).
 
 ```bash
 python "${CLAUDE_SKILL_DIR}/scripts/extract_sessions.py" \
-  ".ai/tmp/task-learnings/" --session <SESSION-ID|current> --digest --self-check
+  ".ai/tmp/task-learnings/<SESSION-ID>/" --session <SESSION-ID|current> --digest --self-check
 ```
 
 `--session` restricts the run to ONE transcript and **overrides `--since`/`--until`** (the caller

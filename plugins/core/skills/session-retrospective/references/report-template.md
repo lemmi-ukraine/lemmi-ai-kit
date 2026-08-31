@@ -114,6 +114,21 @@ Volume: {stats.subAgent.files} agents, {bytes}, {msgs} msgs.}
 WRONG/FABRICATED result returned to the orchestrator, internal thrash — each with the sub-agent
 transcript as evidence. State how many were scanned via taxonomy only (beyond the ≤6 cap).}
 
+## Absence Sweep (Phase 4i)
+
+{REQUIRED — the dog that didn't bark. Everything above is built from things that HAPPENED; the
+extractor cannot emit an event for a thing that never occurred. Answer each ask explicitly.
+"Nothing found" is a valid answer; silence is not. The last row also feeds the Pipeline Health
+table's final row.}
+
+| Ask | Answer |
+|---|---|
+| Which skills never fired while their job was done by hand? | {cause, not a list} |
+| Which quality gate was never run in a window that shipped code? | {n} |
+| What did the user approve repeatedly that never needed approving? | {n} |
+| Which recommendation from the last report produced no evidence either way? | {INCONCLUSIVE, not "applied"} |
+| What did the user have to ask for that the pipeline should have offered? | {n — list them} |
+
 ## Hypothesis Evidence (feeds hypothesis-validator)
 
 {CONDITIONAL (4g) — include only when ≥1 PENDING hypothesis's Signal window overlaps this

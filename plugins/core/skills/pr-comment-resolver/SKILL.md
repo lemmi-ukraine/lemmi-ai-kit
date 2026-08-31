@@ -126,6 +126,8 @@ and say which is which.
 gh api` works for both REST and GraphQL. A failed `gh auth login` is therefore **not** evidence that
 PR state is unreachable — try the API before reporting UNKNOWN.
 
+**Remote PR state is part of the definition of done, not context the operator supplies.** Measured: **5 of 14** operator messages carried state the session had credentials to fetch itself — a corrected PR count, two PRs' failing checks, one merge conflict, two PRs' review contents. It had an authenticated `gh` throughout and used it for *posting*, never polling; it reported "ready to merge" **three times** before CI state or mergeability had been checked once. Before claiming any PR ready, check `mergeable`, the check-run conclusion **against the current head SHA**, and unanswered threads. A completion claim scoped to local commits is not a completion claim about a PR.
+
 ## Step 2 — Locate the layer that OWNS each commented line
 
 For every `VALID` comment, find the commit that **introduced** the line:
