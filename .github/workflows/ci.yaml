@@ -1,18 +1,41 @@
 name: CI
 
+# `pull_request`, NEVER `pull_request_target`. This repository is public and accepts
+# skill contributions, which are instructions an agent later executes; a fork PR is
+# therefore untrusted input twice over. `pull_request` runs the fork's code with a
+# read-only token and no access to repository secrets. `pull_request_target` would run
+# it with the BASE repository's token and secrets in scope, which turns "edit a
+# markdown file" into "exfiltrate every secret this repo has". Do not change this line
+# to make a fork PR see a secret -- there is no secret a fork PR should see.
 on:
   push:
     branches: [main]
   pull_request:
 
+# Least privilege at the top level, inherited by every job. Without this block the
+# workflow gets the repository default, which can be read/write on contents, issues and
+# packages -- authority no check here needs, handed to whatever a PR causes to run.
+permissions:
+  contents: read
+
 jobs:
   checks:
     runs-on: ubuntu-latest
+    env:
+      # Every step below imports the package, and the package lives INSIDE the plugin
+      # payload -- so without this, running the checks writes __pycache__ into the tree
+      # `publish-check` measures, and that step fails on files CI itself created. Set
+      # once at job level rather than per step: the trap is that it only has to be
+      # missing from one of them.
+      PYTHONDONTWRITEBYTECODE: "1"
     steps:
-      - uses: actions/checkout@v4
+      # Actions are pinned to a commit SHA, not a tag. A tag is mutable: whoever can
+      # move `v4` can run their code in this workflow. The trailing comment records
+      # which release the SHA was, since the SHA alone is unreadable.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           enable-cache: true
 
@@ -40,6 +63,18 @@ jobs:
       # findings are review input, and gating on them makes the suite brittle.
       - name: Skill audit (audit-skills)
         run: uv run python -B -m lemmi_ai_kit audit-skills --fail-on major
+
+      # A SIXTH gate. AGENTS.md requires this before anything an adopter consumes, and
+      # until now nothing ran it automatically -- it was caught by hand, having blocked
+      # on three probes at once. In CI its working-tree and untracked probes are
+      # normally trivial, and that is the point: the one it earns its place on is the
+      # gitignored-in-payload probe, because a plugin install copies the payload
+      # directory rather than the git tree, so anything .gitignore hides still ships.
+      #
+      # Exit 2 means could-not-measure, which is not a pass -- gating on `!= 0` rather
+      # than on a specific code is deliberate.
+      - name: Publish check (payload matches the git tree)
+        run: uv run python -B -m lemmi_ai_kit publish-check
 
       # Charter DoD 5: the drift check ships as a non-blocking report and is promoted to
       # a gate only once it has been observed to be accurate. See the promotion criteria
