@@ -1,0 +1,31 @@
+version: 2
+
+updates:
+  # Actions are pinned to commit SHAs in ci.yaml, which is what stops a moved tag
+  # running someone else's code -- and a pinned SHA never updates itself, including
+  # when the pinned release turns out to have a vulnerability. Dependabot is the other
+  # half of that trade: it opens a PR moving the SHA and says which release it is now.
+  # Without it, pinning quietly becomes "frozen on a version nobody is watching".
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+    labels:
+      - dependencies
+
+  # The package declares ZERO runtime dependencies, asserted by
+  # tests/test_content_safety.py -- so everything here is dev tooling that runs in CI
+  # and on maintainers' machines, never on an adopter's. Monthly rather than weekly:
+  # ruff is pinned to an exact version on purpose, because a formatting change in a
+  # patch release reformats the tree and fails `ruff format --check` for everyone at
+  # once, and that is a PR someone should schedule rather than be handed.
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: build
+    labels:
+      - dependencies

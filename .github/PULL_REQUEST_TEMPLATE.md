@@ -11,9 +11,11 @@
 ## Checklist
 
 Run `uv run ruff check . && uv run ruff format --check . && uv run basedpyright && uv run pytest`
-before ticking these. CI runs the same four on every PR regardless of base branch.
+before ticking these. CI runs those on every PR regardless of base branch, plus the
+skill audit and the publish check — see `.github/workflows/ci.yaml` for the current
+list rather than a count written here, which would go stale.
 
-- [ ] All four checks pass locally
+- [ ] The checks above pass locally
 - [ ] No absolute paths — no `/Users/…`, `/home/…`, or drive-letter paths in **any** file you touched, not only under `plugins/core/src/lemmi_ai_kit/assets/`
 - [ ] No reference to a private source project or to dated history that does not ship
 
@@ -29,6 +31,18 @@ before ticking these. CI runs the same four on every PR regardless of base branc
 **If this changes what an adopter receives** (`assets/templates/**`, `kit-setup`):
 
 - [ ] Scaffolded into a throwaway directory and the output inspected, not just read from the template
+
+**If this adds or edits prose under `plugins/`** — read the diff, do not skim it. This
+text is not documentation: an agent loads it and acts on it, in someone else's
+repository, with that person's files in reach. `tests/test_content_safety.py` rejects
+the shapes that are never legitimate, but it cannot tell whether a plausible-sounding
+instruction is honest. That part is the reviewer's, and it is the reason a
+one-line-looking diff in a `references/` file deserves the same attention as code.
+
+- [ ] Every added instruction is something you would be content for an agent to do unsupervised in your own repository
+- [ ] Nothing tells the agent to read a file outside the working repository, or to send anything anywhere
+- [ ] Nothing weakens an existing check, allowlists a pattern, or widens an exemption without saying why in the diff
+- [ ] Long `references/` additions were read in full, not judged by their heading
 
 ## Anything a reviewer should know
 
