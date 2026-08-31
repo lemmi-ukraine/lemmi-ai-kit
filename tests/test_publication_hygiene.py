@@ -136,6 +136,11 @@ _ALLOWLIST: dict[str, tuple[str, ...]] = {
     ),
     # This file quotes `C:\Users\someone` in the comment explaining the narrowing.
     "tests/test_publication_hygiene.py": (_DRIVE_LETTER_REASON,),
+    # Extends this contract to commit messages, and its known-positive fixture plants
+    # the source-project name in a synthetic repository to prove the scan can see it.
+    # A guard that could not name what it looks for could not be shown to work at all,
+    # which is the same reason test_assets.py is allowlisted for its own literals.
+    "tests/test_commit_message_hygiene.py": ("source-project reference",),
 }
 
 _TEXT_SUFFIXES = frozenset(
