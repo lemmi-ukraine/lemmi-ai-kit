@@ -237,41 +237,31 @@ They are **correct** diffs:
 
 ## 6. Known outstanding debt
 
-**`session-retrospective` is 8 upstream commits behind and is the one row whose `base` is
-still the extraction point.** The report says so on every run, and it is the reason this
-check could be observed to be accurate before being trusted: on its first run against a
-real upstream checkout it reported exactly one skill behind — the one independently known
-to have been deferred — with the other 35 tracked skills at zero, and zero map errors,
-undeclared additions or vanished rows.
+**`session-retrospective` is reconciled. It is no longer the debt row, and this section said
+otherwise for longer than it was true** — which is the more useful lesson, so the correction is
+recorded rather than the old text quietly replaced.
 
-It is deferred because a mechanical merge was attempted and reverted. The merge reported
-13 conflicts that all resolved to "take upstream", which looks clean; it produced an
-extractor of 1,400 lines against upstream's 1,547, with 8 of 35 tests failing — new
-function bodies without the constants they read. A partial version is worse than either
-side alone, and it failed loudly only because that file is well tested.
+What this section used to claim, and what was actually the case when it was checked on 2026-08-31:
 
-Root cause, and it is the §3c defect in miniature: the merge was based on the too-new
-2026-07-06 commit. Upstream added the extractor's schema v4 on 2026-07-05 — **three days
-after this repo extracted** — so diffing from that base rendered the entire v4 feature set
-as a deliberate kit removal of roughly 1,100 words. Against the true base the edit set is
-four small hunks totalling about 13 words. The blocking premise was a measurement
-artifact, and the row's `base` in the record has been corrected accordingly.
+| This document said | Measured |
+|---|---|
+| "8 upstream commits behind" | **1** |
+| "the one row whose `base` is still the extraction point" | The row carries **no `base` override at all**; the only `base =` key left in the record is the global `extraction_base` |
+| "keeps its `base` override and its `divergent-both` direction" | `direction = "upstream-origin"`, reconciled |
+| Blocked because "the schema version is stated in the script and in both reference documents, so the skill moves whole or not at all" | The kit's extractor is already at `SCHEMA_VERSION = 4`, and the upstream change carried on 2026-08-31 touches neither the extractor nor its schema |
 
-Based correctly, that merge produces **3 conflicts rather than 13**, with zero in the
-extractor, its tests, and the output-schema reference.
+The reconciliation landed and its own row in `upstream-sync.toml` was updated in that commit, as the
+row itself instructed. This prose was not, and nothing checked the two against each other — the
+record and the guide are separate surfaces, and only the record is under test.
 
-**State at the time of writing:** a reconciliation of this skill was complete in the working
-tree but not yet committed, so this record still describes it as unmerged — the row keeps
-its `base` override and its `divergent-both` direction. That choice is deliberate. If the
-record claimed the skill were reconciled and the work did not land, the check would report
-"in sync" for a skill ten commits behind: a silent false negative. Claiming it is behind
-when it is not produces a loud false positive instead, which a maintainer investigates and
-fixes. **Whoever commits that reconciliation should update the row in the same commit** —
-drop the `base` override and the `divergent-both` direction, then re-run the report.
+**The transferable rule: when a document names a debt, it must name the artifact that will say the
+debt is gone.** A `## Known outstanding debt` heading whose evidence lives in a machine-readable
+record beside it is one `grep` away from staying true; written as free prose, it decays into a
+confident false statement that a reader will act on. State the debt AND the command that re-measures
+it, always together.
 
-One constraint survives regardless: the schema version is stated in the script and in both
-reference documents, so the skill moves whole or not at all, and upstream's newer
-`sweep_user_corrections.py` needs its own portability read.
+**Current outstanding debt:** the extraction-window review (§3c) is `reviewed-2026-08-24` with a
+residual of 53 window-added lines, each classified. Nothing else is deferred.
 
 ## 7. Promotion criteria — when a report becomes a gate
 
@@ -279,20 +269,30 @@ Both of the kit's upstream-facing checks ship as reports and are promoted only o
 evidence. Recording the criteria here is what stops "promote it later" from meaning
 "never".
 
-**The drift check → a CI gate.** Promote when all three hold:
+**The drift check → a CI gate.** Promote when all four hold:
 
 1. Two consecutive syncs have run where the report's `BEHIND` set matched the set of
    skills the maintainer independently intended to carry — no false positives from the
    kit's own divergences, no misses.
-2. `session-retrospective` is reconciled, so a clean run is actually reachable. Until
-   then a gate would fail every build for a known, accepted debt.
+2. `session-retrospective` is reconciled, so a clean run is actually reachable. **MET** — it
+   was reconciled on 2026-08-23 and this criterion sat listed as open until 2026-08-31 because
+   §6's prose was never updated with the record. A promotion criterion whose status is asserted
+   in prose rather than derived is a criterion that will be wrong in exactly this direction:
+   holding back a promotion that was already earned.
 3. The extraction-window debt (§3c) is cleared or explicitly accepted. A gate that fires
    on 16 skills of known, unreviewed debt teaches people to ignore it.
 4. CI has a way to reach an upstream checkout. Without it, promoting the gate would
    promote `NOT MEASURED` to a pass — the worst outcome available, because it looks
    green.
 
-Criterion 1 is one sync in. Criteria 2, 3 and 4 are open.
+Criterion 1 is two syncs in as of 2026-08-31: the 2026-08-31 carry's `BEHIND` set was exactly
+the set carried, with the one instructive exception that proves the check measures commits rather
+than content — `agent-delegate` reported 2 commits behind with a **net-zero** diff, because
+upstream added a claim and then retracted it. Read a `BEHIND` row as "look here", never as "work
+here"; `git diff --numstat <pin>..<ref> -- <dir>` is the one-line follow-up that separates them.
+
+Criterion 2 is **met**. Criteria 3 and 4 are open. Criterion 1 needs its next sync to be a
+merged upstream ref rather than an open PR head (see the carry note in the record).
 
 **`audit-skills --fail-on major` -> a CI gate.** The known major findings were cleared
 before the pack split. Gate at `major`, not `minor`: minor findings are review input,

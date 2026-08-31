@@ -19,6 +19,26 @@
 #    counted in *upstream commits touching a skill's directory since its base* — which
 #    is zero the moment a sync lands, and stays zero until upstream actually moves.
 
+# --------------------------------------------------------------------------------------
+# CARRIED 2026-08-31, PIN DELIBERATELY NOT MOVED.
+#
+# The whole of upstream's skills-tree advance since `upstream_commit` arrived in ONE unmerged
+# pull request. Measured at the time: 8 commits touch the skills tree between the pin and that
+# PR's head `a0fa9872e3d8bbcd265983f72c24ea8f16f4c8d3`, and ZERO of them come from anywhere
+# else -- so that PR was the entire backlog. Its content has been carried (17 skills plus the
+# stacked-PR asset); two new upstream skills were declined and are in [[unported]] below.
+#
+# The pin stays where it is ON PURPOSE. That SHA is the head of an OPEN branch: a rebase,
+# amend or squash-merge rewrites it, and a pin naming a commit upstream no longer has is
+# unresolvable -- the drift check would measure nothing and say so badly. Leaving the pin
+# produces the opposite error: the report keeps listing those skills as BEHIND when their
+# content is already here. That is a LOUD false positive, which a maintainer investigates,
+# rather than a silent false negative, which nobody ever does. Same trade this record makes
+# for `session-retrospective` in the syncing guide.
+#
+# WHOEVER SEES THAT PR MERGE: move `upstream_commit` to the merge commit, refresh `synced_on`,
+# delete this block, and re-run the report. It should go clean for every skill named above.
+
 [sync]
 # The upstream revision observed at the sync point. Authoritative for the drift check:
 # anything touching the skills tree after this commit is drift.
@@ -371,8 +391,16 @@ upstream = "interview-transcript-analysis"
 reason = "Same coupling: the source project's interview product. A public pack should not carry knowledge only its author can use."
 
 [[unported]]
+upstream = "metric-validity-check"
+reason = "Declined by operator ruling 2026-08-31. The known-groups method is generic, but the skill as written is the source project's: its worked evidence is one product audit, and its `when_to_use` routes the caller to `feedback-audit` -- already declined -- for the neighbouring case. A pack cannot ship a skill whose stated boundary points at a skill it does not ship."
+
+[[unported]]
 upstream = "openai-realtime-quirks"
 reason = "One provider's one API. The language-pack split ruled provider-specific runtime quirks out of the public core pack."
+
+[[unported]]
+upstream = "outcome-audit"
+reason = "Declined by operator ruling 2026-08-31, with `metric-validity-check`, which it invokes as its own Phases 1-3. Same coupling and more of it: 272 of its 1,065 lines are a worked example that IS the source project's interview audit, and its scope table defines itself against `feedback-audit` and `interview-transcript-analysis` -- both already declined here. Porting it as written would resurrect two declined dependencies and ship an evidence base no adopter can check."
 
 [[unported]]
 upstream = "prompt-domain-reviewer"
