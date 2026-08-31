@@ -38,6 +38,7 @@ Self-test (this script obeys the rule it enforces):
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -53,11 +54,36 @@ class ProbeError(RuntimeError):
     """Invocation problem - distinct from a checker that ran and proved blind."""
 
 
+def _normalise_exe_path(cmd: str) -> str:
+    """On Windows, backslash the leading executable token if it is a real file.
+
+    `shell=True` is cmd.exe there, and cmd.exe does not accept a forward-slash path for
+    the command ITSELF -- it reads `/Scripts` as a switch. The result is no stdout, no
+    usable error, and a probe reporting `BLIND ... verdict=UNUSABLE` for a checker that
+    works perfectly. A false BLIND is the exact mirror of the false-clean this script
+    exists to catch, and it sends the reader hunting a defect in a sound instrument.
+
+    Only the FIRST token is touched, and only when it resolves to a file that exists, so
+    a `grep a/b` pattern or a `--flag=x/y` argument is never rewritten.
+    """
+    if os.name != "nt":
+        return cmd
+    stripped = cmd.lstrip()
+    if not stripped or stripped[0] in ("'", '"'):
+        return cmd  # already quoted - the author took control of it
+    head, sep, tail = stripped.partition(" ")
+    if "/" not in head:
+        return cmd
+    if not Path(head).is_file():
+        return cmd
+    return head.replace("/", "\\") + sep + tail
+
+
 def _run(cmd: str, fixture: Path) -> tuple[int, str]:
     """Run the checker against one fixture. Returns (exit_code, stdout)."""
     if "{file}" not in cmd:
         raise ProbeError("--cmd must contain the {file} placeholder")
-    filled = cmd.replace("{file}", str(fixture))
+    filled = _normalise_exe_path(cmd.replace("{file}", str(fixture)))
     # shell=True: the checkers this wraps are ad-hoc grep/rg/python one-liners.
     proc = subprocess.run(  # noqa: S602 - deliberate, see above
         filled,
@@ -67,6 +93,24 @@ def _run(cmd: str, fixture: Path) -> tuple[int, str]:
         encoding="utf-8",
         errors="replace",
     )
+    # When the ONLY thing the command produced was an error message, it did not run --
+    # and counting that as "0 matches" is how a broken invocation becomes a BLIND verdict
+    # against an innocent checker. Such a case looks like "no output and no visible
+    # error" precisely BECAUSE this function captured stderr and discarded it. Surface it.
+    #
+    # KNOWN LIMIT, stated so a zero is read correctly: a command that fails SILENTLY --
+    # nonzero exit, nothing on either channel -- is deliberately NOT caught here, because
+    # that is also exactly how `rg` reports a legitimate no-match, which is the expected
+    # result for a negative fixture. Distinguishing them needs the caller's knowledge of
+    # the tool, not a heuristic here.
+    if proc.returncode != 0 and not proc.stdout.strip() and proc.stderr.strip():
+        raise ProbeError(
+            f"checker exited {proc.returncode} on {fixture.name} having written nothing "
+            f"to stdout and this to stderr: {proc.stderr.strip()!r}\n"
+            f"Command as run: {filled!r}\n"
+            f"That is an INVOCATION failure, not a blind checker -- fix the command "
+            f"before concluding anything about what the checker can see."
+        )
     return proc.returncode, proc.stdout
 
 

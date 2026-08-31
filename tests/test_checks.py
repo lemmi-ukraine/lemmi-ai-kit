@@ -619,6 +619,53 @@ def test_a_conforming_handoff_passes() -> None:
     assert checks.lint_handoff(_GOOD_HANDOFF, "h.md") == []
 
 
+def test_a_wrapped_bullet_keeps_the_expected_result_on_its_second_line() -> None:
+    """A long command wraps, so its `-> result` sits on the CONTINUATION line.
+
+    Reading only the first line of each bullet reports "no expected result" against an
+    entry that has one. That punishes wrapping, which trains authors either to write
+    unreadably long lines or to stop reading the linter.
+    """
+    text = _GOOD_HANDOFF.replace(
+        "- `git status --short` -> clean tree",
+        "- `git status --short --untracked-files=no` against a tree no peer"
+        + chr(10)
+        + "  session is writing -> clean tree",
+    )
+
+    assert checks.lint_handoff(text, "h.md") == []
+
+
+def test_joining_a_wrapped_bullet_does_not_blind_the_missing_result_check() -> None:
+    """The negative control for the join: a bullet with NO arrow anywhere still fails.
+
+    A fix that only silences findings is worse than the defect it replaced.
+    """
+    text = _GOOD_HANDOFF.replace(
+        "- `git status --short` -> clean tree",
+        "- `git status --short --untracked-files=no` against a tree no peer"
+        + chr(10)
+        + "  session is writing, with no expected result stated at all",
+    )
+
+    messages = [f.message for f in checks.lint_handoff(text, "h.md")]
+    assert any("no expected result" in m for m in messages)
+
+
+def test_a_blank_line_closes_a_bullet_so_a_later_paragraph_is_not_absorbed() -> None:
+    """Absorption must stop at the blank line, or an unrelated paragraph can supply
+    the arrow a bullet is missing and the check passes on someone else's text."""
+    text = _GOOD_HANDOFF.replace(
+        "- `git status --short` -> clean tree",
+        "- `git status --short`"
+        + chr(10) * 2
+        + "  an unrelated paragraph that happens to contain -> an arrow",
+    )
+
+    messages = [f.message for f in checks.lint_handoff(text, "h.md")]
+    assert any("no expected result" in m for m in messages)
+
+
 def test_a_handoff_missing_a_required_section_is_reported() -> None:
     text = _GOOD_HANDOFF.replace(
         "## Status\nin-progress. The second half is not done.\n", ""

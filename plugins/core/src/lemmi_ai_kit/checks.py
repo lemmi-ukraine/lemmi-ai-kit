@@ -801,6 +801,29 @@ def _git_anchor_resolves(token: str, root: Path) -> bool | None:
     return (root / token).exists()
 
 
+def _join_wrapped_bullets(lines: list[tuple[int, str]]) -> list[tuple[int, str]]:
+    """Fold each bullet's continuation lines into it, keeping the bullet's own line number.
+
+    Without this, a bullet whose command is long enough to WRAP has its `-> expected` on a
+    second line, which is not a bullet and so is never examined -- the checker then reports
+    "entry has no expected result" against an entry that has one. That punishes line
+    wrapping, which trains authors to write unreadably long lines or to ignore the linter.
+
+    A continuation is any non-blank line that does not itself start a bullet. A blank line
+    closes the bullet, so an unrelated paragraph after the list is never absorbed.
+    """
+    out: list[tuple[int, str]] = []
+    for lineno, raw in lines:
+        if raw.lstrip().startswith("- "):
+            out.append((lineno, raw))
+        elif not raw.strip():
+            out.append((lineno, ""))  # sentinel: closes the bullet, filtered below
+        elif out and out[-1][1]:
+            prev_lineno, prev = out[-1]
+            out[-1] = (prev_lineno, prev.rstrip() + " " + raw.strip())
+    return [(lineno, s) for lineno, s in out if s.lstrip().startswith("- ")]
+
+
 def lint_handoff(text: str, where: str, root: Path | None = None) -> list[LintFinding]:
     """Lint ONE hand-off file. Pass `root` to resolve its anchors against git."""
     findings: list[LintFinding] = []
@@ -822,11 +845,7 @@ def lint_handoff(text: str, where: str, root: Path | None = None) -> list[LintFi
     # expected result after '->'. A prose state claim is the defect the contract exists to
     # stop -- it is exactly the unreliable brief that made hand-offs need a contract.
     for name in HANDOFF_COMMAND_SECTIONS:
-        bullets = [
-            (lineno, line)
-            for lineno, line in sections.get(name, [])
-            if line.lstrip().startswith("- ")
-        ]
+        bullets = _join_wrapped_bullets(sections.get(name, []))
         if name in sections and not bullets:
             findings.append(LintFinding(where, 1, f"'## {name}' has no entries"))
         for lineno, line in bullets:
