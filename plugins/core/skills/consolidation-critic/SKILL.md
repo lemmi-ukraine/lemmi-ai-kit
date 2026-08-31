@@ -61,7 +61,8 @@ Removal verification proves entries left the buffer. It is **structurally blind*
 failure: an entry removed whose knowledge reached no home.
 
 ```bash
-python "../learning-consolidator/scripts/drain_audit.py" .ai/learnings-pre-drain-<date>.md
+python "${CLAUDE_PLUGIN_ROOT}/skills/learning-consolidator/scripts/drain_audit.py" \
+  .ai/learnings-pre-drain-<date>.md
 ```
 
 Adjudicate **every** `[LOSS?]` and no-probe-token row by hand. Expected-clean: ARCHIVED entries, and

@@ -54,8 +54,8 @@ python "$S" coverage   --root .specs --plan <plan.md>      # Step 6 — whole po
 
 All are read-only. **A non-zero exit is a stop, not a warning** — if `evidence` says DOC-ONLY,
 the spec is not implemented, whatever its header claims. Each gate exists because it caught a real
-error on 2026-08-09, in a run that had this whole document in context; measured evidence per gate:
-[references/self-review-gate.md](references/self-review-gate.md).
+error on 2026-08-09, in a run that had this whole document in context; per-gate evidence and
+**Step 4a-ter** (no probe: does work still owed READ it?): [references/self-review-gate.md](references/self-review-gate.md).
 
 **`coverage --root <one initiative>` must be run with `--per-file`.** Without it the gate counts
 *directories*, and measured 2026-08-19 a plan containing the single string
@@ -238,7 +238,7 @@ systematically misses queries — "the checklist survived" and "the means of exe
 two separate gates.
 
 **Never delete another session's uncommitted work.** Anything in `git status` that this initiative did
-not produce is out of scope — list it, do not touch it. **Step 4a-ter** — does work still owed read it? [references/self-review-gate.md](references/self-review-gate.md).
+not produce is out of scope — list it, do not touch it.
 
 ## Step 3b - Classify by artifact KIND
 

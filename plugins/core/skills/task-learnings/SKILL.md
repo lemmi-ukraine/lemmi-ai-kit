@@ -62,7 +62,7 @@ a valid result, not a skipped step.**
 2. **Run the extractor, scoped to that session:**
 
    ```bash
-   python "../session-retrospective/scripts/extract_sessions.py" \
+   python "${CLAUDE_PLUGIN_ROOT}/skills/session-retrospective/scripts/extract_sessions.py" \
      .ai/tmp/task-learnings/<SESSION-ID>/ --session <SESSION-ID> --digest --self-check
    ```
 
