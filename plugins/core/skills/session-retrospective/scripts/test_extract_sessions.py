@@ -45,6 +45,49 @@ def test_redaction_is_idempotent():
     assert ex.redact(ex.redact(raw)) == ex.redact(raw)
 
 
+# --- hex exemption: citation anchors survive, secrets do not --------------------------------
+def test_redaction_preserves_git_sha_and_sha256_citation_anchors():
+    """Exactly-40 (git SHA-1) and exactly-64 (sha256) hex are provenance, not secrets.
+
+    The exemption shipped untested. Blanket hex redaction destroyed 104 of these across the 25
+    most recent sessions of one corpus (80 SHA-1 + 24 sha256) -- the anchors a retrospective
+    cites by. All 15 distinct 40-hex tokens in that sample resolved as real git objects.
+    """
+    sha1 = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"  # exactly 40
+    sha256 = "0" * 64  # exactly 64
+    assert len(sha1) == 40 and len(sha256) == 64, "fixture lengths must be exact"
+    out = ex.redact(f"commit {sha1} digest {sha256}")
+    assert sha1 in out, "git SHA-1 anchor was redacted"
+    assert sha256 in out, "sha256 anchor was redacted"
+
+
+def test_redaction_still_masks_hex_of_other_lengths():
+    """The NEGATIVE half: the exemption is length-exact, so off-by-one hex stays redacted.
+
+    Without this, the exemption could be widened to never-redact-hex and every other test here
+    would still pass -- a redaction bug in the leaking direction. Verified by mutation: with the
+    rule neutered, this is the test that fails.
+    """
+    for n in (32, 39, 41, 63, 65, 80):
+        tok = "f" * n
+        out = ex.redact(f"value {tok} end")
+        assert tok not in out, f"{n}-char hex must still be redacted, got: {out}"
+        assert "[REDACTED_HEX]" in out, f"{n}-char hex produced no redaction marker"
+
+
+def test_labelled_secrets_are_masked_even_at_exempt_lengths():
+    """Defence in depth: a 40/64-hex SECRET is caught by the labelled patterns regardless.
+
+    This is what makes the length exemption safe -- legacy 40-hex tokens in the shapes that
+    actually occur (KEY=/TOKEN=/Bearer) are matched by rules above the hex rule and never
+    reach it. The residual risk is a BARE, unlabelled, exactly-40/64 secret.
+    """
+    forty = "b" * 40
+    assert forty not in ex.redact(f"GITHUB_TOKEN={forty}")
+    assert forty not in ex.redact(f"Authorization: Bearer {forty}")
+    assert forty not in ex.redact(f"API_SECRET: {forty}")
+
+
 # --- session-dir auto-derivation (portability) ----------------------------------------------
 def test_encode_repo_path_replaces_separators():
     # "/", "\" and ":" all collapse to "-" — mirrors how Claude Code names ~/.claude/projects/<dir>.
@@ -406,8 +449,9 @@ def test_self_check_detects_a_leak(tmp_path):
     (tmp_path / "aggregate.json").write_text(
         '{"x":"sk-abcdefghij1234567890leak"}', encoding="utf-8"
     )
-    leaks = ex.self_check(tmp_path)
+    leaks, scanned = ex.self_check(tmp_path)
     assert leaks, "self_check must flag an unredacted sk- key"
+    assert scanned == 1, f"expected 1 file scanned, got {scanned}"
 
 
 def test_self_check_scans_emitted_subagent_transcripts(tmp_path):
@@ -418,10 +462,11 @@ def test_self_check_scans_emitted_subagent_transcripts(tmp_path):
     (sub / "agent-1.md").write_text(
         "ASSISTANT: leaked sk-abcdefghij1234567890SECRET", encoding="utf-8"
     )
-    leaks = ex.self_check(tmp_path)
+    leaks, scanned = ex.self_check(tmp_path)
     assert leaks, (
         "self_check must scan sessions/sub/**/*.md, not just top-level transcripts"
     )
+    assert scanned == 2, f"expected aggregate.json + the sub transcript, got {scanned}"
 
 
 def test_subagent_taxonomy_emission_and_redaction(tmp_path, monkeypatch):
@@ -523,7 +568,9 @@ def test_subagent_taxonomy_emission_and_redaction(tmp_path, monkeypatch):
         "secret must be redacted in emitted sub-agent transcript"
     )
     assert "ERROR(path-not-found)" in body
-    assert not ex.self_check(out_dir), "no leaks expected after redaction"
+    leaks, scanned = ex.self_check(out_dir)
+    assert not leaks, "no leaks expected after redaction"
+    assert scanned, "a clean result over ZERO scanned files is not a pass"
 
 
 # --- schema v4 additions ----------------------------------------------------------------------
@@ -939,7 +986,9 @@ def test_self_check_covers_the_interaction_digest(tmp_path):
     (out / "interaction-digest.md").write_text(
         "1. my key is sk-ant-abcdefghij1234567890XYZ\n", encoding="utf-8"
     )
-    assert ex.self_check(out), "a secret in the digest must be caught by self_check"
+    leaks, scanned = ex.self_check(out)
+    assert leaks, "a secret in the digest must be caught by self_check"
+    assert scanned == 1, f"expected the digest to be scanned, got {scanned}"
 
 
 def test_cli_digest_requires_session(tmp_path, monkeypatch):
