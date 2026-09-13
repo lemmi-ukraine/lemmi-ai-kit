@@ -337,7 +337,7 @@ Each phase is executed as a semi-independent unit:
 |-------|-------------|-------|
 | **Light** | Simple phases (2–3 tasks, single layer) | Lint + quick self-review |
 | **Standard** | Default for most phases | Steps 1–6 of post-task-review |
-| **Full** | Final phase, or phases with cross-feature impact | Full 8-step post-task-review |
+| **Full** | Final phase, or phases with cross-feature impact | Full post-task-review, every step |
 
 ### Context Handoff Rules
 
@@ -359,8 +359,9 @@ When implementing from a spec (phased or non-phased):
 
 A spec is not finished when its last task is ticked. Two steps close it, in order:
 
-1. **Self-review — `post-task-review`** (mandatory for Medium and Large; the 8-step pass). Its
-   step 4 self-challenge and step 7 documentation-impact sweep are what catch the defects the
+1. **Self-review — `post-task-review`** (mandatory for Medium and Large; the full pass). Its
+   step 4 self-challenge, step 7 documentation-impact sweep and step 9 CLOSE self-challenge (a
+   separate, later pass than step 4) are what catch the defects the
    implementation pass cannot see, because they check the work against the *approved scenarios* and
    against every doc that cites the changed files. Phased specs run the gate levels in
    § Quality Gate Levels; the final phase always gets the Full pass.

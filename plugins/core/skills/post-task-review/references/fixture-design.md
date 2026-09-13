@@ -153,6 +153,30 @@ grep -rli 'assistant' <source root> --include=*.py    # 6 files, all the right f
 
 ---
 
+## 7. Fixtures must be FILES, so a multi-root check can only probe one root
+
+`probe_checker.py` asserts that `--positive` and `--negative` are **files** before it runs anything,
+and it substitutes a single `{file}` into `--cmd`. A check whose real invocation takes *two* roots —
+`--join <TREE_A> <TREE_B>`, a corpus-vs-corpus comparison — therefore cannot be probed with two
+directory fixtures. It fails before the checker is ever called.
+
+The fix is a design constraint on the *check*, adopted early rather than discovered late:
+
+- Keep exactly **one** argument as the probed `{file}` — a single small fixture file — and bake the
+  other roots into the `--cmd` string as fixed paths.
+- Make the check accept **either a directory or a single file** for that argument, so the probe can
+  point it at one small file while the real invocation still passes a whole tree.
+
+Verified shape: making the second root of a `--join` accept a bare file as well as a directory let
+two single-file fixtures (one routed, one unrouted) serve as the probe pair against a fixed shared
+first root.
+
+The general point: **a check that cannot be probed is a check you will end up trusting unprobed.**
+Probe-ability is a design property, so decide it when you write the signature, not when the gate
+refuses your fixtures.
+
+---
+
 ## Why this file is prose and not a check
 
 The seam for this whole class is `probe_checker.py`, and it carried this defect itself until it was

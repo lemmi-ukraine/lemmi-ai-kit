@@ -380,12 +380,26 @@ revision actually measured — state the OID with any such count).
 Anything another session staged before you is already in the index, and your pathspec adds to that
 set rather than replacing it.
 
-Four rules follow.
+Five rules follow.
 
 - **Verify and stage in SEPARATE tool calls, then verify again after staging.** Combining the check
   with the action it gates is what loses the race — three collisions in one session came from exactly
   that pattern. The only trustworthy check is `git diff --cached --stat` read *after* the `add` and
   immediately before the commit; a pre-`add` `git status` is a claim about a moment that has passed.
+  A later window produced the same shape at larger scale: *"74 files: 2,289 insertions, 31,366
+  deletions. I intended 6 files"* — the index was checked and committed in two separate calls while
+  a peer staged in between. Never `git add -A` in a contended tree.
+- **A shared append-only data file can be DESTROYED by a peer's merge, and no gate will say so.**
+  This is a different loss mode from a mis-scoped commit: the file is not over-staged, it is
+  emptied. A peer running `git merge` took a shared intake buffer from **236 entries to 15** in one
+  operation; the content survived only because that peer happened to stash first. Related measured
+  losses in the same window: a truncating in-place write on a full disk permanently destroyed 20
+  lines of *another* session's uncommitted edit, and a deliverable vanished when a merge moved HEAD
+  while its backup was three edits stale. So for any shared `.ai/` data file you are about to drain,
+  rewrite, or bulk-edit: **snapshot it to a durable path first, verify the copy with `cmp`, and
+  confirm the snapshot location is not itself ignored** (`git check-ignore -v <path>` — a backup
+  directory that is gitignored cannot be committed alongside the change without `git add -f`, and an
+  uncommitted backup is not a backup). Then re-read the file immediately before each edit.
 - **Never `git checkout -b` raw in a contended tree.** A bare `checkout -b` inherits whatever HEAD
   currently is, which another session may have just moved — four commits landed on another session's
   branch this way. Use `/branch-switch` (it writes the pre-switch backup) and assert

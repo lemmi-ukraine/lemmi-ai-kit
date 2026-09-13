@@ -112,8 +112,76 @@ panicked re-do of correct work.
 
 ---
 
+## 6. A zero with no denominator cannot be distinguished from a gate that never ran
+
+This is the cheapest fix in this file and the most frequently needed. **Always print the
+denominator beside the zero.**
+
+```text
+0 findings                      <- unreadable: clean? or nothing scanned?
+0 findings across 344 files     <- a verdict
+```
+
+Measured instances, all of which read as a clean pass:
+
+- A gate output file of **zero bytes** scored `PASS`, on the evidence `EXITCODE=0, FILEBYTES=0` —
+  inside a *verification* agent whose own prompt required it to read the file it had redirected.
+- A **marker-gated** linter returned `[]` for a file it never opened, because the file lacked the
+  opt-in marker. The silence read exactly like a pass. Several sessions reported "lint-clean" for
+  files the linter had not reached.
+- A directory lint that scans **alphabetically** and exceeds its timeout reported clean for every
+  file after the cutoff.
+- A redirected command that died with `Argument list too long` was read as "zero hits" — and
+  published.
+
+The remedy generalises past linting: any instrument reporting an absence should report the size of
+the set it searched. A zero over an unstated population is not a finding, it is an **unread**
+result. Two corollaries:
+
+- **A probe cannot see a *missing* input.** Pair every manifest or inventory check with a
+  set-difference against the live tree — otherwise the check silently passes on the files nobody
+  listed.
+- **Exclude yourself from your own measurement, and say so.** An instrument whose output lands
+  inside the corpus it measures will find itself. One recorded sweep recursed into its own growing
+  output file, reached **34 GB**, and exhausted the disk.
+
+---
+
+## 7. Concrete command traps — each one ran, exited 0, and answered a different question
+
+Measured instances. Every row below produced a confident wrong answer that drove a decision.
+
+| Command shape | What you think it does | What it does |
+|---|---|---|
+| `grep -E 'a\|b'` | alternation | `\|` inside `-E` is a **literal pipe**; `-E` wants a bare `\|`. Four "0 files untracked" results in one sweep were silent zeros |
+| `git grep 'def name\b'` | word-boundary match | plain `git grep` is BRE and does not know `\b` — reported **29 real tests ABSENT**. Use `-E` |
+| `git grep <pat> HEAD` | searches your fix | searches the **commit**, so your just-applied worktree fix reads as still-broken |
+| `git grep <pat>` (no rev) | searches the committed tree | searches the **worktree**, so a "has it landed?" gate passes on a peer's uncommitted edit |
+| `grep -r -- "$p" DIR --include='*.md'` | restricts to the glob | the `--include` after the path is ignored; it searches **everything**. The giveaway is on **stderr** |
+| `git diff --stat` (one number) | insertions | that number is **added + removed**. Use `--numstat` for any count you write down |
+| `git diff --stat` (paths) | full paths | long paths are **abbreviated** with `...`, so grepping its output for a directory reports "only READMEs changed" for exactly the deep files you were looking for |
+| `git log -- <path> --invert-grep --grep=X` | excludes X | flags after `--` are **pathspecs**, so it counts instead of excluding |
+| `echo "$(cmd) rc=$?"` | the command's status | `$?` is the **command substitution's** status — seven failing gates read as `rc=0` |
+| `cmd > out.log` (long run) | you will see the error | Python buffers stdout, so a hang and a crash look **identical** from outside. Use unbuffered output or check the process |
+| `ls <path> 2>&1 \| grep <pat>` in a DoD | proves presence | the *error text* contains the path, so absence reports as success |
+| `str.index("## Heading")` | finds the heading | matches the **prose that mentions** the heading first — silently duplicated a 166 KB document |
+| a `\b` written into generated file **content** | a regex boundary | arrives at the next reader as the **BACKSPACE escape** (`0x08`), putting invisible bytes into a committed file |
+| an italic-span regex over markdown | italics | swallows every **bold** span too, so a citation audit can report a whole document as uncited |
+| a single-quoted heredoc holding `\\` | literal backslashes | the Bash tool still mangles them, so a Python script silently stops matching. Write the script to a **file** |
+| `grep` on a wide table row | the whole line | the harness may print `[Omitted long matching line]`; read the span with one file read rather than one read per line |
+
+The general rule underneath all of them: **run the command against a case whose answer you already
+know before you trust it on a case whose answer you don't.** Every row here would have been caught
+by a single known-positive/known-negative pair.
+
+---
+
 ## The shape they share
 
 In every case the command ran, exited as designed, and printed a true statement — about something
 other than the question being asked. So the guard is not "read the log"; it is **state which question
 the command answers, next to the number it produces**, and check that it is the question you have.
+
+Case 6 is the same shape seen from the other side: when the number is a **zero**, the question it
+answers is "how many did you find *in what*?" — and a zero that omits the second half has not
+answered it.

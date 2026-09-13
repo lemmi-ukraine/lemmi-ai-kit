@@ -248,14 +248,17 @@ Decision: **Skip** — purely administrative sync, no behavioral change expected
 
 ## File Size Management
 
-Hypotheses with `PENDING` status must persist until validated — never archive or delete
-them; they are the backlog for validation.
+`.ai/improvement-hypotheses.md` is the **single file of record**. Nothing is ever moved out
+of it: `PENDING` entries persist until validated (they are the backlog), and terminal
+entries stay in place permanently once resolved (they are what the Meta-Synthesis reads).
+There is no archive file — do not create one, and do not delete an entry to save space.
 
-Terminal entries do NOT accumulate in the hot file: `hypothesis-validator`'s archive-rotation step rotates
-every entry resolved before the latest pass to `.ai/improvement-hypotheses-archive.md`,
-and the lint's `meta-synthesis due` NOTE (≥10 unsynthesized terminal verdicts, computed
-from the hot-file header's `Last meta-synthesis` marker) triggers the aggregate read that
-turns verdicts into design rules.
+The file is therefore expected to grow, and that is not the failure mode to guard. The real
+one is a ledger that grows while nothing closes: the lint's `meta-synthesis due` NOTE (≥10
+unsynthesized terminal verdicts, computed from the header's `Last meta-synthesis` marker)
+triggers the aggregate read that turns verdicts into design rules, and
+`hypothesis-validator` Step 7 reports `N PENDING · M terminal · last verdict <date>` at the
+close of every pass so the backlog cannot silently accumulate again.
 
 ## Anti-Patterns
 

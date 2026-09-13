@@ -131,8 +131,23 @@ from the template:
 
 - **Goal** — what is true for a user when this is done. Not what gets built.
 - **Hypothesis** — the causal claim, with the number it predicts moving and in which direction.
-- **Expected value** — who benefits, how many, how often. A number with its source and window.
+- **Expected value** — **who is worse off if this is not done**, how many of them, how often. A
+  number with its source and window. State it in the negative: "who benefits" is answerable for any
+  proposal at all, whereas naming who is *currently harmed* can fail — and a value field that cannot
+  fail is not doing any work.
 - **Falsifiers** — see step 7. The first deliverable should be able to kill the initiative.
+
+> **A volume or percentage target is INADMISSIBLE as a value statement.** "Cut comments 70–90%",
+> "document 40 flows" are *quantities of work*, not statements of who is better off — and they read
+> like value precisely because they are measurable, which is what the DoD check looks for. So a
+> volume target in the value slot passes every downstream gate.
+>
+> Measured: one initiative's planning session recorded *"The initiative's value is currently
+> UNKNOWN"* alongside *"the volume targets currently sit where the value should be"*, and dispatched
+> anyway for eleven waves. Scope-challenge language appears in **3% of 303 sessions**, so nothing
+> downstream will challenge it later. **The check:** if the value field's number counts *things you
+> will produce* rather than *people or events outside the work*, it is a volume target — rewrite it
+> or stop. "We can build it" is not an answer to "should we".
 
 The bar for either shape is `/product-brief`'s **Dimension 1 (Problem Strength)**: *falsifiable,
 arguable, and carrying at least one concrete number*. Cite that test; do not restate it here.

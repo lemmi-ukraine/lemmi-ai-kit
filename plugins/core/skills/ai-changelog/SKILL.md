@@ -102,6 +102,34 @@ finding before moving on.
 Fallback only if the lint cannot run: manually verify the entry is under the correct date
 heading, headings are reverse-chronological, no fields are missing, and no duplicate exists.
 
+**The lint checks the entry's SHAPE. It cannot check whether the entry is TRUE — and that is the
+failure this file is most exposed to.**
+
+### Step 3b: Join the claim to its artifact (required for every `*-MODIFIED` / `*-ADDED` entry)
+
+If the entry names a file, **verify the described change is in that file before you commit**:
+
+```bash
+git show HEAD:<path> | grep -c "<the thing the entry says you added>"
+```
+
+A `0` means the entry is describing a change that does not exist. Fix the code or fix the entry —
+do not commit the pair.
+
+**Why this step exists.** A changelog entry was written recording an infrastructure fix, under
+`INFRA-MODIFIED`, naming the exact file. The prose was accurate about the intent, the entry was
+committed, and **the code change never landed**. The grep above returns `0` against the file the
+entry names. Fifteen days later the identical, still-unfixed defect blocked the pipeline that the
+entry claimed was fixed — and the intervening sessions had read the entry and believed it.
+
+This is the general failure of a completion record: **the record and the artifact were never
+joined.** It matters most here because this file is designated as the reconciliation source of
+record, so an entry asserting a fix that does not exist is believed by every later reader. A
+changelog is a claim about the tree, and an unverified claim in the ledger is worse than no entry —
+it actively suppresses the next attempt to fix the thing.
+
+Asking sessions to be careful is exactly what failed. Run the grep.
+
 ## Integration Points
 
 This skill is called by other skills at their completion phase. Each caller provides

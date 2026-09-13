@@ -38,11 +38,14 @@ you chose.
    cursor → fast-worker). Don't fail silently into doing the work yourself.
 2. **Brief.** Write the brief per the contract — one concern, inlined context, self-checkable
    definition of done, short report format. The contract itself is
-   `../orchestrate/SKILL.md` § "The brief contract" (all **7** items apply here,
+   `../orchestrate/SKILL.md` § "The brief contract" (**every** item applies here,
    including the DoD's zero-hit-grep self-check, the discriminating-token rule for presence checks,
    item 5's "the completion checklist is ALWAYS in scope regardless of the declared file set",
-   item 6's target-branch assertion before every commit, and item 7's "every list in the brief is a
-   starting set" — file set, governing documents, and blockers all age);
+   item 6's target-branch assertion before every commit, item 7's "every list in the brief is a
+   starting set" — file set, governing documents, and blockers all age — item 8's *point the worker
+   at [`assets/worker-preamble.md`](assets/worker-preamble.md) rather than restating rules inline,
+   and require the report to be written incrementally*, and item 9's **close block, pasted verbatim**
+   plus the three operator-interface rules);
    template: `../orchestrate/references/brief-template.md`. If the task needs decisions
    the brief can't pin down, surface that to the user instead of delegating mush.
 3. **Mode.** Opinion/analysis (`--second-opinion`, reviews, diagnosis) → read-only mode.

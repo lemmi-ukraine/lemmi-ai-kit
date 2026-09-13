@@ -191,6 +191,45 @@ classifier, at the moment of discovery:
 These are hints for the consolidator's gate, not decisions — when unsure, leave a field out
 rather than guessing.
 
+#### Extract by COST, not by how interesting it was
+
+Extraction is driven by narrative salience, and that systematically inverts its value. Measured
+across one 303-session window, joining each observed error class against the entries written about
+it:
+
+| Error class | occurrences | entries written | ratio |
+|---|---:|---:|---|
+| a shell-prefix rule the guard denies | 359 | 2 | 180 : 1 |
+| a second prefix rule, same guard | 92 | **0** | **UNCAPTURED** |
+| stale-read edit | 50 | 3 | 17 : 1 |
+| dispatch collided with live peer work | 15 | **0** | **UNCAPTURED** |
+| unprobed self-written checker | 4 | **26** | **0.15 : 1** |
+
+**The two most frequent failures produced 2 and 0 entries; the rarest produced 26.** The cause is
+that a confidently-wrong instrument is a *story* — surprising, diagnosable, worth writing up — while
+a guard denial is not: the tool says no, you retry correctly, nothing "happened". So the buffer
+records what was interesting rather than what was expensive.
+
+Two consequences for this step:
+
+- **Before writing an entry, ask "how often did this cost me something today?" and write that number
+  in.** A thing that happened 40 times and cost a round-trip each is worth more than a one-off you
+  found fascinating. If it recurred, say how many times — a count is what lets the consolidator
+  choose a seam over a sentence.
+- **This is also why `Enforce-via: prose` is over-used.** In the same window the buffer's field
+  distribution was **prose 67% against seam 5%**, in a window where *every class with a mechanical
+  seam was caught every time and every class governed only by prose recurred* — the third
+  consecutive window with that result. A narratively-interesting one-off naturally yields "remember
+  to X"; a 359-occurrence mechanical failure would yield a seam, and those are the ones not being
+  written up at all. If a finding recurred more than a handful of times, `prose` is very likely the
+  wrong answer, and the entry should name the seam that would have caught it even if that seam does
+  not exist yet.
+
+**A defect with a known mechanical fix must not be filed as a learning at all.** File it as work.
+A learning is for knowledge; a known fix is a task. One measured case: a gate defect was diagnosed,
+written up as a learning *and* recorded in the changelog as completed — and the fix never landed.
+Fifteen days later the identical defect blocked the pipeline again.
+
 ### Step 5: Write Entries to `.ai/learnings.md`
 
 1. **Dedup check first** — the intake buffer is small: scan its existing entries (titles +

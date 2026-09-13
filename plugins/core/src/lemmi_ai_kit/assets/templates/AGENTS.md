@@ -76,7 +76,7 @@ SKILL CREATION                          PERIODIC (weekly/biweekly)
 
 ### Task completion checklist (mandatory)
 When a task is complete, ALWAYS perform these steps before considering it done:
-1. **Post-task review** (major tasks: 3+ files, new feature, spec completion) — Run the full 8-step review: code review (1–6), documentation impact (7), learnings extraction (8). See the `post-task-review` skill.
+1. **Post-task review** (major tasks: 3+ files, new feature, spec completion) — Run the full review, Step 0 through Step 9: blast radius (0), code review (1–6), documentation impact (7), learnings extraction (8), close self-challenge (9). The `post-task-review` skill is the authority on its own step list; do not restate a step COUNT here, it goes stale.
 2. **Learnings extraction** (all tasks) — Extract project-level findings and append to `.ai/learnings.md`. See the `task-learnings` skill.
 3. **Documentation updates** — If any modified files affect docs (per `references/doc-impact-matrix.md` in the `post-task-review` skill), update the affected documentation.
 4. **Rebuild/restart** — TODO(project): if the project runs long-lived services, list the rebuild/restart command needed after code changes.
@@ -110,7 +110,7 @@ Uses: spec-driven-dev (workflow), test-planner (task), plan-critic (review)
 
 ### Post-task review
 Uses: post-task-review (workflow), task-learnings (task), commit-message (task)
-- Run the 8-step review for all major tasks (3+ files modified, new features, spec completions).
+- Run the full post-task review for all major tasks (3+ files modified, new features, spec completions).
 - Steps 1–6: code review and convention compliance (see the `post-task-review` skill).
 - Step 7: documentation impact analysis — check and update affected docs.
 - Step 8: learnings extraction — capture and record project knowledge.

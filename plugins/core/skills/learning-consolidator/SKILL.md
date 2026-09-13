@@ -398,11 +398,14 @@ run its process here (one owner, multiple callers):
    `- **Resolution ({date}):** …` line per its Step 6.
 3. `REFUTED` verdicts carry its mandatory follow-up action (adjust/revert the change, or
    record why it stays) — a refuted-with-no-action row is an incomplete plan item.
-4. **Its lifecycle actions are plan items, never post-approval side effects.** Archive
-   rotation and the Meta-Synthesis both **write** (`.ai/improvement-hypotheses.md` and the
-   archive file), so they are *discovered* during Phases 1–2 and carried into the Phase 3
-   plan with their targets named — which entries rotate, and whether the lint's synthesis-due
-   NOTE is currently firing. Approval then covers them exactly as item 2's status changes.
+4. **Its lifecycle actions are plan items, never post-approval side effects.** **There is no
+   archive and no rotation** — terminal entries stay in `.ai/improvement-hypotheses.md`
+   permanently; do not plan a rotation and do not create an archive file. What still **writes**
+   is the Meta-Synthesis, so it is *discovered* during Phases 1–2 and carried into the Phase 3
+   plan with its target named — whether the lint's synthesis-due NOTE is currently firing.
+   Approval then covers it exactly as item 2's status changes. Also carry the ledger-state line
+   the validator's Step 7 produces (`N PENDING · M terminal · last verdict <date>`) into the
+   plan: a plan that never mentions the ledger is how a stalled ledger stays invisible.
    **This step runs after the gate, so anything it discovers for the first time here has not
    been approved:** if the NOTE only starts firing once this run's own verdicts land, do not
    execute it silently — present it as a one-line delta for a second approval, or carry it to

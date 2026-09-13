@@ -36,7 +36,7 @@ summary = "Derive a verification plan from an approved spec: conditions by id, o
 name = "post-task-review"
 profile = "core"
 invocation = "user"
-summary = "8-step post-task review: code review, documentation impact, learnings extraction"
+summary = "Post-task review pipeline: blast radius, code review, documentation impact, learnings extraction, and a mandatory close self-challenge"
 
 [[skills]]
 name = "learning-consolidator"
@@ -84,7 +84,7 @@ summary = "Adversarial gate on a consolidation plan before it executes: challeng
 name = "hypothesis-validator"
 profile = "core"
 invocation = "internal"
-summary = "Close the improvement-hypothesis loop: window guardrail, evidence for and against, CONFIRMED/REFUTED/INCONCLUSIVE/SUPERSEDED verdicts, archive rotation and meta-synthesis"
+summary = "Close the improvement-hypothesis loop: window guardrail, evidence for and against, CONFIRMED/REFUTED/INCONCLUSIVE/SUPERSEDED verdicts, a ledger-state report each pass (terminal entries stay put; no archive) and meta-synthesis"
 
 [[skills]]
 name = "ai-improvement-tracker"
