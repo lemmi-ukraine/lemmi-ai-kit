@@ -1723,6 +1723,7 @@ def _run_probes(project: Path) -> int:
     for case in PROBE_CASES:
         checker_parts = [
             f'"{sys.executable}"',
+            "-B",
             f'"{Path(__file__).resolve()}"',
             '"{file}"',
         ]
@@ -1732,6 +1733,7 @@ def _run_probes(project: Path) -> int:
         checker_cmd = " ".join(checker_parts)
         command = [
             sys.executable,
+            "-B",
             str(PROBE_CHECKER),
             "--cmd",
             checker_cmd,

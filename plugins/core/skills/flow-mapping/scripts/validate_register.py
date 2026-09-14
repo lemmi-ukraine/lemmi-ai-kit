@@ -472,12 +472,13 @@ def _run_probes(project: Path) -> int:
     for case in PROBE_CASES:
         if case.mode == "join":
             checker_cmd = (
-                f'"{sys.executable}" "{script}" --join "{flows_fixture}" "{{file}}"'
+                f'"{sys.executable}" -B "{script}" --join "{flows_fixture}" "{{file}}"'
             )
             negative = join_negative
         else:
             parts = [
                 f'"{sys.executable}"',
+                "-B",
                 f'"{script}"',
                 "--flows-root",
                 f'"{flows_fixture}"',
@@ -490,6 +491,7 @@ def _run_probes(project: Path) -> int:
         checker_cmd += f' --project-root "{project}" --code-root src'
         command = [
             sys.executable,
+            "-B",
             str(PROBE_CHECKER),
             "--cmd",
             checker_cmd,

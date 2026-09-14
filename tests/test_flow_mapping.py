@@ -31,7 +31,11 @@ def run(script: Path, cwd: Path, *args: str) -> subprocess.CompletedProcess[str]
     return subprocess.run(
         [sys.executable, "-B", str(script), *args],
         cwd=cwd,
-        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        env={
+            key: value
+            for key, value in os.environ.items()
+            if key != "PYTHONDONTWRITEBYTECODE"
+        },
         capture_output=True,
         text=True,
         timeout=45,
