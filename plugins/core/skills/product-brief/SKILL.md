@@ -169,12 +169,16 @@ to the user unless a gap requires their input.
 After self-review passes, ask the user:
 
 > "Brief is in `tasks/FEATURE-{slug}.md`. Anything to adjust before this goes to the team?
-> When you're ready to implement, run `/spec-driven-dev` on this task."
+> When you're ready to implement, run `/lemmi-ai-kit-core:spec-driven-dev` on this task."
 
-**If the work spans several sessions, route to `/initiative-planner` instead of `/spec-driven-dev`.**
-This brief is then the initiative's level-1 **PDR**, and that skill's step 1 appends the charter
+**If the work spans several sessions and Orchestration is enabled, route to
+`/lemmi-ai-kit-orchestration:initiative-planner`.** Without that plugin, the brief is
+still complete: plan one bounded slice with Core's `spec-driven-dev`. If the user
+wants the initiative workflow, report `lemmi-ai-kit-orchestration@lemmi` as its
+prerequisite before starting it.
+With the initiative workflow, this brief is the level-1 **PDR**, and step 1 appends the charter
 block it needs — Goal, Hypothesis, Expected value, Falsifiers — none of which this template emits.
-`/spec-driven-dev` is the level-3 skill: it specs one slice, after the initiative is decomposed.
+`/lemmi-ai-kit-core:spec-driven-dev` is the level-3 skill: it specs one slice, after the initiative is decomposed.
 
 ## Edge Cases
 

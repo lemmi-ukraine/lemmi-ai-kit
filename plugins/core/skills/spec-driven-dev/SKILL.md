@@ -15,7 +15,7 @@ description: >
 ## When This Skill Activates
 
 > **Tip:** For raw product ideas that need shaping (assumption-challenging, UX content,
-> team-readable task descriptions), run `/product-brief` first. It produces a
+> team-readable task descriptions), run `/lemmi-ai-kit-core:product-brief` first. It produces a
 > `tasks/FEATURE-*.md` file that feeds naturally into this pipeline.
 
 Activate at the start of any task that involves:

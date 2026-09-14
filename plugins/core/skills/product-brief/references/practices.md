@@ -85,7 +85,7 @@ Strong Implementation Notes are **actionable pointers, not a design doc**.
 |---------|-----------|
 | File-specific | References actual files and patterns in the codebase. "Follow modal pattern in `ExistingModal.tsx`" not "create a modal component." |
 | Constraint-aware | Mentions existing constraints: "Backend already tracks `duration_seconds`" or "enum needs a new value." |
-| Scope-assessed | States whether this needs `/spec-driven-dev` and at what size (small/medium/large). |
+| Scope-assessed | States whether this needs `/lemmi-ai-kit-core:spec-driven-dev` and at what size (small/medium/large). |
 | Non-prescriptive | Points to patterns and constraints, doesn't dictate the implementation. "A `useRef` with `Date.now()` is sufficient" not "create a `useDurationTracker` hook that..." |
 
 **Red flags:**

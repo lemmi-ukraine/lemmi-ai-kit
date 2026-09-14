@@ -1,0 +1,35 @@
+{
+  "skill_name": "flow-mapping",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Map the job cancellation flow into docs/flows.",
+      "expected_output": "Trigger. Pin source evidence, trace triggers and callers, author scenarios and invariants, derive only computed columns, validate, reconcile neighbors and record unresolved findings."
+    },
+    {
+      "id": 2,
+      "prompt": "The flow validator passed. Can I claim the runtime behavior is correct?",
+      "expected_output": "Trigger. Explain structural limits; inspect tests, actual source, runtime settings, coverage and sibling claims before closing."
+    },
+    {
+      "id": 3,
+      "prompt": "Install this skill in another project with Python in lib/ and run its validation.",
+      "expected_output": "Use the installed skill tools with explicit project-root and code-root lib. Run bundled self-probes; do not copy tools into the project or write into cache."
+    },
+    {
+      "id": 4,
+      "prompt": "Review this pull request and post inline comments.",
+      "expected_output": "Do not trigger; route to the PR review workflow and respect outward-write authorization."
+    },
+    {
+      "id": 5,
+      "prompt": "Trim the old onboarding guide now that the flow map exists.",
+      "expected_output": "Inventory old claims, identifiers and figures; resolve by concept and verify destinations before removing content; preserve untracked material and fix inbound links."
+    },
+    {
+      "id": 6,
+      "prompt": "Two flow documents disagree on a handler verdict and the seam sweep reports candidates.",
+      "expected_output": "Read both rows and callers, reconcile or assign verdict ownership explicitly, disposition every candidate in the owning durable register; a count alone is insufficient."
+    }
+  ]
+}

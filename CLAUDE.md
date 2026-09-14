@@ -3,6 +3,10 @@
 
 ## Skills
 
+This is a catalog, not an installation record. Invoke only skills from enabled
+plugins in the host's inventory. Install an optional pack through the native plugin
+manager when its workflow is needed; this file does not activate it.
+
 ### User-Invocable (use with `/skill-name`)
 - `/lemmi-ai-kit-core:kit-setup` — Seed or refresh project-owned AGENTS.md/CLAUDE.md/.ai files from plugin templates, placeholders filled from the detected project
 - `/lemmi-ai-kit-core:commit-message` — Generate conventional commit messages from the working diff
@@ -13,21 +17,21 @@
 - `/lemmi-ai-kit-core:learning-consolidator` — Periodically drain .ai/learnings.md intake into rules, skills, READMEs, and comments
 - `/lemmi-ai-kit-core:session-retrospective` — Analyze Claude Code session history for behavioral patterns and workflow friction
 - `/lemmi-ai-kit-core:product-brief` — Shape a product idea into a team-readable task brief with assumption challenges and UX content
-- `/lemmi-ai-kit-core:skill-creator` — Interactive guide for building new Claude Code skills
-- `/lemmi-ai-kit-core:skill-creation-workflow` — Research-backed skill creation pipeline (research, build, structural and content review)
-- `/lemmi-ai-kit-core:skill-reviewer` — Audit skills against the Agent Skills spec and determine workflow placement
-- `/lemmi-ai-kit-core:research-source-planner` — Build a deduplicated, single-owner source manifest before parallel research
-- `/lemmi-ai-kit-core:research-source-claim` — Consumer protocol for fan-out agents: work only your assigned manifest sources
-- `/lemmi-ai-kit-core:parallel-deep-research` — One-command parallel deep research with disjoint source ownership and a cited report
-- `/lemmi-ai-kit-core:orchestrate` — Orchestrator mode: decompose, delegate to native/external workers (codex, cursor-agent, grok), verify, synthesize
-- `/lemmi-ai-kit-core:agent-delegate` — Delegate one scoped, verified task to a named worker (codex, cursor, grok, deep-reasoner, fast-worker)
-- `/lemmi-ai-kit-core:scout-review` — DoorDash-style three-stage review: cheap lead scout, strong deep reviewers, adversarial disprove-it pass (fable or opus combo)
-- `/lemmi-ai-kit-core:initiative-cleanup` — Retire a finished initiative's artifacts safely: per-file partition and exhaustiveness census, artifact-kind classification, evidence and reference gates before any delete, and a self-review gate
-- `/lemmi-ai-kit-core:branch-diff-review` — Review a branch's committed diff against its base and emit a findings report: gates with exit codes and scope, explicit not-reviewed section, and per-finding verification that bans re-rating from judgment
-- `/lemmi-ai-kit-core:pr-comment-resolver` — Resolve reviewer comments in the layer that owns the code: per-thread verdict, owning-layer lookup by introducing commit, backup tags and preflight before any authorized cascade
-- `/lemmi-ai-kit-core:pr-review-concise` — Adversarially review a pull request under an enforced comment-length budget: severity-labelled inline findings routed to the PR that owns the code, posted in one atomic call
-- `/lemmi-ai-kit-core:initiative-planner` — Plan a multi-session initiative before work starts: level-1 charter (PDR or ADR), typed session decomposition, derived concurrency, capability-tier routing, and the operator-only blockers
-- `/lemmi-ai-kit-core:stacked-pr-planner` — Plan branch/PR topology before the first commit: classify each deliverable by risk class and review lane, assign it to exactly one layer, emit a checkable layer table with re-plan triggers
+- `/lemmi-ai-kit-skill-authoring:skill-creator` — Interactive guide for building new Claude Code skills
+- `/lemmi-ai-kit-skill-authoring:skill-creation-workflow` — Research-backed skill creation pipeline (research, build, structural and content review)
+- `/lemmi-ai-kit-skill-authoring:skill-reviewer` — Audit skills against the Agent Skills spec and determine workflow placement
+- `/lemmi-ai-kit-research:research-source-planner` — Build a deduplicated, single-owner source manifest before parallel research
+- `/lemmi-ai-kit-research:research-source-claim` — Consumer protocol for fan-out agents: work only your assigned manifest sources
+- `/lemmi-ai-kit-research:parallel-deep-research` — One-command parallel deep research with disjoint source ownership and a cited report
+- `/lemmi-ai-kit-orchestration:orchestrate` — Orchestrator mode: decompose, delegate to native/external workers (codex, cursor-agent, grok), verify, synthesize
+- `/lemmi-ai-kit-orchestration:agent-delegate` — Delegate one scoped, verified task to a named worker (codex, cursor, grok, deep-reasoner, fast-worker)
+- `/lemmi-ai-kit-orchestration:scout-review` — DoorDash-style three-stage review: cheap lead scout, strong deep reviewers, adversarial disprove-it pass (fable or opus combo)
+- `/lemmi-ai-kit-orchestration:initiative-cleanup` — Retire a finished initiative's artifacts safely: per-file partition and exhaustiveness census, artifact-kind classification, evidence and reference gates before any delete, and a self-review gate
+- `/lemmi-ai-kit-orchestration:branch-diff-review` — Review a branch's committed diff against its base and emit a findings report: gates with exit codes and scope, explicit not-reviewed section, and per-finding verification that bans re-rating from judgment
+- `/lemmi-ai-kit-orchestration:pr-comment-resolver` — Resolve reviewer comments in the layer that owns the code: per-thread verdict, owning-layer lookup by introducing commit, backup tags and preflight before any authorized cascade
+- `/lemmi-ai-kit-orchestration:pr-review-concise` — Adversarially review a pull request under an enforced comment-length budget: severity-labelled inline findings routed to the PR that owns the code, posted in one atomic call
+- `/lemmi-ai-kit-orchestration:initiative-planner` — Plan a multi-session initiative before work starts: level-1 charter (PDR or ADR), typed session decomposition, derived concurrency, capability-tier routing, and the operator-only blockers
+- `/lemmi-ai-kit-orchestration:stacked-pr-planner` — Plan branch/PR topology before the first commit: classify each deliverable by risk class and review lane, assign it to exactly one layer, emit a checkable layer table with re-plan triggers
 - `/lemmi-ai-kit-core:analyze-logs` — Root-cause analysis from structured or plain application logs — platform examples are GCP and Docker, the method is not — with task file creation
 - `/lemmi-ai-kit-core:metric-validity-check` — Test whether a metric, score or judge tracks a user-visible outcome before its number drives a decision: join the label to the artifact, report the seven linkage diagnostics, run a known-groups test over every metric, and return SEPARATES / DOES NOT SEPARATE / UNDERPOWERED / SUSPECT
 

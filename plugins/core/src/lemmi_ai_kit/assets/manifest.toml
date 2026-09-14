@@ -235,3 +235,9 @@ name = "metric-validity-check"
 profile = "core"
 invocation = "user"
 summary = "Test whether a metric, score or judge tracks a user-visible outcome before its number drives a decision: join the label to the artifact, report the seven linkage diagnostics, run a known-groups test over every metric, and return SEPARATES / DOES NOT SEPARATE / UNDERPOWERED / SUSPECT"
+
+[[skills]]
+name = "flow-mapping"
+profile = "core"
+invocation = "user"
+summary = "Map runtime scenarios, callers and invariants; validate Python flow documents and reconcile cross-flow findings"

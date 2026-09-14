@@ -45,13 +45,14 @@ from test_assets import (
     _FORBIDDEN as _ASSET_FORBIDDEN,  # pyright: ignore[reportPrivateUsage]
 )
 
+from lemmi_ai_kit.manifest import PACKS
+
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # The asset and plugin skill trees have their own scan, with their own allowlist.
 _ALREADY_COVERED = (
     "plugins/core/src/lemmi_ai_kit/assets/",
-    "plugins/core/skills/",
-    "plugins/python/skills/",
+    *(f"plugins/{pack}/skills/" for pack in PACKS),
 )
 
 _DRIVE_LETTER_REASON = "Windows drive-letter path"
@@ -114,7 +115,6 @@ _ALLOWLIST: dict[str, tuple[str, ...]] = {
         "absolute macOS home path",
         "machine-specific host rule",
         "machine-specific console workaround",
-        "source-project reference",
         "source-project backup reference",
     ),
     # The review checklist names the path shapes a reviewer rejects.

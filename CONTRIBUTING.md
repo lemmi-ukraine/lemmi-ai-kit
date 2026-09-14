@@ -56,7 +56,7 @@ uv run pytest                  # tests
 
 `ruff format .` (without `--check`) fixes formatting in place. `basedpyright`
 runs in strict mode over `plugins/core/src/` and `tests/` only — the asset tree
-and both packs' skills trees are excluded, since they are prose, not code.
+and all packs' skills trees are excluded, since they are prose, not code.
 
 **Prefix every one of them with `PYTHONDONTWRITEBYTECODE=1`, or export it once for
 the session.** All four import the package, and each import writes `__pycache__/*.pyc`
@@ -83,8 +83,8 @@ To check and clear that state:
 
 ```bash
 uv run python -B -m lemmi_ai_kit publish-check     # exit 0 clean, 1 blocked, 2 could-not-measure
-git clean -Xdn -- plugins/core plugins/python      # preview what would be removed
-git clean -Xdf -- plugins/core plugins/python      # remove it
+git clean -Xdn -- plugins/core plugins/research plugins/orchestration plugins/skill-authoring plugins/python  # preview
+git clean -Xdf -- plugins/core plugins/research plugins/orchestration plugins/skill-authoring plugins/python  # remove
 ```
 
 Gate on `!= 0`, not on `== 1`: exit 2 means the check could not measure and is **not** a pass.
@@ -116,7 +116,7 @@ otherwise-good skill PR goes red, so it is worth knowing before you write.
 |---|---|
 | `/Users/…`, `/home/…`, a Windows drive-letter path | An absolute path works for exactly one person |
 | `Windows host`, `PYTHONIOENCODING` | Machine-specific workarounds |
-| `lemmi-ai-api` | A reference to the private source project nobody else can read |
+| A private source-project name | A reference adopters cannot resolve |
 | A dated `learnings.md` or `retrospectives/` citation | Points at history that does not ship |
 | `.ai/backups/` | Source-project state |
 | A `.claude/skills/<name>/scripts/…` path | Kit scripts ship inside the plugin, so a project-relative skills path is broken by construction — use `${CLAUDE_SKILL_DIR}/scripts/…` |
@@ -176,21 +176,21 @@ skill directory that exists without its manifest row makes `load_manifest()`
 raise, which fails a large part of the suite at once rather than pointing at what
 you did.
 
-1. Create `plugins/core/skills/<name>/SKILL.md` with frontmatter whose `name:` is
-   `<name>` — or `plugins/python/skills/<name>/` if the skill is Python-specific.
+1. Create `plugins/<owning-pack>/skills/<name>/SKILL.md` with frontmatter whose
+   `name:` is `<name>`. Choose Core for shared foundation workflows, Research,
+   Orchestration or Skill Authoring for those optional workflows, or Python for
+   Python-specific conventions.
    Put anything long in `references/` and link to it, rather than growing one
    file — the loader reads `SKILL.md` first and follows links only when needed.
 2. Register it in `plugins/core/src/lemmi_ai_kit/assets/manifest.toml` with a
    `name`, `profile`, `invocation` and `summary`. All four are validated. The
-   manifest lives in the core pack and registers the skills of **both** packs.
+   manifest lives in the core pack and registers the skills of **every** pack.
    - `profile` must be one of the values in `PROFILES` in
      [`plugins/core/src/lemmi_ai_kit/manifest.py`](plugins/core/src/lemmi_ai_kit/manifest.py)
      — a closed tuple. Read it rather than guessing; the set changes. It is
-     validated, so a wrong value fails the suite — but be aware it currently has
-     **no runtime effect**: `for_profiles()` has no production call site outside
-     its own test. Treat it as a label that is checked for consistency, not a
-     switch. The pack split has since landed and did *not* give it teeth:
-     packaging is per **pack**, not per profile.
+     validated, so a wrong value fails the suite. `pack_for_profile()` maps the
+     profile to its native pack; the five current profiles map one-to-one.
+     `for_profiles()` is only a catalog filter, not a plugin installer or selector.
    - `invocation` is `user` (a slash command), `auto` (loaded as background
      reference) or `internal` (called by another skill, not by a person).
 3. Add a correspondence row to `docs/upstream-sync.toml`. Nothing earlier will
@@ -202,8 +202,8 @@ you did.
    `test_the_kit_origin_set_is_the_measured_one` — that constant is deliberately
    not derived from the record it checks, so a new kit-origin skill is supposed
    to argue with a test. The alarm is the design, not an obstacle.
-4. Update the counts in `README.md`. Adding a core skill moves both the total and
-   the per-pack number, and `tests/test_readme_counts.py` checks each claim
+4. Update the counts in `README.md` that your change affects. Adding a skill
+   moves the total and any stated count for its pack; `tests/test_readme_counts.py` checks each claim
    against the manifest, so it will name every line that is now wrong and what it
    should say.
 5. Run the suite, and believe it over this list. `load_manifest()` enforces a
@@ -227,9 +227,8 @@ you did.
 ## Contributing a pack
 
 A **pack** is a plugin: its own directory under `plugins/`, its own per-host
-manifests, its own `skills/` tree. The repo already serves two that way — `core`
-and `python` — so a third means following a shape that exists rather than
-inventing one.
+manifests, its own `skills/` tree. The repo serves Core, Research,
+Orchestration, Skill Authoring and Python that way.
 
 Read [You probably do not need to author a
 pack](docs/adoption-guide.md#2-you-probably-do-not-need-to-author-a-pack) first.
@@ -244,21 +243,19 @@ than in a pull request.
 
 | | |
 |---|---|
-| Directory | `plugins/<pack>/`, a sibling of `core` and `python` |
+| Directory | `plugins/<pack>/`, a sibling of the five existing families |
 | Skills | `plugins/<pack>/skills/<name>/SKILL.md` — same frontmatter rules as any other skill |
 | Registration | the manifest in the **core** pack registers the skills of *every* pack, so [Adding a skill](#adding-a-skill) above applies unchanged |
 | Catalogs | both marketplace manifests, `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`, list every pack |
-| Axis | **language, and only language** — not a framework, not a team, not a domain. See [when to author a pack instead](docs/adoption-guide.md#when-to-author-a-pack-instead) |
+| Scope | A reusable workflow family or language conventions pack, with a clear optional installation boundary. Keep framework and team rules in project-owned files unless reuse justifies a pack. See [when to author a pack instead](docs/adoption-guide.md#when-to-author-a-pack-instead) |
 
 The mechanics — the two `plugin.json` files, the marketplace entries, the
 skeleton to copy — are the subject of
 [`docs/authoring-a-pack.md`](docs/authoring-a-pack.md) and the template in
 [`plugins/_template/`](plugins/_template/). This section does not restate them on
 purpose: a layout written down twice drifts, and the copy in the contributing
-guide is the one nobody re-runs. **If those two paths are not in your checkout,
-they have not landed yet** — they arrive with the pack-mechanism work. Until they
-do, `plugins/python/` is the worked example, and it is small enough to read end
-to end.
+guide is the one nobody re-runs. The template and authoring guide are in this
+repository; `plugins/python/` is a small worked example.
 
 ### Naming, so a reader can tell who wrote a pack
 

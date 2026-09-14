@@ -1,8 +1,8 @@
 # Authoring a pack
 
 A **pack** is a plugin: its own directory under `plugins/`, its own manifest for
-each host, its own `skills/` tree. `core` and `python` are both packs, so a third
-follows a shape that already exists.
+each host, its own `skills/` tree. The existing Core, Research, Orchestration,
+Skill Authoring and Python families all use this shape.
 
 This document is the **mechanics** — the command, the files, the verification.
 Two policy questions are settled elsewhere and are not restated here, because a
@@ -19,7 +19,7 @@ rule written down twice drifts:
 ## 1. Scaffold it
 
 ```sh
-uv run python -m lemmi_ai_kit new-pack rust --skill rust-conventions
+PYTHONDONTWRITEBYTECODE=1 uv run python -B -m lemmi_ai_kit new-pack rust --skill rust-conventions
 ```
 
 Three files, in `plugins/rust/`:
@@ -53,7 +53,8 @@ passing `--skill` twice keeps only the last. `--author` is a bare string
 You will read both files in step 1 of registration, and they do **not** share a
 schema — so here they are rather than a pointer to them.
 
-`plugins/<pack>/.claude-plugin/plugin.json` — eight keys, `skills` an **array**:
+`plugins/<pack>/.claude-plugin/plugin.json` — the common identity keys and
+`skills` as an **array**:
 
 ```json
 {
@@ -63,6 +64,15 @@ schema — so here they are rather than a pointer to them.
   "skills": ["./skills/"]
 }
 ```
+
+A workflow pack that requires Core also declares a versioned dependency in
+this manifest, for example
+`"dependencies": [{"name": "lemmi-ai-kit-core", "version": ">=0.2.0"}]`.
+Orchestration and Skill Authoring are the current examples. Research and
+Python have no such dependency. Fresh Claude installs of either dependent pack
+installed Core automatically in the 2026-09-14 local check. Tell existing Core
+users to update to 0.2.0 or newer first. Codex users must add or refresh Core
+before installing a dependent pack.
 
 `plugins/<pack>/.codex-plugin/plugin.json` — same identity keys, then three things
 Claude's has no equivalent for: `homepage`, `keywords`, and an `interface` block.
@@ -131,9 +141,9 @@ somebody was scaffolding rather than the moment somebody was reviewing.
 ## 3. Verify it
 
 ```sh
-uv run pytest
-uv run python -m lemmi_ai_kit audit-skills --fail-on major
-uv run python -B -m lemmi_ai_kit publish-check
+PYTHONDONTWRITEBYTECODE=1 uv run pytest
+PYTHONDONTWRITEBYTECODE=1 uv run python -B -m lemmi_ai_kit audit-skills --fail-on major
+PYTHONDONTWRITEBYTECODE=1 uv run python -B -m lemmi_ai_kit publish-check
 ```
 
 `pytest` is the check that matters — it is what tells you the pack is real rather
@@ -184,7 +194,9 @@ project that installs a different language pack still resolves. This is enforced
 `tests/test_pack_boundaries.py` fails a core asset that hardcodes a pack skill's
 name.
 
-The reverse direction is fine. A pack skill may name core skills freely.
+The reverse direction is fine for packs that require Core: their skills may
+name core skills. Keep a standalone Research or Python skill independent of
+Core unless you deliberately add and document a Core dependency.
 
 ### The `SKILL.md` frontmatter contract
 
@@ -202,19 +214,21 @@ failure is readable rather than a surprise.
 | `metadata.type` ∈ `reference · review · task · workflow` | missing or unknown type |
 | `SKILL.md` ≤ **500** lines | past this, detail belongs in `references/` |
 
-### A profile is not a pack, and the mapping is one-to-many
+### A profile identifies its native pack
 
-Step 3 of registration asks for a **profile**, which is easy to read as a synonym
-for the pack. It is not. A profile groups skills by *what they are for*; a pack is
-what ships them. `core` ships **four** profiles — `core`, `skill-authoring`,
-`research`, `orchestration` — while `python` ships one.
+Step 3 of registration asks for a **profile**. The manifest records a skill's
+profile and `pack_for_profile()` resolves it to the native plugin that ships the
+skill. The approved families now map one-to-one: `core`, `research`,
+`orchestration`, `skill-authoring`, and `python`. Keep this mapping explicit so
+the manifest remains the source of truth for skill ownership.
 
-For a new pack the practical rule is the simple case: **add one profile named
-after your pack, and map it to your pack** in `pack_for_profile()`. Anything that
-does not map explicitly falls through to `core`, so a profile you add without
-touching that function silently files your skills under the core pack — and the
-suite will not tell you, because both halves are individually consistent.
+For a new pack, **add one profile named after your pack and map it to that pack**
+in `pack_for_profile()`. Unknown profiles must fail validation; do not let them
+fall through to Core.
 
-Keep the axis to **language, and only language** — not a framework, not a team,
-not a domain. That is CONTRIBUTING.md's rule and it is the question to settle in
-the issue, before any of the above.
+This kit now permits shared workflow families as well as language conventions
+packs. A proposed family should have a clear optional capability and a native
+installation boundary. Keep framework and team rules in project-owned files
+unless reuse across repositories justifies a pack; settle that scope in the
+contribution issue before registration. Python's auto-loaded conventions remain
+optional and do not require Core.

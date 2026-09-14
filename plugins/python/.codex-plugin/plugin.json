@@ -1,6 +1,6 @@
 {
   "name": "lemmi-ai-kit-python",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Python-specific conventions for projects using the Lemmi AI Kit core plugin.",
   "author": {
     "name": "lemmi-ukraine",
@@ -23,7 +23,9 @@
     "longDescription": "Python coding and testing conventions for teams using the Lemmi AI Kit core plugin.",
     "developerName": "lemmi-ukraine",
     "category": "Developer Tools",
-    "capabilities": ["Interactive"],
+    "capabilities": [
+      "Interactive"
+    ],
     "websiteURL": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
     "defaultPrompt": [
       "Review this Python code against the installed conventions.",

@@ -177,7 +177,7 @@ created), group them under a single `CONSOLIDATION` entry with sub-items:
 ### SKILL-ADDED: ai-changelog internal pipeline skill
 - **What:** Created `.claude/skills/ai-changelog/` to track all AI infrastructure changes in a structured changelog
 - **Why:** Enable historical tracking and learning from how the AI infrastructure evolves over time
-- **Files:** `.claude/skills/ai-changelog/SKILL.md`, `.ai/ai-changelog.md`, `CLAUDE.md`
+- **Files:** `SKILL.md`, `.ai/ai-changelog.md`, `CLAUDE.md`
 - **Affected workflows:** skill-creator, skill-creation-workflow, learning-consolidator, post-task-review, task-learnings
 ```
 

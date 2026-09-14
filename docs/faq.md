@@ -38,17 +38,19 @@ reason nobody needs to fork this.
 
 ## Does it work with Codex?
 
-Yes. Both packs carry a Codex manifest alongside the Claude Code one, and the same
-skills install from the same catalog.
+Yes. All five packs carry a Codex manifest alongside the Claude Code one and
+install from the same catalog. Research and Python stand alone. Orchestration
+and Skill Authoring require Core 0.2.0 or newer. Their Claude manifests declare
+that minimum version, and fresh installs of either pack automatically added Core
+in the 2026-09-14 local check. Upgrade an existing Claude Core first. Codex
+users add or refresh Core explicitly.
 
-Be aware of how far that has been proven, because the two hosts are not equally
-exercised. Adding a **local clone** as a marketplace and installing from it has been
-run end to end on both hosts. The `owner/repo` marketplace shorthand has **not** been
-exercised against this repository on either host — it could not be tested while the
-repository was private. If the shorthand does not resolve, the
-[install section](adoption-guide.md#3-install) of the adoption guide has the verified
-fallback and the exact spelling each client accepts. They differ, and the difference
-is not cosmetic.
+All five packs were installed locally from source on Claude Code 2.1.266 and
+Codex 0.154.0 on 2026-09-14, with installed bytes matching source. The source
+changes remain unpublished, and the `owner/repo` marketplace shorthand has not
+been exercised against this repository on either host. The
+[install section](adoption-guide.md#3-install) shows the local commands and
+distinguishes the two clients' path spellings.
 
 ## Does it work with Cursor, Copilot, or some other agent?
 
@@ -68,7 +70,8 @@ no core skill references a Python-pack skill, and where a core skill needs langu
 conventions it refers to them by role — "the installed coding conventions skill" —
 never by name. `tests/test_pack_boundaries.py` fails if that stops being true.
 
-Install core on its own and skip the Python pack entirely.
+Install Core on its own and skip the Python pack entirely, or add one of the
+optional workflow families you need.
 
 ## My language has no pack. Can I still use this?
 
@@ -94,9 +97,10 @@ written down somewhere else.
 
 ## What does it actually put in my repository?
 
-Four things, and you own all of them: `AGENTS.md`, `CLAUDE.md`, an `.ai/` directory
-of intake and log files the workflow writes to, and `.ai/templates/` for the spec
-documents. Nothing else, ever — it does not touch your source code.
+Core's `kit-setup` writes `AGENTS.md`, `CLAUDE.md` and an `.ai/` directory.
+Your project owns the first two files and the `.ai/` intake and logs. The kit
+manages the spec templates and stacked-PR workflow note under `.ai/`.
+Installing a plugin does not touch your source code.
 
 ## Will it overwrite my existing `AGENTS.md`?
 
@@ -133,7 +137,7 @@ machine you are on. `codex plugin list` is the equivalent starting point on the 
 host. From a clone of this repository:
 
 ```sh
-PYTHONPATH=plugins/core/src python3 -m lemmi_ai_kit list
+PYTHONPATH=plugins/core/src PYTHONDONTWRITEBYTECODE=1 uv run --no-project python -m lemmi_ai_kit list
 ```
 
 The README states exact totals because a test in this repository checks them against
@@ -143,10 +147,13 @@ changes.
 
 ## How do skills get updated?
 
-Through your host's plugin interface — `/plugin` in Claude Code, the plugin directory
-in Codex. This page deliberately prints no update subcommand: the spelling varies by
-host and version, and no update command has been exercised against this repository.
-Check your client's `plugin --help`.
+Enable, disable and update each installed pack through your host's plugin
+interface. For an existing project-scoped 0.1 Core install, the tested command
+is `claude plugin update lemmi-ai-kit-core@lemmi --scope project`; the same
+update verb refreshed an existing Python pack. Use the scope of your actual
+installation. `claude plugin install` alone reports an already installed pack
+without refreshing it. On Codex, `codex plugin add <plugin-id>@lemmi` refreshes
+the pack. Check your client's `plugin --help` for other scopes and versions.
 
 Your `AGENTS.md`, `CLAUDE.md` and `.ai/` files are yours and are never updated behind
 you. There is no separate release channel either — the marketplaces serve this
@@ -155,13 +162,15 @@ repository directly, so the published state of `main` is the release.
 ## My `/lemmi-ai-kit:...` commands stopped working. What happened?
 
 The kit used to install as one plugin called `lemmi-ai-kit`. It now installs as
-packs, so the prefix you type is `/lemmi-ai-kit-core:<name>`, and the install
-command changed with it. The old plugin id is gone from both marketplace catalogs:
+five packs, so the prefix you type comes from the pack that owns the skill: for
+example, `/lemmi-ai-kit-core:kit-setup` or
+`/lemmi-ai-kit-orchestration:orchestrate`. The old plugin id is gone from both marketplace catalogs:
 it cannot be reinstalled and will never be updated again.
 
-**The version number will not tell you which one you have** — both declare `0.1.0`,
-because pushing to `main` is the release and the string did not move across the
-split. The plugin *name* in `plugin list` is the discriminator.
+The original single-plugin-to-pack split kept version `0.1.0` on both sides.
+The current base release is `0.2.0`; a local Core payload may have a SemVer
+build suffix. Check the plugin name and base release when deciding which
+migration applies.
 
 **And your own repository does not fix itself.** The `CLAUDE.md` in your project
 still carries the old prefixes, and re-running scaffolding will not touch it: seed
@@ -170,8 +179,9 @@ files are never overwritten, so it reports the file kept and changes nothing. Do
 templates, and it will take a customized `AGENTS.md` and a non-empty `.ai/` log with
 it. A find-and-replace is the fix.
 
-[Migrating from 0.1.0](migrating-from-0.1.0.md) has the whole path, including the
-four skills that were renamed and the one that was dropped.
+[Migrating from 0.1.0](migrating-from-0.1.0.md) covers the original single
+plugin, including four renamed skills and one removed skill. Then use
+[Migrating to 0.2.0](migrating-to-0.2.0.md) to retain the skills moved out of Core.
 
 ## What happens if I run setup again later?
 
@@ -186,7 +196,7 @@ Run it after you change package manager, add CI, or rename your test command.
 
 Yes, and you should decide about this on purpose rather than by default.
 
-A skill is instructions an agent follows. Several skills in this pack instruct the
+A skill is instructions an agent follows. Several skills in these packs instruct the
 agent to run commands — `git`, `ruff`, `pytest`, a script over your session logs —
 and some ship scripts of their own. An agent following a malicious skill would run
 whatever that skill told it to, with whatever permissions your agent has, in your

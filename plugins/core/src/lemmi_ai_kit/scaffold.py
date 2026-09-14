@@ -122,10 +122,10 @@ def _skill_line(entry: SkillEntry) -> str:
 
 
 def render_claude_md(manifest: Manifest) -> str:
-    """Render CLAUDE.md from the bundled template and the full skill catalog.
+    """Render the supplied catalog with each skill's native plugin namespace.
 
-    The plugin packs ship every skill, so the index always lists the whole catalog,
-    namespaced the way each pack's skills are invoked.
+    A checkout catalog covers all packs; an installed core payload covers core.
+    Rendering this index never installs or enables any plugin.
     """
     template = (assets_root() / "templates" / "CLAUDE.md").read_text(encoding="utf-8")
     for placeholder, invocation in _CLAUDE_PLACEHOLDERS.items():

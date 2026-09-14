@@ -105,6 +105,49 @@ def test_audit_skills_without_the_fallback_would_scan_nothing(
     assert exit_code == 0, "a vacuous scan exits 0 -- which is exactly the defect"
 
 
+@pytest.mark.parametrize("host", ["codex", "claude", None])
+def test_audit_registration_uses_native_manifests_or_project_index(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], host: str | None
+) -> None:
+    """Optional plugins need no Core-index entry; local skills still need one."""
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "CLAUDE.md").write_text(
+        "# Project\n\n## Skills\n- /lemmi-ai-kit-core:commit-message\n",
+        encoding="utf-8",
+    )
+    plugin_root = tmp_path / "installed-research" if host else project / ".claude"
+    skills_dir = plugin_root / "skills"
+    shutil.copytree(_REPO_ROOT / "plugins/research/skills", skills_dir)
+    if host:
+        manifest = plugin_root / f".{host}-plugin/plugin.json"
+        manifest.parent.mkdir()
+        shutil.copy2(
+            _REPO_ROOT / f"plugins/research/.{host}-plugin/plugin.json", manifest
+        )
+
+    arguments = [
+        "audit-skills",
+        "--project",
+        str(project),
+        "--skills-dir",
+        str(skills_dir),
+        "--fail-on",
+        "major",
+    ]
+    assert main(arguments) == (0 if host else 1)
+    output = capsys.readouterr().out
+    assert "3 skills;" in output
+    assert ("registration drift" in output) is (host is None)
+
+    # Native registration must not disable the actual payload audit.
+    invalid = skills_dir / "invalid"
+    invalid.mkdir()
+    (invalid / "SKILL.md").write_text("# No frontmatter\n", encoding="utf-8")
+    assert main(arguments) == 1
+    assert "frontmatter" in capsys.readouterr().out
+
+
 # --- `new-pack` -----------------------------------------------------------------------
 #
 # The acceptance test for D15 is a ROUND TRIP: generate a pack, then hold it to the same

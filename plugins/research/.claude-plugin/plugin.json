@@ -1,0 +1,15 @@
+{
+  "name": "lemmi-ai-kit-research",
+  "displayName": "Lemmi AI Kit Research",
+  "version": "0.2.0",
+  "description": "Source planning, ownership and parallel research workflows.",
+  "author": {
+    "name": "lemmi-ukraine",
+    "url": "https://github.com/lemmi-ukraine"
+  },
+  "repository": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "license": "MIT",
+  "skills": [
+    "./skills/"
+  ]
+}

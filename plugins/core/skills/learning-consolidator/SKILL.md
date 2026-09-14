@@ -307,6 +307,8 @@ For each approved promotion, execute the action:
 3. Keep it terse and durable; do not reference the learnings entry or this consolidation.
 
 #### PROMOTE_TO_SKILL
+Requires enabled `lemmi-ai-kit-skill-authoring`; otherwise keep these entries undrained,
+report the prerequisite, and process only independent promotions.
 The full procedure -- concept presentation, the approval gate, the `skill-creator` pass, the
 `skill-reviewer` gate and the cross-reference updates -- is in
 [references/consolidation-actions.md](references/consolidation-actions.md) § PROMOTE_TO_SKILL

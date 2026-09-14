@@ -141,7 +141,7 @@ def test_base_overrides_are_the_unsynced_skills() -> None:
     # and the row pins the upstream commit that holds the carried content instead. Every
     # other skill sits on the pin. This stays a tripwire: it fires the next time any row
     # needs an override, which forces the reason to be written down here.
-    assert overrides == {"metric-validity-check"}, (
+    assert overrides == {"metric-validity-check", "flow-mapping"}, (
         "the set of skills not synced to the pin changed. If a sync deliberately "
         "skipped a skill, add it here with its reason; if one was reconciled, drop its "
         f"`base` override from the record. Currently: {sorted(overrides)}"

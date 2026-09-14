@@ -228,7 +228,7 @@ them when reading; never add NEW entries under a non-canonical section.
 ## Lifecycle: Intake Buffer → Homes
 
 `.ai/learnings.md` is a **lean intake buffer**, not a knowledge store. Entries accumulate
-between consolidations; then `/learning-consolidator` (~weekly, whenever any entries have
+between consolidations; then `/lemmi-ai-kit-core:learning-consolidator` (~weekly, whenever any entries have
 accumulated — do NOT wait for the file to grow large) drains each entry to its home:
 
 - **Universal convention or anti-pattern** → `AGENTS.md`

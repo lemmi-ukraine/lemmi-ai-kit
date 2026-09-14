@@ -55,18 +55,13 @@ with TODO stubs, CLAUDE.md with the skill index already rendered, and the `.ai/`
 scaffolding), with seed semantics — existing files are never overwritten:
 
 ```bash
-# needs Python >= 3.11 (tomllib); system python3 may be older — pick one that works:
-PY=$(command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3)
-PYTHONPATH="${KIT_PLUGIN_ROOT}/src" "$PY" -m lemmi_ai_kit scaffold .
+KIT_PROJECT_ROOT="$(pwd)"
+PYTHONDONTWRITEBYTECODE=1 uv run --no-project --directory "${KIT_PLUGIN_ROOT}/src" python -m lemmi_ai_kit scaffold "${KIT_PROJECT_ROOT}"
 ```
 
-If no Python ≥ 3.11 exists on the machine, use uv if available
-(`uv run --no-project --python 3.12 python -m lemmi_ai_kit scaffold .` with the
-same `PYTHONPATH`); as a last resort, replicate the scaffold by hand: copy
-`templates/AGENTS.md`, `ai/*` from `${KIT_PLUGIN_ROOT}/src/lemmi_ai_kit/assets/`
-(only files that don't exist), and render CLAUDE.md's `{{SKILLS_*}}` placeholders
-from `${KIT_PLUGIN_ROOT}/src/lemmi_ai_kit/assets/manifest.toml` (user-invocable
-entries use their pack namespace, such as `/lemmi-ai-kit-core:<name>`).
+Use the project's uv/Python conventions. The explicit target prevents the core
+package directory from becoming the project being scaffolded. If uv is unavailable,
+report that prerequisite instead of inventing a separate installer.
 
 Run it from the project root and read its report. It is safe to re-run; add
 `--dry-run` first if the project already has some of the files and you want to
@@ -113,24 +108,10 @@ than inventing content:
 
 ## Step 2 — Recommend the packs. Do not install them
 
-**This skill installs nothing.** It detects, recommends, prints the exact
-command, and stops. That is a ruling, not a gap, and it has four grounds:
-
-- **The bootstrap paradox.** You are running from inside `lemmi-ai-kit-core`.
-  For that to be true the user has already added a marketplace and installed a
-  plugin — so an install step could only ever reach the *second* pack, the exact
-  case they have already proved they can do unaided.
-- **The two clients diverge, and one form is a hard error.** Codex takes `.` and
-  `codex plugin add`; Claude Code requires `./` and `claude plugin install`, and
-  rejects a bare `.` with *Invalid marketplace source format*. Automating both
-  means pinning two CLIs whose only exercised versions are the two on the
-  machine where this was written.
-- **The shorthand the README recommends is unproven.** `owner/repo` has not been
-  exercised against this repository on either client.
-- **It buys nothing.** Newly installed skills are not live in the current
-  session either way, so the user restarts regardless. The automation saves one
-  pasted line, in exchange for a skill that mutates the plugin configuration of
-  the client it is loaded from.
+The host plugin manager owns installation, enable/disable and updates. This skill
+recommends native commands for requested capability groups; it does not create a
+selection file, preset engine or dependency resolver. If the user explicitly asks
+you to run installation, use those native commands and verify the resulting inventory.
 
 ### Which packs
 
@@ -143,6 +124,9 @@ printing a command, and update it when a pack is added.
 |---|---|---|
 | any project at all | `lemmi-ai-kit-core` | already installed — you are running from it |
 | `pyproject.toml`, `setup.cfg`, or top-level `*.py` | `lemmi-ai-kit-python` | Python coding and testing conventions |
+| source planning or parallel research requested | `lemmi-ai-kit-research` | Standalone research workflows |
+| delegation, initiatives or stacked work requested | `lemmi-ai-kit-orchestration` | Requires core 0.2.0 or newer |
+| creating or reviewing skills requested | `lemmi-ai-kit-skill-authoring` | Requires core 0.2.0 or newer |
 | any other language | nothing further | see below — this is not a gap in the setup |
 
 **Never invent a pack name.** If the project's language has no pack, say so in
@@ -160,9 +144,8 @@ the kit's repository and move on.
    for the host detected in Step 0 — marketplace first, then install — from
    `references/packs-and-hosts.md`. Print them; do not run them.
 3. Say plainly that the new skills load on the next session, not this one.
-4. If they ask you to run it anyway, decline once with the reason above, then
-   defer: it is their machine. Running it still will not make the skills live
-   in this session, so say that too.
+4. If the user already asked you to install, run the native commands, verify the
+   inventory, and explain that a fresh session loads the changed skills.
 
 ## Step 3 — Fill the placeholders
 

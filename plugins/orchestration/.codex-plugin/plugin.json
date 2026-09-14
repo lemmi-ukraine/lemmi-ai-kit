@@ -1,0 +1,32 @@
+{
+  "name": "lemmi-ai-kit-orchestration",
+  "version": "0.2.0",
+  "description": "Delegation, initiative coordination and stacked-work review workflows. Requires the core pack.",
+  "author": {
+    "name": "lemmi-ukraine",
+    "url": "https://github.com/lemmi-ukraine"
+  },
+  "homepage": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "repository": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "orchestration",
+    "agents-md"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Lemmi AI Kit Orchestration",
+    "shortDescription": "Delegation, initiative coordination and stacked-work review workflows. Requires the core pack.",
+    "longDescription": "Delegation, initiative coordination and stacked-work review workflows. Requires the core pack.",
+    "developerName": "lemmi-ukraine",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive"
+    ],
+    "websiteURL": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+    "defaultPrompt": [
+      "Coordinate this initiative with scoped tasks and verified results."
+    ]
+  }
+}

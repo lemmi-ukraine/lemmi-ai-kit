@@ -286,7 +286,7 @@ Fifteen days later the identical defect blocked the pipeline again.
    prints the entry count. If the buffer holds **> 25 entries** OR the newest `CONSOLIDATION`
    entry in `.ai/ai-changelog.md` is **≥ 7 days old**, you MUST surface one line in your
    user-facing output: `intake at {N} entries, last drain {D} days ago → run
-   /learning-consolidator`. Never refuse or defer the append itself (a lost learning is worse
+   /lemmi-ai-kit-core:learning-consolidator`. Never refuse or defer the append itself (a lost learning is worse
    than a fat buffer) — the surfaced line is the enforcement. This is the capture-side twin of
    the consolidator's cadence guard; the 06-23→07-16 lapse grew the buffer to 115 entries
    because nothing at append time said so.

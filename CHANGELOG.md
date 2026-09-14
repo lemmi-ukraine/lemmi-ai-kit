@@ -34,6 +34,55 @@ rewritten except inside `kit-setup`'s own marked blocks.
 
 ## 2026-09-14
 
+### SKILL-ADDED: Share portable flow mapping through Core
+- **What:** Registered flow-mapping in Core with its schema, five reusable tools and synthetic self-certification project. Tool paths stay inside the plugin; consumer roots and code directories are explicit. Nested probes propagate the no-bytecode flag into every subprocess. Preserved authored projection columns and made missing corpus inputs fail visibly. Comment checking distinguishes docstrings from executable string expressions.
+- **Why:** The formerly deferred workflow must work outside its source checkout without copied skills or validators. Independent consumer tests exercise installation paths, invalid inputs and the shared-tool contract.
+- **Files:** `plugins/core/skills/flow-mapping/`, Core native manifests and README, the bundled `manifest.toml`, `docs/upstream-sync.toml`, `README.md`, `tests/test_flow_mapping.py`, `tests/test_upstream_sync.py`, `.ai/ai-changelog.md`, `.ai/learnings.md`, `.ai/improvement-hypotheses.md`, `CHANGELOG.md`.
+- **Affected workflows:** Flow mapping, native Core installation, flow validation, projection generation, seam reconciliation and optional comment cleanup. This completes the deferred port described in the earlier entry.
+
+### INFRA-MODIFIED: Describe the research workflows and flow-mapping port status
+
+- **What:** README now explains custom parallel research, source planning and ownership,
+  and the separate research-backed skill-authoring pipeline. Flow mapping is described
+  with its current deferred-port status from the upstream synchronization record.
+- **Why:** the workflow roles and outputs should be visible before a user chooses a pack.
+- **Files:** `README.md`
+- **Affected workflows:** `parallel-deep-research`, `research-source-planner`,
+  `research-source-claim`, `skill-researcher`, `skill-creation-workflow`
+
+### INFRA-MODIFIED: Guide and measure agent-led installation
+
+- **What:** a paste-ready README prompt and new/existing-project guides, with four native
+  agent trials recording wall-clock time, project preservation and content-review findings.
+- **Why:** users should have one installation entry point and evidence of what it preserves.
+- **Files:** `README.md`, `docs/research/2026-09-14-agent-installation.md`,
+  `docs/research/2026-09-14-agent-installation-results.json`
+- **Affected workflows:** native plugin installation, `kit-setup`
+
+### INFRA-ADDED: Bundle FFF with Core
+
+- **What:** the six official FFF v0.10.6 binaries for macOS, Linux and Windows on x64/ARM64,
+  with upstream licensing and checksums. The shared MCP declaration launches the selected
+  verified binary through uv, without a separate FFF installation or first-use FFF download.
+- **Why:** users should receive file search with Core without per-machine FFF setup.
+- **Files:** `plugins/core/vendor/fff/`, `plugins/core/.mcp.json`,
+  `plugins/core/src/lemmi_ai_kit/fff.py`, both Core plugin manifests, `.gitattributes`,
+  `tests/test_fff.py`, `plugins/core/README.md`
+- **Affected workflows:** file search, native plugin installation
+
+### INFRA-MODIFIED: Distribute workflow families as optional native plugins
+
+- **What:** Research, Orchestration and Skill Authoring ship as separate optional packs;
+  Core retains development and learning workflows, and Python remains optional. Moved
+  skills use their owning namespace and report missing prerequisites. Authoring and
+  Orchestration declare Core >=0.2.0 for Claude; Codex users install Core explicitly.
+- **Why:** native plugin managers should own capability selection and updates, with one
+  canonical skill source and project-owned conventions.
+- **Files:** both marketplace catalogs, `plugins/`, the Core manifest/scaffold/audit helpers,
+  template assets, `pyproject.toml`, `uv.lock`, current adoption/authoring/migration guides,
+  and manifest/plugin/isolation/CLI/document-reference tests
+- **Affected workflows:** native plugin installation, `kit-setup`, optional workflow handoffs
+
 ### SKILL-ADDED: `metric-validity-check`
 
 - **What:** a new core skill asking whether a metric, score or judge actually tracks a

@@ -187,7 +187,7 @@ check. *Zero inline spans inside a fence* is a property of README.md and docs/fa
 not of the patterns: `docs/adoption-guide.md` legitimately shows markdown inside a
 ```markdown fence, backticks and all, so the strict form cannot travel and is asserted
 only where it holds. What travels is the real invariant -- **no byte is read by two
-rules** -- asserted as `_code_chunks` producing pairwise disjoint spans, on all eight
+rules** -- asserted as `_code_chunks` producing pairwise disjoint spans, on all scanned
 documents. On adoption-guide.md that check has teeth precisely because there IS
 something to filter: turn the filter off and the fence chunk overlaps the two spans
 inside it, which is what its control does.
@@ -219,6 +219,7 @@ _CONTEXT_GUARDED_DOCS: tuple[str, ...] = (
     "docs/working-on-the-kit.md",
     "docs/authoring-a-pack.md",
     "docs/migrating-from-0.1.0.md",
+    "docs/migrating-to-0.2.0.md",
     "docs/syncing-from-upstream.md",
 )
 
@@ -957,12 +958,12 @@ def test_the_scan_surface_is_what_it_claims() -> None:
     each was examined.
     """
     scans = _scan_guarded_docs()
-    assert len(_GUARDED_DOCS) == 2 and len(_CONTEXT_GUARDED_DOCS) == 6, (
-        "the scanned set is no longer the two adopter-facing documents plus the six "
+    assert len(_GUARDED_DOCS) == 2 and len(_CONTEXT_GUARDED_DOCS) == 7, (
+        "the scanned set is no longer the two adopter-facing documents plus the seven "
         "contributor-facing ones this module claims to cover"
     )
-    assert set(scans) == set(_ALL_SCANNED_DOCS) and len(scans) == 8, (
-        f"eight documents are claimed and {len(scans)} were scanned"
+    assert set(scans) == set(_ALL_SCANNED_DOCS) and len(scans) == 9, (
+        f"nine documents are claimed and {len(scans)} were scanned"
     )
     assert not set(_GUARDED_DOCS) & set(_CONTEXT_GUARDED_DOCS), (
         "a document is in both rule sets, so its coverage depends on dict ordering"
@@ -972,7 +973,7 @@ def test_the_scan_surface_is_what_it_claims() -> None:
             f"{relative} is scanned but does not exist, so its rules are vacuous"
         )
 
-    # The real invariant, on all eight: no byte is read by two rules. This form
+    # The real invariant, on every document: no byte is read by two rules. This form
     # survives `docs/adoption-guide.md` legitimately showing markdown inside a
     # ```markdown fence, which the stricter form below does not.
     for relative in _ALL_SCANNED_DOCS:
@@ -1610,8 +1611,10 @@ def test_the_stated_limits_are_real() -> None:
 
     # ...and the same name in invocation form IS checked, which is what makes the
     # single-token hole a shape problem rather than a coverage problem.
-    invoked = _scan("README.md", "Type `/lemmi-ai-kit-core:orchestrate` to split work.")
-    assert invoked.invocations == ("/lemmi-ai-kit-core:orchestrate",)
+    invoked = _scan(
+        "README.md", "Type `/lemmi-ai-kit-orchestration:orchestrate` to split work."
+    )
+    assert invoked.invocations == ("/lemmi-ai-kit-orchestration:orchestrate",)
     assert not invoked.problems
 
     # -- the fragment rule's own two limits, both measured ------------------------
