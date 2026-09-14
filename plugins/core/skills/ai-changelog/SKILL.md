@@ -79,6 +79,16 @@ heading must sort ABOVE the current top heading. NEVER append a new heading belo
 headings or at the file end. Appending at the end is how heading disorder and misfiled
 entries arise, and unwinding it costs a full-file cleanup pass.
 
+**A misfiled entry is not one defect beside others — it is the defect that HIDES them.** An entry
+appended at EOF carries no heading of its own, so it inherits the file's **oldest** heading; the lint
+compares headings to each other and there is nothing out of order for it to detect. Worse, where a
+validator has an **age-based grandfather clause**, inheriting an old date converts "filed under the
+wrong date" into "exempt from validation" — so the entry's *other* defects (missing fields, wrong
+vocabulary) go unreported too, and the loudest signal you would have got is silenced by the quietest
+mistake. After writing any entry, confirm which heading it actually sits under
+(`grep -n '^## \|^### ' .ai/ai-changelog.md | grep -B1 '<your title>'`), not merely that the file
+still lints clean.
+
 ### Step 2: Write the entry
 
 Use the entry format above. Rules:

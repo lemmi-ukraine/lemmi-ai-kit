@@ -203,6 +203,9 @@ Every delegation gets a written brief. A good brief has exactly:
     the END of every session, when a directory-wide re-run is at its most expensive. Paste the
     literals into the brief.
 
+**A brief's RULES need the same suspicion as its LISTS, and a takeover is a dispatch** — both measured,
+both in [references/dispatch-gates.md](references/dispatch-gates.md) §1–§2.
+
 ## Protocol
 
 ### 1. Plan first, then execute
@@ -335,6 +338,10 @@ inherit a previous wave's serialization.
   `cursor-agent --mode plan`, `grok --permission-mode plan`). Grant write access only for
   implementation briefs, only workspace-scoped, never bypass/danger modes. Ensure `git status`
   is clean (or checkpoint) before any worker may write.
+- **Before auto-dispatching into a cleared blocker, read
+  [references/dispatch-gates.md](references/dispatch-gates.md) §3–§6** — the forward plan as a
+  wave-boundary deliverable, the staging-list intersection a comment-only branch needs, one dispatch
+  channel per kickoff block, and the three gate shapes that read DONE while a peer is in flight.
 
 ### 2a. Launching a headless `claude -p` session — measured mechanics
 

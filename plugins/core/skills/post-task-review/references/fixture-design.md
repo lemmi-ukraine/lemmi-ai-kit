@@ -175,6 +175,83 @@ The general point: **a check that cannot be probed is a check you will end up tr
 Probe-ability is a design property, so decide it when you write the signature, not when the gate
 refuses your fixtures.
 
+## 8. The probe's counting unit is OUTPUT LINES, and a mismatch accuses the innocent party
+
+`probe_checker.py` counts your checker's **output lines**. Two very common checker shapes therefore
+probe as `UNUSABLE / OVER-MATCHING` while being perfectly correct:
+
+- **`grep -c PATTERN {file}`** prints one count line always, so positive and negative both yield 1.
+  Measured three times independently (`positive=1 negative=1`, `positive=3 negative=2`).
+- **A checker that prints an unconditional summary** (`TOTAL: n`, a per-file header) adds a line to
+  every run, including the clean one.
+
+The fix is one flag — **`--count-mode grep-c`** parses a bare integer on stdout instead of counting
+lines — or make the checker print nothing when it finds nothing.
+
+**The trap is that the FAIL is a true statement about the wrong quantity, and it points at the
+innocent party**: it accuses the *pattern* of over-matching when the defect is the *counting unit*.
+Read literally, it sends you to rewrite a correct pattern. Before believing an OVER-MATCHING verdict,
+run the checker by hand on the negative fixture and look at what it actually printed.
+
+## 9. A fixture must model the real confounder, not a stub of it
+
+Five separate instances, all of which produced a confidently wrong number:
+
+- **When you write the format AND the checker, the negative fixture must come from the format's own
+  mandated forms.** A "diagram-only fact" check flagged `WarnSent` and `EndPending` — ordinary
+  two-word `stateDiagram-v2` state names, the exact form *the template mandates for lifecycles*. A
+  stub negative would never have contained them.
+- **A fixture the shell could not actually write reads as "the checker is blind".**
+  `printf 'foo \\n --flag\n'` emits the literal characters `\` and `n`, not a backslash-newline, so
+  the fixture had no continued line and the checker correctly reported nothing. Verify the fixture
+  contains what you think (`cat -A`) before believing the probe.
+- **A self-probe that tests an instrument's REACH passes while the instrument is wrong.** A parser
+  reported six overlaps across five session pairs — every one an artifact — and would have refuted a
+  purpose-built audit that found none. Reach and correctness are different questions.
+- **A category table whose counts sum EXACTLY to the population size is evidence of first-match-wins
+  accounting, not of coverage.** One report read 279 / 29 / 9 / **0** / **0**, recommended deleting
+  the two zero tokens as dead vocabulary, and defended the zeros as "read, not blind" because its
+  probe returned all five at 1 each. Overlapping categories cannot sum to the population.
+- **The probe substitutes the fixture path as a native path string.** A checker receiving `{file}`
+  through `awk -v` gets its escape sequences processed — on a backslash-separated path every component
+  starting with `t`, `v`, `r`, `n`, `b`, `f` is mangled silently. If a checker's hand run and probe
+  run disagree, suspect the path before the pattern.
+
+## 10. A shell tool that cannot parse its pattern exits 2, and `rc != 0` reads as "no match"
+
+A `grep` that receives a mangled pattern (measured: a POSIX-emulation `grep` invoked from a native
+Python stripped the backslashes, so a backslash-escaped ERE arrived unbalanced) exits **2** on every
+call with `Unmatched ( or \(`. Guards written as
+
+```python
+if res.returncode == 0 and res.stdout.strip():   # WRONG: rc 2 is silently "no match"
+```
+
+make a broken command and an honest zero indistinguishable — and the failure direction is always
+"reports clean". Treat `rc >= 2` as an ERROR, never as a negative result, and assert `res.stderr` is
+empty. Prefer Python's own `re` over shelling out when the pattern needs escapes at all.
+
+## 11. A scripted replacement spliced into a CRLF file silently makes it mixed-ending
+
+§5 covers matching. This is the write path: a Python `"""..."""` literal carries `\n`, so splicing
+it into a pure-CRLF file lands an LF island inside it — a 44-line island landed this way with no gate
+failing. What catches it is an assertion, not care: measure the OUTPUT endings against the MEASURED
+input in the same script, immediately before the write.
+
+```python
+raw = open(P, "rb").read()
+crlf_in = raw.count(b"\r\n"); lf_in = raw.count(b"\n") - crlf_in
+...                                  # build `out`
+crlf_out = out.count(b"\r\n"); lf_out = out.count(b"\n") - crlf_out
+assert (crlf_out > 0) == (crlf_in > 0) and (lf_out > 0) == (lf_in > 0), "ending mix changed"
+```
+
+**The obvious repair is itself a trap.** `.replace("\r\n", "\n").replace("\n", "\r\n")` normalises
+the *whole file*, so a script written to change two strings rewrites every line — the whole-file
+rewrite hazard wearing the clothes of a fix. Normalise only the replacement text, never the document.
+And measure in BYTES: a `grep -c $'\r$'` census can degrade to a bare end-of-line anchor under some
+shells and report every file as 100% CRLF unconditionally.
+
 ---
 
 ## Why this file is prose and not a check

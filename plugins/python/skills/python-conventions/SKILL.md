@@ -6,7 +6,8 @@ metadata:
 description: |
   Enforce Python coding conventions for a Python backend. Covers one-class-per-file,
   no local imports, no magic strings, no anonymous types, cognitive complexity limits,
-  typed models over dicts, constants extraction, and feature-scoped dependencies.
+  typed models over dicts, constants extraction, feature-scoped dependencies, and
+  comment discipline (what code carries vs what belongs in a doc).
 
   Use when: writing Python backend code, adding services/models/routes, reviewing
   Python code quality, or troubleshooting convention violations in PR reviews.
@@ -330,6 +331,13 @@ class OrderPatchJob:
         # 60 lines of record resolving...
         # 40 lines of order patching...
 ```
+
+## Comments — Edit-Time Invariants Only
+
+A comment earns its place by telling whoever edits **this line** what they need in order not to break
+it; everything else has a better home. The four things that clear that bar, the security-prose KEEP
+default, why a comment the code contradicts is corrected rather than trimmed, and the symbol-not-line
+citation rule: [references/comment-discipline.md](references/comment-discipline.md).
 
 ## Dependency Injection Examples
 

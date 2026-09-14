@@ -20,6 +20,53 @@ are never rewritten except inside `kit-setup`'s own marked blocks.
 
 ### Added
 
+- `metric-validity-check` — a new core skill: does a metric, score or judge actually track a
+  user-visible outcome, tested BEFORE its number drives a decision. Joins the label to the artifact
+  (a nearest-match join when there is no foreign key, with seven mandatory linkage diagnostics), runs
+  a known-groups test over every metric in the suite, and returns one of four verdicts —
+  SEPARATES / DOES NOT SEPARATE / UNDERPOWERED / SUSPECT — each stating what it licenses. It was an
+  `[[unported]]` row (declined 2026-08-31 because, as written, its boundary pointed at a skill the
+  kit does not ship); the carried copy strips those pointers and cites its source audit as evidence
+  the kit does not carry. The record row says so.
+- `python-conventions/references/comment-discipline.md` — the four things a code comment may carry
+  (an ordering constraint, a counter-intuitive invariant, a non-obvious external behaviour, a one-line
+  why-not), the security-prose KEEP default, why a comment the code contradicts is corrected rather
+  than trimmed, and the symbol-not-line citation rule. `SKILL.md` gains a pointer section.
+- `orchestrate/references/dispatch-gates.md` — six measured dispatch-time failure shapes: brief rules
+  need the same suspicion as brief lists; a takeover is a dispatch; the forward plan is a wave-boundary
+  deliverable; intersect a fix against peers' staging intent; one dispatch channel per kickoff block;
+  and the three gate shapes that read DONE while a peer is in flight. `SKILL.md` points at it twice.
+- `initiative-cleanup/references/settle-lessons.md` — six measured Step 1–3 lessons, including the
+  tracked-but-uncommitted third state that both durability checks call durable.
+- `test-conventions/references/test-doubles-gotchas.md` — four new sections: a `MagicMock()` logger
+  makes negative `caplog` assertions vacuous; subclassing a test class re-runs its tests; a return
+  value compared only against its broken-case value is untested; a filter with no test that REJECTS
+  something is untested however many acceptance tests it has.
+- `python-conventions/references/coding-patterns.md` — catching an optional database read's failure
+  does not restore the caller's transaction (`InFailedSQLTransactionError`); use a `SAVEPOINT`, and
+  inject a DATABASE error in the guard test, not a Python one.
+- `post-task-review/references/fixture-design.md` §8–§11 — the probe counts output LINES (so
+  `grep -c` probes as over-matching while correct), fixtures must model the real confounder, a
+  pattern the shell tool cannot parse exits 2 and reads as "no match", and a scripted replacement
+  spliced into a CRLF file silently makes it mixed-ending.
+- `parallel-session-safety` — disjoint file sets are a guarantee about bytes, not meaning; a
+  start-of-session ownership snapshot is a one-shot test; `git diff HEAD --stat` is blind to untracked
+  files; measure-then-fix hand-off counts expire by design; landing a layer on a sibling branch
+  removes its files from every peer's tree. §6 and §9 no longer recommend a `git worktree`, which §11
+  already forbade — the skill contradicted itself.
+- `scout-review` — an Adjudication section: two reviewers need adjudication, not aggregation; verify
+  a finding's premise separately from its conclusion; sweep for the concept, not the cited location;
+  a gate's product is a `(hash, verdict)` pair; withhold prior findings from a re-review pair.
+- Smaller additions carried from the source project's 2026-09-13 consolidation: `ai-changelog` (a
+  misfiled entry hides its own defects), `plan-critic` (did every enumerated item become a claim; does
+  a supporting figure survive re-derivation), `pr-review-concise` (criterion 4 bounds EXISTING
+  instances only), `agent-delegate` (boilerplate rules travel, their measurements do not),
+  `hypothesis-validator` (the designated caller is the one that failed — run the steps, do not
+  improvise), `task-learnings` (a native sub-agent must skip Step 0; a mandated preflight is
+  compliance, not thrash), `learnings-format` (the bracketed heading is what enrols an entry in every
+  check), `skill-reviewer` (a clean audit certifies the skills tree and nothing else),
+  `initiative-planner` (a pre-settled consumer design destroys a usage probe),
+  `consolidation-actions` (the handoff lint's anchor check is an on-disk existence test).
 - `plugins/core/hooks/` — the kit's first hook surface. `gate_learnings_drain.py` is a
   `PreToolUse` guard that DENIES any Edit/Write/Bash call which would **remove** entries from
   `.ai/learnings.md` without a dated, non-trivial approved-plan record under
@@ -60,6 +107,11 @@ are never rewritten except inside `kit-setup`'s own marked blocks.
 
 ### Changed
 
+- The kit's own `CLAUDE.md` index no longer says "8-step post-task review" (the count `4f550b5`
+  set out to retire and missed in this one place) or "archive rotation" for `hypothesis-validator`;
+  both lines now match the manifest summaries.
+- `ai-improvement-tracker`'s ledger section is titled "Ledger growth" rather than "File Size
+  Management", matching the body it already carried (there is no archive; growth is expected).
 - `kit-setup` no longer tells users that project-local skill copies "shadow the plugin's
   versions" — **they do not**. Per the Claude Code documentation, a plugin skill and a
   same-named project skill **both load**, because plugin skills are namespaced

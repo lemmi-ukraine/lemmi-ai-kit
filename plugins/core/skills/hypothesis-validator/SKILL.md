@@ -26,7 +26,11 @@ One owner, multiple callers — the ai-changelog / ai-improvement-tracker preced
 
 ## When This Skill Activates
 
-- `learning-consolidator` Phase 6.5 invokes it on the ~weekly consolidation run
+- `learning-consolidator` Phase 6.5 invokes it on the ~weekly consolidation run — **this is the
+  designated caller and it is the one that failed.** In the six-week window Step 7 describes, three
+  drains ran and none invoked this skill, because Phase 6.5 delegates by prose reference and degrades
+  to "done inline, by hand" (four consecutive retrospective windows recorded it at zero invocations).
+  If you are running Phase 6.5, load this file and run its steps; do not improvise a shortened version.
 - `session-retrospective` offers it at its ending when §4g evidence settles a signal mid-window
 - The user asks directly ("validate hypotheses", "close the hypothesis loop")
 

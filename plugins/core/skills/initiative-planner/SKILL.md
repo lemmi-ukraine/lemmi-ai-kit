@@ -408,6 +408,10 @@ commits first.
 Both measured inside one initiative, and neither is a documentation-quality problem you can fix by
 writing more carefully — they are properties of a doc *set* that has been revised.
 
+**Probing whether a corpus gets USED? A pre-settled consumer design destroys the measurement** — a decided
+design removes the scenario-level questions the corpus exists to answer, leaving only symbol lookups, which
+grep wins. Record each consumer's shape beside every datum; all-pre-settled probes are UNDERPOWERED, not negative.
+
 **A layer's dispatch brief is silent on cross-layer sequencing, and silence is not clearance.** A
 brief for validating one layer treated *"push and deploy"* as a next step gated only on the
 operator's say-so. A same-day orchestration doc — written by a different, orchestration-level

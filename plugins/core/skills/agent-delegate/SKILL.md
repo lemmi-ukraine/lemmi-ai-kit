@@ -48,6 +48,13 @@ you chose.
    plus the three operator-interface rules);
    template: `../orchestrate/references/brief-template.md`. If the task needs decisions
    the brief can't pin down, surface that to the user instead of delegating mush.
+   **Boilerplate host rules are copied; the MEASUREMENTS inside them are not transferable.** One
+   brief carried the correct rule (*measure line endings in bytes, never `grep -c $'\r$'`*) attached
+   to a wrong measurement of the specific target file, then promoted that measurement into a
+   pass/fail criterion — so obeying the DoD literally would have normalised all 144 line endings of
+   a file the session was only meant to append a section to, which is the whole-file-rewrite hazard
+   the rule exists to prevent. Re-measure every file-specific fact **at brief-writing time**, and
+   never let a boilerplate paragraph supply a number about *this* file.
 3. **Mode.** Opinion/analysis (`--second-opinion`, reviews, diagnosis) → read-only mode.
    Implementation → write-capable, clean `git status` first. Exact CLI invocations:
    `../orchestrate/references/external-agents.md`. Codex plugin installed →

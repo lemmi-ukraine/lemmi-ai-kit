@@ -135,11 +135,13 @@ def test_base_overrides_are_the_unsynced_skills() -> None:
     """A row overriding the pin is exactly a skill the last sync did not carry."""
     record = load_sync_record()
     overrides = {r.name for r in record.skills if not r.base_is_default}
-    # Empty since 2026-08-23: `session-retrospective` was the only override and its
-    # reconciliation landed, so its `base` was dropped in that same commit. Empty is the
-    # healthy state -- every skill sits on the pin. This stays a tripwire: it fires the
-    # next time any row needs an override, which forces the reason to be written down.
-    assert overrides == set(), (
+    # Empty from 2026-08-23 (the `session-retrospective` override was dropped when its
+    # reconciliation landed) until 2026-09-14, when `metric-validity-check` was carried: its
+    # directory does not exist at the pin, so a pin-based row is a MAP ERROR by construction,
+    # and the row pins the upstream commit that holds the carried content instead. Every
+    # other skill sits on the pin. This stays a tripwire: it fires the next time any row
+    # needs an override, which forces the reason to be written down here.
+    assert overrides == {"metric-validity-check"}, (
         "the set of skills not synced to the pin changed. If a sync deliberately "
         "skipped a skill, add it here with its reason; if one was reconciled, drop its "
         f"`base` override from the record. Currently: {sorted(overrides)}"

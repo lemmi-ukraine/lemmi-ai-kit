@@ -502,6 +502,33 @@ self-written edit script left **79 entries misfiled and two section headers gone
 from the pre-drain snapshot. So: assert the section-header count is unchanged before and after any
 bulk removal, and re-run the structural lint.
 
+## The handoff lint's dead-anchor check is an ON-DISK existence test, so it certifies UNTRACKED paths as durable
+
+`_git_anchor_resolves` returns `True` for any path-shaped token that merely **exists on disk** (by
+design — an untracked path still anchors a hand-off usefully). It therefore cannot distinguish a
+durable, committed anchor from a gitignored scratch file — which is the one distinction a durability
+claim needs.
+
+Measured, with both controls:
+
+| anchor | lint says | actually |
+|---|---|---|
+| `.ai/tmp/<scratch-report>.md` | resolves | **gitignored** |
+| `tasks/<untracked-task-doc>.md` | resolves | **untracked** (`git ls-files --error-unmatch` exit 1) |
+| `docs/this-file-does-not-exist-xyz.md` | dead | absent (true negative) |
+| `deadbee` | dead | not a SHA (true negative) |
+
+So a clean anchor line is evidence the path *exists here, now* — never that a future reader will find
+it. When the durability of an anchor is what a promotion rests on, run the real check yourself:
+
+```
+git ls-files --error-unmatch <path>     # exit 0 = tracked
+git show HEAD:<path> | wc -l            # non-zero = the CONTENT is committed, not just the path
+```
+
+Pair them: tracked-but-uncommitted passes the first and fails the second (see the `initiative-cleanup`
+skill's `references/settle-lessons.md` § the third state).
+
 ## Section-Placement Audit
 
 **Beware time-bucket catch-all sections.** `task-learnings`/manual appends tend to drop new entries

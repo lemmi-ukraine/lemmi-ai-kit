@@ -246,7 +246,7 @@ Changelog entry: `INFRA-MODIFIED: Updated CLAUDE.md skill listings`
 
 Decision: **Skip** — purely administrative sync, no behavioral change expected.
 
-## File Size Management
+## Ledger growth
 
 `.ai/improvement-hypotheses.md` is the **single file of record**. Nothing is ever moved out
 of it: `PENDING` entries persist until validated (they are the backlog), and terminal

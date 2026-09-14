@@ -59,6 +59,28 @@ a valid result, not a skipped step.**
    newest-mtime pointed at an entirely unrelated session. The extractor fails closed (exit 4)
    rather than guess, but the scratchpad id avoids the ambiguity outright.
 
+   > **If you are a native SUB-AGENT, Step 0 does not apply to you — skip it and say so.** A
+   > sub-agent shares the parent's project directory, and its scratchpad path carries the **parent's**
+   > session id. So the extractor resolves, runs, **exits 0**, and writes a well-formed digest of the
+   > *orchestrator's* transcript: measured, `first user message` came back as the orchestrator's
+   > takeover brief and the counts (10 user msgs, 1 error class, 3 sub-agents) all described the
+   > parent. Nothing fails — the self-check passes and step 3's verification passes, because the
+   > digest is genuinely valid for the session it measured.
+   >
+   > Writing `interaction` entries from those numbers puts **another session's behaviour** into a
+   > tracked shared file under your own attribution. Fall through to the "measurement failed" path
+   > and return `Step 0 not run: sub-agent shares the parent's session id`. The orchestrator extracts
+   > interaction learnings for its sub-agents from their returns and error histories, attributed.
+
+   > **A repetition signal that names a MANDATED preflight is compliance, not thrash.** The
+   > extractor reports repeated commands by their text and is explicitly content-blind, so a rule
+   > the session was obeying and a genuine retry loop are indistinguishable in its output.
+   > Measured: four identical usage-window status checks were flagged as the session's only
+   > repetition signal — they were the preflight a governing skill *requires* before each dispatch
+   > decision. Reading the signal without that context converts a followed rule into a finding
+   > against the session. When a repeated command is mandated, record it as compliance and name
+   > the rule that mandates it; the repeated-command list is evidence to interpret, not a defect list.
+
 2. **Run the extractor, scoped to that session:**
 
    ```bash
