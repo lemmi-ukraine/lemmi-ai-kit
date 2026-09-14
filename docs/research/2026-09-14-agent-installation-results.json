@@ -1,0 +1,128 @@
+{
+  "date": "2026-09-14",
+  "source_commit": "c6e51850f9e5930886346f50369a786ad4cf210a",
+  "prompt_sha256": "35d8bd68fbfc8dff25cdfbf870ecf7a34eb15630844664ed6a4ad8cc8c22a7ee",
+  "clients": {
+    "codex": "0.154.0",
+    "claude": "2.1.266"
+  },
+  "environment": "macOS ARM64; authenticated warm host; local source snapshots; new temporary marketplace aliases",
+  "timing": "Parent monotonic wall clock, process start through final response; includes model/tool latency and retries; excludes fixture/source preparation and independent grading",
+  "trials": [
+    {
+      "case": "codex-new",
+      "elapsed_sec": 360.479,
+      "expected_packs": [
+        "core"
+      ],
+      "installation_contract_pass": true,
+      "manual_findings": [],
+      "transport_retry_observed": true,
+      "native_install_completed_at_sec": 76.474,
+      "model": "gpt-6-astra (xhigh)",
+      "checks": {
+        "scaffolding_complete": true,
+        "no_copied_skills": true,
+        "existing_content_preserved": true,
+        "project_selection_correct": true,
+        "no_commit": true,
+        "native_install_complete": true,
+        "installed_payload_matches": true,
+        "source_checkout_unchanged": true,
+        "no_unrequested_trial_plugins": true
+      },
+      "started_at": "2026-09-14T15:50:12.580761+00:00",
+      "exit_code": 0
+    },
+    {
+      "case": "codex-existing",
+      "elapsed_sec": 432.459,
+      "expected_packs": [
+        "core",
+        "python"
+      ],
+      "installation_contract_pass": true,
+      "manual_findings": [],
+      "transport_retry_observed": true,
+      "native_install_completed_at_sec": 125.293,
+      "model": "gpt-6-astra (xhigh)",
+      "checks": {
+        "scaffolding_complete": true,
+        "no_copied_skills": true,
+        "existing_content_preserved": true,
+        "project_selection_correct": true,
+        "no_commit": true,
+        "native_install_complete": true,
+        "installed_payload_matches": true,
+        "source_checkout_unchanged": true,
+        "no_unrequested_trial_plugins": true
+      },
+      "started_at": "2026-09-14T15:56:13.067005+00:00",
+      "exit_code": 0
+    },
+    {
+      "case": "claude-new",
+      "elapsed_sec": 170.164,
+      "expected_packs": [
+        "core"
+      ],
+      "installation_contract_pass": true,
+      "manual_findings": [],
+      "transport_retry_observed": false,
+      "native_install_completed_at_sec": 35.821,
+      "model": "claude-opus-5[1m] (CLI default)",
+      "checks": {
+        "scaffolding_complete": true,
+        "no_copied_skills": true,
+        "existing_content_preserved": true,
+        "project_selection_correct": true,
+        "no_commit": true,
+        "native_install_complete": true,
+        "installed_payload_matches": true,
+        "source_checkout_unchanged": true,
+        "no_unrequested_trial_plugins": true
+      },
+      "started_at": "2026-09-14T15:50:12.584012+00:00",
+      "exit_code": 0
+    },
+    {
+      "case": "claude-existing",
+      "elapsed_sec": 325.163,
+      "expected_packs": [
+        "core",
+        "python"
+      ],
+      "installation_contract_pass": true,
+      "manual_findings": [
+        {
+          "file": "AGENTS.md",
+          "line": 47,
+          "finding": "The generated claim that uv sync resolves fresh each time without a committed uv.lock is inaccurate; a local uncommitted lockfile is also reused.",
+          "severity": "minor documentation accuracy"
+        }
+      ],
+      "transport_retry_observed": false,
+      "native_install_completed_at_sec": 42.56,
+      "model": "claude-opus-5[1m] (CLI default)",
+      "checks": {
+        "scaffolding_complete": true,
+        "no_copied_skills": true,
+        "existing_content_preserved": true,
+        "project_selection_correct": true,
+        "no_commit": true,
+        "native_install_complete": true,
+        "installed_payload_matches": true,
+        "source_checkout_unchanged": true,
+        "no_unrequested_trial_plugins": true
+      },
+      "started_at": "2026-09-14T15:53:02.752817+00:00",
+      "exit_code": 0
+    }
+  ],
+  "limits": [
+    "One run per host/scenario; not a model ranking or a speed guarantee.",
+    "No remote clone/download, client installation or initial sign-in was timed.",
+    "Only new Core and existing Python/Core scenarios were exercised.",
+    "Content correctness is not established by structural checks; one minor generated-prose error was found."
+  ]
+}

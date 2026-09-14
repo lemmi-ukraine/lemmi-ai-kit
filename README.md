@@ -13,8 +13,8 @@ and **Codex**. Across five optional packs it carries 39 skills — a
 *skill* being a markdown document your agent loads when it becomes relevant, not code
 your project depends on — plus the files that hold your team's own conventions.
 
-Nothing is vendored. Nothing is forked. Your conventions stay yours, in files you
-own, and they take precedence over the kit's.
+Your project receives no copied kit skills. Your conventions stay yours, in files
+you own, and they take precedence over the kit's.
 
 ## Who it is for
 
@@ -64,6 +64,81 @@ You receive installed skills through their plugins. There is nothing in your
 repository to re-sync when a plugin changes.
 
 ## Install
+
+Installation is an **agent task**. Open your project in Claude Code or Codex and
+paste the prompt below. You need an authenticated client with plugin support,
+Git and uv available. The agent may need the client's normal permission approval
+to install plugins or edit project settings.
+
+### Paste this prompt
+
+<!-- agent-install-prompt:begin -->
+```text
+Install and set up Lemmi AI Kit in the project open in this session.
+Source: https://github.com/lemmi-ukraine/lemmi-ai-kit. Use a checkout or ref I
+provide; otherwise use the repository's default branch. Read its README and
+the installed kit-setup instructions before changing project files.
+
+Use this client's native plugin manager. Install and enable Core, plus the
+Python pack only if the project actually uses Python. In an empty project,
+start with Core only; do not choose a framework or create application code.
+Install other optional packs only if I request them. Reuse an existing matching
+marketplace; do not replace a different source or remove other plugins.
+Keep any kit checkout and plugin cache outside this project.
+
+I authorize the selected plugin installs, missing AI configuration files, and
+clearly marked additive kit sections in existing instructions. Preserve all
+existing rules, settings, source files and .ai history. Never use --reseed or
+copy kit skills into .claude/skills or .agents/skills. Use uv for Python.
+
+Run kit-setup from the installed Core plugin against this project. If newly
+installed skills are not available in this session yet, locate and read the
+installed SKILL.md and follow it directly. Fill project commands and conventions
+from real files; leave unknowns explicit instead of inventing them. Proceed with
+these defaults without another planning confirmation. Ask only if a prerequisite,
+permission, conflicting configuration or destructive change needs my decision.
+
+Verify the selected plugins and versions through the native client, inspect the
+project changes, and confirm the existing content was preserved. Report what was
+installed, files created/updated, unresolved facts, and any restart needed to load
+new tools. Do not commit, push or deploy.
+```
+<!-- agent-install-prompt:end -->
+
+For all capabilities, append: **"Install all five kit packs."** For a smaller set,
+name which optional packs to add, such as Research or Orchestration; the agent
+should honor their Core prerequisites. No new configuration format is needed.
+
+**Reviewing the unreleased 0.2.0 PR?** Also provide the PR checkout or append
+`Use ref codex/native-plugin-packs.` The default branch will provide these packs
+after the PR merges; a default-branch install before then uses the older catalog.
+
+### New project
+
+1. Create an empty project folder (and a Git repository if you want version control),
+   then open an agent session in that folder.
+2. Paste the prompt. Core can be installed before you choose a language or framework.
+   If the stack is already decided, say so; otherwise unknown commands stay explicit.
+3. Review the generated instructions and `.ai/` files, then start a fresh session
+   when the client needs it to load the installed skills and MCP tools.
+
+### Existing project
+
+1. Open the existing repository in the agent. Its manifests, CI, commands and current
+   instructions are the evidence for setup.
+2. Paste the same prompt. Existing `AGENTS.md`, `CLAUDE.md`, client settings and `.ai/`
+   history must be preserved; only missing files and marked additions are authorized.
+3. Review the diff before committing. Installing plugins does not remove legacy skill
+   copies automatically; resolve any migration separately instead of overwriting them.
+
+The [setup file table](#set-up-a-project) explains ownership. The commands below are
+the manual equivalent and are useful when diagnosing an agent installation.
+
+**Measured trials:** four agent sessions completed installation and setup in
+2m 50s–7m 12s on an authenticated warm host. File and plugin checks passed in all
+four; manual review found one minor error in generated project notes. See the
+[test conditions, exact results and limits](docs/research/2026-09-14-agent-installation.md)
+before treating these times as an expectation for your project.
 
 ### Claude Code
 

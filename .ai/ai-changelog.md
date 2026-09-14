@@ -12,6 +12,12 @@
 
 ## 2026-09-14
 
+### INFRA-MODIFIED: Add agent-led onboarding and measure real installation sessions
+- **What:** Added a paste-ready installation prompt and separate new/existing-project guidance to README. Ran four native agent sessions in temporary repositories and recorded external wall-clock timing, independent file/plugin checks and manual content findings.
+- **Why:** Users should be able to ask their agent to install and configure the kit, with explicit preservation boundaries and evidence of how that workflow behaves.
+- **Files:** `README.md`, `docs/research/2026-09-14-agent-installation.md`, `docs/research/2026-09-14-agent-installation-results.json`.
+- **Affected workflows:** Installation and kit-setup entry point; the installer and skills are unchanged. All four trials met the installation checks; one generated-prose error remains recorded. No comparative speed/quality hypothesis: these are single-run smoke measurements, not a controlled improvement study.
+
 ### INFRA-MODIFIED: Bundle FFF binaries so users need no separate FFF installation
 - **What:** Vendored the six official FFF v0.10.6 platform binaries with their MIT license and SHA-256 checksums. Added a stdlib launcher through the existing uv runtime, preserving cwd/stdio and rejecting unsupported or corrupt payloads. Disabled upstream startup update checks; plugin updates own the version.
 - **Why:** Installing Core should provide FFF directly instead of requiring each user to install and configure an executable separately.
