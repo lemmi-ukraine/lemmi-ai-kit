@@ -22,7 +22,7 @@ support CLI is for, and what a version bump has to touch.
 |---|---|
 | `.claude-plugin/marketplace.json` | Claude Code marketplace catalog for the packs in `plugins/*` |
 | `.agents/plugins/marketplace.json` | Codex marketplace catalog for the same packs |
-| `plugins/core/`, `plugins/python/` | the two packs — per-host manifests plus the skill directories under `skills/` |
+| `plugins/core/`, `plugins/research/`, `plugins/orchestration/`, `plugins/skill-authoring/`, `plugins/python/` | the five native packs — per-host manifests plus each pack's `skills/` tree |
 | `plugins/_template/` | the skeleton `new-pack` copies; its placeholders are filled from `pyproject.toml` at scaffold time |
 | `plugins/core/src/lemmi_ai_kit/` | the support package behind the CLI: scaffolding, the manifest reader, the `.ai/` and skill checks, and the publish guard |
 | `plugins/core/src/lemmi_ai_kit/assets/manifest.toml` | the skill registry — one `[[skills]]` entry per skill, carrying `name`, `profile`, `invocation` and `summary` |
@@ -32,16 +32,18 @@ support CLI is for, and what a version bump has to touch.
 
 Two things about that table are worth stating rather than leaving to be inferred.
 
-**The registry lives in the core pack and registers the skills of every pack.**
-There is no per-pack manifest. `list` and the rendered `CLAUDE.md` index both read
-from it, and the suite enforces a bijection between its entries and the directories
-under `plugins/*/skills/` — so a skill directory with no row, or a row with no
+**The skill registry lives in the core pack and registers the skills of every pack.**
+Each pack also has native Claude and Codex plugin manifests. `list` and the
+rendered `CLAUDE.md` index read the shared skill registry. The suite enforces
+a bijection between its entries and the directories under `plugins/*/skills/`.
+A skill directory with no row, or a row with no
 directory, makes `load_manifest()` raise and takes a large part of the suite down
 at once rather than pointing at the thing you just did.
 
-**`profile` is not `pack`.** The registry records a *profile*; the pack is derived
-from it. That is why adding a pack means registering its profile as well as its
-name — the trap is written up in
+**`profile` identifies the owning pack.** The registry records a profile and
+`pack_for_profile()` resolves it to one native plugin. The current five
+profiles map one-to-one to their packs; unknown profiles fail validation.
+Adding a pack means registering its profile as well as its name, as described in
 [Authoring a pack](authoring-a-pack.md#2-register-it--seven-edits-new-pack-does-not-make).
 
 ## The support CLI
@@ -95,31 +97,48 @@ makes re-running it safe.
 | `--reseed` | resets seed files to their templates — it will discard a customized `AGENTS.md` or a non-empty `.ai/` log |
 
 `--reseed` is the blunt one and it is **not** an upgrade path.
-[Migrating from 0.1.0](migrating-from-0.1.0.md) has what to do instead.
+[Migrating to 0.2.0](migrating-to-0.2.0.md) has what to do instead for the
+optional family split. The [older migration note](migrating-from-0.1.0.md)
+covers the original single-plugin install.
 
 ### How the skill reaches the helper
 
-`kit-setup` runs it straight from the plugin cache, by putting the plugin root's
-`src/` on `PYTHONPATH`. Claude Code supplies `CLAUDE_PLUGIN_ROOT`; Codex supplies
-`PLUGIN_ROOT` and sets `CLAUDE_PLUGIN_ROOT` too, for compatibility. No `pip
-install` is involved anywhere on that path, which is also why the same call works
-from a clone with `plugins/core/src` on `PYTHONPATH` instead.
+`kit-setup` runs the support package from the installed Core plugin's `src/`
+using `uv run --no-project --directory`. It passes the consuming project's
+absolute directory as the scaffold target, so changing the command's working
+directory cannot seed project files into the plugin cache. Resolve the installed
+plugin root through the host's skill location; in a source checkout, the project
+environment also exposes the package to `uv run python -m lemmi_ai_kit`.
 
 ## Versioning and releasing
 
 There is no publish pipeline. The marketplaces serve this repository directly, so
 **pushing to `main` is the release**, and CI gates code quality only.
 
-A version bump touches `pyproject.toml` and both manifests of every pack:
+A release-version bump touches `pyproject.toml` and both manifests of every pack:
 
-- `pyproject.toml` — `project.version`, the source the others are checked against
+- `pyproject.toml` — `project.version`, the base release the others are checked against
 - `plugins/<pack>/.claude-plugin/plugin.json`
 - `plugins/<pack>/.codex-plugin/plugin.json`
 
 `plugins/_template/` is the exception. It carries a `{{VERSION}}` placeholder that
 `new-pack` fills from `pyproject.toml`, so writing a real version into it would
 break the template rather than release it. The two marketplace catalogs carry no
-version at all.
+version at all. A temporary Core payload can carry a SemVer build suffix in
+both host manifests, such as `0.2.0+codex.20260914134112`, while the package
+release remains `0.2.0`. Tests require the manifest's base release to match
+`pyproject.toml` and the two host manifests to match each other exactly.
+
+The native plugin manager handles installation, enabling, disabling, and updates
+one pack at a time. Research and Python stand alone; Orchestration and Skill
+Authoring require Core 0.2.0 or newer. Their Claude manifests declare that
+minimum version, and fresh local installs automatically added Core in the
+2026-09-14 check. Update an existing Claude Core with `claude plugin update
+lemmi-ai-kit-core@lemmi --scope project` if it was installed at project scope;
+`claude plugin install` alone reports an existing plugin as already installed.
+On Codex, `codex plugin add lemmi-ai-kit-core@lemmi` refreshes Core, and Codex
+does not automatically add dependencies. There is no extra selector, bundle
+generator, or all-packs plugin.
 
 `tests/test_plugin.py` holds every pack manifest against `pyproject.toml` on both
 hosts, so a half-finished bump fails the suite instead of shipping.

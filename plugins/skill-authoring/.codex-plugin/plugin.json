@@ -1,0 +1,32 @@
+{
+  "name": "lemmi-ai-kit-skill-authoring",
+  "version": "0.2.0",
+  "description": "Create, research and review reusable agent skills. Requires the core pack.",
+  "author": {
+    "name": "lemmi-ukraine",
+    "url": "https://github.com/lemmi-ukraine"
+  },
+  "homepage": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "repository": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "skill-authoring",
+    "agents-md"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Lemmi AI Kit Skill Authoring",
+    "shortDescription": "Create, research and review reusable agent skills. Requires the core pack.",
+    "longDescription": "Create, research and review reusable agent skills. Requires the core pack.",
+    "developerName": "lemmi-ukraine",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive"
+    ],
+    "websiteURL": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+    "defaultPrompt": [
+      "Create and review a reusable agent skill."
+    ]
+  }
+}

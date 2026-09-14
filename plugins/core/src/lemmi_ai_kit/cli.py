@@ -359,7 +359,19 @@ def _cmd_audit_skills(args: argparse.Namespace) -> int:
         for skills_dir in skills_dirs
         for finding in checks.audit_skills(
             skills_dir,
-            claude_md=root / "CLAUDE.md",
+            # Native plugin manifests own registration; a consumer's CLAUDE index
+            # may list only the catalog available when it was scaffolded.
+            claude_md=(
+                None
+                if any(
+                    (skills_dir.parent / manifest).is_file()
+                    for manifest in (
+                        ".codex-plugin/plugin.json",
+                        ".claude-plugin/plugin.json",
+                    )
+                )
+                else root / "CLAUDE.md"
+            ),
             shipped=checks.shipped_skill_names(),
         )
     ]

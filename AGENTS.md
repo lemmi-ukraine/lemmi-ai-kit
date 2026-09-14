@@ -32,9 +32,8 @@ Shared conventions live in the installed coding, architecture, and testing
 convention skills. What follows is specific to THIS repository.
 
 ### Layout
-- `plugins/core/` and `plugins/python/` are the two shipped packs; each is a plugin
-  entry in both marketplaces. `plugins/_template/` is the seed `new-pack` copies and
-  is deliberately **not** a pack — it is absent from `PACKS`.
+- `plugins/<pack>/` holds the native optional packs listed by `PACKS` in the manifest
+  module. `plugins/_template/` is the scaffold seed and is not a registered pack.
 - The support CLI is `plugins/core/src/lemmi_ai_kit/`, and it lives *inside* the core
   payload. That is how it reaches an adopter, and it is why `publish-check` needs `-B`.
 - `docs/research/` holds dated engineering records. They are evidence, not
@@ -83,13 +82,13 @@ See the `ai-docs-lookup` skill for the full lookup process.
 ```
 PRE-PLANNING                PLANNING                    IMPLEMENTATION              COMPLETION
 ────────────                ─────────                   ──────────────              ──────────
-/product-brief              /spec-driven-dev            [auto-loaded]               /post-task-review
+/lemmi-ai-kit-core:product-brief              /lemmi-ai-kit-core:spec-driven-dev            [auto-loaded]               /lemmi-ai-kit-core:post-task-review
 (task)                      (workflow)                  convention skills           (workflow)
    │                           │                            │                          │
    └─→ tasks/FEATURE-*         ├─→ test-planner             │                          ├─→ task-learnings
                                │   (task)                   │                          │   (task)
                                │                            │                          │
-                               ├─→ plan-critic                                        └─→ /commit-message
+                               ├─→ plan-critic                                        └─→ /lemmi-ai-kit-core:commit-message
                                │   (review)                                               (task)
                                │
                                └─→ .specs/{name}/
@@ -97,20 +96,20 @@ PRE-PLANNING                PLANNING                    IMPLEMENTATION          
 
 SKILL CREATION                          PERIODIC (weekly/biweekly)
 ──────────────                          ──────────────────────────
-/skill-creation-workflow                /learning-consolidator
+/lemmi-ai-kit-skill-authoring:skill-creation-workflow                /lemmi-ai-kit-core:learning-consolidator
 (workflow)                              (workflow)
    │                                       │
    ├─→ skill-researcher                    ├─→ Analyze .ai/learnings.md entries
    │   (task)                              ├─→ Promote to AGENTS.md / skills
    │                                       └─→ Clean up processed entries
-   ├─→ /skill-creator
-   │   (task)                           /session-retrospective
+   ├─→ /lemmi-ai-kit-skill-authoring:skill-creator
+   │   (task)                           /lemmi-ai-kit-core:session-retrospective
    │                                    (task)
    └─→ skill-content-reviewer              │
        (review)                            ├─→ Extract session data (Python)
                                            ├─→ Analyze patterns & feedback
                                            ├─→ .ai/retrospectives/ report
-                                           └─→ feeds /learning-consolidator
+                                           └─→ feeds /lemmi-ai-kit-core:learning-consolidator
 ```
 
 ### Task completion checklist (mandatory)
@@ -124,14 +123,14 @@ When a task is complete, ALWAYS perform these steps before considering it done:
 - `.ai/learnings.md` is a **lean intake buffer**, not the knowledge store. Before a task, draw on: the always-loaded `AGENTS.md` rules; the relevant skills (plugin or project-local); and — **when working in a subsystem, that subsystem's code-adjacent module/feature `README.md`**, where its specific conventions and gotchas live. Skim `.ai/learnings.md` itself only for not-yet-promoted intake entries.
 - After completing a task, extract and record new learnings using the `task-learnings` skill — it appends to the `.ai/learnings.md` intake buffer under the matching category.
 - If a finding reveals a convention gap, write it straight to its home: a universal rule → `AGENTS.md`; a cross-cutting pattern → the relevant skill; a subsystem gotcha → the module/feature README; an invariant guard a future edit could break → a co-located code comment.
-- Periodically (~weekly) run `/learning-consolidator` to drain accumulated intake entries into rules, skills, READMEs, and comments, then remove the promoted source entries.
+- Periodically (~weekly) run `/lemmi-ai-kit-core:learning-consolidator` to drain accumulated intake entries into rules, skills, READMEs, and comments, then remove the promoted source entries.
 - See the `task-learnings` skill for the full extraction process.
 
 ### Product brief (pre-planning)
 Uses: product-brief (task)
-- For new product ideas that need shaping before implementation, run `/product-brief` first.
+- For new product ideas that need shaping before implementation, run `/lemmi-ai-kit-core:product-brief` first.
 - The skill researches the codebase, challenges assumptions (2-3 mandatory), then writes a team-readable task description to `tasks/FEATURE-*.md` with production-ready UX content.
-- Hand off to `/spec-driven-dev` when the brief is approved and the team is ready to implement.
+- Hand off to `/lemmi-ai-kit-core:spec-driven-dev` when the brief is approved and the team is ready to implement.
 
 ### Spec-driven development
 Uses: spec-driven-dev (workflow), test-planner (task), plan-critic (review)
@@ -163,20 +162,25 @@ Uses: plan-critic (review) — **universal, not limited to spec-driven-dev**
 
 ### Orchestration and delegation
 Uses: orchestrate (workflow), agent-delegate (task)
-- For large decomposable tasks, run `/orchestrate`: the main model plans and judges;
+- With Orchestration enabled, use `/lemmi-ai-kit-orchestration:orchestrate` for large decomposable tasks: the main model plans and judges;
   scoped subtasks go to cheaper native subagents (Opus for reasoning, Sonnet for mechanical
   work) and external CLI peers (codex, cursor-agent, grok) in parallel.
-- Every delegation uses the brief contract (one concern, inlined context, self-checkable
+- Delegation through that plugin uses its brief contract (one concern, inlined context, self-checkable
   definition of done, short report) — see `references/brief-template.md` in the `orchestrate` skill.
 - A worker's summary is a claim: verify the actual output against the definition of done before
   merging. For high-stakes decisions, task independent workers in parallel without showing them
   each other's answers, then synthesize.
 - Keep single-agent when judgment is the work or the subtasks can't be crisply named.
+- With Core alone, work in one agent. If the user requests an Orchestration workflow,
+  report `lemmi-ai-kit-orchestration@lemmi` as a prerequisite before that workflow starts.
 
 ### Parallel research source planning
 Uses: research-source-planner (task), research-source-claim (task), parallel-deep-research (workflow)
-- **One-command path:** `/parallel-deep-research <question>` runs the whole flow automatically — scope → plan sources (planner) → fan out one sub-agent per owner (claim protocol) → synthesize a cited report.
-- **Manual path / pre-step:** before any hand-rolled parallel/multi-session fan-out, run `/research-source-planner <question>` first. It builds a deduplicated `source-manifest.md` that assigns each source to exactly one owner.
+- These routes apply when Research is enabled. With Core alone, use a single-agent
+  lookup; if the user requests this parallel workflow, report `lemmi-ai-kit-research@lemmi`
+  as a prerequisite before starting it.
+- **One-command path:** `/lemmi-ai-kit-research:parallel-deep-research <question>` runs the whole flow automatically — scope → plan sources (planner) → fan out one sub-agent per owner (claim protocol) → synthesize a cited report.
+- **Manual path / pre-step:** before any hand-rolled parallel/multi-session fan-out, run `/lemmi-ai-kit-research:research-source-planner <question>` first. It builds a deduplicated `source-manifest.md` that assigns each source to exactly one owner.
 - Each fan-out worker then follows `research-source-claim`: workers touch ONLY their assigned rows.
 - Skip for single-agent lookups (1 owner → no overlap to prevent).
 
@@ -220,7 +224,7 @@ State the rule and its reason in the same breath. A rule with no reason attached
 is dropped the first time it is inconvenient, and nobody can tell later whether
 dropping it was fine.
 
-Rules arrive two ways: by promotion, when `/learning-consolidator` drains an entry
+Rules arrive two ways: by promotion, when `/lemmi-ai-kit-core:learning-consolidator` drains an entry
 `task-learnings` put in `.ai/learnings.md`, or by hand the moment one is known —
 from an existing `CONTRIBUTING.md`, a house style, or a decision made in review.
 

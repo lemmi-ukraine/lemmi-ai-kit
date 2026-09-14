@@ -61,7 +61,10 @@ Three refusals that are absolute for a model-initiated switch — stop and hand 
 |---|---|---|
 | Another worktree holds the target branch | git refuses the checkout, and it fails *after* the stash — the worst moment | `git worktree list` |
 | Files staged by another session | Switching carries or conflicts with an index you did not build; never stash someone else's staged work | `git diff --cached --name-only` non-empty and not yours |
-| The switch is part of a cascade, rebase, or force-push | Boundary operation — `parallel-session-safety` §10 | any of those in the plan |
+| The switch is part of a cascade, rebase, or force-push | Boundary operation — `lemmi-ai-kit-orchestration:parallel-session-safety` §10 | any of those in the plan |
+
+That boundary route requires the orchestration plugin. If it is not enabled, report
+the prerequisite before any cascade; an ordinary branch switch does not require it.
 
 **Prefer not switching at all.** Most work that seems to need a checkout does not: `git show
 <ref>:<path>` and `git ls-tree` read any branch's content in place, and an existing worktree can be

@@ -42,20 +42,27 @@ Skills come in three kinds, and the difference matters for what you will see:
 
 ### What you get
 
-The kit ships two plugins ("packs"). How many skills you end up with depends on
-which of them you install, so this guide quotes no total — ask your client for the
-inventory instead, as **Check that it worked** below shows.
+The kit ships five native plugins ("packs"). Install one, several, or all of
+them with your host's plugin manager. How many skills you end up with depends
+on that choice; ask your client for its installed inventory as
+**Check that it worked** below shows.
 
 | Pack | Plugin name | What is in it |
 |---|---|---|
-| Core | `lemmi-ai-kit-core` | Everything language-agnostic: project setup, spec-driven development, post-task review, the learnings loop, orchestration, research, code review, commit messages, branch handling |
-| Python | `lemmi-ai-kit-python` | `python-conventions` and `test-conventions` — both auto-loaded, neither ever typed |
+| Core | `lemmi-ai-kit-core` | Project setup, specs, post-task review, learnings, code review, commit messages and branch handling |
+| Research | `lemmi-ai-kit-research` | Source planning, ownership and parallel research; stands alone |
+| Orchestration | `lemmi-ai-kit-orchestration` | Delegation, initiative coordination and stacked-work review; requires Core |
+| Skill Authoring | `lemmi-ai-kit-skill-authoring` | Create, research and review reusable skills; requires Core |
+| Python | `lemmi-ai-kit-python` | `python-conventions` and `test-conventions`; both auto-loaded and the pack stands alone |
 
-**Core is genuinely language-agnostic, and that is enforced rather than
-promised.** No core skill names a Python-pack skill; where a core skill needs to
-reach for language conventions it refers to them by role ("the installed
-coding-conventions skill"), not by name. A test in this repository
-(`tests/test_pack_boundaries.py`) fails if that ever stops being true.
+Core has no dependency on another family. Where a core skill needs language
+conventions it refers to the installed convention by role. The manifest and
+pack-boundary tests check which native plugin owns each skill. Claude manifests
+declare Core 0.2.0 or newer as a dependency of Orchestration and Skill
+Authoring. Install or upgrade Core before either dependent pack on both hosts.
+Fresh Claude installation of either dependent pack was verified to install Core
+automatically. Update an existing Core to 0.2.0 first; Codex uses the explicit
+Core-first installation commands.
 
 ### What the kit does not do
 
@@ -101,55 +108,67 @@ project by installing.
 
 ### Claude Code
 
-```
-/plugin marketplace add lemmi-ukraine/lemmi-ai-kit
-/plugin install lemmi-ai-kit-core@lemmi
+From a clone of the kit repository:
+
+```sh
+claude plugin marketplace add ./
+claude plugin install lemmi-ai-kit-core@lemmi
+claude plugin install lemmi-ai-kit-research@lemmi
+claude plugin install lemmi-ai-kit-orchestration@lemmi
+claude plugin install lemmi-ai-kit-skill-authoring@lemmi
+claude plugin install lemmi-ai-kit-python@lemmi
 ```
 
-Python projects only — skip it otherwise:
-
-```
-/plugin install lemmi-ai-kit-python@lemmi
-```
+The five install lines show every choice; run only those you want. Research and
+Python can be installed alone. Install Core when you want project setup or the
+shared learnings workflow. Install or upgrade Core to 0.2.0 or newer before
+Orchestration or Skill Authoring. Their Claude manifests declare that minimum
+version; fresh Claude installs of either pack automatically installed Core in the
+2026-09-14 check. For an existing Core install, use `claude plugin update
+lemmi-ai-kit-core@lemmi` with its original scope before installing the new packs.
 
 ### Codex
 
 ```sh
-codex plugin marketplace add lemmi-ukraine/lemmi-ai-kit
+codex plugin marketplace add .
 codex plugin add lemmi-ai-kit-core@lemmi
-```
-
-Python projects only:
-
-```sh
+codex plugin add lemmi-ai-kit-research@lemmi
+codex plugin add lemmi-ai-kit-orchestration@lemmi
+codex plugin add lemmi-ai-kit-skill-authoring@lemmi
 codex plugin add lemmi-ai-kit-python@lemmi
 ```
+
+Run only the install lines you want. For Orchestration or Skill Authoring,
+install or upgrade Core to 0.2.0 or newer first; Codex does not automatically
+install dependencies. Research
+and Python can be installed alone.
 
 You can also add the marketplace and then install from Codex's plugin directory
 UI by selecting the **Lemmi** marketplace.
 
 ### If the `owner/repo` shorthand does not resolve
 
-Clone the repository and add it as a local marketplace. **This is the path that
-has actually been executed end-to-end** (see the honesty note below):
+Clone the repository and add it as a local marketplace:
 
 ```sh
 git clone https://github.com/lemmi-ukraine/lemmi-ai-kit
 cd lemmi-ai-kit
 ```
 
-Then, in Codex:
+The Codex and Claude commands above add that clone. If you want just one pack,
+for example Research, run only its install line after the marketplace command.
+In Codex:
 
 ```sh
 codex plugin marketplace add .
-codex plugin add lemmi-ai-kit-core@lemmi
+codex plugin add lemmi-ai-kit-research@lemmi
 ```
 
 Or in Claude Code:
 
 ```sh
 claude plugin marketplace add ./
-claude plugin install lemmi-ai-kit-core@lemmi
+claude plugin install lemmi-ai-kit-research@lemmi
 ```
 
 **The two clients do not spell "here" the same way, and the difference is not
@@ -163,21 +182,24 @@ difference between an install and an error.
 
 ### How verified each of these is
 
-Be aware of what has and has not been proven, because the two install paths are
-not equally exercised:
+Be aware of what has and has not been proven:
 
-- **Codex, from a local clone — verified.** Run on 2026-08-22 with codex-cli
-  0.149.0 against an isolated `CODEX_HOME`. Both packs installed and enabled,
-  and every skill file the manifest listed that day physically materialized. A
-  core-only install was separately confirmed to carry the core skills and **no**
-  Python skills.
-- **Claude Code, from a local clone — verified.** Run on 2026-08-23:
+- **Codex, from a local clone — older two-pack baseline verified.** Run on
+  2026-08-22 with codex-cli 0.149.0 against an isolated `CODEX_HOME`. Core and
+  Python installed and enabled, and their then-listed skills materialized.
+- **Claude Code, from a local clone — older Core baseline verified.** Run on 2026-08-23:
   `claude plugin marketplace add ./`, then `claude plugin install
   lemmi-ai-kit-core@lemmi`, then `claude plugin details lemmi-ai-kit-core`,
   which listed the installed core skills by name. The `.` form of
   `marketplace add` was rejected by this client; see above.
 - **The `owner/repo` shorthand — not yet exercised** against this repository on
-  either host. If it fails, use the clone-and-add-local fallback above.
+  either host. Use the clone-and-add-local path above.
+- **Five-pack 0.2.0 local install — verified on 2026-09-14.** Claude Code 2.1.266
+  and Codex 0.154.0 installed all five payloads; installed bytes matched source.
+  Fresh Claude configurations installed Research and Python independently, and
+  Orchestration and Skill Authoring with their declared Core dependency. A native
+  Codex configuration override selected Research alone without changing the saved
+  enabled set. The Git-based release still requires publishing the source changes.
 
 ### Check that it worked
 
@@ -186,7 +208,7 @@ codex plugin list      # Codex
 claude plugin list     # Claude Code
 ```
 
-You should see `lemmi-ai-kit-core@lemmi` installed and enabled.
+You should see each pack you selected installed and enabled.
 
 That only tells you the install did not error, which is weaker evidence than it
 looks: an earlier probe of this kit showed a client will report a plugin as
@@ -194,9 +216,11 @@ installed when it carries no manifest at all. So ask for the inventory by name:
 
 ```sh
 claude plugin details lemmi-ai-kit-core
+claude plugin details lemmi-ai-kit-research
 ```
 
-It prints `Skills (N)` followed by every skill name. Read the names. That is the
+Ask for the details of each pack you installed; the two lines above are examples.
+Claude prints `Skills (N)` followed by every skill name. Read the names. That is the
 step that separates a real install from a green message, and it is also the only
 count worth trusting — it is the one your machine actually has.
 
@@ -251,18 +275,16 @@ the output before letting an agent near your repo:
 
 ```sh
 # from a clone of lemmi-ai-kit
-PYTHONPATH=plugins/core/src python3 -m lemmi_ai_kit scaffold /path/to/your/project --dry-run
+PYTHONPATH=plugins/core/src PYTHONDONTWRITEBYTECODE=1 uv run --no-project python -m lemmi_ai_kit scaffold /path/to/your/project --dry-run
 ```
 
 `--dry-run` writes nothing. Drop it to actually place the files. The helper
 places files and applies seed semantics; it does **not** do the detection —
 filling in your real commands and conventions is the agent's half of the job.
 
-> **Needs Python 3.11 or newer** (it reads TOML with `tomllib`). If your `python3`
-> is older you will get a `ModuleNotFoundError: tomllib` — name a newer
-> interpreter explicitly, e.g. `python3.12` in place of `python3`. You do not need
-> this when running through `kit-setup`; the skill picks a working interpreter
-> itself.
+> **Needs Python 3.11 or newer** (it reads TOML with `tomllib`). The `uv run`
+> command above selects a Python interpreter. You do not need to run the helper
+> yourself when using `kit-setup`; the skill selects a working interpreter.
 
 ---
 
@@ -390,13 +412,13 @@ Verify that on your own repository before letting anything write, with `--dry-ru
 
 ```sh
 # from a clone of lemmi-ai-kit
-PYTHONPATH=plugins/core/src python3 -m lemmi_ai_kit scaffold /path/to/your/project --dry-run
+PYTHONPATH=plugins/core/src PYTHONDONTWRITEBYTECODE=1 uv run --no-project python -m lemmi_ai_kit scaffold /path/to/your/project --dry-run
 ```
 
 Against a project that already has an `AGENTS.md`, that prints:
 
 ```text
-[dry-run] lemmi-ai-kit 0.1.0 scaffold -> /path/to/your/project
+[dry-run] lemmi-ai-kit 0.2.0 scaffold -> /path/to/your/project
 [dry-run] written: 6  seeded: 4  overwritten: 0  unchanged: 0
 
 [dry-run] kept 1 project-owned seed file(s) (use --reseed to overwrite):
@@ -432,7 +454,7 @@ marked `skills-index` block rather than replacing your file.
 
 ```sh
 # 1. See exactly what would be touched. Writes nothing.
-PYTHONPATH=plugins/core/src python3 -m lemmi_ai_kit scaffold . --dry-run
+PYTHONPATH=plugins/core/src PYTHONDONTWRITEBYTECODE=1 uv run --no-project python -m lemmi_ai_kit scaffold . --dry-run
 
 # 2. Make sure your existing files are committed, so any change is reviewable.
 git add -A && git commit -m "checkpoint before lemmi-ai-kit adoption"
@@ -468,15 +490,15 @@ takes precedence.
 
 The straightforward path.
 
-```
-/plugin marketplace add lemmi-ukraine/lemmi-ai-kit
-/plugin install lemmi-ai-kit-core@lemmi
+```sh
+claude plugin marketplace add ./
+claude plugin install lemmi-ai-kit-core@lemmi
 ```
 
 If you are a Python project, add the Python pack:
 
-```
-/plugin install lemmi-ai-kit-python@lemmi
+```sh
+claude plugin install lemmi-ai-kit-python@lemmi
 ```
 
 Then, in the project directory:
@@ -498,26 +520,25 @@ you work, `task-learnings` writes observations to `.ai/learnings.md`, and runnin
 `/lemmi-ai-kit-core:learning-consolidator` every week or so promotes the durable
 ones into `AGENTS.md`. You do not have to seed it up front.
 
-If you are **not** on Python, install core only and read [C](#c-your-language-has-no-pack)
+If you are **not** on Python, omit the Python pack and read [C](#c-your-language-has-no-pack)
 — it is short, and it is the answer to "where do my language's rules go".
 
 ---
 
 ### C. Your language has no pack
 
-You write Go. Or Rust, or TypeScript, or C#. The kit ships packs for core and
-Python, and nothing for you.
+You write Go. Or Rust, or TypeScript, or C#. The kit ships no conventions pack
+for your language.
 
-**You do not need one.** Install core alone:
+**You do not need one.** For the shared project workflow, install Core:
 
+```sh
+claude plugin install lemmi-ai-kit-core@lemmi
 ```
-/plugin install lemmi-ai-kit-core@lemmi
-```
 
-Every skill in the core pack works unchanged on a Go repository. Commit messages,
-spec-driven development, post-task review, the learnings loop, branch handling,
-code review, research — none of it is language-specific, and none of it will
-point you at a Python skill. That is the enforced boundary from
+Core works on a Go repository: commit messages, specs, post-task review, the
+learnings loop, branch handling and code review are language-neutral. Add the
+Research pack if you want source planning or parallel research. That is the boundary from
 [section 1](#what-you-get), not an aspiration.
 
 Then put your Go conventions in `### Project rules`, exactly as in
@@ -537,10 +558,10 @@ Author one when **a second repository needs the same conventions**. One repo is 
 `### Project rules` section; five repos is a pack, because otherwise you are
 maintaining the same rules in five places by hand.
 
-The kit's packs are split on **one axis: language.** A `-go` pack would carry Go
-conventions, and nothing else would justify a new pack — not a framework, not a
-team, not a domain. (A framework axis gets added only if a language pack ever
-actually splits under its own weight, and none has.)
+The kit has two kinds of optional families: shared workflow packs (Research,
+Orchestration and Skill Authoring) and language conventions packs (currently
+Python). A `-go` pack would carry reusable Go conventions, while framework or
+team rules normally stay in each project's `### Project rules` section.
 
 **Authoring is documented, and it assumes you have cloned this repository.** There is a
 pack template (`plugins/_template/`), a scaffolding command (`new-pack`), and
@@ -562,10 +583,10 @@ a different file.
 An Angular team and a Vue team, sharing an organisation and wanting shared
 workflow without carrying each other's framework rules.
 
-Both teams install core:
+Both teams install Core:
 
-```
-/plugin install lemmi-ai-kit-core@lemmi
+```sh
+claude plugin install lemmi-ai-kit-core@lemmi
 ```
 
 Then the answer depends on one thing: **do the two apps live in separate
@@ -590,8 +611,8 @@ repository, so you can set up each package independently:
 
 ```sh
 # from a clone of lemmi-ai-kit
-PYTHONPATH=plugins/core/src python3 -m lemmi_ai_kit scaffold /path/to/monorepo/apps/angular
-PYTHONPATH=plugins/core/src python3 -m lemmi_ai_kit scaffold /path/to/monorepo/apps/vue
+PYTHONPATH=plugins/core/src PYTHONDONTWRITEBYTECODE=1 uv run --no-project python -m lemmi_ai_kit scaffold /path/to/monorepo/apps/angular
+PYTHONPATH=plugins/core/src PYTHONDONTWRITEBYTECODE=1 uv run --no-project python -m lemmi_ai_kit scaffold /path/to/monorepo/apps/vue
 ```
 
 That produces two independent `AGENTS.md` files with two independent
@@ -620,11 +641,15 @@ Skills live in the plugin, not in your repository, so they update when the plugi
 updates. Your `AGENTS.md`, `CLAUDE.md` and `.ai/` files are yours and are never
 updated behind you.
 
-Update through your host's plugin interface — `/plugin` in Claude Code, the
-plugin directory in Codex. This guide deliberately does not print an update
-subcommand: the exact spelling varies by host and version, and no update command
-has been exercised against this repository. Check `codex plugin --help` for
-yours.
+Enable, disable and update each installed pack through your host's plugin
+interface. Research and Python remain usable by themselves; if you disable
+Core, Orchestration and Skill Authoring lose their required dependency. For an
+existing project-scoped Claude install, `claude plugin update
+lemmi-ai-kit-core@lemmi --scope project` refreshed Core in the 2026-09-14
+check. Use the original installation scope; `claude plugin install` alone
+reported that the existing pack was already installed. On Codex,
+`codex plugin add lemmi-ai-kit-core@lemmi` refreshes Core. Native plugin
+controls also manage each pack's enabled state.
 
 After an update that changed detection or templates, optionally re-run:
 
@@ -637,6 +662,11 @@ hand-edited.
 
 Because the marketplaces serve this repository directly, there is no separate
 release channel — the published state of `main` is the release.
+
+If you installed Core before 0.2.0, read [Migrating to 0.2.0](migrating-to-0.2.0.md):
+Research, Orchestration and Skill Authoring moved out of Core, so install those
+three packs to keep all formerly bundled capabilities. Existing project rules
+and `.ai/` data stay in your repository.
 
 ---
 
@@ -651,7 +681,7 @@ wastes your afternoon.
 |---|---|
 | **Pack authoring assumes a clone** | The template, the `new-pack` command and [the authoring document](authoring-a-pack.md) all exist. What the document does not carry is the contents of the files it asks you to create, so it reads as a checklist next to a checkout rather than a standalone spec. The assumption is hard: `new-pack` exits non-zero outside a git checkout. Fine if you are working from a clone; a wall if you are not |
 | **No documented private-pack path** | Serving a pack from your own private marketplace should work — both hosts support it — but it has not been tested here and this guide will not walk you through an unverified path |
-| **No packs beyond core and Python** | Go, TypeScript, Rust and the rest have no pack. See [C](#c-your-language-has-no-pack) |
+| **No Go, TypeScript or Rust conventions pack** | Those languages use project rules or a contributed language pack. See [C](#c-your-language-has-no-pack) |
 | **No pre-merge review of contributed packs** | The path itself is now documented — see [CONTRIBUTING.md](../CONTRIBUTING.md) for where a pack goes, how first-party packs are named, and what to do about a merged pack that turns out to be harmful. What does **not** exist is a review bar: **merged does not mean vetted.** Since a skill is instructions an agent follows — and can direct shell commands inside whoever installs it — read a third-party pack before you install it, exactly as you would a dependency |
 | **No guided onboarding interview** | `kit-setup` does the *detection* half well — it reads your manifests, lockfiles and CI. It does not yet do the *interview* half: asking you about your project, your existing conventions, and your architecture, then producing a project map and derived conventions from your actual code. Today you get detection plus whatever you write into `### Project rules` yourself |
 
@@ -659,8 +689,8 @@ wastes your afternoon.
 
 | Gap | What it means for you |
 |---|---|
-| **Both local install paths are verified; neither remote one is** | The Claude Code local-marketplace path was executed end to end against this repository on 2026-08-23 and asserted on the materialized inventory **by name**, not on a green "installed" message. The Codex local path was exercised on 2026-08-22 against isolated fixtures. What neither host has done is the `owner/repo` shorthand — see the row below |
-| **The `owner/repo` marketplace shorthand has not been exercised** | If it fails on either host, use the clone-and-add-local fallback in [section 3](#if-the-ownerrepo-shorthand-does-not-resolve), which is verified |
+| **The 0.2.0 Git-based release has not been published** | All five packs were installed from a local checkout on both hosts; teammates need the source changes published before installing the new packs from Git |
+| **The `owner/repo` marketplace shorthand has not been exercised** | Use the [local clone path](#if-the-ownerrepo-shorthand-does-not-resolve), which is the documented route here |
 | **Nested `AGENTS.md` pickup in a monorepo** | Scaffolding per-package works. Whether your host reads the nested file is untested — see [D](#one-monorepo--works-with-a-caveat-you-should-know-about) for how to check it in two minutes |
 
 If you hit one of these, an issue naming your language or framework is the most

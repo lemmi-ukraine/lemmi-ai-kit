@@ -171,7 +171,7 @@ question it never asked despite measuring the friction.}
 {Repeated manual tasks warranting a new skill}
 
 ### Priority 4: New Learnings
-{Findings to append to .ai/learnings.md — these feed /learning-consolidator}
+{Findings to append to .ai/learnings.md — these feed /lemmi-ai-kit-core:learning-consolidator}
 
 ### Priority 5: Workflow Changes
 {Changes to the overall AI development workflow}

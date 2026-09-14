@@ -65,8 +65,8 @@ Create a new skill or major skill component based on a cluster of related entrie
 
 **Process:**
 1. Present the skill concept for user approval
-2. Create using `/skill-creator` methodology (5-phase pipeline)
-3. Validate using `/skill-reviewer` checklist
+2. Create using `/lemmi-ai-kit-skill-authoring:skill-creator` methodology (5-phase pipeline)
+3. Validate using `/lemmi-ai-kit-skill-authoring:skill-reviewer` checklist
 4. Register in CLAUDE.md
 5. Create thin cursor rule reference
 
@@ -79,6 +79,11 @@ Create a new skill or major skill component based on a cluster of related entrie
 **Execution.**
 
 This is the most complex action. Follow this process:
+
+It requires enabled `lemmi-ai-kit-skill-authoring`. If unavailable, keep these entries
+in the buffer and report the native plugin prerequisite; do not bypass creation or
+review. Resolve each named skill through the host's installed catalog and read its
+resources relative to that skill, not the current core plugin.
 
 > **Nesting rule:** apply the `skill-creator` and `skill-reviewer` *methodology inline* (read their
 > SKILL.md files and follow the steps directly). Do NOT invoke the `skill-creation-workflow`
@@ -94,12 +99,12 @@ This is the most complex action. Follow this process:
 3. **Create the skill following the `skill-creator` pipeline**
    (see the `skill-creator` skill for the full 5-phase process):
    - Phase 1 (Discovery): answers come from the clustered learnings
-   - Phase 2 (Classification): use the skill taxonomy from `../skill-reviewer/references/skill-taxonomy.md`
+   - Phase 2 (Classification): use the skill taxonomy from `lemmi-ai-kit-skill-authoring:skill-reviewer (references/skill-taxonomy.md)`
    - Phase 3 (Build): create SKILL.md, references/ files as needed
    - Phase 4 (Validation): run the structural compliance checklist
    - Phase 5 (Registration): add to CLAUDE.md
 4. **Validate quality using the `skill-reviewer` checklist**
-   (see `../skill-reviewer/references/review-checklist.md`):
+   (see `lemmi-ai-kit-skill-authoring:skill-reviewer (references/review-checklist.md)`):
    - Run through all structural, description, invocation, and instruction checks
    - Fix any Blocker or Major findings before presenting
    - Report Minor findings to user
@@ -262,7 +267,7 @@ Each learnings category requires different verification approaches during the Ac
 
 > **Legacy sections (tolerated until drained).** The two strategies below cover
 > pre-redistribution section names that are NOT part of the canonical set (see
-> `../task-learnings/references/learnings-format.md` § Canonical Categories).
+> `../../task-learnings/references/learnings-format.md` § Canonical Categories).
 > Use them only if such a section still exists in `.ai/learnings.md`; drain those entries to
 > canonical homes and never create new entries under these names.
 

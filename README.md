@@ -8,8 +8,8 @@ copied into your repository.**
 
 Coding agents are good at writing code and weak at the process around it: agreeing
 what to build before building it, reviewing what came out, and remembering what went
-wrong last time. This kit installs that process. It is a plugin for **Claude Code**,
-with **Codex** support shipped in the same packs, and it carries 39 skills — a
+wrong last time. This kit offers that process as native plugins for **Claude Code**
+and **Codex**. Across five optional packs it carries 39 skills — a
 *skill* being a markdown document your agent loads when it becomes relevant, not code
 your project depends on — plus the files that hold your team's own conventions.
 
@@ -27,12 +27,25 @@ own, and they take precedence over the kit's.
 
 ## What you get
 
-The kit ships 39 skills in two packs. **Core** is 37 language-agnostic skills —
-project setup, spec-driven development, post-task review, the learnings loop,
-orchestration, research, code review, commit messages, branch handling. **Python**
-adds 2 Python-specific skills, both loaded automatically and never typed.
+The kit ships 39 skills in five packs. **Core** carries 19 language-agnostic
+skills for project setup, specs, review, and learnings. **Research** adds source
+planning and parallel research. **Orchestration** adds delegation, initiative
+coordination, and stacked-work review. **Skill Authoring** covers creating and
+reviewing reusable skills. **Python** adds 2 Python-specific skills for coding
+and testing conventions, both loaded automatically.
 
-Concretely, once installed your agent can:
+Install one pack, several, or all five through your host's plugin manager.
+Research and Python stand alone. Orchestration and Skill Authoring require
+Core 0.2.0 or newer. Fresh Claude installs of either dependent pack install Core
+automatically; upgrade an existing Core first. On Codex, add or refresh Core
+before either dependent pack.
+Core is also the pack to install if you want `kit-setup` and the shared
+project rules and `.ai/` files.
+
+Core bundles the FFF file-search MCP for both hosts, with no separate FFF installation.
+It uses the kit's existing uv runtime; see [Core setup](plugins/core/README.md#fff-file-search).
+
+Depending on which packs you install, your agent can:
 
 - **Turn a request into a spec before it writes code** — requirements, then design,
   then a task breakdown, with a gate at each step and a critic pass over the result.
@@ -47,54 +60,64 @@ Concretely, once installed your agent can:
   dependent pull requests, and research a question with its sources challenged
   rather than trusted.
 
-You keep receiving these through the plugin. There is nothing in your repository to
-re-sync when they change.
+You receive installed skills through their plugins. There is nothing in your
+repository to re-sync when a plugin changes.
 
 ## Install
 
 ### Claude Code
 
-```
-/plugin marketplace add lemmi-ukraine/lemmi-ai-kit
-/plugin install lemmi-ai-kit-core@lemmi
+From a clone of this repository, add the local marketplace, then install the
+packs you want:
+
+```sh
+claude plugin marketplace add ./
+claude plugin install lemmi-ai-kit-core@lemmi
+claude plugin install lemmi-ai-kit-research@lemmi
+claude plugin install lemmi-ai-kit-orchestration@lemmi
+claude plugin install lemmi-ai-kit-skill-authoring@lemmi
+claude plugin install lemmi-ai-kit-python@lemmi
 ```
 
-Python projects also want:
-
-```
-/plugin install lemmi-ai-kit-python@lemmi
-```
+Each install line is optional according to the dependency rules above. For
+example, you can install Research alone, or Core with Orchestration. Use your
+host's native plugin controls to enable, disable, or update a pack.
 
 Core skills are then invoked as `/lemmi-ai-kit-core:<name>` — for example
 `/lemmi-ai-kit-core:commit-message`. Some never appear in your `/` menu, which is
 correct: those are loaded automatically or called by another skill in a pipeline.
 
-**Already running the older single `lemmi-ai-kit` plugin?** The prefix you type and
-the install command both changed when it split into packs, and the version number
-did not move, so `plugin list` will not tell you which one you have.
-[Migrating from 0.1.0](docs/migrating-from-0.1.0.md) is the short version.
+**Already on 0.1.x?** [Migrating to 0.2.0](docs/migrating-to-0.2.0.md)
+explains how to retain skills that moved out of Core. If you still have the
+original single `lemmi-ai-kit` plugin, first read
+[Migrating from 0.1.0](docs/migrating-from-0.1.0.md).
 
 ### Codex
 
-Both packs ship a Codex manifest and install from the same catalog:
+The five packs ship Codex manifests in the same catalog. From a local clone:
 
 ```sh
-codex plugin marketplace add lemmi-ukraine/lemmi-ai-kit
+codex plugin marketplace add .
 codex plugin add lemmi-ai-kit-core@lemmi
+codex plugin add lemmi-ai-kit-research@lemmi
+codex plugin add lemmi-ai-kit-orchestration@lemmi
+codex plugin add lemmi-ai-kit-skill-authoring@lemmi
+codex plugin add lemmi-ai-kit-python@lemmi
 ```
 
-You can also add the marketplace and then install from Codex's plugin directory by
-selecting the **Lemmi** marketplace.
+Install only the packs you need. If you choose Orchestration or Skill Authoring,
+add or refresh Core to 0.2.0 or newer first; Codex does not automatically
+install that dependency. You can also select packs from the **Lemmi**
+marketplace in Codex's plugin directory.
 
 ### How far these have been proven
 
-Worth knowing before you file a bug against them. The `owner/repo` shorthand used
-above **has not been exercised against this repository on either host** — it could
-not be tested while the repository was private. What *has* been run end-to-end, on
-both hosts, is cloning the repository and adding the clone as a local marketplace. If
-the shorthand does not resolve for you, that fallback and the exact spelling each
-client accepts are in the [adoption guide](docs/adoption-guide.md#3-install), which
-also records what each host was verified with and when.
+The local marketplace commands above were exercised with all five packs on
+Claude Code 2.1.266 and Codex 0.154.0 on 2026-09-14. Installed payloads matched
+the source bytes; fresh Claude installs also resolved dependent packs to Core.
+The source changes are not yet published, and the `owner/repo` marketplace
+shorthand remains untested. See the [adoption guide](docs/adoption-guide.md#3-install)
+for the verification record.
 
 ## Set up a project
 
@@ -129,7 +152,7 @@ walks through it, including what to do when you already have conventions written
 | Each prompt starts from nothing and ends when it ends | Skills hand off: a spec gates the code, the post-task review feeds the learnings file, the consolidator promotes durable rules into `AGENTS.md` |
 | Your conventions and the library's collide, so you fork and then maintain the fork | Yours attach at a documented seam and come last, so they win without editing anything of the kit's |
 | The whole text is pasted into the context window | Each skill is a short `SKILL.md`; its `references/` are loaded only when that depth is actually needed |
-| The claims are prose | The claims are tests. Core carrying no dependency on the Python pack, the path and portability contract, and every count on this page are all enforced in CI |
+| The claims are prose | The claims are tests. Pack boundaries, the path and portability contract, and the skill counts on this page are checked in CI |
 
 That last row is the one to check first, because it is the cheapest to verify and it
 is what the rest rests on.
@@ -167,6 +190,7 @@ the practice on its own merits rather than on ours.
 | Put this into a repository, especially one that already has conventions | [Adoption guide](docs/adoption-guide.md) — install, the seam, four worked situations, and an explicit list of what is not built yet |
 | A short answer to one question | [FAQ](docs/faq.md) |
 | Move an existing install off the older single `lemmi-ai-kit` plugin | [Migrating from 0.1.0](docs/migrating-from-0.1.0.md) — the renamed prefixes, and the files in your own repository that do not fix themselves |
+| Upgrade 0.1.x packs to the optional families | [Migrating to 0.2.0](docs/migrating-to-0.2.0.md) — preserve moved skills and update their namespaces |
 | Report a bug, propose a skill, or open a pull request | [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
 | Work on the kit itself rather than use it | [Working on the kit](docs/working-on-the-kit.md) — the repository layout, the support CLI, and what a version bump has to touch |
 | Report a vulnerability, or understand what a skill can do on your machine | [SECURITY.md](SECURITY.md) |

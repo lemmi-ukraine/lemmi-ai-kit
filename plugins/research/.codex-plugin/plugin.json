@@ -1,0 +1,32 @@
+{
+  "name": "lemmi-ai-kit-research",
+  "version": "0.2.0",
+  "description": "Source planning, ownership and parallel research workflows.",
+  "author": {
+    "name": "lemmi-ukraine",
+    "url": "https://github.com/lemmi-ukraine"
+  },
+  "homepage": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "repository": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "research",
+    "agents-md"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Lemmi AI Kit Research",
+    "shortDescription": "Source planning, ownership and parallel research workflows.",
+    "longDescription": "Source planning, ownership and parallel research workflows.",
+    "developerName": "lemmi-ukraine",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive"
+    ],
+    "websiteURL": "https://github.com/lemmi-ukraine/lemmi-ai-kit",
+    "defaultPrompt": [
+      "Plan and research this topic using disjoint sources."
+    ]
+  }
+}

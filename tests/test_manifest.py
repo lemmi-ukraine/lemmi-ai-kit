@@ -10,6 +10,7 @@ from lemmi_ai_kit.manifest import (
     assets_root,
     load_manifest,
     normalize_profiles,
+    pack_for_profile,
     skills_root,
 )
 
@@ -60,6 +61,18 @@ def test_normalize_profiles_comma_and_repeat() -> None:
 def test_normalize_profiles_unknown_raises() -> None:
     with pytest.raises(ManifestError, match="unknown profile"):
         normalize_profiles(["nope"])
+
+
+def test_profiles_have_distinct_native_pack_owners() -> None:
+    manifest = load_manifest()
+    assert set(PROFILES) == set(PACKS)
+    assert {pack_for_profile(profile) for profile in PROFILES} == set(PACKS)
+    assert all(
+        entry.pack == pack_for_profile(entry.profile) for entry in manifest.skills
+    )
+    assert len({entry.name for entry in manifest.skills}) == len(manifest.skills)
+    with pytest.raises(ManifestError, match="unknown profile"):
+        pack_for_profile("unrecognized")
 
 
 def test_assets_root_exists() -> None:

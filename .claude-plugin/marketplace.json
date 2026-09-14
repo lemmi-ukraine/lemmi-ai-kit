@@ -1,17 +1,35 @@
 {
   "name": "lemmi",
   "description": "Lemmi's AI plugins for Claude Code (and Codex via .codex-plugin): shared development workflow (skills, project seeding, learnings loop).",
-  "owner": { "name": "lemmi-ukraine", "url": "https://github.com/lemmi-ukraine" },
+  "owner": {
+    "name": "lemmi-ukraine",
+    "url": "https://github.com/lemmi-ukraine"
+  },
   "plugins": [
     {
       "name": "lemmi-ai-kit-core",
       "source": "./plugins/core",
-      "description": "Lemmi's language-agnostic AI workflow core: setup, spec-driven development, post-task review, learnings, orchestration, research, and review."
+      "description": "Core development, verification and project learnings. Other workflow families are separate optional plugins."
     },
     {
       "name": "lemmi-ai-kit-python",
       "source": "./plugins/python",
       "description": "Python coding and testing conventions for projects using Lemmi AI Kit Core."
+    },
+    {
+      "name": "lemmi-ai-kit-research",
+      "source": "./plugins/research",
+      "description": "Source planning, ownership and parallel research workflows."
+    },
+    {
+      "name": "lemmi-ai-kit-orchestration",
+      "source": "./plugins/orchestration",
+      "description": "Delegation, initiative coordination and stacked-work review workflows. Requires the core pack."
+    },
+    {
+      "name": "lemmi-ai-kit-skill-authoring",
+      "source": "./plugins/skill-authoring",
+      "description": "Create, research and review reusable agent skills. Requires the core pack."
     }
   ]
 }

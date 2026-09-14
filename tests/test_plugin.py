@@ -39,7 +39,9 @@ def _assert_plugin_identity(data: dict[str, Any], expected_name: str) -> None:
     assert name == expected_name
     assert re.fullmatch(r"[a-z0-9][a-z0-9-]*", name)
     project = cast(dict[str, Any], _pyproject()["project"])
-    assert data["version"] == project["version"]
+    # Local native reinstalls may carry a SemVer build/cache suffix. The release
+    # version stays aligned; the two host manifests must still match exactly.
+    assert cast(str, data["version"]).partition("+")[0] == project["version"]
     assert data["repository"] == project["urls"]["Repository"]
 
 
@@ -90,6 +92,26 @@ def test_claude_and_codex_pack_manifests_share_identity_and_skills() -> None:
         assert claude["version"] == codex["version"]
         assert claude["repository"] == codex["repository"]
         assert cast(list[str], claude["skills"]) == [codex["skills"]]
+        if "mcpServers" in claude or "mcpServers" in codex:
+            assert claude["mcpServers"] == codex["mcpServers"]
+            mcp_path = _REPO_ROOT / "plugins" / pack / codex["mcpServers"]
+            assert json.loads(mcp_path.read_text(encoding="utf-8"))["mcpServers"]
+
+
+def test_claude_native_pack_dependencies() -> None:
+    core = _claude_plugin_json("core")
+    project = cast(dict[str, Any], _pyproject()["project"])
+    assert cast(str, core["version"]).partition("+")[0] == project["version"]
+    core_dependency = {
+        "name": PACK_PLUGIN_NAMES["core"],
+        "version": f">={project['version']}",
+    }
+    for pack in PACKS:
+        claude = _claude_plugin_json(pack)
+        if pack in {"skill-authoring", "orchestration"}:
+            assert claude["dependencies"] == [core_dependency], pack
+        else:
+            assert "dependencies" not in claude, pack
 
 
 def test_pack_skill_dirs_match_the_asset_manifest() -> None:

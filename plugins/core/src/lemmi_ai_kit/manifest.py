@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Literal, cast
 
 Invocation = Literal["user", "auto", "internal"]
-Pack = Literal["core", "python"]
+Pack = Literal["core", "skill-authoring", "research", "orchestration", "python"]
 
 PROFILES: tuple[str, ...] = (
     "core",
@@ -19,8 +19,8 @@ PROFILES: tuple[str, ...] = (
     "python",
 )
 
-# Profiles still describe skill families for the support CLI. Pack boundaries are
-# enforced by plugin layout, so language-specific profiles are explicit opt-ins here.
+# Profiles describe the native plugin families. Selection is performed by the host
+# plugin manager; this module only identifies the owner of each packaged skill.
 DEFAULT_PROFILES: tuple[str, ...] = (
     "core",
     "skill-authoring",
@@ -29,9 +29,18 @@ DEFAULT_PROFILES: tuple[str, ...] = (
 )
 
 _INVOCATIONS: tuple[Invocation, ...] = ("user", "auto", "internal")
-PACKS: tuple[Pack, ...] = ("core", "python")
+PACKS: tuple[Pack, ...] = (
+    "core",
+    "skill-authoring",
+    "research",
+    "orchestration",
+    "python",
+)
 PACK_PLUGIN_NAMES: dict[Pack, str] = {
     "core": "lemmi-ai-kit-core",
+    "skill-authoring": "lemmi-ai-kit-skill-authoring",
+    "research": "lemmi-ai-kit-research",
+    "orchestration": "lemmi-ai-kit-orchestration",
     "python": "lemmi-ai-kit-python",
 }
 
@@ -108,7 +117,9 @@ def available_packs() -> tuple[Pack, ...]:
 
 def pack_for_profile(profile: str) -> Pack:
     """Map manifest profiles to the plugin pack that ships them."""
-    return "python" if profile == "python" else "core"
+    if profile not in PACKS:
+        raise ManifestError(f"unknown profile: {profile!r}")
+    return profile
 
 
 def skills_root(pack: Pack) -> Path:

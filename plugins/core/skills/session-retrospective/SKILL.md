@@ -27,7 +27,7 @@ Every claim is grounded in extractor data or a verifiable transcript quote. A pa
 
 - User says "session retrospective", "analyze sessions", "review past sessions"
 - User wants to know what behavioral patterns emerged across recent AI sessions
-- User invokes `/session-retrospective`
+- User invokes `/lemmi-ai-kit-core:session-retrospective`
 
 ## Input
 
@@ -158,7 +158,7 @@ what went wrong. Read the narratives for the substantial sessions in parallel.
 4. **When the user named FOCUS AREAS, three compensations are MANDATORY technique, not
    improvisation.** Keep the ranking deterministic (LLM re-ranking is a known error class), but
    recognise what it optimises: generic substantialness, *not* question-relevance. In the 08-07 run
-   it left the second-most-relevant session (56 sub-agents, one of only two `/orchestrate`
+   it left the second-most-relevant session (56 sub-agents, one of only two `/lemmi-ai-kit-orchestration:orchestrate`
    invocations) in the JSON-only `overCap` pool, put 5 of 6 sub-agent picks inside ONE parent
    session, and spent 2 of 8 slots on boundary sessions the prior report had already deep-dived.
    All three of the run's decisive findings came from these compensations:
@@ -456,7 +456,7 @@ that behavior as friction; default approved 2026-07-02, D-3):
    **Writing the entry is not landing it** — an uncommitted append is one `git checkout` from invisibility; assert reachability with `check_report.py --check durability`.
 
 2. **Auto-append the P4 items to `.ai/learnings.md`** following the `task-learnings` placement
-   rules (non-destructive intake; feeds `/learning-consolidator`). Behavioral P4s take
+   rules (non-destructive intake; feeds `/lemmi-ai-kit-core:learning-consolidator`). Behavioral P4s take
    `Category: interaction` under `## Interaction & Workflow Friction` so the consolidator can
    cluster them instead of losing them among codebase pitfalls. **Dedup that section first** —
    `task-learnings` Step 0 measures each session at completion and may already hold the in-session
@@ -465,7 +465,7 @@ that behavior as friction; default approved 2026-07-02, D-3):
    entries (`PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint learnings
    --list-entries`) and read the newest `CONSOLIDATION` date in `.ai/ai-changelog.md`; if intake > 0
    and the last drain is ≥7 days old, state "intake has {N} entries, last drain {D} days ago →
-   run `/learning-consolidator`".
+   run `/lemmi-ai-kit-core:learning-consolidator`".
 4. **If 4g settled a window-elapsed signal,** offer to run `hypothesis-validator` now.
 5. Only then offer discussion of findings and the P3/P5 items.
 

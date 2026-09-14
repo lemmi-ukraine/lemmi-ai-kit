@@ -1,8 +1,10 @@
 # Migrating from 0.1.0
 
-The kit used to install as **one plugin named `lemmi-ai-kit`**. It now installs as
-**packs**: `lemmi-ai-kit-core`, plus `lemmi-ai-kit-python` for Python projects.
-That changes the install command and the prefix on every skill you type.
+The kit used to install as **one plugin named `lemmi-ai-kit`**. Its first split
+created `lemmi-ai-kit-core` and `lemmi-ai-kit-python` at version 0.1.0.
+Version 0.2.0 then moved three workflow families out of Core. This note covers
+the first split; follow it with [Migrating to 0.2.0](migrating-to-0.2.0.md) to
+retain the skills that later moved.
 
 This note is for anyone who installed before the split. If you are installing for
 the first time, read the [README](../README.md) or the [adoption
@@ -10,17 +12,18 @@ guide](adoption-guide.md) instead — none of this applies to you.
 
 ## The version number will not tell you which one you have
 
-Both the old single plugin and today's packs declare version `0.1.0`. There is no
-publish pipeline — the marketplaces serve this repository directly, so pushing to
-`main` is the release, and the version string did not move across the split.
+At the **first split**, both the old single plugin and the then-current Core
+and Python packs declared version `0.1.0`. That historical equality made the
+plugin name the only reliable discriminator. The current base release is
+`0.2.0`; a local Core payload can add SemVer build metadata to that version.
+Check the name and base release now.
 
-**A version in `plugin list` therefore proves nothing. The plugin *name* is the
-discriminator.** `lemmi-ai-kit` means you are on the old one; `lemmi-ai-kit-core`
-means you are migrated.
+`lemmi-ai-kit` means you still have the retired single plugin. A Core pack at
+0.1.x has completed only the first split; use the 0.2.0 note next.
 
-## What changed
+## What changed in the first split
 
-| | Before | After |
+| | Single plugin | First packs at 0.1.0 |
 |---|---|---|
 | Plugins served | one, `lemmi-ai-kit` | one per pack: `lemmi-ai-kit-core`, `lemmi-ai-kit-python` |
 | Install | `lemmi-ai-kit@lemmi` | `lemmi-ai-kit-core@lemmi`, plus `lemmi-ai-kit-python@lemmi` if you write Python |
@@ -62,7 +65,7 @@ Python projects also want `claude plugin install lemmi-ai-kit-python@lemmi`.
 `./` — with the trailing slash — is the source that was verified. A bare `.` is
 **rejected** as an invalid source format, so the slash is not cosmetic. These are
 the local-clone commands: clone the repository and run them from inside it. The
-`owner/repo` shorthand shown in the README is **unverified** — it has not been
+`owner/repo` marketplace shorthand is **unverified** — it has not been
 exercised against this repository on either host — so it is not the path this
 note tells you to migrate on.
 
@@ -90,8 +93,8 @@ with the version silently degraded to `"local"`. Any check that reads "install
 succeeded" as "the pack is correct" is unsound. An inventory you can read is a
 check; an exit code is not.
 
-Those three lines are the ones that were actually executed against this
-repository on Claude Code; the [adoption
+Those three lines were executed against the then-current 0.1 packs on Claude
+Code; the [adoption
 guide](adoption-guide.md#how-verified-each-of-these-is) records what was run on
 which host, and when.
 
@@ -112,14 +115,16 @@ state logs are seed files too: run against a project with a filled-in `AGENTS.md
 and an intake file that has entries in it, `--reseed` replaces all three with
 empty templates. There is no flag that means "only re-render the index".
 
-The safe fix is a find-and-replace in your own `CLAUDE.md`:
+For the first split, the find-and-replace in your own `CLAUDE.md` was:
 
 ```
 /lemmi-ai-kit:   ->   /lemmi-ai-kit-core:
 ```
 
-Only the skills you *type* carry a prefix at all. Auto-loaded and internal skills
-are listed by bare name in that index and need no edit.
+At 0.2.0, some of those Core-prefixed skills moved again. Check each moved
+skill's current namespace in [Migrating to 0.2.0](migrating-to-0.2.0.md).
+Only the skills you *type* carry a prefix at all. Auto-loaded and internal
+skills are listed by bare name in that index and need no edit.
 
 Then check anything else of yours that names a skill by its old prefix — the
 `### Project rules` section of your `AGENTS.md`, a team README, a CI comment, a
@@ -139,7 +144,7 @@ Separately from the split, and inside the same `0.1.0`:
 The brand and the model name came out of the names an adopter has to type; they
 stay in the repository URL and the marketplace owner, where they belong.
 
-`openai-realtime-quirks` was removed from the catalog and is not in either pack.
+`openai-realtime-quirks` was removed from the catalog during that first split.
 
 The auto-loaded three need no edit for the agent to keep finding them, but if you
 named one in your own `AGENTS.md` or in a prompt, that reference now points at
@@ -151,8 +156,6 @@ Check the pack before assuming it is gone. The Python conventions moved into
 `lemmi-ai-kit-python`, so a core-only install genuinely does not have them, and
 that is not a bug — install the Python pack.
 
-To see which pack a skill is in, ask your client for that pack's inventory with
-`plugin details`. Do **not** read it off the `profile` column of the catalog
-listing: `profile` groups skills by subject — `orchestration`, `research`,
-`skill-authoring` — and is not the pack name. The two frequently disagree, and
-`core` happens to be a value of both, which is exactly how the column misleads.
+To see which pack a skill is in today, check the pack's inventory with
+`plugin details` or the current manifest's profile-to-pack mapping. In 0.2.0,
+the five approved profiles map one-to-one to their native packs.

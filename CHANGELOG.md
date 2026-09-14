@@ -18,8 +18,26 @@ are never rewritten except inside `kit-setup`'s own marked blocks.
 
 ## [Unreleased]
 
+### Changed — 0.2.0 native pack split
+
+- Research, Orchestration and Skill Authoring are separate optional plugins in both
+  native marketplaces. Core retains development and project-learning workflows;
+  Python remains optional. Skills are moved, never copied between packs.
+- Authoring and Orchestration declare a native Claude dependency on Core 0.2.0 or
+  newer; Codex users install Core first. Research and Python stand alone.
+- Moved skills use their owning plugin's namespace. Upgrade instructions are in
+  [Migrating to 0.2.0](docs/migrating-to-0.2.0.md).
+- Cross-pack references use installed skill identities. New-skill promotion keeps
+  its entries pending when the optional authoring plugin is unavailable.
+- Pack-isolation tests exercise copied payloads and core scaffolding outside the
+  source checkout. Existing project rules and state retain their ownership.
+
+
 ### Added
 
+- Core bundles FFF v0.10.6 for macOS, Linux and Windows on x64/ARM64. Its shared
+  `.mcp.json` uses the kit's uv runtime to select and verify the bundled binary;
+  no separate FFF installation or first-use FFF download is required.
 - `metric-validity-check` — a new core skill: does a metric, score or judge actually track a
   user-visible outcome, tested BEFORE its number drives a decision. Joins the label to the artifact
   (a nearest-match join when there is no foreign key, with seven mandatory linkage diagnostics), runs

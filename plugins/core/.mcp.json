@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "fff": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--no-project",
+        "--python",
+        ">=3.11",
+        "python",
+        "-B",
+        "${CLAUDE_PLUGIN_ROOT}/src/lemmi_ai_kit/fff.py"
+      ]
+    }
+  }
+}
