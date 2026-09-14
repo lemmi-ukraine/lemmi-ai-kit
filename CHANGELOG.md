@@ -34,6 +34,12 @@ rewritten except inside `kit-setup`'s own marked blocks.
 
 ## 2026-09-14
 
+### SKILL-ADDED: Share portable flow mapping through Core
+- **What:** Registered flow-mapping in Core with its schema, five reusable tools and synthetic self-certification project. Tool paths stay inside the plugin; consumer roots and code directories are explicit. Preserved authored projection columns and made missing corpus inputs fail visibly. Comment checking distinguishes docstrings from executable string expressions.
+- **Why:** The formerly deferred workflow must work outside its source checkout without copied skills or validators. Independent consumer tests exercise installation paths, invalid inputs and the shared-tool contract.
+- **Files:** `plugins/core/skills/flow-mapping/`, Core native manifests and README, the bundled `manifest.toml`, `docs/upstream-sync.toml`, `README.md`, `tests/test_flow_mapping.py`, `tests/test_upstream_sync.py`, `.ai/ai-changelog.md`, `.ai/learnings.md`, `.ai/improvement-hypotheses.md`, `CHANGELOG.md`.
+- **Affected workflows:** Flow mapping, native Core installation, flow validation, projection generation, seam reconciliation and optional comment cleanup. This completes the deferred port described in the earlier entry.
+
 ### INFRA-MODIFIED: Describe the research workflows and flow-mapping port status
 
 - **What:** README now explains custom parallel research, source planning and ownership,

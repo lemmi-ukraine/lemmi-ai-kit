@@ -9,7 +9,7 @@ copied into your repository.**
 Coding agents are good at writing code and weak at the process around it: agreeing
 what to build before building it, reviewing what came out, and remembering what went
 wrong last time. This kit offers that process as native plugins for **Claude Code**
-and **Codex**. Across five optional packs it carries 39 skills — a
+and **Codex**. Across five optional packs it carries 40 skills — a
 *skill* being a markdown document your agent loads when it becomes relevant, not code
 your project depends on — plus the files that hold your team's own conventions.
 
@@ -27,8 +27,7 @@ you own, and they take precedence over the kit's.
 
 ## What you get
 
-The kit ships 39 skills in five packs. **Core** carries 19 language-agnostic
-skills for project setup, specs, review, and learnings. **Research** adds source
+The kit ships 40 skills in five packs. **Core** carries project setup, specs, review, flow mapping and learnings. **Research** adds source
 planning and parallel research. **Orchestration** adds delegation, initiative
 coordination, and stacked-work review. **Skill Authoring** covers creating and
 reviewing reusable skills. **Python** adds 2 Python-specific skills for coding
@@ -125,17 +124,26 @@ The outputs are the research brief and reviewed skill files. The Research pack
 is optional for this authoring workflow; its researcher has its own source
 discipline and does not require a separate parallel-research run.
 
-## Flow mapping — port deferred
+## Flow mapping
 
-Flow mapping documents a subsystem's runtime behavior for agents: scenario
-tables, callers, invariants, cross-flow dependencies and code citations. Its
-method combines discovery, flow-document generation and validation, a risk
-register, a comment pass and a closing self-review.
+Core includes [flow-mapping](plugins/core/skills/flow-mapping/SKILL.md), a workflow
+for documenting runtime scenarios, callers, invariants and cross-flow dependencies.
+It produces a project-owned flow document and risk register, then checks their
+structure, derived tables and links to neighboring flows.
 
-**Availability:** this revision does not ship the flow-mapping skill. The
-[upstream synchronization record](docs/upstream-sync.toml) explicitly defers
-its port while the validation tools and fixtures are made portable. It should
-receive a kit invocation example once that port is registered in the catalog.
+```text
+Use lemmi-ai-kit-core:flow-mapping to map this project's job cancellation flow.
+Trace the callers and failure paths, document the evidence and unresolved cases,
+and validate the flow document and risk register with the bundled tools.
+```
+
+The plugin bundles the schema, validators, projection generator, seam detector and
+synthetic self-check fixtures. Set the target project and code directories through
+its command arguments; keep project-specific additions in AGENTS.md or a local
+flow template. No copied skill or validator is needed. Automated symbol validation
+and comment token checks currently support Python; a structural pass does not
+prove the runtime claims. Optional comment cleanup and parallel work use the
+Orchestration pack.
 
 ## Install
 

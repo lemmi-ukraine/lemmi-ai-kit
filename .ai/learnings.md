@@ -22,3 +22,15 @@ file end (a chronological catch-all misleads the consolidator's clustering).
 to its home above and removed here.
 
 ---
+
+## Common Pitfalls
+
+### [2026-09-14] A portable code root also controls which file references are project claims
+- **Context**: Moving flow validators into an installed Core skill.
+- **Finding**: Generalizing the file-reference regex to every slash path introduced new findings for package-cache paths and relative prose references. Deriving its source prefix from the declared code root preserved the consumer contract while supporting independent src/ and lib/ projects.
+- **Impact**: Port parser configuration together with root resolution, and compare a real consumer's outputs before and after changing either. Keep bundled probe fixtures independent of that consumer.
+- **Category**: pitfall
+- **Home**: comment:plugins/core/skills/flow-mapping/scripts/validate_flow_map.py:configure
+- **Enforce-via**: test
+- **Verify-at**: tests/test_flow_mapping.py
+- **Scope**: durable

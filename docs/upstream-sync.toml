@@ -230,6 +230,13 @@ upstream = "consolidation-critic"
 direction = "upstream-origin"
 
 [[skills]]
+name = "flow-mapping"
+upstream = "flow-mapping"
+direction = "upstream-origin"
+base = "48bb09fc21363af69ae31120bfdcb7c06548975c"
+note = "Carried from the last pre-migration skill revision with portable tools and synthetic fixtures; the historical source path still resolves at this base. Project-specific provenance was replaced by executable fixture evidence."
+
+[[skills]]
 name = "hypothesis-validator"
 upstream = "hypothesis-validator"
 direction = "upstream-origin"
@@ -404,9 +411,6 @@ note = "Renamed on extraction to drop the org prefix. The upstream directory kee
 upstream = "feedback-audit"
 reason = "The source project's interview product: a feedback-quality rubric, a PII-redacting export preprocessor, and a product changelog document. Also routes prompt-change proposals through a skill this repo deleted, so porting it as written would resurrect a removed dependency."
 
-[[unported]]
-upstream = "flow-mapping"
-reason = "DEFERRED 2026-09-14, not rejected. The method is generic, but the skill ships five instruments (about 4,000 lines) plus 82 fixtures, and a port attempt measured with this kit as the project found: three of the five instruments still resolve their root from __file__ (inside a plugin that is skills/flow-mapping), both validators fail every self-certification probe outside the source tree (17 of 17, 11 of 11), three fixture .py files are prose and fail ast.parse, six hard-coded project-relative skill-script paths, 22 fixtures bound to the source project's paths and commits, and a 511-line SKILL.md. Landing it is its own task -- re-home the instruments, de-brand and re-certify the fixtures, then register -- never inside a sync."
 
 [[unported]]
 upstream = "interview-transcript-analysis"
