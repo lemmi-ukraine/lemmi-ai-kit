@@ -1,6 +1,15 @@
 # Post-Task Review Checklist
 
-Quick-reference checklist for the 8-step review process. Use this to verify completeness.
+Quick-reference checklist for the review process, Step 0 through Step 9. Use this to verify
+completeness. **It is the whole pipeline or it is not a review** — this checklist previously
+listed only Steps 1–8, so the blast-radius step and the mandatory CLOSE self-challenge were
+invisible to anyone working from it.
+
+## Step 0: Dependency & Blast Radius
+
+- [ ] Ran BEFORE steps 1–6 (ideally before the change itself)
+- [ ] Produced a LIST of affected callers/callees/tests — not an opinion
+- [ ] Every item in that list either reviewed or explicitly excluded with a reason
 
 ## Steps 1–6: Code Review
 
@@ -67,6 +76,13 @@ Quick-reference checklist for the 8-step review process. Use this to verify comp
 - [ ] Project-level findings appended to `.ai/learnings.md`
 - [ ] Rules updated if convention gaps found
 - [ ] Results reported (count + summary)
+
+## Step 9: Close Self-Challenge (MANDATORY — runs LAST)
+
+- [ ] Run AFTER steps 0–8, and NOT instead of step 4's self-challenge — different passes
+- [ ] Asked: is it detailed enough? what was missed? what would a reviewer object to?
+- [ ] Stated what the challenge CHANGED, including "nothing" — silence is not a result
+- [ ] Ran BEFORE the handoff is written, never after
 
 ## Common Mistakes Caught in Past Reviews
 

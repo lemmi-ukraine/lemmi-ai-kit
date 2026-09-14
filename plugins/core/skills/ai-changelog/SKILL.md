@@ -79,6 +79,16 @@ heading must sort ABOVE the current top heading. NEVER append a new heading belo
 headings or at the file end. Appending at the end is how heading disorder and misfiled
 entries arise, and unwinding it costs a full-file cleanup pass.
 
+**A misfiled entry is not one defect beside others — it is the defect that HIDES them.** An entry
+appended at EOF carries no heading of its own, so it inherits the file's **oldest** heading; the lint
+compares headings to each other and there is nothing out of order for it to detect. Worse, where a
+validator has an **age-based grandfather clause**, inheriting an old date converts "filed under the
+wrong date" into "exempt from validation" — so the entry's *other* defects (missing fields, wrong
+vocabulary) go unreported too, and the loudest signal you would have got is silenced by the quietest
+mistake. After writing any entry, confirm which heading it actually sits under
+(`grep -n '^## \|^### ' .ai/ai-changelog.md | grep -B1 '<your title>'`), not merely that the file
+still lints clean.
+
 ### Step 2: Write the entry
 
 Use the entry format above. Rules:
@@ -101,6 +111,34 @@ It checks date-heading order, the 12-type taxonomy, and required fields. Fix any
 finding before moving on.
 Fallback only if the lint cannot run: manually verify the entry is under the correct date
 heading, headings are reverse-chronological, no fields are missing, and no duplicate exists.
+
+**The lint checks the entry's SHAPE. It cannot check whether the entry is TRUE — and that is the
+failure this file is most exposed to.**
+
+### Step 3b: Join the claim to its artifact (required for every `*-MODIFIED` / `*-ADDED` entry)
+
+If the entry names a file, **verify the described change is in that file before you commit**:
+
+```bash
+git show HEAD:<path> | grep -c "<the thing the entry says you added>"
+```
+
+A `0` means the entry is describing a change that does not exist. Fix the code or fix the entry —
+do not commit the pair.
+
+**Why this step exists.** A changelog entry was written recording an infrastructure fix, under
+`INFRA-MODIFIED`, naming the exact file. The prose was accurate about the intent, the entry was
+committed, and **the code change never landed**. The grep above returns `0` against the file the
+entry names. Fifteen days later the identical, still-unfixed defect blocked the pipeline that the
+entry claimed was fixed — and the intervening sessions had read the entry and believed it.
+
+This is the general failure of a completion record: **the record and the artifact were never
+joined.** It matters most here because this file is designated as the reconciliation source of
+record, so an entry asserting a fix that does not exist is believed by every later reader. A
+changelog is a claim about the tree, and an unverified claim in the ledger is worse than no entry —
+it actively suppresses the next attempt to fix the thing.
+
+Asking sessions to be careful is exactly what failed. Run the grep.
 
 ## Integration Points
 

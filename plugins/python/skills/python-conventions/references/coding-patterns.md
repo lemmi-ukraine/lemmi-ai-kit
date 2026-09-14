@@ -306,3 +306,28 @@ heaviest package in the tree. `git grep "from app\.|import app\." -- backend/app
 Precedent: `app/constants/enums.py::safe_parse_enum` (stdlib logger). Rule, not gate — numpy is a
 real dep so it resolves in Docker and CI; only `python -c "import app.schemas.<mod>"` in a venv
 missing a transitive dep exposes it.
+
+## Catching an optional database read's failure does not restore the caller's transaction
+
+A `try/except` around an optional read makes the *builder* resilient and leaves the **session**
+poisoned. Measured against disposable PostgreSQL 17: an injected SQL failure was caught and the
+builder returned `applied=False`, but the very next `SELECT 1` on that same session raised
+`InFailedSQLTransactionError`. Postgres aborts the whole transaction on a statement error — catching
+the Python exception does not roll it back.
+
+```python
+# WRONG — swallows the error, leaves the session unusable for the caller
+try:
+    row = await session.execute(select(Thing).where(...))
+except SQLAlchemyError:
+    applied = False          # caller's next query still raises InFailedSQLTransactionError
+```
+
+Give the optional read its own `SAVEPOINT` (`async with session.begin_nested():`) so a failure rolls
+back only that statement, or perform it on a separate session. Then say in the docstring which of the
+two you did — the caller cannot tell from the signature.
+
+**And the guard test for this must inject a DATABASE error, not a Python one.** A test injecting
+`RuntimeError` never aborts a transaction, so it exercises the `except` branch while being
+structurally incapable of reaching the failure state that matters. Assert the caller's *next* query
+succeeds, not merely that `applied is False`.

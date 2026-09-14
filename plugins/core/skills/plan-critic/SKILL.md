@@ -192,6 +192,22 @@ path. Ask explicitly, before proposing where new cross-repo capability should li
 repo already have a working implementation this would duplicate or diverge from?* If you cannot
 check, say so and name who can — do not let "the repo I can read" become "the repo it belongs in".
 
+**Did every item in a source enumeration become a claim?** A consistency review cannot see an
+**omission** — it checks that the claims present agree with each other and with their sources, which
+is a different question from whether a source's list of N items produced N claims. Measured: a source
+row enumerating N items became N−1 claims and **two self-review passes missed it**, because question 5
+asks
+which claims were inherited rather than measured, and never which items never became claims at all.
+Take each enumerating source, count its items, count the claims derived from it, and reconcile the
+two numbers explicitly.
+
+**Does a supporting FIGURE survive re-derivation, even where the conclusion is right?** A number
+attached to a correct decision is the least-challenged claim in the chain — the decision's
+correctness is what protects it. Measured: a refusal handed down as settled cited a figure **no
+command reproduces** (the candidate widenings yield 320 / 376 / 426; the quoted 364 is none of them),
+and a two-option framing had hidden the correct third option. Re-derive the number and re-enumerate
+the options, and say so explicitly when you agree with the conclusion anyway.
+
 ### Step 4 — Resolve What You Can
 
 For each finding:

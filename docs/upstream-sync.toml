@@ -26,7 +26,8 @@
 # pull request. Measured at the time: 8 commits touch the skills tree between the pin and that
 # PR's head `a0fa9872e3d8bbcd265983f72c24ea8f16f4c8d3`, and ZERO of them come from anywhere
 # else -- so that PR was the entire backlog. Its content has been carried (17 skills plus the
-# stacked-PR asset); two new upstream skills were declined and are in [[unported]] below.
+# stacked-PR asset); two new upstream skills were declined and put in [[unported]] below (one of
+# them, `metric-validity-check`, was carried 2026-09-14 -- see its [[skills]] row).
 #
 # The pin stays where it is ON PURPOSE. That SHA is the head of an OPEN branch: a rebase,
 # amend or squash-merge rewrites it, and a pin naming a commit upstream no longer has is
@@ -254,6 +255,12 @@ name = "learning-consolidator"
 upstream = "learning-consolidator"
 direction = "upstream-origin"
 
+[[skills]]
+name = "metric-validity-check"
+upstream = "metric-validity-check"
+direction = "upstream-origin"
+base = "e0a7eb9c1d703e937e80ca4e8ae7e8610ca8b778"
+note = "Was an [[unported]] row: declined by operator ruling 2026-08-31 because, as written, its `when_to_use` routed the caller to `feedback-audit` (never shipped) and its evidence pointed at one product audit. Carried 2026-09-14 by operator dispatch after that ruling was re-evaluated: the two unshipped pointers (`feedback-audit`, `outcome-audit`) are stripped, the audit is cited as a source the kit does not carry, and the known-groups method itself is generic. Carried at upstream INDEX state (the upstream change was staged, not committed, at carry time), so `base` pins the last upstream commit that holds the skill (the record pin predates the skill's directory, which the drift check reports as a MAP ERROR); the 9 index lines carried beyond that commit will read as 1 commit BEHIND once upstream commits them -- already carried. The record pin is unchanged."
 
 [[skills]]
 name = "orchestrate"
@@ -398,12 +405,12 @@ upstream = "feedback-audit"
 reason = "The source project's interview product: a feedback-quality rubric, a PII-redacting export preprocessor, and a product changelog document. Also routes prompt-change proposals through a skill this repo deleted, so porting it as written would resurrect a removed dependency."
 
 [[unported]]
-upstream = "interview-transcript-analysis"
-reason = "Same coupling: the source project's interview product. A public pack should not carry knowledge only its author can use."
+upstream = "flow-mapping"
+reason = "DEFERRED 2026-09-14, not rejected. The method is generic, but the skill ships five instruments (about 4,000 lines) plus 82 fixtures, and a port attempt measured with this kit as the project found: three of the five instruments still resolve their root from __file__ (inside a plugin that is skills/flow-mapping), both validators fail every self-certification probe outside the source tree (17 of 17, 11 of 11), three fixture .py files are prose and fail ast.parse, six hard-coded project-relative skill-script paths, 22 fixtures bound to the source project's paths and commits, and a 511-line SKILL.md. Landing it is its own task -- re-home the instruments, de-brand and re-certify the fixtures, then register -- never inside a sync."
 
 [[unported]]
-upstream = "metric-validity-check"
-reason = "Declined by operator ruling 2026-08-31. The known-groups method is generic, but the skill as written is the source project's: its worked evidence is one product audit, and its `when_to_use` routes the caller to `feedback-audit` -- already declined -- for the neighbouring case. A pack cannot ship a skill whose stated boundary points at a skill it does not ship."
+upstream = "interview-transcript-analysis"
+reason = "Same coupling: the source project's interview product. A public pack should not carry knowledge only its author can use."
 
 [[unported]]
 upstream = "openai-realtime-quirks"
@@ -411,7 +418,7 @@ reason = "One provider's one API. The language-pack split ruled provider-specifi
 
 [[unported]]
 upstream = "outcome-audit"
-reason = "Declined by operator ruling 2026-08-31, with `metric-validity-check`, which it invokes as its own Phases 1-3. Same coupling and more of it: 272 of its 1,065 lines are a worked example that IS the source project's interview audit, and its scope table defines itself against `feedback-audit` and `interview-transcript-analysis` -- both already declined here. Porting it as written would resurrect two declined dependencies and ship an evidence base no adopter can check."
+reason = "Declined by operator ruling 2026-08-31. It invokes `metric-validity-check` (carried 2026-09-14 in de-branded form) as its own Phases 1-3, but its own coupling stands, and there is more of it: 272 of its 1,065 lines are a worked example that IS the source project's interview audit, and its scope table defines itself against `feedback-audit` and `interview-transcript-analysis` -- both already declined here. Porting it as written would resurrect two declined dependencies and ship an evidence base no adopter can check."
 
 [[unported]]
 upstream = "prompt-domain-reviewer"

@@ -489,7 +489,7 @@ something in git.**
 - `scripts/audit_cleanup_targets.py` — the gates (`census` · `kinds` · `extraction` · `fundep` ·
   `evidence` · `refs` · `coverage`). `kinds`/`extraction`/`fundep` are the artifact-kind axis added
   2026-08-19; `.specs/{initiative}/cleanup-kinds.txt` is where an initiative declares its own kinds
-- `references/self-review-gate.md` — Step 5.5 detail and the measured failures behind each gate
+- `references/self-review-gate.md` — Step 5.5 detail and the measured failures behind each gate · `references/settle-lessons.md` — six measured Step 1–3 lessons (Status lines over-report openness, id-shaped orphan sweeps, handed lists as claims sheets, the tracked-but-uncommitted third state, channel-path citations, per-citation staleness)
 - `references/tmp-classification.md` · `references/comment-pass.md` — Step 4c and Step 5 detail
 - `plan-critic` (invoke at Step 5.5b — read its `references/`, do not recall them)
 - `AGENTS.md` — the deletion-sweep rule this step 3 implements; the learnings-system routing

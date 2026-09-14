@@ -141,6 +141,12 @@ Tricorder's admission criteria, applied per finding — post only if all four ho
    pattern at 3 other call sites"). *(Tricorder's own criterion is about analyzer-level frequency
    across a corpus — "if a warning occurs too frequently, it's likely that it's not causing any real
    problems." Applied per finding it must never suppress a repeated real defect.)*
+   **Criterion 4 bounds comments about EXISTING instances. It says nothing about a NEW instance in
+   the diff under review, and applying it there inverts a convention ratchet into a licence** — the
+   more widespread a violation already is, the more freely new ones would pass, which is exactly
+   backwards for a team paying one down. Measured: it suppressed new instances in two slices that
+   *already had the destination abstraction available*. Test: is this line **added by this diff**?
+   If yes, criterion 4 does not apply — judge it on 1–3 alone.
 
 **Volume is not evidence of a good review.** Usefulness density *falls* as a change grows (Microsoft
 Research, MSR 2015, peer-reviewed: "as number of files in the change increases, the proportion of

@@ -9,7 +9,7 @@ copied into your repository.**
 Coding agents are good at writing code and weak at the process around it: agreeing
 what to build before building it, reviewing what came out, and remembering what went
 wrong last time. This kit installs that process. It is a plugin for **Claude Code**,
-with **Codex** support shipped in the same packs, and it carries 38 skills — a
+with **Codex** support shipped in the same packs, and it carries 39 skills — a
 *skill* being a markdown document your agent loads when it becomes relevant, not code
 your project depends on — plus the files that hold your team's own conventions.
 
@@ -27,7 +27,7 @@ own, and they take precedence over the kit's.
 
 ## What you get
 
-The kit ships 38 skills in two packs. **Core** is 36 language-agnostic skills —
+The kit ships 39 skills in two packs. **Core** is 37 language-agnostic skills —
 project setup, spec-driven development, post-task review, the learnings loop,
 orchestration, research, code review, commit messages, branch handling. **Python**
 adds 2 Python-specific skills, both loaded automatically and never typed.

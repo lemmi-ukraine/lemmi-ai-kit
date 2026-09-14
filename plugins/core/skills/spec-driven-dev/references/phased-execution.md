@@ -154,7 +154,7 @@ Steps: Follow steps 1–6 of the `post-task-review` skill:
 
 Use for the final phase, or for phases with cross-feature impact or architectural decisions.
 
-Steps: Follow the complete 8-step process from the `post-task-review` skill:
+Steps: Follow the complete process from the `post-task-review` skill, Step 0 through Step 9:
 - Steps 1–6: code review and convention compliance
 - Step 7: documentation impact analysis
 - Step 8: learnings extraction

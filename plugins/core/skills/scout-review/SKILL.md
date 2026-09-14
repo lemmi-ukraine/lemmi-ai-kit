@@ -102,6 +102,30 @@ passes that value. Uncertain → refuted. Only findings that survive are reporta
   pipeline got right/wrong to `.ai/learnings.md` — rejected findings are future
   profile filters, missed bugs (found later) are future scout hints.
 
+## Adjudication — when two reviewers disagree, or a re-review must prove fixes landed
+
+Five rules, each paid for in a gated review round:
+
+- **Two independent reviewers need ADJUDICATION, not aggregation.** Merging their findings inherits
+  both error sets. One CRITICAL was a third wrong and the disagreement was decidable in a single
+  grep (an enum had exactly ten members and none was the one claimed), which dropped it to MAJOR.
+  Where two reviewers conflict, run the deciding command; do not average or take the max.
+- **Verify a finding's PREMISE separately from its conclusion before applying it.** A stated argument
+  can be factually false while its recommendation is right, and the difference changes the shipped
+  text: on a false premise the fix *replaces dead prose*, on the true one it *extends a live rule* —
+  different wording, different placement, different scope.
+- **A finding's cited location is where the reviewer NOTICED the defect, not where it lives.** Sweep
+  for the concept, not the cited rule numbers; one fix applied only to the named sites would have
+  shipped a block whose exhaustion test counted a new case its routing still could not reach.
+  Report "N named / M actually carried it / K found outside the list".
+- **A gate's product is a `(hash, verdict)` pair, so editing the artifact during the re-review that
+  gates it destroys the review's only output.** The edit produces a third byte set no pair has
+  reviewed. Land fixes in a *separate* pass with its own hash, however correct the fix is.
+- **Withhold the prior round's findings from a re-review pair, and "did the fixes land?" becomes a
+  measurement.** Blinded, one pair re-found **none** of 24 landed fixes; because it could not have
+  been anchored to confirm someone else's list, that silence is positive evidence. A primed pair
+  returning "all 24 confirmed" is indistinguishable from a pair agreeing with what it was shown.
+
 ## What the scout must sniff hardest (from DoorDash's miss analysis)
 
 - **Deletions** — removed struct fields, config defaults, flags, interface methods:

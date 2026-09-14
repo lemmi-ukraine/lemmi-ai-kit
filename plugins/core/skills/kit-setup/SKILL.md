@@ -75,8 +75,19 @@ CLAUDE.md skill catalog (pack-namespaced invocations) and stamps
 provenance.
 
 If `.claude/skills/` contains copies of kit skills (from the retired pip
-installer), tell the user: project-local copies shadow the plugin's versions and
-will not receive updates — recommend deleting them and relying on the plugin.
+installer), tell the user what actually happens, which is **not** shadowing:
+**both copies load.** Plugin skills are namespaced, so the project copy keeps the bare
+`/name` — it already uses that name — and the plugin's is reachable only as
+`/lemmi-ai-kit-core:<name>`. The user ends up with two skills per name whose descriptions
+cover the same ground, and the stale project copy is the one the bare name reaches, while
+it also never receives updates. From the Claude Code documentation on resolving skills
+that share a name: *"A plugin skill and a skill at any of the locations above -> Both load,
+because plugin skills are namespaced as `/plugin-name:skill-name`"*
+(<https://code.claude.com/docs/en/skills>).
+
+So recommend deleting the project copies and relying on the plugin — but say plainly that
+installing the plugin does **not** on its own retire them, and that until they are deleted
+the older copy is what the bare name runs.
 
 ## Step 1 — Detect the project (read, never guess)
 

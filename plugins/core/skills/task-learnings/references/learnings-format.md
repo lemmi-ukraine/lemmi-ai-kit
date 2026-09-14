@@ -50,6 +50,24 @@ optional — see § Routing Fields):
 > rule — violated 577 times — earned a hook and went to 0 successes. Reading a high violation rate as
 > licence to delete would have deleted that one too. Apply the discriminator, not the percentage.
 
+> **The bracketed `### [YYYY-MM-DD]` heading is load-bearing, not cosmetic — a non-canonical heading
+> EXEMPTS the entry from every per-entry check.** Both instruments key on it and both fail silently:
+> `drain_audit.py` splits on `ENTRY_SPLIT_RE = r"^### (?=\[)"` and simply does not see the entry, and
+> the learnings lint *counts* every `### ` heading as an entry (so the total looks right) while gating
+> its required-field, category-vocabulary and slug-vs-section checks on
+> `LEARNING_TITLE_RE = r"^\[(\d{4})-(\d{2})-(\d{2})\]\s+\S"`. An un-bracketed title yields no date;
+> no date means out-of-policy; out-of-policy means the missing fields are never reported.
+>
+> The result is two different denominators for one file — the buffer's count and its *checked* set —
+> with nothing announcing the gap. Measured: canonicalising three headings took `lint learnings` from
+> **2 findings to 12**, the 10 new ones being required fields missing all along. Nothing was created;
+> three entries were merely **enrolled**.
+>
+> This is why you copy the format from *this file*, never from an adjacent entry: copying a
+> neighbour's deprecated shape propagates it, and the deviation also disables the check that would
+> have caught it. A peer entry carrying its date in a `- **Date**:` field with none in the heading is
+> the same defect wearing a different hat.
+
 ## Routing Fields (the improvement contract)
 
 The Category encodes the *shape* of the insight; the routing fields encode **what should change,

@@ -24,8 +24,47 @@ Run this review when any of these conditions are met:
 
 ## Review Pipeline
 
-The review consists of 8 steps, executed in order. Steps 1–6 cover code review
-and convention compliance. Steps 7–8 are documentation and learnings extensions.
+The review consists of 10 steps, executed in order. Step 0 establishes the blast radius. Steps 1–6
+cover code review and convention compliance. Steps 7–8 are documentation and learnings extensions.
+Step 9 is the close self-challenge, and it runs last.
+
+### Step 0: Dependency & Blast Radius (produces a LIST, not an opinion)
+
+**Run this before steps 1–6 — and ideally before the change itself.** Step 7 is *documentation*
+impact: which docs to update afterwards. This step is the other question entirely: **what does this
+change break?** Nothing else in this pipeline asks it.
+
+For every symbol the diff adds, removes, renames or changes the signature of, enumerate its
+dependents and **write the list down**:
+
+```bash
+git diff --name-only HEAD          # the changed files
+git grep -n "<symbol>" -- <source-roots>   # every reader, per changed symbol
+```
+
+Then, for each dependent, record one of: *checked and unaffected* · *checked and updated* ·
+**UNKNOWN**. An entry you did not open is `UNKNOWN`, never "assumed fine".
+
+**Why this is a step and not advice.** In one measured window a session changed a flag and reported:
+*"Four sites set `<flag>`; I checked two, assumed a third, never opened the fourth."* The outcome
+was a live production regression. In the same window a diff-driven impact tool was built for exactly
+this, honestly backtested from 0/10 to 7/10 answerability, probe-stamped — and **gated nothing**:
+the corpus's maintain interface ran **738×** against **5** impact queries, a 33:1 ratio of
+maintaining the asset to consulting it. *Measured and wired in are independent properties, and only
+the second changes outcomes.* A dependency check that produces no artifact is not wired in.
+
+**State the instrument's limits next to its answer**, or the list will be read as complete when it
+is a floor:
+
+- A caller list derived by grep or by a generated index is typically a **subset** — dynamic
+  dispatch, reflection, string-keyed lookup and config-driven wiring are invisible to it.
+- Any authored (hand-maintained) dependency record is a claim about the tree, and can be stale in
+  both directions at once.
+- So an impact answer is a **floor, not a complete set**. That is fine — but only if it is said at
+  the point of use, not in a caveat elsewhere.
+
+If the project ships a diff-driven impact tool, run it here and paste its output. If it does not,
+the two commands above are the minimum.
 
 ### Steps 1–6: Code Review and Convention Compliance
 
@@ -252,6 +291,37 @@ Invoke the `task-learnings` skill to:
 7. **After writing a changelog entry**, read the `ai-improvement-tracker` skill
    and evaluate whether the change warrants a testable improvement hypothesis
 
+### Step 9: Close Self-Challenge (MANDATORY — it is not step 4, and it runs LAST)
+
+Steps 1–8 review the work against itself. This step asks the different question, and it must
+produce an explicit **findings-or-none** result before you write any handoff or completion report.
+
+**Why this is a separate step and not a rerun of step 4.** In a measured corpus of 303 sessions an
+operator hand-pasted an adversarial challenge in **114** of them, and it found a real defect nearly
+every time — including **four defects in one session *after* this very review had already passed**.
+Sessions that declared themselves done and were then challenged yielded real defects at **65%**
+(70 of 107). The mechanism is exact: step 4 asks *is my reasoning correct?*, which **confirms**;
+this step asks *what did I not look at?*, which **searches**. A review that grades the work against
+its own description cannot see a requirement the description never mentioned.
+
+Run all four, in order, and answer each in writing:
+
+1. **Is it detailed enough? Have you missed something?** Say what the challenge changed —
+   including **"nothing"**. A silent pass is not a result.
+2. **Re-derive, don't re-read.** For every number and every citation you are about to ship, run the
+   command again now. Re-reading confirms; re-running measures. Numbers written from memory and
+   citations recalled from an earlier read are two of the most frequent defects in the corpus
+   (~49% of sessions each).
+3. **Check the gate against its diff, not against your description of it.** For each gate you claim
+   passed: did it actually run, over the files you actually changed, and finish? Print the
+   denominator beside every zero.
+4. **Name what you did not look at, and say how you know that list is complete.** If you cannot,
+   the honest output is UNKNOWN plus what would settle it.
+
+Report the outcome in § 10 below. **A challenge that reports no findings is a valid result; a
+challenge that is skipped is not**, and nothing else in this pipeline detects the difference —
+which is precisely why an operator had to type it 114 times.
+
 ## Output Format
 
 Present the review results using this structure:
@@ -290,11 +360,19 @@ Present the review results using this structure:
 ### 9. Step Inventory (REQUIRED — the operator reads this first)
 | Mandated step | Ran? | Evidence / why not |
 |---|---|---|
+| Dependency & blast radius (step 0) | yes/no | {dependents found / checked / UNKNOWN} |
 | Post-task review (steps 1–6) | yes/no | {what was reviewed} |
 | Documentation impact (step 7) | yes/no | {files checked} |
 | Learnings extraction (step 8) | yes/no | {entries appended} |
+| Close self-challenge (step 9) | yes/no | {findings, or the word "none"} |
 | Backend restart (if backend touched) | yes/no/n-a | {command} |
 | {any other gate this task triggered} | yes/no | {…} |
+
+### 10. Close Self-Challenge Results (REQUIRED — "none" is a valid answer, silence is not)
+- **What the challenge changed**: {findings, or "nothing"}
+- **Numbers re-derived**: {which commands were re-run at write time}
+- **Gates re-checked against the diff**: {gate → files covered → denominator}
+- **What I did not look at**: {and how I know the list is complete, or UNKNOWN + what would settle it}
 ```
 
 ## Important Notes

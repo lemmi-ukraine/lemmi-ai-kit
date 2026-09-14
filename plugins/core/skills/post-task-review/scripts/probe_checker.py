@@ -21,7 +21,7 @@ USAGE
     python probe_checker.py --cmd '<shell command with {file}>' \
         --positive <file-that-MUST-match> \
         --negative <file-that-MUST-NOT-match> \
-        [--expect-positive N] [--label "what this checks"]
+        [--expect-positive N | --expect-positive-exact N] [--label "what this checks"]
 
 `{file}` in --cmd is substituted with each fixture path. The checker's own output is
 counted by lines unless --count-mode is `grep-c` (parse a bare integer on stdout).
@@ -141,6 +141,7 @@ def probe(
     positive: Path,
     negative: Path,
     expect_positive: int = 1,
+    exact_positive: bool = False,
     count_mode: str = "lines",
     label: str = "",
 ) -> tuple[bool, str]:
@@ -153,7 +154,12 @@ def probe(
     neg = count_matches(cmd, negative, count_mode)
 
     problems: list[str] = []
-    if pos < expect_positive:
+    if exact_positive and pos != expect_positive:
+        problems.append(
+            f"COUNT MISMATCH: positive fixture yielded {pos} match(es), expected exactly "
+            f"{expect_positive}. Extra findings are collateral, missing findings are blind spots."
+        )
+    elif pos < expect_positive:
         problems.append(
             f"BLIND: positive fixture yielded {pos} match(es), expected >= {expect_positive}. "
             "A zero here means the pattern never matched - it does NOT mean the defect is absent."
@@ -169,7 +175,7 @@ def probe(
         f"probe_checker {'PASS' if not problems else 'FAIL'}"
         + (f" - {label}" if label else ""),
         f"  cmd            : {cmd}",
-        f"  positive ({positive.name}): {pos} match(es)  [need >= {expect_positive}]",
+        f"  positive ({positive.name}): {pos} match(es)  [need {'exactly' if exact_positive else '>='} {expect_positive}]",
         f"  negative ({negative.name}): {neg} match(es)  [need 0]",
     ]
     lines += [f"  ! {p}" for p in problems]
@@ -224,7 +230,9 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--cmd", help="checker command; must contain {file}")
     ap.add_argument("--positive", help="fixture the checker MUST match")
     ap.add_argument("--negative", help="fixture the checker must NOT match")
-    ap.add_argument("--expect-positive", type=int, default=1)
+    expected = ap.add_mutually_exclusive_group()
+    expected.add_argument("--expect-positive", type=int)
+    expected.add_argument("--expect-positive-exact", type=int)
     ap.add_argument("--count-mode", choices=("lines", "grep-c"), default="lines")
     ap.add_argument("--label", default="")
     ap.add_argument("--self-test", action="store_true")
@@ -241,7 +249,12 @@ def main(argv: list[str]) -> int:
             args.cmd,
             Path(args.positive),
             Path(args.negative),
-            expect_positive=args.expect_positive,
+            expect_positive=(
+                args.expect_positive_exact
+                if args.expect_positive_exact is not None
+                else (args.expect_positive if args.expect_positive is not None else 1)
+            ),
+            exact_positive=args.expect_positive_exact is not None,
             count_mode=args.count_mode,
             label=args.label,
         )

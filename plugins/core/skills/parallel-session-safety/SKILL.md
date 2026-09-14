@@ -47,6 +47,14 @@ already at the exact target end-state, written by a concurrent run of the same s
 **Qualify the guarantee whenever you state it**: disjoint ownership is safe *assuming each
 session id runs once*. Launching a session twice is the realistic break.
 
+**And disjointness is a guarantee about BYTES, not about meaning.** Measured: the write sets held
+perfectly — no file was written by two sessions, every gate stayed green — while a new check added
+inside one set invalidated **15 fixtures** owned by another. The sets were syntactically disjoint and
+**semantically coupled**, and nothing in a file-ownership protocol can see that, because the collision
+is in what counts as *valid*, not in what counts as *written*. When a session's deliverable is a
+**rule, schema, validator or format** rather than content, enumerate who consumes it and warn them
+explicitly — a partition cannot do it for you.
+
 ## 2. A spec-recorded ownership split is not a runtime lock
 
 A coordination decision written into a spec does not reach a session that already loaded its
@@ -66,6 +74,19 @@ was recorded.
    revert the other session's work. Refactor-preserving-semantics beats both.
 4. Budget for a reconcile step (their-work → agreed-architecture) instead of assuming
    disjointness held.
+
+**A start-of-session ownership snapshot is a ONE-SHOT test that can only detect peers who started
+EARLIER.** The usual check — *"a file dirty now, minus what was dirty when I began, minus what I
+own, is a violation"* — subtracts a snapshot, so in a wave whose whole premise is concurrent writers,
+**every neighbour working normally lands in the violation bucket**. Measured in a seven-session wave:
+48 lines from the tracked form and 12 from the untracked form, *every one* a sibling's own file, none
+in the checking session's row. The output is a wall of false positives whose stated pass condition
+("this list is empty") is unreachable by design, and the noise is what stops anyone reading it.
+
+So: **"you are the SINGLE WRITER" is a claim about the tree, not a property the check can establish.**
+Re-snapshot at every wave boundary and diff against the *previous* snapshot rather than the session's
+first, and classify each hit by owner (the initiative's ownership register) before calling anything a
+violation. A check that cannot distinguish a violation from a neighbour is not a gate.
 
 ## 3. "Modified since read" is a collision alarm, not an annoyance
 
@@ -161,11 +182,21 @@ were consistent.
   report. If the set changed, the run is void.
 - `git status --short` under-reports: uncommitted work in a subsystem you are not reviewing
   is invisible without `git diff HEAD --stat -- <dir>`.
-- Prefer a `git worktree` (worktree + Docker mounts = zero risk to your tree) or an explicit
-  "no one edits while this runs" hand-off for anything reported as a gate.
+- **`git diff HEAD --stat` is blind to UNTRACKED files — which is exactly where your own new work
+  sits.** A brand-new test file is untracked until staging, so the prescribed snapshot reports a
+  stable tree while the file under test is being edited, and it reports stable again afterwards.
+  The single-path form has the same hole in a worse shape: `git diff --quiet HEAD -- <path>` exits
+  **0** for an untracked file, so it is silent for two opposite reasons and cannot tell them apart
+  (the same trap as `git status --untracked-files=no`). Pair every snapshot with
+  `git status --porcelain --untracked-files=all -- <dir>`, and settle "is this file tracked?" with
+  `git ls-files --error-unmatch <path>`.
+- Arrange an explicit "no one edits while this runs" hand-off for anything reported as a gate.
+  **Not a new worktree** — §11 forbids creating one, so the hand-off (or sequential dispatch) is the
+  available mechanism.
 - **Never report a torn-tree failure as a regression in the branch under review.**
-- To prove a failure is inherited rather than yours: `git worktree add ../verify dev` and run
-  the same suite there. One run settles it.
+- To prove a failure is inherited rather than yours, re-run the suite after the tree settles and
+  compare against `git stash list` / `git diff HEAD --stat` snapshots taken either side; if it still
+  cannot be settled in this checkout, stop and report rather than creating a worktree.
 
 ## 7. Hand-off briefs are claims sheets
 
@@ -188,6 +219,12 @@ were another feature's in-flight work and the direct cause of a confusing 36-err
   precisely that, and stated the cloud was already behaving correctly. Same defect class as the
   negative-existence rule in `AGENTS.md`, but a search surface that rule does not name:
   `ls .ai/handoffs/ | grep -i <topic>` costs one call and inverts the finding.
+- **In a measure-then-fix pair, the producer's counts are false BY DESIGN once the pipeline works.**
+  This is not drift by neglect: the consumer session was dispatched precisely to drive those numbers
+  to zero, so the hand-off's figures expire on success. A later reader who re-derives and finds zero
+  cannot distinguish "already fixed" from "the measurement was wrong". Stamp every routed count with
+  the commit it was measured at and name the session commissioned to change it, so the expiry is
+  legible rather than looking like a refutation.
 
 ## 8. Filesystem timestamps die at the first git op
 
@@ -259,10 +296,11 @@ decision. Every durable fact must therefore exist in git and be *referenced* her
 here. Losing a hand-off must cost convenience, not work. `## Durable anchors` is what the lint
 checks for this. Never paste credentials or tokens into one.
 
-**Parallel peers must be isolated.** Before dispatching two sessions concurrently, give each a git
-worktree or a declared disjoint file set (§1 — and note it is necessary, not sufficient). Sharing
-writable paths reproduces §6 exactly: a suite verdict over a tree two sessions are editing is void.
-If isolation is not possible, dispatch sequentially.
+**Parallel peers must be isolated.** Before dispatching two sessions concurrently, give each a
+**declared disjoint file set** (§1 — necessary, not sufficient). **Not a new worktree:** §11 forbids
+creating one, so the file set is the only isolation mechanism available. Sharing writable paths
+reproduces §6 exactly: a suite verdict over a tree two sessions are editing is void. If isolation is
+not possible, dispatch sequentially.
 
 **Returned work is verified, never merged on a claim.** The picker-up runs the hand-off's own
 `## Verification` commands. A delegate session is a model, and delegated completion claims have
@@ -347,6 +385,15 @@ Why the rule exists — one window's worktree incidents, kept for anyone handlin
 - `gh stack` fails on detached HEADs ("not on any branch") and an idle peer worktree can block a
   cascade; stale unregistered worktree dirs accumulated on disk.
 
+**With ONE checkout, landing a layer on a sibling branch removes that layer's files from the tree
+every peer is using.** `git switch` between two same-base branches carries UNCOMMITTED files across
+(they are identical in both commits) but removes or reverts files **committed** on the branch being
+left. Committing tooling on a `tooling/…` branch and switching back to a fix branch therefore
+deletes those scripts from the working tree — and the peers depending on them see a file that
+"disappeared", with no collision, no dirty state and nothing to diff. Before committing a layer onto
+a sibling branch, name who is currently reading those paths; if anyone is, land it where they are
+standing or wait for a boundary.
+
 Handling the ones that already exist: before ANY `git worktree remove`, run `git worktree list`,
 check the target's dirty AND gitignored-but-local state (`.env`, venvs are silently wiped), and
 confirm no live session owns it — or get explicit user approval naming that risk. Leftover
@@ -380,12 +427,26 @@ revision actually measured — state the OID with any such count).
 Anything another session staged before you is already in the index, and your pathspec adds to that
 set rather than replacing it.
 
-Four rules follow.
+Five rules follow.
 
 - **Verify and stage in SEPARATE tool calls, then verify again after staging.** Combining the check
   with the action it gates is what loses the race — three collisions in one session came from exactly
   that pattern. The only trustworthy check is `git diff --cached --stat` read *after* the `add` and
   immediately before the commit; a pre-`add` `git status` is a claim about a moment that has passed.
+  A later window produced the same shape at larger scale: *"74 files: 2,289 insertions, 31,366
+  deletions. I intended 6 files"* — the index was checked and committed in two separate calls while
+  a peer staged in between. Never `git add -A` in a contended tree.
+- **A shared append-only data file can be DESTROYED by a peer's merge, and no gate will say so.**
+  This is a different loss mode from a mis-scoped commit: the file is not over-staged, it is
+  emptied. A peer running `git merge` took a shared intake buffer from **236 entries to 15** in one
+  operation; the content survived only because that peer happened to stash first. Related measured
+  losses in the same window: a truncating in-place write on a full disk permanently destroyed 20
+  lines of *another* session's uncommitted edit, and a deliverable vanished when a merge moved HEAD
+  while its backup was three edits stale. So for any shared `.ai/` data file you are about to drain,
+  rewrite, or bulk-edit: **snapshot it to a durable path first, verify the copy with `cmp`, and
+  confirm the snapshot location is not itself ignored** (`git check-ignore -v <path>` — a backup
+  directory that is gitignored cannot be committed alongside the change without `git add -f`, and an
+  uncommitted backup is not a backup). Then re-read the file immediately before each edit.
 - **Never `git checkout -b` raw in a contended tree.** A bare `checkout -b` inherits whatever HEAD
   currently is, which another session may have just moved — four commits landed on another session's
   branch this way. Use `/branch-switch` (it writes the pre-switch backup) and assert

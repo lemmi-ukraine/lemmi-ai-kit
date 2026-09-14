@@ -82,6 +82,34 @@ Use these sources in priority order. Fetch the most specific source for the ques
 
 ## Lookup Process
 
+### Step 0 — If the SDK is installed, read the PINNED source FIRST
+
+The tables above point at the provider's **`main` branch**. That is the right source for "what does
+this API do *now*", and the **wrong** source for "what does the code in this repo do" — the two
+disagree exactly when it matters, and `main` always looks more capable.
+
+Measured: a reconnect question was answered from `main`, where the realtime client carries
+`max_retries`, `initial_delay`, `max_delay`, `on_reconnecting` and `max_queue_size`. The project
+pinned an earlier version, and grepping the **installed** source for every one of those symbols
+returned **nothing** — the entire reconnect layer post-dated the pin. A scenario's verdict turned on
+that behaviour, and reading `main` would have documented a capability the deployed code does not
+have.
+
+So, before any `WebFetch`:
+
+```bash
+grep -n "version\|==" pyproject.toml | grep -i <package>     # what is pinned?
+grep -rn "<symbol>" <venv>/lib/*/site-packages/<package>/    # does the PIN have it?
+```
+
+The installed source is both **authoritative for this repo** and cheaper than a fetch. Use `main`
+only when the package is not installed, or when the question really is about the current API.
+
+**Cite the version in the evidence** — `provider-doc: <claim> in the pinned <package>==<version>` —
+so the claim expires visibly on a bump, and name the bump as the invalidation trigger wherever the
+claim is recorded. A provider citation with no version silently becomes false at the next upgrade,
+and nothing will flag it.
+
 ### Step 1 — Identify the Question Type
 
 Classify what needs to be looked up:

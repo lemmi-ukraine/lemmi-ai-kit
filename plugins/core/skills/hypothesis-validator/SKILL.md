@@ -5,7 +5,7 @@ description: >
   Validate PENDING improvement hypotheses in .ai/improvement-hypotheses.md against observed
   evidence and propose status changes (CONFIRMED | REFUTED | INCONCLUSIVE | SUPERSEDED) —
   the validation step the ai-improvement-tracker reserves status edits for. Also owns the
-  ledger lifecycle: rotates terminal entries to .ai/improvement-hypotheses-archive.md,
+  ledger lifecycle: terminal entries stay in the ledger permanently (there is no archive),
   marks event-starved windows DORMANT, and runs the meta-synthesis when the lint's
   synthesis-due NOTE fires (~every 10 verdicts). Invoked from learning-consolidator
   Phase 6.5 (~weekly, approval-gated) and offered by session-retrospective when its data
@@ -26,7 +26,11 @@ One owner, multiple callers — the ai-changelog / ai-improvement-tracker preced
 
 ## When This Skill Activates
 
-- `learning-consolidator` Phase 6.5 invokes it on the ~weekly consolidation run
+- `learning-consolidator` Phase 6.5 invokes it on the ~weekly consolidation run — **this is the
+  designated caller and it is the one that failed.** In the six-week window Step 7 describes, three
+  drains ran and none invoked this skill, because Phase 6.5 delegates by prose reference and degrades
+  to "done inline, by hand" (four consecutive retrospective windows recorded it at zero invocations).
+  If you are running Phase 6.5, load this file and run its steps; do not improvise a shortened version.
 - `session-retrospective` offers it at its ending when §4g evidence settles a signal mid-window
 - The user asks directly ("validate hypotheses", "close the hypothesis loop")
 
@@ -34,9 +38,9 @@ One owner, multiple callers — the ai-changelog / ai-improvement-tracker preced
 
 ### Step 1: Enumerate candidates
 
-Read `.ai/improvement-hypotheses.md` in full (the HOT file only — the archive,
-`.ai/improvement-hypotheses-archive.md`, is read during Meta-Synthesis, never during a
-normal pass). Candidates = every entry with `Status: PENDING`, except entries whose latest
+Read `.ai/improvement-hypotheses.md` in full — it is the single file of record. Terminal
+entries are never moved out, so every verdict the Meta-Synthesis needs is already here and
+there is no second file to consult. Candidates = every entry with `Status: PENDING`, except entries whose latest
 `Validation notes:` carry a `DORMANT until <event>` mark — skip those unless this pass has
 evidence the named event has since occurred. For each candidate, extract: Category, Signal,
 Changelog ref date, any existing `Validation notes:`.
@@ -115,17 +119,31 @@ change did not deliver; the loop is only closed when one of these is recorded:
 - Record in the Resolution line WHY the change stays despite the refuted prediction
   (e.g. value shifted, prediction was too aggressive).
 
-### Step 7: Archive rotation (every pass)
+### Step 7: Report the ledger state (every pass)
 
-Rotate the ledger so the hot file holds only the live backlog: MOVE — verbatim, never
-rewritten — every entry whose Status is terminal (CONFIRMED | REFUTED | INCONCLUSIVE |
-SUPERSEDED) AND whose Resolution predates the current pass to
-`.ai/improvement-hypotheses-archive.md`, under its original date heading (create headings
-as needed; keep both files reverse-chronological). Entries resolved AT the current pass
-STAY in the hot file until the next pass — session-retrospective §4g reconciles against
-them. Delete date headings the move leaves empty. PENDING entries never move. Report the
-rotation ("rotated N, kept M hot") in the pass summary — a pass that proposes verdicts but
-skips rotation is incomplete.
+**There is no rotation and no archive. Terminal entries STAY where they are, verbatim, for
+good.** `.ai/improvement-hypotheses.md` is the single file of record — a resolved entry is
+never moved, never re-homed, never deleted.
+
+Instead of rotating, close the pass by reporting the ledger's state — three numbers, each
+derived by counting, never recalled:
+
+```
+grep -c '^- \*\*Status:\*\* PENDING' .ai/improvement-hypotheses.md     # live backlog
+grep -cE '^- \*\*Status:\*\* (CONFIRMED|REFUTED|INCONCLUSIVE|SUPERSEDED)' .ai/improvement-hypotheses.md
+grep -m1 'Resolution (' .ai/improvement-hypotheses.md                  # most recent verdict date
+```
+
+Report them as `N PENDING · M terminal · last verdict <date>`. A pass that proposes
+verdicts but does not report these three is incomplete — they are what makes the ledger's
+drift visible to the next reader.
+
+**Why this replaced rotation.** Rotation guarded file SIZE. The failure that actually
+occurs is a ledger that grows while nothing closes: in one measured case a ledger reached
+52 PENDING entries against 1 verdict in six weeks, because the pass that would have noticed
+was never run, and nothing in the design reported the backlog. Size was never the problem;
+an unreported backlog was. If you adopt this skill, do not reintroduce an archive — you
+would be re-solving the wrong failure and re-hiding this one.
 
 ### Step 8: Verify
 
@@ -143,11 +161,18 @@ the Meta-Synthesis below (run it this pass or explicitly carry it to the next).
 
 Individual verdicts close single loops; the synthesis is where they compound into design
 rules for future changes. Trigger: `PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint hypotheses` prints
-`NOTE: meta-synthesis due` — computed by comparing the terminal-verdict count (hot +
-archive) against the hot-file header's `**Last meta-synthesis:**` marker, so it fires for
-whoever runs the lint, with no memory required.
+`NOTE: meta-synthesis due` — computed by comparing the ledger's terminal-verdict count
+against its `**Last meta-synthesis:**` marker, so it fires for whoever runs the lint, with
+no memory required. Both numbers come from the one file; there is no archive to add in.
 
-1. Read every terminal entry (hot + archive) resolved since the last synthesis.
+**Verify your lint actually emits that NOTE before relying on it** (`grep -c 'meta-synthesis'`
+over the lint's source). Not every build ships the pressure checks, and a trigger nobody emits
+is how this loop stalls in the first place — the failure this skill exists to close. Where it
+is absent, compute the same two numbers with Step 7's greps and schedule the synthesis
+yourself.
+
+1. Read every terminal entry resolved since the last synthesis — all of them are in
+   `.ai/improvement-hypotheses.md`, because terminal entries are never moved out.
 2. Cluster by MECHANISM (prose rule / mechanical check / skill / doc-home / permission),
    not by Category — 7 categories over ~10 verdicts is too thin per cell to signal.
 3. Ask three questions: what do the REFUTED share? what made the INCONCLUSIVE undecidable
@@ -173,8 +198,9 @@ signal-design rules.
 - NEVER invent statuses outside `CONFIRMED | REFUTED | INCONCLUSIVE | SUPERSEDED`
 - NEVER rewrite a hypothesis's prediction to fit the observed outcome (hindsight bias);
   evidence goes in Resolution/Validation notes, the original text stays
-- NEVER delete PENDING entries — they are the validation backlog; rotation (Step 7) MOVES
-  only terminal entries, verbatim, and archived entries are never edited or re-armed
+- NEVER delete any entry — PENDING ones are the validation backlog, terminal ones are the
+  record the Meta-Synthesis reads. Nothing leaves this file. A resolved entry is never
+  edited again, never re-armed, and never moved to an archive (there is none — Step 7)
 - DORMANT is a Validation-notes mark, not a status — never resolve an entry INCONCLUSIVE
   merely because its qualifying event has not occurred
 - INCONCLUSIVE is terminal for that window — do NOT silently re-arm the same entry. If the

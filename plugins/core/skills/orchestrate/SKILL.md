@@ -135,6 +135,77 @@ Every delegation gets a written brief. A good brief has exactly:
    that inherited claims are to be verified rather than adopted — the one time that instruction was
    present, it is what caught a wrong figure before it propagated.
 
+8. **Point the worker at the preamble FILE — do not restate the rules inline, and require the
+   report to be written incrementally.** Two clauses, both measured:
+
+   - *Point, don't paste.* Give the worker the path to
+     [`../agent-delegate/assets/worker-preamble.md`](../agent-delegate/assets/worker-preamble.md)
+     (evidence discipline, working-tree discipline, how to return a result). Across 59 sub-agent
+     transcripts, prompts that restated the rules verbatim were violated at **32/32 (100%)** versus
+     **25/27 (93%)** for prompts that did not — restating inline has **no measurable effect**. The
+     only transcripts with zero violations were pointed at a rules *file*. One condition in a small
+     corpus, so: current best practice with a named test (re-measure the violation rate), not a law.
+     It costs one line either way.
+   - *Write the report file EARLY and INCREMENTALLY.* State this in the brief. **22% of one measured
+     sub-agent corpus was killed mid-run by the usage window and returned nothing at all** — and a
+     worker that dies returns exactly what a worker that found nothing returns, so you cannot tell a
+     missing gate from a passing one. In the one recorded controlled contrast, the worker given this
+     clause survived the window that killed its sibling. Also treat it as a hypothesis with a test:
+     re-measure the no-return rate.
+
+   Both clauses exist because **a prose rule does not bind, and a seam binds only the exact shape it
+   matches.** When you add a guard, match the resulting *state*, not a leading token: guards that
+   match a token are routinely reached by a rephrasing, and the violation counter then reads zero
+   for a worker that violated throughout.
+
+9. **The close block — paste it verbatim into every brief.** The single largest behavioural finding
+   in the measured corpus: an operator hand-pasted an adversarial self-challenge in **114 of 303
+   sessions**, and it found a real defect nearly every time. In one session it found four defects
+   *after* the completion review had already passed. That is a quality gate being run by hand
+   because the pipeline does not run it.
+
+   Item 5 already mandates the completion review; this is a **different** control. The review asks
+   *is my reasoning correct?*, which confirms. The challenge asks *what did I not look at?*, which
+   searches. Paste this into the brief rather than referencing it — a literal reachable only through
+   a template gets re-discovered rather than followed:
+
+   > **Close — run in this order, do not wait to be asked.**
+   > 1. Self-challenge: is it detailed enough? Have you missed something? Say what it changed,
+   >    including "nothing".
+   > 2. Then the task-completion review, if you have not already run it. Both run BEFORE the
+   >    handoff.
+   > 3. Save everything into the handoff.
+   > 4. Then write a short summary for whoever reads it next: bullets, ≤10 lines, plain language,
+   >    no internal ids.
+
+   Plus three operator-interface rules, which apply to **every turn addressed to a human**, not just
+   to briefs:
+
+   - **Answer your own question first.** Escalate only what you genuinely cannot settle. One measured
+     window recorded 284 clarifying calls across 62 sessions, the largest cluster being "scope / what
+     next"; two sessions dispatched into work a peer already owned while holding the tool that would
+     have told them. Asking is free to you and expensive to the reader, and that asymmetry is
+     invisible from inside a session.
+   - **Expand every internal id, board code, metric name and acronym on first use.** Sessions
+     repeatedly produced questions the operator could not parse ("I used internal IDs instead of
+     plain language"). This clause has recurred across four consecutive measured windows — the test
+     is not "is the brief self-contained" but whether *any* turn addressed to a human is readable.
+   - **The human-facing summary is a separate artifact from the handoff.** The handoff is written for
+     the next agent; nothing specified a shape for the message a person actually reads. Keep it to
+     ≤10 plain-language bullets.
+10. **Any rule a close-time lint enforces by EXACT MATCH goes in the brief's close section
+    verbatim — never by pointing at the template that carries it.** Measured: every first-draft
+    handoff in one day failed the same two exact-match rules, because the briefs said "use
+    `.ai/templates/handoff.md`" and left the literal strings to that template's comments — which
+    authors read once and thereafter write from habit. Keyboards and editors substitute characters
+    (an arrow typed as `→` where the lint wants `->`), so the mismatch is invisible until the
+    lint runs. A rule reachable only through a template comment is therefore re-discovered at
+    the END of every session, when a directory-wide re-run is at its most expensive. Paste the
+    literals into the brief.
+
+**A brief's RULES need the same suspicion as its LISTS, and a takeover is a dispatch** — both measured,
+both in [references/dispatch-gates.md](references/dispatch-gates.md) §1–§2.
+
 ## Protocol
 
 ### 1. Plan first, then execute
@@ -203,6 +274,16 @@ Three rules, enforced at this step because dispatch is where the choice exists:
 
 ### 2. Dispatch
 
+> **First, run `ListAgents` — once per dispatch ROUND, before you write any brief.** Peer collision
+> or duplicate dispatch is one of the most frequent defects measured (**53% of sessions in one
+> 286-session window**), and in the clearest cases the tool that would have prevented it was
+> available and used only *after* the collision: *"two of my three dispatches hit work already in
+> progress"*. Checking costs one call; a collision costs a whole session's work, and the loser is
+> usually the session that had already started.
+>
+> The check is cheap enough to repeat: run it again before a re-dispatch, because the round you are
+> about to start is not the round you planned.
+
 **Two defaults, both measured, both violated in the 08-05..08-19 window. Apply them before
 choosing a worker.**
 
@@ -257,6 +338,10 @@ inherit a previous wave's serialization.
   `cursor-agent --mode plan`, `grok --permission-mode plan`). Grant write access only for
   implementation briefs, only workspace-scoped, never bypass/danger modes. Ensure `git status`
   is clean (or checkpoint) before any worker may write.
+- **Before auto-dispatching into a cleared blocker, read
+  [references/dispatch-gates.md](references/dispatch-gates.md) §3–§6** — the forward plan as a
+  wave-boundary deliverable, the staging-list intersection a comment-only branch needs, one dispatch
+  channel per kickoff block, and the three gate shapes that read DONE while a peer is in flight.
 
 ### 2a. Launching a headless `claude -p` session — measured mechanics
 

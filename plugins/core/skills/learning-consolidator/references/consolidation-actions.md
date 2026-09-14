@@ -476,6 +476,59 @@ assertion, not evidence.
 Commit the snapshot alongside the drain, and cite it by path in the changelog entry. Delete it
 only after Step 6's audit is clean AND the drain has been merged.
 
+**Confirm the snapshot's location is not itself ignored, with a command, before trusting it:**
+
+```bash
+git check-ignore -v <snapshot-path>;  echo "rc=$? (1 = NOT ignored, good)"
+```
+
+A project whose backup directory is gitignored will silently accept the copy and then refuse to
+stage it, so the snapshot exists locally and is absent from the drain — the same failure as putting
+it in a scratch directory, arrived at by a different route. If the only sensible location *is*
+ignored, stage it explicitly with `git add -f` and say so in the report; do not quietly skip it.
+
+### Removing an entry stops at the next SECTION HEADER, not the next entry
+
+When you delete a promoted entry, the span you remove runs from its `### ` heading to **whichever
+comes first: the next `### ` entry or the next `## ` section header.** The naive "delete up to the
+next `### `" span is correct for every entry except the **last one in its section** — there, it
+swallows the following `## ` header, and every entry in the *next* section is silently re-filed
+into the previous one. Nothing fails: the file stays valid markdown, the entry count is right, and
+the corruption is only visible as a section whose contents no longer match its name.
+
+This is the specific shape of the general rule that **an unprobed mutator is worse than an unprobed
+checker** — a blind checker reports a wrong number, a blind edit script writes damage. One
+self-written edit script left **79 entries misfiled and two section headers gone**, recovered only
+from the pre-drain snapshot. So: assert the section-header count is unchanged before and after any
+bulk removal, and re-run the structural lint.
+
+## The handoff lint's dead-anchor check is an ON-DISK existence test, so it certifies UNTRACKED paths as durable
+
+`_git_anchor_resolves` returns `True` for any path-shaped token that merely **exists on disk** (by
+design — an untracked path still anchors a hand-off usefully). It therefore cannot distinguish a
+durable, committed anchor from a gitignored scratch file — which is the one distinction a durability
+claim needs.
+
+Measured, with both controls:
+
+| anchor | lint says | actually |
+|---|---|---|
+| `.ai/tmp/<scratch-report>.md` | resolves | **gitignored** |
+| `tasks/<untracked-task-doc>.md` | resolves | **untracked** (`git ls-files --error-unmatch` exit 1) |
+| `docs/this-file-does-not-exist-xyz.md` | dead | absent (true negative) |
+| `deadbee` | dead | not a SHA (true negative) |
+
+So a clean anchor line is evidence the path *exists here, now* — never that a future reader will find
+it. When the durability of an anchor is what a promotion rests on, run the real check yourself:
+
+```
+git ls-files --error-unmatch <path>     # exit 0 = tracked
+git show HEAD:<path> | wc -l            # non-zero = the CONTENT is committed, not just the path
+```
+
+Pair them: tracked-but-uncommitted passes the first and fails the second (see the `initiative-cleanup`
+skill's `references/settle-lessons.md` § the third state).
+
 ## Section-Placement Audit
 
 **Beware time-bucket catch-all sections.** `task-learnings`/manual appends tend to drop new entries

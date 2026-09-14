@@ -157,8 +157,23 @@ REDACTIONS = [
     ),
     (re.compile(r'"private_key"\s*:\s*"[^"]*"'), '"private_key":"[REDACTED]"'),
     (re.compile(r'"type"\s*:\s*"service_account"'), '"type":"[REDACTED_SA]"'),
-    (re.compile(r"sk-ant-[A-Za-z0-9_\-]{12,}"), "[REDACTED_KEY]"),
-    (re.compile(r"sk-[A-Za-z0-9_\-]{16,}"), "[REDACTED_KEY]"),
+    # The `sk-` patterns are guarded on the LEFT against a preceding alphanumeric. Unguarded, they
+    # match the tail of any ordinary hyphenated word ending in "sk" — "ta|sk-generation",
+    # "subta|sk-audit" — and the redaction then silently rewrites real paths. Measured on one
+    # corpus: all 28 substitutions were false positives (20 preceded by "ta", 1 by "subta", 6 by
+    # "a"), and ZERO were real keys.
+    #
+    # Why `(?<![A-Za-z0-9])` and not a plain `\b` — measured, not reasoned: `\b` also rejects the
+    # "task-" case, but it rejects a REAL key prefixed by an underscore too ("KEY_sk-<key>" ->
+    # no match), because `_` is a word character. The explicit class refuses letters and digits
+    # while still redacting after `_`, `=`, `"` and friends. Fixtures for both live in
+    # test_extract_sessions.py; keep the underscore-prefixed positive case if this is ever retuned.
+    #
+    # NOTE: neither form can fix a key-SHAPED string sitting in ordinary prose (preceded by a
+    # space) — e.g. documentation quoting an example. That class is handled by DOC_EXAMPLE_ALLOWLIST
+    # below, deliberately as an exact-literal allow-list rather than a further regex relaxation.
+    (re.compile(r"(?<![A-Za-z0-9])sk-ant-[A-Za-z0-9_\-]{12,}"), "[REDACTED_KEY]"),
+    (re.compile(r"(?<![A-Za-z0-9])sk-[A-Za-z0-9_\-]{16,}"), "[REDACTED_KEY]"),
     (
         re.compile(r"eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{6,}"),
         "[REDACTED_JWT]",
@@ -176,7 +191,16 @@ REDACTIONS = [
         ),
         r"\1=[REDACTED]",
     ),
-    (re.compile(r"\b[A-Fa-f0-9]{32,}\b"), "[REDACTED_HEX]"),
+    # Long hex runs are redacted EXCEPT exactly-40 and exactly-64, which are git SHA-1 and
+    # sha256 digests. Those are citation anchors, not secrets, and blanket redaction destroys the
+    # provenance the report exists to carry — one measured run lost 70 anchors. The exemption is
+    # deliberately length-exact: a 39- or 41-char run is still redacted, so a real secret has to
+    # land on one of two exact lengths to slip through, and hex of exactly those lengths is
+    # overwhelmingly a digest in this corpus.
+    (
+        re.compile(r"\b(?![A-Fa-f0-9]{40}\b)(?![A-Fa-f0-9]{64}\b)[A-Fa-f0-9]{32,}\b"),
+        "[REDACTED_HEX]",
+    ),
     (re.compile(r"(?i)[a-z]:\\users\\[^\\/\s]+"), "~"),
     (re.compile(r"(?i)/(?:c/)?users/[^\\/\s]+"), "~"),
     (re.compile(r"/home/[^\\/\s]+"), "~"),
@@ -187,13 +211,34 @@ REDACTIONS = [
 ]
 # High-confidence shapes whose presence in OUTPUT means a redaction miss (used by --self-check).
 LEAK_PATTERNS = [
-    re.compile(r"sk-[A-Za-z0-9_\-]{16,}"),
+    re.compile(r"(?<![A-Za-z0-9])sk-[A-Za-z0-9_\-]{16,}"),
     re.compile(r"eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{6,}"),
     re.compile(r"AIza[A-Za-z0-9_\-]{20,}"),
     re.compile(r"AKIA[A-Z0-9]{12,}"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r'"private_key"\s*:\s*"[^"\]]{8,}"'),
 ]
+
+# Exact literals that LOOK like secrets but are documentation examples — typically this project's
+# own write-ups of a past false positive, which then become new false positives when the gate runs
+# over a draft report. Measured: one such string tripped the gate 7x across a repo's `.ai/` files.
+#
+# This is an ALLOW-LIST, not a regex relaxation, and that distinction is the point: every entry is
+# an exact full-match string, so adding one cannot silently widen what the gate accepts. A regex
+# broad enough to excuse these would also excuse real keys, because the only thing distinguishing
+# them is *which literal it is* — no amount of context-matching recovers that.
+#
+# Rules for adding an entry: it must be a string that is safe to publish, it must be quoted here in
+# full (never a prefix or a pattern), and it should carry a one-line note saying where it comes
+# from. If you cannot state why the literal is not a credential, it does not belong here.
+DOC_EXAMPLE_ALLOWLIST = frozenset(
+    {
+        # A skills/docs slug quoted in write-ups of the original `sk-` false-positive bug. It is a
+        # directory name, not a key; it trips the gate because it sits in prose after a space,
+        # where no left-boundary guard can help.
+        "sk-content-reduction-spec",
+    }
+)
 # Note: home-dir paths are masked in all emitted CONTENT via REDACTIONS (home -> ~). The only
 # unredacted absolute path is the functional `transcriptPath` field in the gitignored
 # aggregate.json (sub-agents need it); it is never part of the committed report, so the leak gate
@@ -932,17 +977,29 @@ def check_file(path, unreadable_is_leak=True):
         return [f"{path}: unreadable ({exc})"] if unreadable_is_leak else []
     leaks = []
     for pat in LEAK_PATTERNS:
-        m = pat.search(text)
-        if m:
+        # finditer, not search: `search` stops at the first hit, so a single allow-listed
+        # documentation example at the top of a file would mask a real key further down.
+        for m in pat.finditer(text):
+            hit = m.group(0)
+            if hit in DOC_EXAMPLE_ALLOWLIST:
+                continue
             leaks.append(
-                f"{Path(path).name}: matched /{pat.pattern[:40]}/ -> {m.group(0)[:30]}"
+                f"{Path(path).name}: matched /{pat.pattern[:40]}/ -> {hit[:30]}"
             )
+            break  # one finding per pattern is enough to fail the gate
     return leaks
 
 
 def self_check(output_dir):
-    """Grep emitted artifacts for high-confidence secret shapes. Returns list of leaks."""
+    """Grep emitted artifacts for high-confidence secret shapes.
+
+    Returns `(leaks, files_scanned)`. The count is not decoration: a bare "0 leaks" cannot be
+    distinguished from a gate that scanned nothing — an empty output dir, a `sessions/` tree that
+    never materialised, or a path list that silently missed every emitted file all print exactly
+    the same clean result. Callers must report the denominator beside the zero.
+    """
     leaks = []
+    scanned = 0
     for path in [
         output_dir / "aggregate.json",
         # The interaction digest quotes USER MESSAGES verbatim, so it is the highest-risk
@@ -958,8 +1015,9 @@ def self_check(output_dir):
         ),
     ]:
         if path.is_file():
+            scanned += 1
             leaks.extend(check_file(path, unreadable_is_leak=False))
-    return leaks
+    return leaks, scanned
 
 
 # --- session-scoped interaction digest -------------------------------------------------------
@@ -1494,7 +1552,7 @@ def main():
     )
 
     if args.self_check:
-        leaks = self_check(output_dir)
+        leaks, scanned = self_check(output_dir)
         if leaks:
             print("SELF-CHECK FAILED — possible secret leak:", file=sys.stderr)
             for lk in leaks:
@@ -1510,7 +1568,17 @@ def main():
                     file=sys.stderr,
                 )
             sys.exit(3)
-        print("SELF-CHECK PASSED — no secret shapes found in outputs", file=sys.stderr)
+        # Print the denominator: "no secret shapes found" over an empty file list is a gate that
+        # never ran, and without the count it is indistinguishable from a real pass.
+        print(
+            f"SELF-CHECK PASSED — no secret shapes found across {scanned} emitted file(s)",
+            file=sys.stderr,
+        )
+        if not scanned:
+            print(
+                "  WARNING: zero files scanned — this is NOT a clean result.",
+                file=sys.stderr,
+            )
 
 
 def _merge_tools(sessions):

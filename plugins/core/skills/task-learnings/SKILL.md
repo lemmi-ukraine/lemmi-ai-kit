@@ -59,6 +59,28 @@ a valid result, not a skipped step.**
    newest-mtime pointed at an entirely unrelated session. The extractor fails closed (exit 4)
    rather than guess, but the scratchpad id avoids the ambiguity outright.
 
+   > **If you are a native SUB-AGENT, Step 0 does not apply to you — skip it and say so.** A
+   > sub-agent shares the parent's project directory, and its scratchpad path carries the **parent's**
+   > session id. So the extractor resolves, runs, **exits 0**, and writes a well-formed digest of the
+   > *orchestrator's* transcript: measured, `first user message` came back as the orchestrator's
+   > takeover brief and the counts (10 user msgs, 1 error class, 3 sub-agents) all described the
+   > parent. Nothing fails — the self-check passes and step 3's verification passes, because the
+   > digest is genuinely valid for the session it measured.
+   >
+   > Writing `interaction` entries from those numbers puts **another session's behaviour** into a
+   > tracked shared file under your own attribution. Fall through to the "measurement failed" path
+   > and return `Step 0 not run: sub-agent shares the parent's session id`. The orchestrator extracts
+   > interaction learnings for its sub-agents from their returns and error histories, attributed.
+
+   > **A repetition signal that names a MANDATED preflight is compliance, not thrash.** The
+   > extractor reports repeated commands by their text and is explicitly content-blind, so a rule
+   > the session was obeying and a genuine retry loop are indistinguishable in its output.
+   > Measured: four identical usage-window status checks were flagged as the session's only
+   > repetition signal — they were the preflight a governing skill *requires* before each dispatch
+   > decision. Reading the signal without that context converts a followed rule into a finding
+   > against the session. When a repeated command is mandated, record it as compliance and name
+   > the rule that mandates it; the repeated-command list is evidence to interpret, not a defect list.
+
 2. **Run the extractor, scoped to that session:**
 
    ```bash
@@ -190,6 +212,45 @@ classifier, at the moment of discovery:
 
 These are hints for the consolidator's gate, not decisions — when unsure, leave a field out
 rather than guessing.
+
+#### Extract by COST, not by how interesting it was
+
+Extraction is driven by narrative salience, and that systematically inverts its value. Measured
+across one 303-session window, joining each observed error class against the entries written about
+it:
+
+| Error class | occurrences | entries written | ratio |
+|---|---:|---:|---|
+| a shell-prefix rule the guard denies | 359 | 2 | 180 : 1 |
+| a second prefix rule, same guard | 92 | **0** | **UNCAPTURED** |
+| stale-read edit | 50 | 3 | 17 : 1 |
+| dispatch collided with live peer work | 15 | **0** | **UNCAPTURED** |
+| unprobed self-written checker | 4 | **26** | **0.15 : 1** |
+
+**The two most frequent failures produced 2 and 0 entries; the rarest produced 26.** The cause is
+that a confidently-wrong instrument is a *story* — surprising, diagnosable, worth writing up — while
+a guard denial is not: the tool says no, you retry correctly, nothing "happened". So the buffer
+records what was interesting rather than what was expensive.
+
+Two consequences for this step:
+
+- **Before writing an entry, ask "how often did this cost me something today?" and write that number
+  in.** A thing that happened 40 times and cost a round-trip each is worth more than a one-off you
+  found fascinating. If it recurred, say how many times — a count is what lets the consolidator
+  choose a seam over a sentence.
+- **This is also why `Enforce-via: prose` is over-used.** In the same window the buffer's field
+  distribution was **prose 67% against seam 5%**, in a window where *every class with a mechanical
+  seam was caught every time and every class governed only by prose recurred* — the third
+  consecutive window with that result. A narratively-interesting one-off naturally yields "remember
+  to X"; a 359-occurrence mechanical failure would yield a seam, and those are the ones not being
+  written up at all. If a finding recurred more than a handful of times, `prose` is very likely the
+  wrong answer, and the entry should name the seam that would have caught it even if that seam does
+  not exist yet.
+
+**A defect with a known mechanical fix must not be filed as a learning at all.** File it as work.
+A learning is for knowledge; a known fix is a task. One measured case: a gate defect was diagnosed,
+written up as a learning *and* recorded in the changelog as completed — and the fix never landed.
+Fifteen days later the identical defect blocked the pipeline again.
 
 ### Step 5: Write Entries to `.ai/learnings.md`
 

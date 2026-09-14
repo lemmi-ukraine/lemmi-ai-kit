@@ -205,3 +205,56 @@ trade-off.
   reads as already-audited, so reviewers stop at the reasoning instead of the option set.
 - Grep-able symptom: any invariant joining two lists **positionally** with no test asserting
   `len(a) == len(b)`.
+
+## Two ways a test silently asserts nothing
+
+**1. An injected `MagicMock()` logger makes every NEGATIVE `caplog` assertion vacuous.** `caplog`
+captures records that reach the logging framework; a unit under test that logs through a logger the
+helper *injects* never reaches it. One feature's `_build()` helper passed `logger=MagicMock()`, so
+`caplog.records` was empty for that unit. A positive assertion then fails loudly (fine), but
+
+```python
+assert not any(r for r in caplog.records if ...)   # passes over zero records, forever
+```
+
+can never fail. Assert against the mock (`logger.warning.assert_not_called()`, or inspect
+`logger.method_calls`), or build the unit with a real logger when the log line is the behaviour
+under test.
+
+**2. Subclassing a test class to reuse its builders re-runs the parent's tests under the child.**
+The inherited test methods execute again in the subclass's context — inflating the count, and
+sometimes passing for reasons that have nothing to do with the child. Extract shared builders into a
+module-level factory or a plain mixin that defines no `test_*` methods.
+
+## A return value only ever compared against its broken-case value is untested
+
+Every rowcount assertion for two destructive statements expected **zero**, so a method that always
+returned `0` would have passed the entire suite. This is the count-the-complement rule (never phrase a
+claim as all-X-were-Y when Y is in the selection pattern) arriving through a new door: a **return
+value** whose only assertions are against the value it would take if it were broken.
+
+It is easy to miss precisely because the surrounding assertions are strong — proving the ROWS are
+gone does not prove the COUNT of removed rows is right. Add one case where the expected count is
+non-zero, or the return value is unverified regardless of how many assertions surround it.
+
+## A guard test that omits a production parameter eventually fails for a limit production never applies
+
+Under-testing is the smaller half. The larger half is that the guard drifts into asserting a
+constraint the real system does not have, and then **fails** — inviting a "fix" to the production
+artifact to satisfy a broken instrument. One such test made "the prompt is now too big, trim it" the
+tempting read; it would have driven a rewrite of freshly-reviewed prose. Two independent facts
+settled it the other way: an end-to-end assembly at the REAL cap showed the sanitizer never
+truncating (largest filled block 19,872 of 20,000, byte-identical every time).
+
+When a guard test fails, first ask whether it is constructing the unit the way production does —
+compare its arguments against the real call site before touching the artifact under test.
+
+## A filter with no test that REJECTS something is untested, however many acceptance tests it has
+
+A rejection path whose detector has **never fired** in production is a broken-instrument hypothesis
+before it is evidence of health. Measured: a minimum-duration filter compared its threshold against a
+provider-reported duration that carried a hard floor (configured silence window plus padding) *above*
+the threshold, so the filter was arithmetically unreachable; its rejection counter had read 0 since
+deployment and was cited as "no false positives". Every threshold compared against a derived quantity
+needs one test that computes the quantity's floor and proves the threshold sits above it, and one test
+in which the filter actually rejects — a zero from a detector nobody has seen fire is UNREAD.
