@@ -12,6 +12,12 @@
 
 ## 2026-09-14
 
+### INFRA-MODIFIED: Resolve the changelog merge and explain research workflows
+- **What:** Kept main's dated, structured changelog and retained this PR's plugin split, bundled FFF and onboarding entries in that format. Added README descriptions of parallel research, planner/claim ownership, the skill-researcher authoring stage and the currently deferred flow-mapping port.
+- **Why:** Reviewers and users need visible workflow roles, outputs and availability, while the PR must preserve the newer upstream changelog structure.
+- **Files:** `README.md`, `CHANGELOG.md`, `.ai/ai-changelog.md`.
+- **Affected workflows:** Research and skill authoring documentation. No workflow implementation or installation behavior changed; no new improvement hypothesis is warranted.
+
 ### INFRA-MODIFIED: Add agent-led onboarding and measure real installation sessions
 - **What:** Added a paste-ready installation prompt and separate new/existing-project guidance to README. Ran four native agent sessions in temporary repositories and recorded external wall-clock timing, independent file/plugin checks and manual content findings.
 - **Why:** Users should be able to ask their agent to install and configure the kit, with explicit preservation boundaries and evidence of how that workflow behaves.

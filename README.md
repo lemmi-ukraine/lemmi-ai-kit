@@ -63,6 +63,80 @@ Depending on which packs you install, your agent can:
 You receive installed skills through their plugins. There is nothing in your
 repository to re-sync when a plugin changes.
 
+## Research workflows
+
+### Custom parallel deep research
+
+Use the **Research** pack when a question needs several research angles and you
+want an explicit record of which agent owns each source. The
+[`parallel-deep-research`](plugins/research/skills/parallel-deep-research/SKILL.md)
+workflow scopes the question, curates and deduplicates sources, assigns each kept
+source to one owner, runs those owners in parallel, and combines their evidence
+into a cited report. It keeps the source manifest as an audit trail, including
+sources that were dropped, duplicated or could not be verified.
+
+| Skill | Role in the workflow |
+|---|---|
+| [`research-source-planner`](plugins/research/skills/research-source-planner/SKILL.md) | Challenges source relevance and credibility, deduplicates candidates, and writes the source manifest with one owner per source |
+| [`research-source-claim`](plugins/research/skills/research-source-claim/SKILL.md) | Guides each worker through only its assigned sources, recording evidence and provenance and handing new sources back for assignment |
+| [`parallel-deep-research`](plugins/research/skills/parallel-deep-research/SKILL.md) | Coordinates scoping, the planner, parallel owners, late-source assignment and the final synthesis |
+
+Paste a request such as:
+
+```text
+Use lemmi-ai-kit-research:parallel-deep-research to compare PostgreSQL and
+SQLite for a desktop app. Prefer official sources, cover synchronization
+and deployment trade-offs, and verify the central claims.
+```
+
+The result is a cited report plus a manifest under
+`.specs/<topic>/source-manifest.md`. Additional verification is **opt-in** — the
+example requests it explicitly. Source ownership prevents repeated analysis
+across owners; it does not by itself establish that every claim is correct, and
+verification may re-read a disputed source.
+
+For research spread across separate sessions, run the planner first and give
+each session the claim protocol, its owner ID and the same manifest. Assign new
+sources through the manifest too. For a simple lookup with one owner, use an
+ordinary search instead of starting a parallel run. Research works as a
+standalone plugin; it does not require the Orchestration pack.
+
+### Research-backed skill creation
+
+Use **Skill Authoring**, with Core installed, when the research should become a
+reusable skill. Its
+[`skill-creation-workflow`](plugins/skill-authoring/skills/skill-creation-workflow/SKILL.md)
+collects the scope, runs
+[`skill-researcher`](plugins/skill-authoring/skills/skill-researcher/SKILL.md) to
+produce a research brief, gets the brief reviewed, builds the skill, checks its
+structure and content, and validates it with a real trial.
+
+`skill-researcher` is the internal research stage of this authoring pipeline.
+It examines the codebase, official documentation, alternatives, trade-offs and
+failure modes before a skill is written. Start the enclosing workflow with a
+request such as:
+
+```text
+Use lemmi-ai-kit-skill-authoring:skill-creation-workflow to create a
+research-backed skill for reviewing database migration safety.
+```
+
+The outputs are the research brief and reviewed skill files. The Research pack
+is optional for this authoring workflow; its researcher has its own source
+discipline and does not require a separate parallel-research run.
+
+## Flow mapping — port deferred
+
+Flow mapping documents a subsystem's runtime behavior for agents: scenario
+tables, callers, invariants, cross-flow dependencies and code citations. Its
+method combines discovery, flow-document generation and validation, a risk
+register, a comment pass and a closing self-review.
+
+**Availability:** this revision does not ship the flow-mapping skill. The
+[upstream synchronization record](docs/upstream-sync.toml) explicitly defers
+its port while the validation tools and fixtures are made portable. It should
+receive a kit invocation example once that port is registered in the catalog.
+
 ## Install
 
 Installation is an **agent task**. Open your project in Claude Code or Codex and
