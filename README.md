@@ -16,134 +16,121 @@ your project depends on — plus the files that hold your team's own conventions
 Your project receives no copied kit skills. Your conventions stay yours, in files
 you own, and they take precedence over the kit's.
 
-## Who it is for
-
-- Teams that have an AI coding agent and no agreed process around it — every task
-  starts from a blank prompt and ends wherever it ends.
-- Teams that already wrote conventions into `AGENTS.md` and want a workflow on top
-  **without** giving up those rules or maintaining a fork.
-- Anyone who wants the same process on more than one agent host, without writing it
-  twice.
+[Choose packs](#what-you-get) · [Find a workflow](#choose-a-workflow) · [Install](#install) · [Project setup](#set-up-a-project) · [Documentation](#documentation)
 
 ## What you get
 
-The kit ships 40 skills in five packs. **Core** carries project setup, specs, review, flow mapping and learnings. **Research** adds source
-planning and parallel research. **Orchestration** adds delegation, initiative
-coordination, and stacked-work review. **Skill Authoring** covers creating and
-reviewing reusable skills. **Python** adds 2 Python-specific skills for coding
-and testing conventions, both loaded automatically.
+Start with Core for the development lifecycle, then add the packs your work needs.
 
-Install one pack, several, or all five through your host's plugin manager.
-Research and Python stand alone. Orchestration and Skill Authoring require
-Core 0.2.0 or newer. Fresh Claude installs of either dependent pack install Core
-automatically; upgrade an existing Core first. On Codex, add or refresh Core
-before either dependent pack.
-Core is also the pack to install if you want `kit-setup` and the shared
-project rules and `.ai/` files.
+| Pack | Use it for | Requires |
+|---|---|---|
+| [Core](plugins/core/README.md) | Project setup, product briefs, specs, verification, diagnosis and learnings | — |
+| [Orchestration](plugins/orchestration/README.md) | Delegation, initiatives, stacked PRs and deeper code reviews | Core ≥ 0.2.0 |
+| [Research](plugins/research/README.md) | Parallel research with explicit source ownership | — |
+| [Skill Authoring](plugins/skill-authoring/README.md) | Creating, researching and auditing reusable skills | Core ≥ 0.2.0 |
+| [Python](plugins/python/README.md) | Coding and testing conventions, loaded when relevant | — |
 
-Core bundles the FFF file-search MCP for both hosts, with no separate FFF installation.
-It uses the kit's existing uv runtime; see [Core setup](plugins/core/README.md#fff-file-search).
+Install one pack, several, or all five. Fresh Claude installs of a dependent pack
+install Core automatically; upgrade an existing Core first. On Codex, add or
+refresh Core before Orchestration or Skill Authoring. Core also bundles the
+[FFF file-search MCP](plugins/core/README.md#fff-file-search) for both hosts,
+using uv with no separate FFF installation.
 
-Depending on which packs you install, your agent can:
+## Choose a workflow
 
-- **Turn a request into a spec before it writes code** — requirements, then design,
-  then a task breakdown, with a gate at each step and a critic pass over the result.
-- **Review its own work when the task ends** — code review, documentation impact,
-  and an extraction step that writes down what was learned.
-- **Carry those learnings forward.** Observations accumulate in `.ai/learnings.md`;
-  a consolidator promotes the durable ones into `AGENTS.md`, where every later task
-  reads them.
-- **Split large work across sub-agents** and reassemble the results, rather than
-  running one long context until it degrades.
-- **Write a conventional commit message from the actual diff**, plan a stack of
-  dependent pull requests, and research a question with its sources challenged
-  rather than trusted.
+Pick the outcome you need below; linked names open the full skill instructions.
+In Claude Code, use `/lemmi-ai-kit-<pack>:<skill>`. In Codex, ask for the installed
+skill by its full name, for example:
 
-You receive installed skills through their plugins. There is nothing in your
-repository to re-sync when a plugin changes.
+```text
+Use lemmi-ai-kit-core:spec-driven-dev to plan account deletion.
+Use lemmi-ai-kit-orchestration:pr-review-concise to review <PR URL>.
+Use lemmi-ai-kit-research:parallel-deep-research to compare PostgreSQL and SQLite
+for a desktop app. Prefer official sources and verify the central claims.
+```
 
-## Research workflows
+These are separate requests, not a script. Start only the workflow you need;
+small changes do not need the full lifecycle.
 
-### Custom parallel deep research
+```mermaid
+flowchart LR
+    Idea[Shape the idea] --> Spec[Plan and verify]
+    Spec --> Build[Implement]
+    Build --> Review[Review the result]
+    Review --> Learn[Capture learnings]
+    Learn --> Rules[Improve project rules]
+    Rules -. Next task .-> Spec
+```
 
-Use the **Research** pack when a question needs several research angles and you
-want an explicit record of which agent owns each source. The
-[`parallel-deep-research`](plugins/research/skills/parallel-deep-research/SKILL.md)
-workflow scopes the question, curates and deduplicates sources, assigns each kept
-source to one owner, runs those owners in parallel, and combines their evidence
-into a cited report. It keeps the source manifest as an audit trail, including
-sources that were dropped, duplicated or could not be verified.
+### Plan and deliver
 
-| Skill | Role in the workflow |
+| When you need to… | Start with | What it produces |
+|---|---|---|
+| Turn an idea into a team task | Core · [product-brief](plugins/core/skills/product-brief/SKILL.md) | A codebase-grounded brief with challenged assumptions and UX copy |
+| Agree what to build before coding | Core · [spec-driven-dev](plugins/core/skills/spec-driven-dev/SKILL.md) | Specs sized to the change, approval gates and a verification plan; [test-planner](plugins/core/skills/test-planner/SKILL.md) can also plan tests from an approved design |
+| Coordinate work across several sessions | Orchestration · [initiative-planner](plugins/orchestration/skills/initiative-planner/SKILL.md) | A charter, branch topology, execution plan and roadmap |
+| Split one session's work among agents | Orchestration · [orchestrate](plugins/orchestration/skills/orchestrate/SKILL.md) | Scoped assignments and verified results; use [agent-delegate](plugins/orchestration/skills/agent-delegate/SKILL.md) for one named worker |
+| Decide how to divide dependent PRs | Orchestration · [stacked-pr-planner](plugins/orchestration/skills/stacked-pr-planner/SKILL.md) | A layer table assigning each deliverable its branch, risk and review lane |
+| Finish an initiative | Orchestration · [initiative-cleanup](plugins/orchestration/skills/initiative-cleanup/SKILL.md) | A reconciled roadmap, retired specs and forward plan; destructive cleanup requires approval |
+
+For everyday Git work, Core provides [branch-switch](plugins/core/skills/branch-switch/SKILL.md)
+for preserving local changes while switching and [commit-message](plugins/core/skills/commit-message/SKILL.md)
+for a conventional message from the staged diff. Publishing and destructive actions
+remain subject to your authorization.
+
+### Review and resolve
+
+| What you are reviewing | Start with | Result / boundary |
+|---|---|---|
+| A completed implementation | Core · [post-task-review](plugins/core/skills/post-task-review/SKILL.md) | Code and convention review, documentation impact and captured learnings |
+| Committed work before a PR exists | Orchestration · [branch-diff-review](plugins/orchestration/skills/branch-diff-review/SKILL.md) | A durable findings document against a base ref; excludes uncommitted changes |
+| An existing PR or stack | Orchestration · [pr-review-concise](plugins/orchestration/skills/pr-review-concise/SKILL.md) | Short, actionable inline findings; posting requires authorization |
+| A change needing deeper investigation | Orchestration · [scout-review](plugins/orchestration/skills/scout-review/SKILL.md) | Parallel reviewers trace leads beyond the diff and try to disprove findings before reporting |
+| Review comments that need fixing | Orchestration · [pr-comment-resolver](plugins/orchestration/skills/pr-comment-resolver/SKILL.md) | Evidence-backed verdicts and fixes in the owning branch; force-pushes require authorization |
+
+### Research and diagnose
+
+| Your question | Start with | What it produces |
+|---|---|---|
+| “What do the sources support?” | Research · [parallel-deep-research](plugins/research/skills/parallel-deep-research/SKILL.md) | A cited report and source manifest, with one owner per source |
+| “How does this subsystem behave?” | Core · [flow-mapping](plugins/core/skills/flow-mapping/SKILL.md) | Runtime scenarios, callers, invariants, cross-flow links and a risk register when findings exist |
+| “Why did this fail?” | Core · [analyze-logs](plugins/core/skills/analyze-logs/SKILL.md) | Reconstructed event sequences and findings checked against the code |
+| “Does this score track user outcomes?” | Core · [metric-validity-check](plugins/core/skills/metric-validity-check/SKILL.md) | Outcome linkage, a separation test and an explicit verdict on what the metric supports |
+| “What does this AI API support now?” | Core · [ai-docs-lookup](plugins/core/skills/ai-docs-lookup/SKILL.md) | Current official documentation checked against the question |
+
+**Research workflows:** parallel research uses [research-source-planner](plugins/research/skills/research-source-planner/SKILL.md)
+to curate and assign sources, then [research-source-claim](plugins/research/skills/research-source-claim/SKILL.md)
+for each worker. For separate sessions, give each the same manifest and its owner ID.
+Additional claim verification is opt-in; source ownership alone does not prove
+correctness. Use ordinary search for a simple lookup. Research needs no Orchestration pack.
+
+**Flow mapping:** documents and project overrides stay in your repository; validators
+stay in the plugin. Automated symbol and comment checks currently support Python.
+A structural pass does not prove runtime claims. Optional comment cleanup and
+parallel work require Orchestration.
+
+### Improve the process and create skills
+
+| When you need to… | Start with | What it produces |
+|---|---|---|
+| Understand recurring agent mistakes | Core · [session-retrospective](plugins/core/skills/session-retrospective/SKILL.md) | A behavioral report grounded in Claude Code session history |
+| Turn accumulated lessons into durable rules | Core · [learning-consolidator](plugins/core/skills/learning-consolidator/SKILL.md) | Reviewed promotions into rules, skills and module docs, with approval before edits |
+| Build a skill from domain research | Skill Authoring · [skill-creation-workflow](plugins/skill-authoring/skills/skill-creation-workflow/SKILL.md) | A research brief, skill files, structural/content reviews and a real trial for non-trivial skills; Research pack optional |
+| Create a scoped skill or audit an existing one | Skill Authoring · [skill-creator](plugins/skill-authoring/skills/skill-creator/SKILL.md) / [skill-reviewer](plugins/skill-authoring/skills/skill-reviewer/SKILL.md) | Guided authoring or an audit of structure, portability and workflow placement |
+
+<details>
+<summary><strong>Automatic and internal skills — what runs inside these workflows</strong></summary>
+
+These support the entry points above; some intentionally do not appear in the slash menu.
+
+| Area | Supporting skills |
 |---|---|
-| [`research-source-planner`](plugins/research/skills/research-source-planner/SKILL.md) | Challenges source relevance and credibility, deduplicates candidates, and writes the source manifest with one owner per source |
-| [`research-source-claim`](plugins/research/skills/research-source-claim/SKILL.md) | Guides each worker through only its assigned sources, recording evidence and provenance and handing new sources back for assignment |
-| [`parallel-deep-research`](plugins/research/skills/parallel-deep-research/SKILL.md) | Coordinates scoping, the planner, parallel owners, late-source assignment and the final synthesis |
+| Planning and implementation | Core's [plan-critic](plugins/core/skills/plan-critic/SKILL.md) challenges specs; [vertical-slice](plugins/core/skills/vertical-slice/SKILL.md) guides Python backend structure. Python adds [python-conventions](plugins/python/skills/python-conventions/SKILL.md) and [test-conventions](plugins/python/skills/test-conventions/SKILL.md). |
+| Learning loop | Core's [task-learnings](plugins/core/skills/task-learnings/SKILL.md) captures findings; [ai-changelog](plugins/core/skills/ai-changelog/SKILL.md) records infrastructure changes; [ai-improvement-tracker](plugins/core/skills/ai-improvement-tracker/SKILL.md) records testable predictions. [hypothesis-validator](plugins/core/skills/hypothesis-validator/SKILL.md) checks the evidence, and [consolidation-critic](plugins/core/skills/consolidation-critic/SKILL.md) audits promoted rules. |
+| Shared working trees | Orchestration's [parallel-session-safety](plugins/orchestration/skills/parallel-session-safety/SKILL.md) governs ownership, exclusive resources and verification across sessions. |
+| Skill authoring | [skill-researcher](plugins/skill-authoring/skills/skill-researcher/SKILL.md) supplies domain research; [skill-content-reviewer](plugins/skill-authoring/skills/skill-content-reviewer/SKILL.md) checks substance alongside the structural audit. |
 
-Paste a request such as:
-
-```text
-Use lemmi-ai-kit-research:parallel-deep-research to compare PostgreSQL and
-SQLite for a desktop app. Prefer official sources, cover synchronization
-and deployment trade-offs, and verify the central claims.
-```
-
-The result is a cited report plus a manifest under
-`.specs/<topic>/source-manifest.md`. Additional verification is **opt-in** — the
-example requests it explicitly. Source ownership prevents repeated analysis
-across owners; it does not by itself establish that every claim is correct, and
-verification may re-read a disputed source.
-
-For research spread across separate sessions, run the planner first and give
-each session the claim protocol, its owner ID and the same manifest. Assign new
-sources through the manifest too. For a simple lookup with one owner, use an
-ordinary search instead of starting a parallel run. Research works as a
-standalone plugin; it does not require the Orchestration pack.
-
-### Research-backed skill creation
-
-Use **Skill Authoring**, with Core installed, when the research should become a
-reusable skill. Its
-[`skill-creation-workflow`](plugins/skill-authoring/skills/skill-creation-workflow/SKILL.md)
-collects the scope, runs
-[`skill-researcher`](plugins/skill-authoring/skills/skill-researcher/SKILL.md) to
-produce a research brief, gets the brief reviewed, builds the skill, checks its
-structure and content, and validates it with a real trial.
-
-`skill-researcher` is the internal research stage of this authoring pipeline.
-It examines the codebase, official documentation, alternatives, trade-offs and
-failure modes before a skill is written. Start the enclosing workflow with a
-request such as:
-
-```text
-Use lemmi-ai-kit-skill-authoring:skill-creation-workflow to create a
-research-backed skill for reviewing database migration safety.
-```
-
-The outputs are the research brief and reviewed skill files. The Research pack
-is optional for this authoring workflow; its researcher has its own source
-discipline and does not require a separate parallel-research run.
-
-## Flow mapping
-
-Core includes [flow-mapping](plugins/core/skills/flow-mapping/SKILL.md), a workflow
-for documenting runtime scenarios, callers, invariants and cross-flow dependencies.
-It produces a project-owned flow document and risk register, then checks their
-structure, derived tables and links to neighboring flows.
-
-```text
-Use lemmi-ai-kit-core:flow-mapping to map this project's job cancellation flow.
-Trace the callers and failure paths, document the evidence and unresolved cases,
-and validate the flow document and risk register with the bundled tools.
-```
-
-The plugin bundles the schema, validators, projection generator, seam detector and
-synthetic self-check fixtures. Set the target project and code directories through
-its command arguments; keep project-specific additions in AGENTS.md or a local
-flow template. No copied skill or validator is needed. Automated symbol validation
-and comment token checks currently support Python; a structural pass does not
-prove the runtime claims. Optional comment cleanup and parallel work use the
-Orchestration pack.
+</details>
 
 ## Install
 
@@ -157,16 +144,17 @@ to install plugins or edit project settings.
 <!-- agent-install-prompt:begin -->
 ```text
 Install and set up Lemmi AI Kit in the project open in this session.
-Source: https://github.com/lemmi-ukraine/lemmi-ai-kit. Use a checkout or ref I
-provide; otherwise use the repository's default branch. Read its README and
-the installed kit-setup instructions before changing project files.
+Source: the public repository at https://github.com/lemmi-ukraine/lemmi-ai-kit.
+Use its default branch unless I provide a ref. Read its README and the installed
+kit-setup instructions before changing project files.
 
 Use this client's native plugin manager. Install and enable Core, plus the
 Python pack only if the project actually uses Python. In an empty project,
 start with Core only; do not choose a framework or create application code.
 Install other optional packs only if I request them. Reuse an existing matching
 marketplace; do not replace a different source or remove other plugins.
-Keep any kit checkout and plugin cache outside this project.
+Let the native plugin manager fetch and cache the public marketplace; keep the kit
+source outside this project and do not copy its skills into project-owned directories.
 
 I authorize the selected plugin installs, missing AI configuration files, and
 clearly marked additive kit sections in existing instructions. Preserve all
@@ -190,10 +178,6 @@ new tools. Do not commit, push or deploy.
 For all capabilities, append: **"Install all five kit packs."** For a smaller set,
 name which optional packs to add, such as Research or Orchestration; the agent
 should honor their Core prerequisites. No new configuration format is needed.
-
-**Reviewing the unreleased 0.2.0 PR?** Also provide the PR checkout or append
-`Use ref codex/native-plugin-packs.` The default branch will provide these packs
-after the PR merges; a default-branch install before then uses the older catalog.
 
 ### New project
 
@@ -224,11 +208,10 @@ before treating these times as an expectation for your project.
 
 ### Claude Code
 
-From a clone of this repository, add the local marketplace, then install the
-packs you want:
+Add the public GitHub marketplace, then install the packs you want:
 
 ```sh
-claude plugin marketplace add ./
+claude plugin marketplace add lemmi-ukraine/lemmi-ai-kit
 claude plugin install lemmi-ai-kit-core@lemmi
 claude plugin install lemmi-ai-kit-research@lemmi
 claude plugin install lemmi-ai-kit-orchestration@lemmi
@@ -251,10 +234,10 @@ original single `lemmi-ai-kit` plugin, first read
 
 ### Codex
 
-The five packs ship Codex manifests in the same catalog. From a local clone:
+The same public marketplace contains the five Codex plugin manifests:
 
 ```sh
-codex plugin marketplace add .
+codex plugin marketplace add lemmi-ukraine/lemmi-ai-kit
 codex plugin add lemmi-ai-kit-core@lemmi
 codex plugin add lemmi-ai-kit-research@lemmi
 codex plugin add lemmi-ai-kit-orchestration@lemmi
@@ -269,12 +252,15 @@ marketplace in Codex's plugin directory.
 
 ### How far these have been proven
 
-The local marketplace commands above were exercised with all five packs on
-Claude Code 2.1.266 and Codex 0.154.0 on 2026-09-14. Installed payloads matched
-the source bytes; fresh Claude installs also resolved dependent packs to Core.
-The source changes are not yet published, and the `owner/repo` marketplace
-shorthand remains untested. See the [adoption guide](docs/adoption-guide.md#3-install)
-for the verification record.
+[`lemmi-ukraine/lemmi-ai-kit`](https://github.com/lemmi-ukraine/lemmi-ai-kit)
+is public, uses `main` as its default branch, and has a published `1.0.0` release.
+The exact public-repository marketplace commands above were verified from clean
+temporary client configurations with Claude Code 2.1.278 and Codex 0.155.1 on
+2026-09-21.
+Earlier five-pack installation trials also matched installed payloads to source;
+fresh Claude installs resolved dependent packs to Core. See the
+[v1.0.0 release](https://github.com/lemmi-ukraine/lemmi-ai-kit/releases/tag/1.0.0)
+and the [installation trial record](docs/research/2026-09-14-agent-installation.md).
 
 ## Set up a project
 
@@ -316,6 +302,9 @@ is what the rest rests on.
 
 ## The patterns it implements
 
+<details>
+<summary>Established practices and their primary sources</summary>
+
 The kit is not novel and does not claim to be — it is a set of established practices
 made executable by an agent. Each is named with its primary source so you can judge
 the practice on its own merits rather than on ours.
@@ -339,6 +328,8 @@ the practice on its own merits rather than on ours.
 | `commit-message` writes `type(scope): description` with a `BREAKING CHANGE:` footer | Conventional Commits v1.0.0 | [conventionalcommits.org](https://www.conventionalcommits.org/en/v1.0.0/) |
 | `stacked-pr-planner` sequences dependent branches so each pull request is reviewable alone | stacked pull requests | The lineage from Phabricator's Differential and Gerrit, described in [Graphite's guide](https://graphite.com/guides/stacked-diffs) |
 | `session-retrospective` reads a session's history for friction, blaming the process rather than the author | the blameless stance, from incident review | [Google SRE, *Postmortem Culture*](https://sre.google/sre-book/postmortem-culture/) |
+
+</details>
 
 ## Documentation
 
