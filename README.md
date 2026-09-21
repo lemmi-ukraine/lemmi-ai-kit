@@ -144,16 +144,17 @@ to install plugins or edit project settings.
 <!-- agent-install-prompt:begin -->
 ```text
 Install and set up Lemmi AI Kit in the project open in this session.
-Source: https://github.com/lemmi-ukraine/lemmi-ai-kit. Use a checkout or ref I
-provide; otherwise use the repository's default branch. Read its README and
-the installed kit-setup instructions before changing project files.
+Source: the public repository at https://github.com/lemmi-ukraine/lemmi-ai-kit.
+Use its default branch unless I provide a ref. Read its README and the installed
+kit-setup instructions before changing project files.
 
 Use this client's native plugin manager. Install and enable Core, plus the
 Python pack only if the project actually uses Python. In an empty project,
 start with Core only; do not choose a framework or create application code.
 Install other optional packs only if I request them. Reuse an existing matching
 marketplace; do not replace a different source or remove other plugins.
-Keep any kit checkout and plugin cache outside this project.
+Let the native plugin manager fetch and cache the public marketplace; keep the kit
+source outside this project and do not copy its skills into project-owned directories.
 
 I authorize the selected plugin installs, missing AI configuration files, and
 clearly marked additive kit sections in existing instructions. Preserve all
@@ -177,10 +178,6 @@ new tools. Do not commit, push or deploy.
 For all capabilities, append: **"Install all five kit packs."** For a smaller set,
 name which optional packs to add, such as Research or Orchestration; the agent
 should honor their Core prerequisites. No new configuration format is needed.
-
-**Reviewing the unreleased 0.2.0 PR?** Also provide the PR checkout or append
-`Use ref codex/native-plugin-packs.` The default branch will provide these packs
-after the PR merges; a default-branch install before then uses the older catalog.
 
 ### New project
 
@@ -211,11 +208,10 @@ before treating these times as an expectation for your project.
 
 ### Claude Code
 
-From a clone of this repository, add the local marketplace, then install the
-packs you want:
+Add the public GitHub marketplace, then install the packs you want:
 
 ```sh
-claude plugin marketplace add ./
+claude plugin marketplace add lemmi-ukraine/lemmi-ai-kit
 claude plugin install lemmi-ai-kit-core@lemmi
 claude plugin install lemmi-ai-kit-research@lemmi
 claude plugin install lemmi-ai-kit-orchestration@lemmi
@@ -238,10 +234,10 @@ original single `lemmi-ai-kit` plugin, first read
 
 ### Codex
 
-The five packs ship Codex manifests in the same catalog. From a local clone:
+The same public marketplace contains the five Codex plugin manifests:
 
 ```sh
-codex plugin marketplace add .
+codex plugin marketplace add lemmi-ukraine/lemmi-ai-kit
 codex plugin add lemmi-ai-kit-core@lemmi
 codex plugin add lemmi-ai-kit-research@lemmi
 codex plugin add lemmi-ai-kit-orchestration@lemmi
@@ -256,12 +252,15 @@ marketplace in Codex's plugin directory.
 
 ### How far these have been proven
 
-The local marketplace commands above were exercised with all five packs on
-Claude Code 2.1.266 and Codex 0.154.0 on 2026-09-14. Installed payloads matched
-the source bytes; fresh Claude installs also resolved dependent packs to Core.
-The source changes are not yet published, and the `owner/repo` marketplace
-shorthand remains untested. See the [adoption guide](docs/adoption-guide.md#3-install)
-for the verification record.
+[`lemmi-ukraine/lemmi-ai-kit`](https://github.com/lemmi-ukraine/lemmi-ai-kit)
+is public, uses `main` as its default branch, and has a published `1.0.0` release.
+The exact public-repository marketplace commands above were verified from clean
+temporary client configurations with Claude Code 2.1.278 and Codex 0.155.1 on
+2026-09-21.
+Earlier five-pack installation trials also matched installed payloads to source;
+fresh Claude installs resolved dependent packs to Core. See the
+[v1.0.0 release](https://github.com/lemmi-ukraine/lemmi-ai-kit/releases/tag/1.0.0)
+and the [installation trial record](docs/research/2026-09-14-agent-installation.md).
 
 ## Set up a project
 
