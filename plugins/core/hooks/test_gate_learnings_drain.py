@@ -1,6 +1,6 @@
 """Exercise the drain gate across every arm. Each case states the REQUIRED decision.
 
-Pure stdlib. Run with:  python plugins/core/hooks/test_gate_learnings_drain.py
+Pure stdlib. Run with: uv run --no-project --python ">=3.11" python -B plugins/core/hooks/test_gate_learnings_drain.py
 
 A guard that blocks unrelated work is worse than no guard — a repo-relative hook registration
 once disabled every Bash and PowerShell call here for three sessions — so the ALLOW cases matter
