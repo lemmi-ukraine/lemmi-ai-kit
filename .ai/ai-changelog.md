@@ -13,9 +13,9 @@
 ## 2026-09-23
 
 ### INFRA-MODIFIED: Run the Core learnings hook through uv
-- **What:** Launch the PreToolUse drain guard with uv and Python 3.11 or newer, outside the consumer project's environment, without writing bytecode. Update its standalone test command.
+- **What:** Launch the PreToolUse drain guard with uv and Python 3.11 or newer, outside the consumer project's environment, without writing bytecode. Remove the standalone guard test.
 - **Why:** A bare Python command resolved to an inactive mise shim and exited 1 before the guard could inspect tool calls.
-- **Files:** `plugins/core/hooks/hooks.json`, `plugins/core/hooks/test_gate_learnings_drain.py`, `.ai/ai-changelog.md`.
+- **Files:** `plugins/core/hooks/hooks.json`, `plugins/core/hooks/test_gate_learnings_drain.py` (removed), `.ai/ai-changelog.md`.
 - **Affected workflows:** Core's PreToolUse learnings drain guard in Codex and Claude.
 
 ## 2026-09-14
