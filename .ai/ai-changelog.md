@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-10-15
+
+### SKILL-MODIFIED: Replace the Python test conventions with the Testcontainers model
+- **What:** Rewrote `test-conventions` around Testcontainers integration tests (sanctioned seams, test-first, profiles, observable outcomes, generated ids, bounded waits, quiesce, diagnostics); split its gotchas into model-independent and legacy-mock references; aligned `test-planner`, `plan-critic`, `post-task-review`, `pr-review-concise`, `python-conventions`, `vertical-slice`, the seeded AGENTS.md rule and the test-plan template; bumped the Python, Core and Orchestration build suffix.
+- **Why:** The kit taught the mock-based model its source project had deleted, so that project had to override it.
+- **Files:** see the 2026-10-15 entries in `CHANGELOG.md`.
+- **Affected workflows:** Python test writing and review, verification planning, plan and PR review, `kit-setup`.
+
 ## 2026-09-23
 
 ### INFRA-MODIFIED: Run the Core learnings hook through uv

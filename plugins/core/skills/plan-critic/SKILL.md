@@ -245,6 +245,6 @@ When reviewing plans in this project, keep in mind:
 - **JWT auth**: internal endpoints use `BaseInternalClient` with JWT. Plans that call internal services without this are a Security Blocker.
 - **Prompt sanitization**: any plan that builds LLM prompts must reference the sanitization step. Raw string concatenation is a Security Blocker.
 - **Config, not env**: reading `os.getenv()` directly in services is a convention violation. Settings must come from `core/config.py`.
-- **Test timeouts**: every test must use a timeout decorator. Plans that add tests without specifying this are a Minor finding.
+- **Test seams and waits**: tests fake an external dependency only at the seam the project's testing conventions sanction (never by patching application code), and wait for asynchronous outcomes with bounded polling, never fixed sleeps. Plans whose tests patch application code, or leave the seam or the wait unspecified, are a Minor finding.
 - **AI failure modes**: any plan involving AI provider API calls (e.g., OpenAI) must address rate limits, timeouts, and unexpected response formats. Missing failure contracts are a Major finding.
 - **AI model facts must be doc-verified**: any plan that states a model ID, event name, session parameter, audio format, or capability limit must have that fact verified against the official docs via `WebFetch` (see the `ai-docs-lookup` skill). Unverified AI provider facts are a Major finding — in-memory knowledge is unreliable for this project.

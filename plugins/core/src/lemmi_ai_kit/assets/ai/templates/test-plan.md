@@ -70,7 +70,7 @@
 
 | Need | Provided by | Notes |
 |------|-------------|-------|
-| {External dependency to stub} | {the project's DI override or fixture name} | {behavior the stub must exhibit} |
+| {External dependency to fake} | {the project's sanctioned seam — provider-leaf fake, mock-server expectation, emulator — or fixture name} | {behavior the fake must exhibit} |
 | {Seeded records} | {factory name} | {quantity, key field values} |
 | {Auth state} | {token fixture or helper} | {role, expiry — recompute relative to run time, never a frozen absolute} |
 

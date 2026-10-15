@@ -44,3 +44,13 @@ to its home above and removed here.
 - **Enforce-via**: test
 - **Verify-at**: tests/test_flow_mapping.py
 - **Scope**: durable
+
+### [2026-10-15] The commit-message hygiene test reads every local ref, so a stale tag fails it locally
+- **Context**: Running the four checks in a worktree while rewriting the Python testing conventions.
+- **Finding**: `test_no_commit_message_leaks_the_source_project` walks `git rev-list --all`. A local tag `v0.1.0-preview.1` still points into pre-rewrite history whose initial commit names the source project, so the suite reported 1 failed locally while that commit is reachable from neither HEAD nor `origin/main` (`git for-each-ref --contains 002dadde` lists only the tag). A fresh CI checkout never sees it.
+- **Impact**: Before treating that failure as a regression, run `git for-each-ref --contains <sha>` on the reported commit; if only a local tag carries it, it is environment, not the change. Report it as such rather than as green.
+- **Category**: pitfall
+- **Home**: comment:tests/test_commit_message_hygiene.py:_leaks
+- **Enforce-via**: none
+- **Verify-at**: tests/test_commit_message_hygiene.py
+- **Scope**: durable

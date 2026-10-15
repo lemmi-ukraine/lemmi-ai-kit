@@ -1,6 +1,6 @@
 {
   "name": "lemmi-ai-kit-python",
-  "version": "0.2.0",
+  "version": "0.2.0+codex.20261015202258",
   "description": "Python-specific conventions for projects using the Lemmi AI Kit core plugin.",
   "author": {
     "name": "lemmi-ukraine",
