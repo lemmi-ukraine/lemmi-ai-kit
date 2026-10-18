@@ -37,7 +37,7 @@ invisible to anyone working from it.
 - [ ] HTTP clients: correct base class, proper error handling
 - [ ] Error handling: shared exceptions, not HTTPException for standard errors
 - [ ] Feature exceptions converted to shared exceptions in routes
-- [ ] Tests use timeout decorators
+- [ ] Tests fake external dependencies only at sanctioned seams, and wait with bounded polling, not fixed sleeps
 
 ### Step 4: Self-Challenge
 - [ ] "What could go wrong here?"
@@ -93,6 +93,6 @@ These are recurring issues found during reviews — watch for them:
 - Multiple classes in a single file (especially DTOs/schemas)
 - Inline/local imports inside functions
 - Missing error handling for external API calls (e.g., AI provider, cloud storage)
-- Tests without timeout decorators (`fast_test`, `integration_test`)
+- Tests that patch application code (`unittest.mock.patch`, `monkeypatch.setattr`, `dependency_overrides`) instead of faking at a sanctioned seam
 - Feature-specific exceptions not converted to shared exceptions in routes
 - Logging without structured `extra={}` context

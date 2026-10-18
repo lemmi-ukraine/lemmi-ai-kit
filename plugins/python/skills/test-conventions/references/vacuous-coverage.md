@@ -1,72 +1,10 @@
-# Test Doubles & Vacuous-Coverage Gotchas
+# Vacuous Coverage — Tests That Pass For The Wrong Reason
 
-Extends the SKILL.md "Test Doubles & Fixtures (gotchas)" section. Consolidated from
-`.ai/learnings.md` on 2026-07-16. Theme: a test that would still pass with the mechanism
-ripped out proves nothing — drive the real seam, and keep doubles coupled to the real
-contract.
-
-## Monkeypatch targeting
-
-- **Hoisting a function-local import to module scope breaks
-  `monkeypatch.setattr("source.module.Name")`** — the consumer now holds its OWN binding, so
-  patches of the SOURCE silently stop intercepting (no error, wrong behavior). After hoisting
-  any import, grep tests for `setattr("<source>.<Name>"` and re-target to the importing
-  module; run the module's tests, not just ruff/import-smoke.
-- **A package `__init__` binding an instance that shadows a same-named submodule breaks
-  string-target monkeypatching** (`AttributeError` naming the *instance* type). Get the real
-  module via `importlib.import_module("app.core.system.resource_manager")` and use the
-  object-form `monkeypatch.setattr(module, "name", fake)`.
-
-## Doubles must track the real contract
-
-- **Build mocked structured-AI responses from the response model**
-  (`Model(...).model_dump()`), never raw dicts — when the service catches parse errors and
-  falls back gracefully, a schema-stale raw-dict fixture silently reroutes the test onto the
-  fallback path where weak assertions keep passing. For any catch-and-fallback seam, also
-  assert the INTENDED path ran (no error log emitted / output differs from input).
-- **`MagicMock(wraps=obj)` does NOT delegate attribute access** — `wraps` covers CALLS only;
-  every unset attr returns a fresh MagicMock that explodes in comparisons/arithmetic. For
-  Settings/config doubles use a REAL instance with overridden fields; if a mock is
-  unavoidable, grep the SUT for `self.config.` and set every read attribute.
-- **Adding a read of `collaborator.attr` to a class is a contract change for every existing
-  test that `Mock()`s that collaborator** — the pre-existing tests' bare Mocks now feed
-  non-iterable/wrong-typed values. Grep the class's test files for bare doubles of that
-  collaborator and set the new attr in the same change (batched test runs surface this
-  phases later otherwise).
-  **`spec=` does not save you, and the failure is silent rather than loud.** `spec=` constrains
-  attribute *names* only — an unset attribute returns a truthy child MagicMock. So a new nullable
-  entity column consumed behind an `if x:` guard silently activates the new branch in every
-  pre-existing spec'd-mock test: they keep **passing** while exercising the wrong path (adding
-  `Order.user_background` made the no-CV prompt fallback inject a mock repr into the prompt in
-  the missing-resume test). Same shape for defensive probes: a new
-  `getattr(obj, "attr", None)` sees an auto-created truthy Mock and takes the wrong branch — a
-  guaranteed-sender `application_state` reachability probe read every mocked websocket as DEAD,
-  which would have silently fast-failed `order.ended` delivery across 6 pre-existing harnesses
-  until each pinned `application_state.value = WS_STATE_OPEN`. Whenever production grows a NEW
-  attribute read on a mocked object — spec'd or not, `getattr` included — sweep every double of
-  that object and pin the attribute explicitly (usually `None`) in the same change.
-- **Never rely on an `AsyncMock` default for a boolean or optional-token result in an ordered
-  state machine** — awaiting an unset `AsyncMock` returns another mock, which is truthy. Job
-  acquisition tries initial → abandoned-pending → stale-processing → failed-retry CAS branches in
-  order; fixtures that configured only the branch under test left the earlier ones unset, so the
-  service treated an unconfigured earlier branch as an acquired attempt and the tests exercised the
-  wrong transition while still passing. **Set every branch mock to `None` first, then override
-  exactly the one that should win** — control flow must match the scenario name.
-- **A new required collaborator is worth the test churn — keep it required.** A defaulted `None`
-  keeps every existing construction site compiling and is a silent hole: any future site that
-  forgets it gets the protection quietly absent with nothing failing. Making
-  `OverrideGuard` required surfaced all 6 construction sites across 4 unrelated test
-  files at type-check time — **the compile error IS the audit of who constructs the class**. Those
-  suites test other axes and only need a pass-through, so put the inert double in
-  `tests/factories/mock_service_factories.py` (`create_inert_override_guard()`) rather than
-  hand-rolling it per file — one definition to update when the collaborator's shape changes.
-- **Asserting structured log fields: read them off `record.__dict__`.** In non-GCP runs `log_event`
-  forwards `additional_fields` as stdlib `extra`, so every structured field lands as an attribute on
-  the captured `LogRecord` and caplog can assert exact values. Both obvious access forms are blocked:
-  `record.close_code` fails basedpyright (unknown LogRecord attribute) and
-  `getattr(record, "close_code")` trips ruff B009. `record.__dict__["close_code"]` passes both. Use
-  `caplog.at_level(level, logger=<name>)`, and where the code takes a `logger` first arg, inject a
-  test-named logger instead of depending on module-logger propagation.
+Extends SKILL.md. Theme: a test that would still pass with the mechanism ripped out proves
+nothing. These traps are independent of how a dependency is provided, so they apply to every
+integration test, every pure contract test, and every fake installed at a sanctioned seam.
+The traps that only exist in mock-based suites live in
+[legacy-mock-suite.md](legacy-mock-suite.md).
 
 ## Vacuous coverage patterns
 
@@ -87,8 +25,8 @@ contract.
 - **Pass-through wiring (metrics/lint/logging enrichment) fails by silent degradation, not
   exception** — a direct-call unit test with hand-built inputs cannot catch a shape mismatch
   with the real caller's payload (`list(a_string)` shreds text into characters and never
-  raises). Add one test that drives the real caller with only the DI boundary mocked and
-  asserts the emitted count/effect.
+  raises). Add one test that drives the real caller through its real boundaries and asserts the
+  emitted count/effect.
 - **A "keep in sync with X" comment is not a sync mechanism** — mirrored inventories (literal
   stems, enum echoes, allowlists) drift within days when a batch touches the source. Add a
   parse-based sync test in the mirror's suite (read and regex-parse the source file — works
@@ -113,10 +51,19 @@ contract.
   theory yields a "fix" that is at worst a no-op, so it passes review and quality gates while the
   real (test-setup) bug survives.
 
-## A shared double is a CLAIM about the outside world, and a wrong claim degrades to green
+## A fake is a CLAIM about the outside world, and a wrong claim degrades to green
 
-A double asserts what the real dependency does. When that assertion is wrong AND the caller
+A fake at a sanctioned seam — a provider-leaf fake, a mock server's expectation, an emulator's
+seeded state — asserts what the real dependency does. When that assertion is wrong AND the caller
 **degrades gracefully**, a broken fixture becomes a vacuous pass rather than a failure.
+
+### 0. A fake payload is built from the real schema, never hand-typed
+
+Build a fake structured response from the response model (`Model(...).model_dump()`), never a raw
+dict — when the service catches parse errors and falls back gracefully, a schema-stale raw-dict
+payload silently reroutes the test onto the fallback path where weak assertions keep passing. For
+any catch-and-fallback seam, also assert the INTENDED path ran (no error log emitted / output
+differs from input).
 
 ### 1. A stub path must be DERIVED from the client's constants, never hand-copied
 
@@ -208,18 +155,19 @@ trade-off.
 
 ## Two ways a test silently asserts nothing
 
-**1. An injected `MagicMock()` logger makes every NEGATIVE `caplog` assertion vacuous.** `caplog`
-captures records that reach the logging framework; a unit under test that logs through a logger the
-helper *injects* never reaches it. One feature's `_build()` helper passed `logger=MagicMock()`, so
+**1. A NEGATIVE log assertion over a capture the code never writes to is vacuous.** The measured
+case was an injected `MagicMock()` logger: `caplog` captures records that reach the logging
+framework, and a unit under test that logs through a logger the helper *injects* never reaches it. One feature's `_build()` helper passed `logger=MagicMock()`, so
 `caplog.records` was empty for that unit. A positive assertion then fails loudly (fine), but
 
 ```python
 assert not any(r for r in caplog.records if ...)   # passes over zero records, forever
 ```
 
-can never fail. Assert against the mock (`logger.warning.assert_not_called()`, or inspect
-`logger.method_calls`), or build the unit with a real logger when the log line is the behaviour
-under test.
+can never fail. The integration-model form of the same trap is a log assertion that reads a
+capture the harness does not feed — the wrong logger prefix, a level below the capture threshold,
+a child process whose lines land elsewhere. Pair every "no such record" assertion with a positive
+one on the same capture in the same test, so the capture is shown able to see anything.
 
 **2. Subclassing a test class to reuse its builders re-runs the parent's tests under the child.**
 The inherited test methods execute again in the subclass's context — inflating the count, and
@@ -258,3 +206,82 @@ the threshold, so the filter was arithmetically unreachable; its rejection count
 deployment and was cited as "no false positives". Every threshold compared against a derived quantity
 needs one test that computes the quantity's floor and proves the threshold sits above it, and one test
 in which the filter actually rejects — a zero from a detector nobody has seen fire is UNREAD.
+
+## Three assertions that pass for the wrong reason
+
+All three were live in one service's suite for months.
+
+- **An expected falsy result with more than one legitimate cause proves nothing.**
+  `validate_jwt_token` returns `None` both for a malformed/missing user-id AND for an expired token.
+  While a shared fixture token was expired, `test_token_with_invalid_user_id_format` and
+  `test_token_with_missing_user_id` kept passing — on expiry, never on the malformed-field logic they
+  name. The intended path went untested for ~11 months and nothing signalled it. Either **isolate the
+  cause** (assert a distinguishing error message or field, not the bare `None`/`False`/`[]`) or
+  **neutralize the others** in the fixture. Confirmed by the fix: once expiry was corrected both
+  assertions still passed — for the first time actually exercising the intended branch.
+- **A frozen `exp`/`nbf`/`iat` in a pasted "real token" is a wall-clock time bomb.** Three files
+  hand-rolled `jwt.encode()` around a captured production payload keeping literal
+  `"nbf": 1755442078, "exp": 1786978078` — `iat + 365 days`, valid for exactly one year, then 12
+  tests began failing every run once the clock crossed it. Invisible at write time; a full year of
+  green CI. The correct pattern already existed one file over (a token helper computing
+  `datetime.now(UTC) + timedelta(...)`), so this was a hand-rolled divergence from a documented
+  convention. **Never keep a captured token's absolute claims** — recompute relative to run time,
+  preserving only offsets that matter. Cheap sweep:
+  `grep -rn '"exp":\s*[0-9]\{9,10\}' tests/` (it found all 15 live occurrences and correctly skipped
+  2 deliberately-expired negative-test literals).
+- **A skipped gate reads green.** A test guarded by `is_file()` + `pytest.skip` reports success in
+  CI, where the file it needs can never exist. A skip is not a pass; count skips per run.
+
+## Rewrites, splits and live inputs
+
+- **For a behaviour-preserving rewrite, copy the old implementation into the test as an oracle —
+  never import it.** An import goes tautological the moment the original changes, and the copy keeps
+  the comparison honest after the original is deleted. It also lets you *measure* behaviour instead
+  of deriving it: `AudioSegment.silent()` defaults to 11025 Hz and is resampled on append, losing a
+  fixed 2–3 frames per gap (1000 ms produced 47,996 bytes, not 48,000) — a deficit that is not a
+  ratio and cannot be computed. Enumerate the edge branches as named scenarios, and add tests that
+  fail if someone "fixes" a deliberately preserved defect, each with the reason inline.
+- **Splitting one predicate into two silently unpins its equivalence test.** A test that asserts
+  "SQL twin == pure filter" guards nothing after the split unless it is re-pointed at the correct
+  twin AND the fixture gains a row where the two new predicates disagree — without that row it
+  keeps passing no matter which predicate it pins, and its stale docstring reads as if the old
+  invariant still holds. When splitting any predicate, treat every test that pins it as requiring
+  re-pointing, add the distinguishing fixture row, and assert the two predicates genuinely differ
+  on it; grep sibling docs/READMEs for the old pairing claim too — it was echoed stale in two.
+- **A check that reads live repository state makes every test of its caller
+  repository-state-dependent.** Give the read an injection seam and have synthetic-input tests pass
+  it explicitly — an `archive_text=…` parameter on the check, which would otherwise let the repo's
+  real archive fire a NOTE nondeterministically inside the synthetic-text tests. The failure is
+  invisible at authoring time and fires later on unrelated repo activity (a quiet week → a
+  drain-due NOTE → a passing test breaks). Corollary: around any check that can emit unrelated
+  scheduling NOTEs, assert the **absence of the specific message** — never `notes == []`, which
+  couples the test to every future note the checker learns to emit.
+
+## Being inside a tool's `include` is not being gated
+
+A type checker's `include` list in `pyproject.toml` may cover `tests/` while the **canonical gate
+command** named in AGENTS.md narrows to the source package — in which case `tests/` looks
+type-checked and is not. Measured on one such repo: test files using the project's own
+`@pytest.fixture(autouse=True)` convention report `reportUnusedFunction`, and pre-existing files
+using the same convention report the identical error, because an autouse fixture is by definition
+never called by name.
+
+So: **check what scope the gate command actually passes**, not what the config includes. When a type
+error appears in a test file you just wrote, probe two pre-existing files using the same convention
+*before* treating it as your regression or silencing it — a repo-wide pattern silenced in one new
+file is worse than the error, because it makes that file diverge. Report the canonical scope's result
+and any extra scope's result separately, naming both.
+
+## Making a hook fail closed expands the caller contract
+
+Converting an implicit fallback into a registered factory whose getter **raises when unset** is
+usually right — a silently absent provider had been ending jobs with no tasks, no error and no row.
+But the raise fires at every construction site, including ones no spec lists. Measured: the spec
+named 7 files; the raise broke **4 tests in an 8th** that built the object directly and had no reason
+to know a registration now existed — they broke purely on the hook being **consulted at all**.
+
+- Before making a hook fail closed, take a **caller census** by grepping the call-site symbol
+  tree-wide (`git grep -n '<function>('`) — never from the spec's file list, which enumerates the
+  files the author thought about, and scaffolding is exactly what gets forgotten.
+- Budget a registration fixture **with teardown** for each test module the census finds; a
+  module-level hook leaks between tests otherwise.

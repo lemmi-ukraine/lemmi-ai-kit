@@ -40,7 +40,7 @@ manager when its workflow is needed; this file does not activate it.
 - parallel-session-safety — One-tree/many-writers coordination: file-ownership partitioning, shared-artifact collisions, verify-don't-reapply, and why a suite verdict is untrustworthy in a contended checkout
 - python-conventions — Python coding conventions (one class per file, typed models, DI at boundaries)
 - vertical-slice — Vertical slice architecture patterns for feature-oriented codebases
-- test-conventions — Testing conventions: integration-first, DI-based mocking, timeout decorators
+- test-conventions — Testing conventions: Testcontainers integration tests, fakes only at sanctioned seams, test-first red then green
 
 ### Internal Pipeline Skills (invoked by workflows or directly by the model; hidden from the `/` menu)
 - plan-critic — Self-review specs and plans for gaps before presenting them

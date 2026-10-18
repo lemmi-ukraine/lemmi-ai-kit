@@ -135,10 +135,12 @@ Two rules:
 
 **Where the project ships a language pack with its own test-type decision table, that table is
 authoritative — defer to it rather than inventing a competing taxonomy.** Read the pack's
-testing conventions reference for the project's own level names, its base-class rules, and its
-required timeout decorators, and use those names in the plan. Do not hardcode any pack skill's
-name here; route by role, so the plan stays correct in a project with a different language pack
-or none at all.
+testing conventions reference for the project's own level names (a pack that runs every
+behaviour test against real dependencies names **profiles** instead — default downward then
+means the narrowest profile that proves the assertion), the seams it allows for faking an
+external dependency, and its rules for waits and deadlines, and use those names in the plan. Do
+not hardcode any pack skill's name here; route by role, so the plan stays correct in a project
+with a different language pack or none at all.
 
 Level names, the default-downward decision tree, and the exclusion phrasing:
 [references/level-assignment.md](references/level-assignment.md)
