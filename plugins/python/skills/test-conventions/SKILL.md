@@ -85,9 +85,9 @@ per session. The contract underneath: [references/harness-contract.md](reference
   the failure is the assertion about the new behaviour.
 - The first run of a profile pays for provisioning (seconds); later tests in the same run pay
   milliseconds. Narrow the selection, not the rules.
-- **If CI cannot run the container suite**, the project's merge gate is a local run on the exact
-  pushed commit (*reference adopter:* `invoke signoff`, which posts a commit status). A result
-  belongs to one commit; re-run after every push or rebase.
+- **If CI cannot run the container suite**, the merge gate is a full local run on the exact
+  pushed commit, recorded against that commit (a commit status, for example). A result belongs to
+  one commit; re-run after every push or rebase.
 
 ## Choosing the profile and the style
 
@@ -116,7 +116,7 @@ a native test. The scenario rules that keep them honest are in
 | Database, cache, queue the app owns | The real service in a container, real migrations | Postgres + Alembic `upgrade head` |
 | Managed service that ships an emulator | The emulator container, at the endpoint variable the SDK already honours | fake-gcs-server via `STORAGE_EMULATOR_HOST` |
 | Another HTTP service the app calls | A mock-server container at the **base URL the app reads from config**; tests script expectations and read the requests it received | Smocker at the sibling API's base URL; unmatched requests answer `666` |
-| SDK with no emulator (LLM, speech, payments) | A fake at the **provider leaf** — the one factory that constructs the SDK client — installed through an app-owned override hook | `app.core.ai.provider_overrides`; `fakes.chat.respond(...)`, `fakes.chat.calls` |
+| SDK with no emulator (LLM, speech, payments) | A fake at the **provider leaf** — the one factory that constructs the SDK client — installed through an app-owned override hook | an override registry the client factories consult; `fakes.chat.respond(...)`, `fakes.chat.calls` |
 | Anything else on the network | Refused: a guard fails the test on any non-local connection | a socket-level network guard |
 
 Rules that make a seam trustworthy:
@@ -155,10 +155,9 @@ closes it. Everything the app would do in production at startup, it does in the 
 ## Writing a native test
 
 ```python
-# Reference adopter's names: the api/auth/harness/db fixtures, harness.fixtures.load, wait_until.
+# Fixture names (api, auth, harness, db) follow the reference adopter;
+# wait_until stands for the harness's bounded-polling helper.
 import pytest
-
-from tests.integration.native.support.polling import wait_until
 
 pytestmark = pytest.mark.profile("app")
 

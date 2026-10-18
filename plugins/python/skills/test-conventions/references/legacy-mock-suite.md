@@ -23,7 +23,7 @@ change. Do not grow the legacy suite's fixtures while doing so.
   module; run the module's tests, not just ruff/import-smoke.
 - **A package `__init__` binding an instance that shadows a same-named submodule breaks
   string-target monkeypatching** (`AttributeError` naming the *instance* type). Get the real
-  module via `importlib.import_module("app.core.system.resource_manager")` and use the
+  module via `importlib.import_module("<package>.<module>")` and use the
   object-form `monkeypatch.setattr(module, "name", fake)`.
 - **`patch()` targets the import site, not the definition.** Patch where the name is *used*
   (imported), not where it is defined or re-exported, or the mock silently doesn't apply. After

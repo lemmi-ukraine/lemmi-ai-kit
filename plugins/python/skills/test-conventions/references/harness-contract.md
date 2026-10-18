@@ -108,7 +108,7 @@ seconds, so tests share a child per configuration.
 - Clean-up of a retained run removes only resources recorded as owned by that execution.
 
 *Reference adopter:* `test-artifacts/<execution-id>/<test>/failure.json`,
-`--harness-keep-failed -x`, `python -m tests.integration.harness clean <execution-id>`.
+`--harness-keep-failed -x`, then the harness's own `clean <execution-id>` command.
 
 ## Order and repetition independence
 
