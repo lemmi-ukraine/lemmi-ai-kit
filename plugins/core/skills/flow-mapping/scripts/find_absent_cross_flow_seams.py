@@ -246,7 +246,7 @@ def verdict_disagreement(corpus, a, b, sym):
     literal predicate flags it as a disagreement, the opposite of 'must not appear'). UNKNOWN
     has no such problem: a document never asserts it incidentally, so its presence stays a
     real signal even at this coarser granularity. A side's own set may still be mixed (e.g.
-    `add_record` on turn-lifecycle.md is {'FAIL', 'UNKNOWN', 'PASS'}) and the check still
+    `add_record` on request-lifecycle.md is {'FAIL', 'UNKNOWN', 'PASS'}) and the check still
     fires on FAIL/UNKNOWN presence, not exclusivity; both directions are checked.
 
     What this CANNOT see is `verdict_blind_spot` below -- FAIL against a PASS-only set. That is

@@ -170,7 +170,7 @@ Four items must be true before the flip, and none of them is Part B's README rew
    charter also assigns manifest `description` fields to I3b. Either way, correction
    above makes one commit on `i1` the cleaner route.
 2. **The private source project's name — and this is two questions, not one.**
-   `lemmi-ai-api` is an **explicitly banned pattern** in `tests/test_assets.py:19`,
+   `source-project-name` is an **explicitly banned pattern** in `tests/test_assets.py:19`,
    labelled "source-project reference". But that test scans `assets_root()` only.
 
    - **The hygiene question** is `tasks/` alone: **13 occurrences across 4 files**
@@ -196,8 +196,8 @@ Four items must be true before the flip, and none of them is Part B's README rew
    of them "discuss the ban", which is the category both tests already exempt. Checked
    against the files: **it does not hold.** Of 17 occurrences, roughly 10 are
    substantive references *to* the private project rather than discussions of the rule
-   — paths into it (`lemmi-ai-api/.claude/skills/`), a git command run against it
-   (`git -C ../lemmi-ai-api log …`), its total skill count (43), and the statement that
+   — paths into it (`source-project-name/.claude/skills/`), a git command run against it
+   (`git -C ../source-project-name log …`), its total skill count (43), and the statement that
    the kit was extracted from it. Allowlisting those would convert a working guard into
    a rubber stamp.
 
@@ -207,8 +207,8 @@ Four items must be true before the flip, and none of them is Part B's README rew
 
    - a **named inventory of a private repository's skills** — 13 upstream-only
      entries, each with a word count and a dependency count
-   - internal script names (`audit_cleanup_targets.py`, `ai_files_lint.py`)
-   - a product-line attribution: two skills marked *"Non-portable — Lemmi interview
+   - internal script names (`audit_cleanup_targets.py`, `data_files_lint.py`)
+   - a product-line attribution: two skills marked *"Non-portable — source-project
      product"*
    - the private repo's divergence profile against this one
 

@@ -91,7 +91,7 @@ tests Observed-resolution deliberately cites an id that cannot resolve anywhere)
 - **Symbol:** `JobSession.finish` in `src/session.py`
 - **Observed:** **no covering row** — fixture entry, not applicable to any scenario.
 - **Verdict:** confirmed.
-- **Reconciled against:** described in `docs/flows/turn-lifecycle.md` at line 42 of that document, not an entry id.
+- **Reconciled against:** described in `docs/flows/request-lifecycle.md` at line 42 of that document, not an entry id.
 - **Provenance:** confirmed (author)
 - **No fix proposed.**
 

@@ -132,9 +132,9 @@ work, which is exactly the evidence that made the four skips look real.
 
 **Measured.** The operator said *"extend our test assistant mode"*. The search pattern was
 `test.assistant|assistant.mode|test_mode`. Measured after the fact: **0 hits** in the feature
-directory actually named `testing_assistant`, **5+** in an unrelated one named `<other>_test`.
+directory actually named `testbed_assistant`, **5+** in an unrelated one named `<other>_test`.
 
-The real feature is `testing_assistant` — "test**ing_**assistant" — so a `.` between "test" and
+The real feature is `testbed_assistant` — "test**bed_**assistant" — so a `.` between "test" and
 "assistant" could never match it, while `test_mode` happened to hit the other directory. The pattern
 did not merely miss; it **actively redirected to a plausible neighbour**, and a full round of
 analysis plus a "this is the wrong vehicle, here is what to do instead" recommendation was built on

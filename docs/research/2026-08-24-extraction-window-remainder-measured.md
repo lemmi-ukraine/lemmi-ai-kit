@@ -61,10 +61,10 @@ Read, not inferred. **Every line still needs an explicit RECOVER / CORRECTLY-ABS
 cited; this section only says where the judgement will be easy and where it will not.**
 
 **Likely CORRECTLY ABSENT — `session-retrospective` (9) and `hypothesis-validator` (11).** These
-cluster on things the kit deliberately does not ship: `python .claude/skills/<name>/scripts/ai_files_lint.py`
+cluster on things the kit deliberately does not ship: `python .claude/skills/<name>/scripts/data_files_lint.py`
 and `audit_skills.py` (the two linters the kit **substitutes its own CLI** for), hard-coded
 `.claude/skills/<name>/scripts/` paths (banned — `${CLAUDE_SKILL_DIR}` instead), the
-`interview-transcript-analysis` skill (ruled out of the port by OP-5), and machine-specific rules —
+`session-record-analysis` skill (ruled out of the port by OP-5), and machine-specific rules —
 one of which names the developer OS and forbids a particular runner on it. (Quoting that line
 verbatim here would itself trip the hygiene guard, which is the point of the rule.) Their 98% and 90%
 carriage is consistent with a refresh that worked and stripped what it was supposed to.
@@ -116,7 +116,7 @@ skills were renamed on extraction and `test-conventions` ships in the **python**
 
 | Skill | kit/up | The gap, in full |
 |---|---:|---|
-| `learning-consolidator` | **0.18** | `scripts/ai_files_lint.py` (46KB) + its test (25KB) — **the linter the kit substitutes its own CLI for** — plus **247KB of upstream committed `__pycache__/*.pyc`** |
+| `learning-consolidator` | **0.18** | `scripts/data_files_lint.py` (46KB) + its test (25KB) — **the linter the kit substitutes its own CLI for** — plus **247KB of upstream committed `__pycache__/*.pyc`** |
 | `session-retrospective` | **0.45** | **197KB of upstream committed `.pyc`, and nothing else.** `extract_sessions.py` itself ships |
 | `test-conventions` | **0.70** | `references/docker-runner-gotchas.md` (9.4KB) + `README.md` (596B) |
 | `skill-reviewer` | **0.71** | `scripts/audit_skills.py` (13KB) — the other linter the kit replaces |
@@ -140,8 +140,8 @@ looks like and is exactly what §8 warns is indistinguishable from loss by a siz
 ### Set completeness, independently confirmed
 
 **8 upstream directories map to no shipped skill, and all 8 are accounted for by recorded rulings:**
-`feedback-audit` and `interview-transcript-analysis` (out, OP-5) · `usage-guard` (deferred, §5d) ·
-`openai-realtime-quirks` (dropped, OQ-2) · the four prompt skills (removed, D1). **3 shipped skills
+`rubric-audit` and `session-record-analysis` (out, OP-5) · `quota-guard` (deferred, §5d) ·
+`vendor-api-quirks` (dropped, OQ-2) · the four prompt skills (removed, D1). **3 shipped skills
 have no upstream counterpart** and are `kit-origin` by the map: `kit-setup`, `scout-review`,
 `test-planner`.
 
@@ -197,7 +197,7 @@ rushed inline:
   truth shared with `learning-consolidator`, with `SKILL.md` linking rather than restating it · the
   intake-buffer-drains-to-homes lifecycle model · and the Step 6 row *"invariant a future edit could
   silently break → co-located code comment at the exact site"*, which is fully generic.
-- **REPOINT, do not drop:** the placement self-check calls the unshipped `ai_files_lint.py` by a
+- **REPOINT, do not drop:** the placement self-check calls the unshipped `data_files_lint.py` by a
   hard-coded skill-script path. The kit substitutes its own CLI — recover the instruction pointed at
   `lemmi_ai_kit lint`.
 - **CORRECTLY ABSENT:** the `backend/app/core/<module>/README.md` and

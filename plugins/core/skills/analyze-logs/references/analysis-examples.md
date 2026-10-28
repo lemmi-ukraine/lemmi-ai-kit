@@ -10,7 +10,7 @@ each BAD and GOOD pair is the content, not the stack they happen to be written i
 
 **Log excerpt:**
 ```
-ERROR: app.features.chat.storage.transcript_repository: Failed to save transcript
+ERROR: app.features.chat.storage.transcript_store: Failed to save transcript
 sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) server closed the connection unexpectedly
 ```
 
@@ -20,10 +20,10 @@ sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) server closed the c
 Why this is bad: describes the symptom, not the cause. Doesn't explain WHY the connection was closed or reference any code.
 
 **GOOD analysis (evidence-based):**
-> Root Cause: The `TranscriptRepository.save_transcript()` at `backend/app/features/chat/storage/transcript_repository.py:87` uses a long-running session that spans the entire chat WebSocket lifecycle. When a session exceeds the PostgreSQL `idle_in_transaction_session_timeout` (default: 30 minutes in the project's Docker Compose config), the server drops the connection. The repository acquires a session in `__init__` but only commits at session end, leaving the transaction idle during the entire audio exchange.
+> Root Cause: The `TranscriptRepository.save_transcript()` at `backend/app/features/chat/storage/transcript_store.py:87` uses a long-running session that spans the entire chat WebSocket lifecycle. When a session exceeds the PostgreSQL `idle_in_transaction_session_timeout` (default: 30 minutes in the project's Docker Compose config), the server drops the connection. The repository acquires a session in `__init__` but only commits at session end, leaving the transaction idle during the entire audio exchange.
 >
 > Evidence:
-> - `transcript_repository.py:23` — session injected via `__init__`, not per-operation
+> - `transcript_store.py:23` — session injected via `__init__`, not per-operation
 > - `docker-compose.local.yaml:45` — PostgreSQL `idle_in_transaction_session_timeout=1800000`
 > - Log timing: error occurs ~31 minutes after session start (10:15:23 start, 10:46:45 error)
 

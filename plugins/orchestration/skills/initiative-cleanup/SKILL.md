@@ -107,8 +107,8 @@ repo drew exactly that wrong conclusion.
 
 Every board row reaches a **terminal state**. No row is left mid-sentence.
 
-**The board is whatever file the initiative's spec names.** For interview-realism that is
-`tasks/BACKLOG-interview-realism.md`; `tasks/BACKLOG.md` is the repo-wide index that points to it.
+**The board is whatever file the initiative's spec names.** For sample-initiative that is
+`tasks/BACKLOG-sample-initiative.md`; `tasks/BACKLOG.md` is the repo-wide index that points to it.
 Resolve it before step 1 and name it in the plan — do not assume.
 
 Whatever board it is, **it already owns its status vocabulary. Do not redefine it.** The realism board
@@ -293,7 +293,7 @@ named in code did not ship, whatever the board says.
 1. **A `.md` hit is DOC-ONLY, never implemented.** `ConductGovernor` appears in two specs and a task
    doc and in **no** code — the package had been reverted. An unscoped grep would have
    called it shipped and deleted the record of a deliberate removal.
-2. **A symbol shared across spec dirs proves nothing about any one.** `transcript_gradeability` is
+2. **A symbol shared across spec dirs proves nothing about any one.** `shared_scoring_rules` is
    real landed code belonging to the *eligibility* work, and it also matched
    `stt-coverage-collapse-handling`, whose own header reads *"no code written"*. On SHARED: find a
    unique symbol, or **record no verdict**.

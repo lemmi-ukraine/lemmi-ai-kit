@@ -29,7 +29,7 @@ worthless — it is just not verification, and it must not move a number.
 
 ## Provenance and blind spot
 
-**Every item comes from one review** (2026-08-13, `tasks/TECH-interview-stabilization-review.md`).
+**Every item comes from one review** (2026-08-13, `tasks/TECH-release-stabilization-review.md`).
 
 That provenance is also the limitation, and it is a documented failure mode of checklist inspection: a
 checklist inherits the defect distribution it was built from, so **it is structurally blind to failure

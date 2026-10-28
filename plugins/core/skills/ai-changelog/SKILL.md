@@ -162,10 +162,10 @@ created), group them under a single `CONSOLIDATION` entry with sub-items:
 ### CONSOLIDATION: Weekly learning consolidation (N entries processed)
 - **What:**
   - Promoted 3 learnings to AGENTS.md rules (enum handling, async patterns, prompt sanitization)
-  - Created `openai-realtime-quirks` reference skill from 4 clustered entries
+  - Created `vendor-api-quirks` reference skill from 4 clustered entries
   - Archived 5 stale entries
 - **Why:** Weekly cadence consolidation to keep learnings lean and promote actionable knowledge
-- **Files:** AGENTS.md, .claude/skills/openai-realtime-quirks/SKILL.md, .ai/learnings.md, CLAUDE.md
+- **Files:** AGENTS.md, .claude/skills/vendor-api-quirks/SKILL.md, .ai/learnings.md, CLAUDE.md
 - **Affected workflows:** None
 ```
 

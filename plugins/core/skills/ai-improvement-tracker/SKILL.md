@@ -198,13 +198,13 @@ Called by the same workflows as `ai-changelog`, immediately after the changelog 
 ### Good: New skill with specific signal
 
 ```markdown
-### [SKILL-ADDED] openai-realtime-quirks reference skill
+### [SKILL-ADDED] vendor-api-quirks reference skill
 - **Category:** Consistency
 - **Hypothesis:** By codifying OpenAI Realtime API quirks into a reference skill, we expect fewer external-service-related bugs in realtime voice features because developers will consult known quirks before implementation rather than rediscovering them.
 - **Signal:** Fewer learnings entries about OpenAI Realtime surprises in the 4 weeks following skill creation.
 - **Risk:** The skill may become stale as OpenAI updates their API, creating false confidence in outdated quirks.
 - **Status:** PENDING
-- **Changelog ref:** 2026-04-01 — SKILL-ADDED: openai-realtime-quirks reference skill
+- **Changelog ref:** 2026-04-01 — SKILL-ADDED: vendor-api-quirks reference skill
 ```
 
 ### Good: Convention change with risk

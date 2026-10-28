@@ -38,7 +38,7 @@ Companion documents:
 |---|---|---|
 | **D-push** | Push `main`? It is **40+ commits ahead** of a remote last updated 2026-07-09 (the exact count moves with each commit; `git rev-list --count origin/main..main` is the live figure) — this repo has not been pushed since extraction | Program item **F9** (whether `docs/research/`'s internal handoffs should greet the first public visitors) is still marked *open, judgment*. Pushing settles F9 by accident. Resolve F9 first; it is the cheaper order |
 | **D-retro** | Schedule the `session-retrospective` reconciliation | It is no longer a port. See §5 — the mechanical merge is proven insufficient, and the charter names the revised first step |
-| **D-usage-guard** | `usage-guard` remains deferred per triage D4 | Unchanged this session |
+| **D-quota-guard** | `quota-guard` remains deferred per triage D4 | Unchanged this session |
 | **D-w24** | W2.4's pin format and whether the drift check gates or reports | Charter DoD 5 says non-blocking report first. Untouched |
 
 ## 4. What a re-planner must not assume
@@ -54,7 +54,7 @@ Companion documents:
 
 **Consequence for W2.4:** the correspondence map needs a **direction** field, not just kit↔upstream name pairs. For those two skills a drift check that assumes upstream-is-newer will report backwards.
 
-**Deliberate departure from Gate B D2.** D2 reads "(a) ship skill-owned scripts for same-skill sites, (c) substitute the CLI for cross-skill sites". Applied literally that ships upstream's linter *and* the CLI — two implementations disagreeing about what is valid, since the CLI deliberately drops four upstream rules. So **same-skill sites use the CLI too**, and the kit ships neither `ai_files_lint.py` nor `audit_skills.py`. Shipped instead, each with a working-directory fallback: `drain_audit.py`, `audit_cleanup_targets.py`, `probe_checker.py`. A future sync will show these as diffs that are **correct**.
+**Deliberate departure from Gate B D2.** D2 reads "(a) ship skill-owned scripts for same-skill sites, (c) substitute the CLI for cross-skill sites". Applied literally that ships upstream's linter *and* the CLI — two implementations disagreeing about what is valid, since the CLI deliberately drops four upstream rules. So **same-skill sites use the CLI too**, and the kit ships neither `data_files_lint.py` nor `audit_skills.py`. Shipped instead, each with a working-directory fallback: `drain_audit.py`, `audit_cleanup_targets.py`, `probe_checker.py`. A future sync will show these as diffs that are **correct**.
 
 ## 5. `session-retrospective` — attempted, reverted, and why that is the finding
 
@@ -106,4 +106,4 @@ Those edits are in the **second** commit, not in the CLI commit. Whoever reviews
 1. **Resolve F9, then decide the push.** Everything else is local and reversible; the push is not.
 2. **W2.4 next, not the retrospective reconciliation.** W2.4 is the charter's durable deliverable and it is now unblocked with better inputs than it would have had — including the direction problem in §4, which it must encode.
 3. **Then the `session-retrospective` reconciliation**, scoped per §5 as its own task.
-4. `usage-guard` stays deferred.
+4. `quota-guard` stays deferred.

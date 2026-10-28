@@ -191,7 +191,7 @@ a complete result recording real coverage. **A missing report is not the same th
 
 ## Note on the worked example
 
-`tasks/TECH-interview-stabilization-review.md` is the run this format generalises from and is worth
+`tasks/TECH-release-stabilization-review.md` is the run this format generalises from and is worth
 reading for its header and its corrections discipline — but it **predates this format** and does not
 conform: it uses the older Critical/High severity scale, has no Confidence or Disposition columns, and
 folds corrections inline rather than into § 7. Read it for shape, not as a template.

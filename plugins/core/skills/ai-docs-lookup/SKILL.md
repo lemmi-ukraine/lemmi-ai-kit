@@ -176,7 +176,7 @@ Typical concerns to cross-reference (adapt the locations to the project's actual
 | Concern | Where in codebase | What to verify |
 |---|---|---|
 | Realtime model ID | AI provider config module (e.g., `core/ai/config/`) | Match the model ID string against the current docs |
-| Session config params | Realtime session setup code (e.g., `core/realtime/session/`) | Turn detection fields, audio format fields |
+| Session config params | Realtime session setup code (e.g., `core/streaming/session/`) | Turn detection fields, audio format fields |
 | Realtime event types | The provider event router/dispatcher | Event names match current schema |
 | Chat completions model | Chat/completions client code (e.g., `core/ai/chat/`) | Model ID, response format, tool use schema |
 | Audio format | Audio handling code (e.g., `core/realtime/audio/`) | Sample rate, encoding (pcm16 vs others) |

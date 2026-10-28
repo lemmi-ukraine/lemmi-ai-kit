@@ -95,7 +95,7 @@ needs, and because this session verified it rather than trusting it.
 |---|---|---|
 | D2 | five audit findings | **done** — both `metadata.type` added, both stray READMEs deleted, `initiative-cleanup` 555 → 499 lines (cap 500), audit reports 0 findings |
 | D3 | `analyze-logs` genericized | **NOT DONE** — 68 platform mentions; all four platform-named reference files intact. Only the manifest summary line changed |
-| D4 | `openai-realtime-quirks` dropped | **done** — dir gone, manifest row gone, sync-map row moved to `[[unported]]` |
+| D4 | `vendor-api-quirks` dropped | **done** — dir gone, manifest row gone, sync-map row moved to `[[unported]]` |
 | D5 | `vertical-slice` → core | **done**, and its own `SKILL.md:196` cite stripped |
 | D6 | `extras` out of `PROFILES` | **done**. Note `python` was also dropped from `DEFAULT_PROFILES` — a live behaviour change to `scaffold`/`list` defaults that the brief did not ask for |
 | D7 | cross-pack names by role | **done** — 0 sites remaining, three independent instruments agreeing |
@@ -106,7 +106,7 @@ needs, and because this session verified it rather than trusting it.
 write time.
 
 **D3 carries a hole no deliverable tracks** (caught by the orchestration session, not by me):
-`analyze-logs/references/realtime-session-events.md` is content from `openai-realtime-quirks` — the
+`analyze-logs/references/vendor-session-events.md` is content from `vendor-api-quirks` — the
 skill D4 reports as *dropped*. The directory is gone, the manifest row is gone, and its knowledge
 still ships inside another skill, un-genericized. Whoever finishes D3 owns that.
 

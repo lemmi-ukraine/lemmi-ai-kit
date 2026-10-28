@@ -160,4 +160,4 @@ source; four checks green.
 4. **Fund W-window at three skills, not fifteen**, and do it as a three-way re-merge against
    `3dd2496d` rather than a hand-restore — `session-retrospective` reached 98% carriage that way and
    is the evidence the method works.
-5. `usage-guard` stays deferred. Unchanged.
+5. `quota-guard` stays deferred. Unchanged.

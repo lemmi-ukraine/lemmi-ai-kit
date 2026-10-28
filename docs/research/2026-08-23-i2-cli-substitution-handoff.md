@@ -59,7 +59,7 @@ Four naming calls worth recording, because each replaced something upstream had:
   One flag instead of a constant plus its escape hatch. The structural checks ignore it
   entirely (§4).
 - **`--list-entries` rather than a second verb.** Upstream's inventory mode is
-  `ai_files_lint.py list learnings`, but `lint` is a subcommand and `list` is already taken
+  `data_files_lint.py list learnings`, but `lint` is a subcommand and `list` is already taken
   by the skill catalogue. It is a reporting mode of `lint`, so it is a flag on `lint`.
 - **`--fail-on` rather than upstream's always-0.** Findings-are-review-input is the right
   default and the three calling skills rely on it, but an always-0 command cannot gate
@@ -99,16 +99,16 @@ legal). Read §3's right-hand column as naming the *subcommand*, not the invocat
 Re-measured against upstream at session close. The triage counted 6 + 3 = 9 sites; the
 executable count is **10**, because `session-retrospective` has two, not one.
 
-### `lint` covers 7 sites across 6 skills (was `learning-consolidator`'s `ai_files_lint.py`)
+### `lint` covers 7 sites across 6 skills (was `learning-consolidator`'s `data_files_lint.py`)
 
 | Caller | Upstream invocation | Rewrite to |
 |---|---|---|
-| `ai-changelog` | `ai_files_lint.py lint changelog` | `lemmi-ai-kit lint changelog` |
-| `ai-improvement-tracker` | `ai_files_lint.py lint hypotheses` | `lemmi-ai-kit lint hypotheses` |
-| `consolidation-critic` | `ai_files_lint.py lint all` | `lemmi-ai-kit lint` |
-| `hypothesis-validator` | `ai_files_lint.py lint hypotheses` | `lemmi-ai-kit lint hypotheses` |
-| `session-retrospective` (2 sites) | `ai_files_lint.py list learnings` | `lemmi-ai-kit lint learnings --list-entries` |
-| `task-learnings` | `ai_files_lint.py lint learnings` | `lemmi-ai-kit lint learnings` |
+| `ai-changelog` | `data_files_lint.py lint changelog` | `lemmi-ai-kit lint changelog` |
+| `ai-improvement-tracker` | `data_files_lint.py lint hypotheses` | `lemmi-ai-kit lint hypotheses` |
+| `consolidation-critic` | `data_files_lint.py lint all` | `lemmi-ai-kit lint` |
+| `hypothesis-validator` | `data_files_lint.py lint hypotheses` | `lemmi-ai-kit lint hypotheses` |
+| `session-retrospective` (2 sites) | `data_files_lint.py list learnings` | `lemmi-ai-kit lint learnings --list-entries` |
+| `task-learnings` | `data_files_lint.py lint learnings` | `lemmi-ai-kit lint learnings` |
 
 ### `audit-skills` covers 3 sites across 3 skills (was `skill-reviewer`'s `audit_skills.py`)
 
@@ -121,14 +121,14 @@ executable count is **10**, because `session-retrospective` has two, not one.
 ### Already in the shipped tree and dangling right now
 
 `parallel-session-safety` landed this session carrying **three** references to
-`ai_files_lint.py` that no shipped file backs. They are bare mentions, so they do not trip
+`data_files_lint.py` that no shipped file backs. They are bare mentions, so they do not trip
 the hard-coded-skill-script pattern the hygiene contract added — but they do violate DoD
 item 4, and two of them are executable forms:
 
 | Site | Now rewritable to |
 |---|---|
-| `parallel-session-safety/SKILL.md:209` — `ai_files_lint.py lint handoffs` | `lemmi-ai-kit lint handoffs` |
-| `parallel-session-safety/SKILL.md:394` — `ai_files_lint.py lint all` | `lemmi-ai-kit lint` |
+| `parallel-session-safety/SKILL.md:209` — `data_files_lint.py lint handoffs` | `lemmi-ai-kit lint handoffs` |
+| `parallel-session-safety/SKILL.md:394` — `data_files_lint.py lint all` | `lemmi-ai-kit lint` |
 | `parallel-session-safety/SKILL.md:106` — prose, "detects the duplicate-header/spliced-entry artifacts" | prose fix; the behaviour is real (`check_entry_body_integrity`) |
 
 **`handoffs` is a supported target specifically so those two can be rewritten rather than
@@ -147,7 +147,7 @@ Recorded here because each one is a place where a future sync will show a diff t
 | `POLICY_CUTOFF = 2026-07-01` and its `ALLOWLIST` of named historical entries | Both encode one project's history. The allowlist names specific upstream entry titles; shipping it would exempt strings no adopter has. Replaced by `--since`. |
 | A 12th changelog type (`EXPERIMENT-REGISTERED`) | Added by an upstream decision record. The kit's `ai-changelog` skill documents an 11-type locked set; the lint enforces what the shipped skill teaches. |
 | `disable-model-invocation: true` outside a two-name allowlist → MAJOR | The kit's own taxonomy *encourages* that flag on side-effect skills, so the allowlist would report the skills that follow the documented rule. The genuinely broken case — both invocation flags set, nobody can reach the skill — stays a BLOCKER. |
-| `metadata.type: reference` without `user-invocable: false` → MAJOR | The shipped taxonomy makes it conditional ("when invoked only by workflows"). `openai-realtime-quirks` is a legitimate counter-example already in the pack. |
+| `metadata.type: reference` without `user-invocable: false` → MAJOR | The shipped taxonomy makes it conditional ("when invoked only by workflows"). `vendor-api-quirks` is a legitimate counter-example already in the pack. |
 
 **Structural vs per-entry is now an explicit split.** Heading order, date validity, spliced
 headings, duplicated field blocks, and misfiled hypothesis refs run **file-wide regardless
@@ -169,7 +169,7 @@ Merge damage predates no policy — a grandfathered entry corrupts as easily as 
    `skill.md` on Windows and on a default macOS volume, and the runtime will not load it.
    The directory listing is the only case-exact test that behaves the same on all three.
 3. **ASCII-only output**, applied at the print boundary rather than by reconfiguring
-   `sys.stdout` (which would break the caller's capture). Upstream's `ai_files_lint`
+   `sys.stdout` (which would break the caller's capture). Upstream's `data_files_lint`
    reconfigures the stream; `audit_skills` ASCII-replaces. This does the latter, everywhere.
 4. **Every printed path is relative to the project root.** This output gets pasted into
    hand-offs and retrospectives — an absolute path there is portable to one machine, and
@@ -199,8 +199,8 @@ Scope boundaries, so nobody assumes coverage that is not there:
 - **`lint plans`** (`.specs/*/execution-plan.md`, the Dispatch-column vocabulary) — the
   convention belongs to initiative planning the kit does not ship a lint contract for yet.
   Adding a target later is additive; removing one is breaking, so it is omitted.
-- **`drain_audit.py`, `test_ai_files_lint.py`** (1 cross-skill site each, both from
-  `consolidation-critic`) and **`validate_realtime_export.py`** (1 site, both ends are
+- **`drain_audit.py`, `test_data_files_lint.py`** (1 cross-skill site each, both from
+  `consolidation-critic`) and **`validate_session_export.py`** (1 site, both ends are
   charter non-goals). Unaddressed by design — the triage's own count was 9 of 14 in scope.
 - **`extract_sessions.py`** (2 cross-skill sites) — already ships inside
   `session-retrospective`. Nothing to substitute; the sites need rewriting to the

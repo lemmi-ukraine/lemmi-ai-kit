@@ -112,7 +112,7 @@ difference.
 
 Restating §13 of the report because a handoff reader needs them in one place:
 
-- **Cross-platform is unverified.** `ai_files_lint.py` and `extract_sessions.py` ship tests; whether they pass on macOS or Linux is unmeasured. This platform was the only one available, and the charter's "must work on Windows, macOS and Linux" consequence stands open.
+- **Cross-platform is unverified.** `data_files_lint.py` and `extract_sessions.py` ship tests; whether they pass on macOS or Linux is unmeasured. This platform was the only one available, and the charter's "must work on Windows, macOS and Linux" consequence stands open.
 - **The skill-directory variable's runtime resolution is assumed, not proven.** The whole (a)/(c) split in §6 rests on it resolving to the calling skill's directory. Both the kit and upstream already rely on it, so this is a reasonable assumption — but nothing in this session executed a skill to confirm it, and if it is wrong the same-skill/cross-skill line moves.
 - **Prose generalization is unmeasurable by pattern.** §8's 31-scrub figure is a floor on intentional divergence, not a total. Edits that reworded without touching a forbidden pattern cannot be counted this way, and `extract_sessions.py`'s +598/−21 shows the volume involved.
 

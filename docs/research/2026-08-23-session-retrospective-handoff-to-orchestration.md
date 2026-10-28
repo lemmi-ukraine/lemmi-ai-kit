@@ -144,4 +144,4 @@ an in-gate shape); the wheel built and all six files confirmed inside it.
    cosmetic error — it cost a session and produced a fictitious finding that reached two documents.
 3. **F9, then the push**, unchanged from the prior handoff — still the only irreversible decision
    on the board, and now with three more `docs/research/` files in scope for it.
-4. `usage-guard` stays deferred.
+4. `quota-guard` stays deferred.

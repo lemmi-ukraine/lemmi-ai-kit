@@ -52,12 +52,12 @@ volume by 2.6x in aggregate and by up to 9.3x per skill:
 
 | Skill | Charter's "Words" | Whole directory | Understated by |
 |---|---|---|---|
-| `usage-guard` | 1,764 | **12,509** | 7.1x — 9,049 words of it PowerShell |
+| `quota-guard` | 1,764 | **12,509** | 7.1x — 9,049 words of it PowerShell |
 | `initiative-cleanup` | 5,738 | **15,311** | 2.7x |
 | `initiative-planner` | ~2,400 | **9,502** | 4.0x — the charter's own row says "Refs dir 4" |
-| `interview-transcript-analysis` | 2,349 | 6,598 | 2.8x |
+| `session-record-analysis` | 2,349 | 6,598 | 2.8x |
 | `branch-diff-review` | 2,440 | 5,384 | 2.2x |
-| `feedback-audit` | 3,296 | **30,792** | 9.3x |
+| `rubric-audit` | 3,296 | **30,792** | 9.3x |
 | the other six | correct | correct | — (single-file skills) |
 | **all 12 candidates** | **38,807** | **100,916** | **2.6x** |
 
@@ -68,7 +68,7 @@ both non-goals.
 **One arithmetic correction.** The charter says twice that its Table B rows 1–10 sum
 to **+42,155**. They sum to **+39,959**. The correct post-I1 top-ten figure is
 **+42,397**, which differs from both because the rename (§2) promotes `orchestrate`
-into 5th place at +3,350 and I1 removes `prompt-engineering-conventions` (+3,116) from
+into 5th place at +3,350 and I1 removes `prompt-writing-conventions` (+3,116) from
 the table. The full 27-skill refresh set is **+48,249**.
 
 ## 2. The baseline moved under this session, and it answers two open questions
@@ -120,7 +120,7 @@ run against a raw upstream copy (§4). Dependency classes are §5's.
 | 9 | `skill-creator` | 2,881 | 4,506 | +1,625 | 1.56x | 0 | 1 cross-skill call site |
 | 10 | `spec-driven-dev` | 8,773 | 9,781 | +1,008 | 1.11x | 0 | none |
 | 11 | `plan-critic` | 2,890 | 3,802 | +912 | 1.32x | 0 | none |
-| 12 | `openai-realtime-quirks` | 1,137 | 1,922 | +785 | 1.69x | 0 | none |
+| 12 | `vendor-api-quirks` | 1,137 | 1,922 | +785 | 1.69x | 0 | none |
 | 13 | `analyze-logs` | 5,687 | 6,379 | +692 | 1.12x | **14** | none — 14x one string |
 | 14 | `skill-creation-workflow` | 1,367 | 1,988 | +621 | 1.45x | 1 | none |
 | 15 | `ai-improvement-tracker` | 1,469 | 2,047 | +578 | 1.39x | 1 | 1 cross-skill call site |
@@ -200,11 +200,11 @@ measuring a convention as though it were an artifact.
 
 **Class 2 — executable infrastructure. Cost to port: real, and lower than the charter
 assumes.** Five scripts and one document. The charter's table renders the scripts as
-repo-level infrastructure (`scripts/ai_files_lint.py`). They are not:
+repo-level infrastructure (`scripts/data_files_lint.py`). They are not:
 
 | Script | Actually lives at | Words | Third-party imports |
 |---|---|---|---|
-| `ai_files_lint.py` | `.claude/skills/learning-consolidator/scripts/` | 4,960 | **none** |
+| `data_files_lint.py` | `.claude/skills/learning-consolidator/scripts/` | 4,960 | **none** |
 | `audit_cleanup_targets.py` | `.claude/skills/initiative-cleanup/scripts/` | 4,481 | **none** |
 | `audit_skills.py` | `.claude/skills/skill-reviewer/scripts/` | 1,258 | **none** |
 | `drain_audit.py` | `.claude/skills/learning-consolidator/scripts/` | 920 | **none** |
@@ -268,12 +268,12 @@ mechanism, not a preference. The 15 cross-skill sites target 6 scripts:
 
 | Target | Called by | Sites |
 |---|---|---|
-| `learning-consolidator/ai_files_lint.py` | `ai-changelog`, `ai-improvement-tracker`, `consolidation-critic`, `hypothesis-validator`, `session-retrospective`, `task-learnings` | 6 |
+| `learning-consolidator/data_files_lint.py` | `ai-changelog`, `ai-improvement-tracker`, `consolidation-critic`, `hypothesis-validator`, `session-retrospective`, `task-learnings` | 6 |
 | `skill-reviewer/audit_skills.py` | `consolidation-critic`, `hypothesis-validator`, `skill-creator` | 3 |
-| `session-retrospective/extract_sessions.py` | `interview-transcript-analysis`, `task-learnings` | 2 |
+| `session-retrospective/extract_sessions.py` | `session-record-analysis`, `task-learnings` | 2 |
 | `learning-consolidator/drain_audit.py` | `consolidation-critic` | 1 |
-| `learning-consolidator/test_ai_files_lint.py` | `consolidation-critic` | 1 |
-| `feedback-audit/validate_realtime_export.py` | `interview-transcript-analysis` | 1 — both skills are non-goals |
+| `learning-consolidator/test_data_files_lint.py` | `consolidation-critic` | 1 |
+| `rubric-audit/validate_session_export.py` | `session-record-analysis` | 1 — both skills are non-goals |
 
 **So: (a) for same-skill, (c) for cross-skill.** Two CLI subcommands — `lint` and
 `audit-skills` — cover **9 of the 14 in-scope cross-skill sites**, which is what OP-2
@@ -306,14 +306,14 @@ the adopter's repository at all. Apply that pattern to all four.
 | `initiative-cleanup` | 15,311 | 6 | **PORT** | brings its own script; 4 same-skill sites to rewrite; 6 backup-path refs |
 | `consolidation-critic` | 1,955 | 1 | **PORT — needs CLI** | 4 cross-skill sites, the most in the set. Gate on `lint` + `audit-skills` |
 | `hypothesis-validator` | 1,620 | 1 | **PORT — needs CLI** | 4 cross-skill sites; pairs with `ai-improvement-tracker` (row 15) |
-| `usage-guard` | 12,509 | 0* | **DEFER** | see below |
-| `feedback-audit` | 30,792 | 1 | **OUT** | charter non-goal, OP-5 confirmed |
-| `interview-transcript-analysis` | 6,598 | 2 | **OUT** | charter non-goal, OP-5 confirmed |
+| `quota-guard` | 12,509 | 0* | **DEFER** | see below |
+| `rubric-audit` | 30,792 | 1 | **OUT** | charter non-goal, OP-5 confirmed |
+| `session-record-analysis` | 6,598 | 2 | **OUT** | charter non-goal, OP-5 confirmed |
 
 **Portable: 9 of 12 (75%). Non-portable: 3 of 12 (25%).** Excluding the two
 already-declared non-goals from the denominator: **9 of 10 (90%) portable**.
 
-**`usage-guard`: the zero is not a pass.** OP-5 admitted it "with a portability pass
+**`quota-guard`: the zero is not a pass.** OP-5 admitted it "with a portability pass
 and the limitation documented". The pass is larger than the charter's 1,764-word row
 suggests. Its hygiene score of 0 is **an artifact of the contract not looking**: the
 scan covers seven text suffixes, and **9,049 of its 12,509 words are in 12 PowerShell
@@ -371,8 +371,8 @@ labels kit-original.
 
 **But the falsifier's underlying worry is correct**, by three other routes:
 
-1. **Two skills where the kit is textually ahead** — `prompt-eng-reviewer` (−7 words)
-   and `prompt-domain-reviewer` (−14). I1 deletes both, so the evidence is about to be
+1. **Two skills where the kit is textually ahead** — `prompt-craft-reviewer` (−7 words)
+   and `prompt-topic-reviewer` (−14). I1 deletes both, so the evidence is about to be
    discarded; record it before it goes.
 2. **A capability upstream lacks** — `scout-review` (1,818 words) and `kit-setup`
    (937). A genuine reverse-port candidate, and the charter's "Two-way sync" non-goal
@@ -436,7 +436,7 @@ Genericize the two narrated incidents in `pr-review-concise` and `pr-comment-res
 instead. A hooks story may be worth having; it is not on I2's critical path, and
 deciding it here would block the port on an unrelated question.
 
-**D4 — OQ-2 / `usage-guard`: defer.** OP-5's "port with a documented limitation" was
+**D4 — OQ-2 / `quota-guard`: defer.** OP-5's "port with a documented limitation" was
 decided against a 1,764-word estimate. It is 12,509 words, 72% PowerShell, writes the
 user's settings file, and installs a scheduled task. Revisit as its own initiative.
 
@@ -457,11 +457,11 @@ uncontended rows.
 
 | Charter claim | Measured |
 |---|---|
-| Table A "Words" column | **SKILL.md only** — understates the candidate set 2.6x in aggregate (38,807 → 100,916), 7.1x for `usage-guard`, 9.3x for `feedback-audit` |
+| Table A "Words" column | **SKILL.md only** — understates the candidate set 2.6x in aggregate (38,807 → 100,916), 7.1x for `quota-guard`, 9.3x for `rubric-audit` |
 | "Rows 1–10 sum to +42,155" (twice) | Its own rows sum to **+39,959**; correct post-I1 top-ten is **+42,397** |
 | "`analyge-logs` → `analyze-logs`" | **No such rename.** The kit never had the typo |
 | spec-directory convention "Kit ships it? no" | The kit ships **20 references across 8 files**, 14 in `spec-driven-dev` |
-| `scripts/ai_files_lint.py` etc. as repo infrastructure | **Skill-owned**, ships with its skill, stdlib-only |
+| `scripts/data_files_lint.py` etc. as repo infrastructure | **Skill-owned**, ships with its skill, stdlib-only |
 | `audit_skills.py` 5 refs · `audit_cleanup_targets.py` 5 | **9** and **5** in SKILL.md files; 12 and 6 whole-tree |
 | `extract_sessions.py` 4 refs | **5** in SKILL.md files, 23 whole-tree |
 | 13 upstream-only = 12 candidates + 1 rename | **12** — the rename landed during this session |
@@ -471,7 +471,7 @@ uncontended rows.
 ## 13. What this triage did not do
 
 - **No port.** Read-only apart from this file. The staged overwrites were built and tested in a scratch directory outside the repository.
-- **Did not run the candidates' own test suites.** `ai_files_lint.py` and `extract_sessions.py` ship tests; whether they pass on macOS or Linux is unmeasured, and the charter's "must work on Windows, macOS and Linux" consequence stands unverified. This platform was the only one available.
+- **Did not run the candidates' own test suites.** `data_files_lint.py` and `extract_sessions.py` ship tests; whether they pass on macOS or Linux is unmeasured, and the charter's "must work on Windows, macOS and Linux" consequence stands unverified. This platform was the only one available.
 - **Did not verify the skill-directory variable's resolution at runtime.** It is treated as sound because both the kit and upstream already rely on it; nothing here executed a skill to confirm it.
 - **Did not design the drift check.** §11 D5 states the key; the format is W2.4's.
 - **Prose generalization is unmeasured.** §8's third row is unbounded by construction: edits that changed wording without touching a forbidden pattern cannot be counted by pattern-matching. The 31-scrub figure is a **floor** on intentional divergence, not a total.

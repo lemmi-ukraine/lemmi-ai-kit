@@ -200,13 +200,13 @@ def test_the_scan_catches_a_planted_leak(tmp_path: Path) -> None:
     run(
         "commit",
         "-qm",
-        "Innocent subject\n\nPrimary arm: lemmi-ai-api, sized at 999,999 files.",
+        "Innocent subject\n\nPrimary arm: source-project-name, sized at 999,999 files.",
     )
 
     found = _leaks(repo)
     assert len(found) == 1, f"expected exactly one finding, got {found}"
     assert "source-project reference" in found[0]
-    assert "lemmi-ai-api" in found[0]
+    assert "source-project-name" in found[0]
 
 
 def test_no_commit_message_leaks_the_source_project() -> None:

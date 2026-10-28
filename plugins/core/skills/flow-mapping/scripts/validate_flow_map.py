@@ -981,7 +981,7 @@ def validate(
 
     all_scenarios = set(scenario_rows)
 
-    # Cross-document id resolution (tasks/TECH-flow-map-validator-cross-doc-resolve.md): a
+    # Cross-document id resolution (tasks/TECH-cross-document-id-resolution.md): a
     # cross-flow row's cell 1 is a scenario id the "owning flow" cell claims belongs to a
     # SIBLING document. Shape-checking (TABLE_HEADERS above) cannot see a wrong id; this opens
     # the sibling and resolves it. Two-pass so a row's "found in another cited sibling" search

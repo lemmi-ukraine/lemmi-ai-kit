@@ -46,7 +46,7 @@ not unstarted; this work continued it rather than redoing it.
 
 ## 3. Part 2 — the orphan: KEPT, genericized, renamed
 
-`references/realtime-session-events.md` → `references/session-event-streams.md`.
+`references/vendor-session-events.md` → `references/session-event-streams.md`.
 
 The file was two separable things. The **method** — lifecycle reconstruction, adjacent-pair gap
 analysis, "a sub-10 ms gap between causally-ordered events means concurrency, not sequence" — is
@@ -99,7 +99,7 @@ Each is held by another session. Reported with the exact change rather than half
 
 | File | Why | What to change |
 |---|---|---|
-| `docs/upstream-sync.toml:154` | `analyze-logs` is `direction = "upstream-origin"`, and the kit's copy is now substantially divergent by design. A future refresh will show large diffs on a row that gives a reader no reason for them. | Extend the existing `note` with: "Genericized 2026-08-23 per the OQ-2 ruling — platform-neutral prose, `references/realtime-session-events.md` renamed to `session-event-streams.md`. Refresh diffs against upstream are expected and correct." |
+| `docs/upstream-sync.toml:154` | `analyze-logs` is `direction = "upstream-origin"`, and the kit's copy is now substantially divergent by design. A future refresh will show large diffs on a row that gives a reader no reason for them. | Extend the existing `note` with: "Genericized 2026-08-23 per the OQ-2 ruling — platform-neutral prose, `references/vendor-session-events.md` renamed to `session-event-streams.md`. Refresh diffs against upstream are expected and correct." |
 | `plugins/core/src/lemmi_ai_kit/assets/manifest.toml:225` | Summary is accurate but predates the event-stream branch becoming a first-class format. | Optional: "…from structured, plain, container and event-stream logs with task file creation". |
 | `.specs/i4-pack-split/topology.md:63` | The D3 row is now factually wrong in two figures. | "4 of 6 references are platform-named" → **3 of 6**; the mention count is now **42** across 7 files / 1116 lines. |
 

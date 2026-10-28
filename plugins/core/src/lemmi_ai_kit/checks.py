@@ -9,7 +9,7 @@ resolves to the *calling* skill's directory, so it cannot address a sibling skil
 script, and a project-relative skills path is broken by construction under plugin
 distribution (the hygiene contract bans it outright). Those calls come here:
 
-- `lint`         <- the 6 sites that called `learning-consolidator`'s `ai_files_lint.py`
+- `lint`         <- the 6 sites that called `learning-consolidator`'s `data_files_lint.py`
 - `audit-skills` <- the 3 sites that called `skill-reviewer`'s `audit_skills.py`
 
 Both are read-only, stdlib-only, and write nothing, so they are safe to run from parallel

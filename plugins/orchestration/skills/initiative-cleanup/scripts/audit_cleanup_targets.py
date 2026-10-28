@@ -461,7 +461,7 @@ def cmd_extraction(root: Path, target: str, records: list[str]) -> int:
       1. The file's own text says its work has not happened yet (PENDING_MARKERS).
       2. No decision record cites it, so archiving it is the only copy leaving the repo.
 
-    Measured 2026-08-19: several briefs in `feedback-relevance-and-realism` carry traps
+    Measured 2026-08-19: several briefs in `ranking-relevance-study` carry traps
     recorded nowhere else, and one (`DG1-run-the-deferred-gates.md`) is a brief for a session
     scheduled ~2 weeks out. "The session returned" is not the test; "the reasoning has
     another home" is.
@@ -552,7 +552,7 @@ def cmd_fundep(root: Path, target: str) -> int:
 
     A citation goes stale silently and is fixed by an edit. A functional dependency BREAKS,
     and no amount of re-annotation repairs it. `regenerate-prompt-packet.sh` in
-    `feedback-relevance-and-realism` holds 9 capture paths in a `FILES=()` array; each is an
+    `ranking-relevance-study` holds 9 capture paths in a `FILES=()` array; each is an
     argument to a running program, not a reference in prose. Crossing that line without
     noticing is how a documentation sweep silently becomes a code change.
     """
@@ -622,7 +622,7 @@ def cmd_evidence(root: Path, symbol: str, spec_root: str) -> int:
       1. An unscoped `git grep <symbol>` matches README.md and scores documentation as
          implementation (14 of 34 verdicts in one run).
       2. A symbol owned by a DIFFERENT spec matches and scores the wrong spec as shipped
-         (`transcript_gradeability` belongs to the eligibility work, not to the STT spec
+         (`shared_scoring_rules` belongs to the eligibility work, not to the STT spec
          whose own header says "no code written").
     """
     hits = git(root, "grep", "-l", "-I", symbol, "HEAD")
@@ -648,9 +648,9 @@ def cmd_evidence(root: Path, symbol: str, spec_root: str) -> int:
             print(f"  {label:<6}: ... +{len(group) - 5} more")
 
     if not paths:
-        # Measured 2026-08-09: `ai-driven-interview-end` was recorded "not implemented" from an
+        # Measured 2026-08-09: `auto-session-close` was recorded "not implemented" from an
         # ABSENT result. The spec had shipped; the probe used EndProposalBehavior when the real
-        # symbols were ai_end_settings / ai_end_debug_propose_action / end_proposed. ABSENT is
+        # symbols were close_settings / close_debug_action / end_proposed. ABSENT is
         # far more often a bad guess than a missing feature, so the tool refuses to let a single
         # miss read as a negative verdict.
         print()

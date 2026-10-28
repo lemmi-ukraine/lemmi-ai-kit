@@ -94,7 +94,7 @@ the license-drift test three ways, the hygiene guard three ways, the count guard
 | OQ-2 CLA/DCO/neither | **Neither** — MIT inbound=outbound | operator, 2026-08-22 |
 | OQ-3 contacts | **`support@lemmi.io`** for maintainer, security, conduct | operator, 2026-08-22 |
 | I1 OQ-1 | **Delete** `post-task-review`'s prompt-template check | operator |
-| I1 OQ-2 | **Drop** both `openai-realtime-quirks` citations | operator |
+| I1 OQ-2 | **Drop** both `vendor-api-quirks` citations | operator |
 | I1 OQ-3, OQ-4 | Illustrative example; rule stays coherent | session, from reading the code |
 | Flip date | **2026-08-29 as planned**, OP-3 to be re-decided | operator, 2026-08-22 |
 | README exceptions | **Two, both surgical**: the four counts, and the refresh claim. The rewrite stays behind I4's Gate D | operator |

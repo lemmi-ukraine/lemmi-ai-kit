@@ -193,7 +193,7 @@ emits **redacted** transcripts for the high-signal ones (any error, or the large
    with errors (42%) vs 3 of 29 (10%)" reads as a 4× agent-quality regression; hand-decomposition
    showed the growth was dominated by **deny-cd hook denials** (enforcement working as designed),
    **usage-limit kills** mid-wave ("You've hit your session limit"), and **permission-stream
-   aborts** when the parent paused at the usage-guard floor ("Tool permission stream closed before
+   aborts** when the parent paused at the quota-guard floor ("Tool permission stream closed before
    response received"; "The permission handler returned updatedInput … failed schema validation")
    — the last two landing in `test-failure`/`tool-error`. Without that split, every
    orchestration-heavy window reads as an agent regression and cross-window comparisons are

@@ -120,7 +120,7 @@ async def get_order_task_service(
 ## Hot Paths: GIL-bound work and bulk rewrites
 
 **`asyncio.to_thread` does not fix pure-Python CPU work.** Plain Python bytecode holds the GIL, so a
-worker thread only timeshares the same core — and dev Cloud Run is `--cpu 1`, so there is no second
+worker thread only timeshares the same core — and a dev container may run on one CPU, so there is no second
 core to escape to. Before reaching for `to_thread`/executors on a hot path, ask whether the work
 releases the GIL. If it is plain Python over bytes, make it a **strided/bulk operation** first —
 cheaper AND race-free.

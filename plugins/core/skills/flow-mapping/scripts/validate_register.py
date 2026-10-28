@@ -68,7 +68,7 @@ SCENARIO_ID_SEARCH_RE = re.compile(r"\b[A-Z]{2,4}-\d{2,3}\b")
 NO_COVERING_ROW = "**no covering row**"
 
 INLINE_CODE_RE = re.compile(r"`([^`]*)`")
-# A sibling REGISTER ENTRY id (`R-SA-05`, `R-connection-transport-05`) is not a scenario
+# A sibling REGISTER ENTRY id (`R-SA-05`, `R-socket-transport-05`) is not a scenario
 # citation, but its trailing `-NN` makes the legacy uppercase form look exactly like the
 # scenario id `SA-05` to SCENARIO_ID_SEARCH_RE. Stripped before the scenario search so the
 # `observed` rule cannot resolve against an id the entry never cited (roadmap item 35).

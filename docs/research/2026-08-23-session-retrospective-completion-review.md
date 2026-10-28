@@ -7,7 +7,7 @@
 
 ## 1. The structural failure: I verified a command the developer's way, which is the defect I was removing
 
-The merge pulled in upstream call sites naming `ai_files_lint.py` and `audit_skills.py`, which this
+The merge pulled in upstream call sites naming `data_files_lint.py` and `audit_skills.py`, which this
 kit does not ship. I rewrote five of them to
 `PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit <sub>`, then verified by running the
 commands. They worked. Exit 0, real output.
@@ -96,7 +96,7 @@ in a document whose whole authority rests on the last one being right.
   script — the §6 defect. I ported it, generalising one dated source-project incident in the kit's
   established idiom. It ships in the wheel and runs with no `.git`/`.ai` ancestor. **It has no
   tests** — upstream ships none either, so this is inherited, not introduced.
-- **`interview-transcript-analysis` → "any downstream analysis skill."** The kit does not ship that
+- **`session-record-analysis` → "any downstream analysis skill."** The kit does not ship that
   skill. Generalising keeps upstream's compatibility claim true instead of pointing at nothing.
 
 ## 6. Did the task meet its Definition of Done?

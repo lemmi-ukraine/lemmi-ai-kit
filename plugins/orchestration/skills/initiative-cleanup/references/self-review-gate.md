@@ -14,7 +14,7 @@ derivable from the tree. That gap is what Step 5.5 closes.
 |---|---|---|
 | `census` | 15 spec dirs with **no git history**, 1 mixed dir | A `git rm` refusal, or a permanent delete presented to the operator as "git can recover it" |
 | `evidence` | **14 of 34** "implemented" verdicts were README hits | Deleting the design for work that never shipped |
-| `evidence` | `transcript_gradeability` is **shared** across specs | Scoring a spec whose own header says "no code written" as shipped |
+| `evidence` | `shared_scoring_rules` is **shared** across specs | Scoring a spec whose own header says "no code written" as shipped |
 | `refs` | `stacked-pr-skills/research-brief.md` is cited by `CLAUDE.md` | Deleting the decision record a shipped skill cites for its core policy |
 | `coverage` | The plan dispositioned **19 of 55** dirs | A partial audit presenting itself as complete |
 
@@ -126,7 +126,7 @@ ask whether the deliverable ships outside this checkout.
 
 | Source | Why it outranks | How to record it |
 |---|---|---|
-| **The operator** | They know what shipped; the tool sees one checkout at one moment | Mark the row *operator-confirmed*. **Still record whether code corroborates it** — on 2026-08-09 five of six operator confirmations were corroborated and one (`interview-feedback-funnel-stabilization`) was not, and that one is the row worth re-checking |
+| **The operator** | They know what shipped; the tool sees one checkout at one moment | Mark the row *operator-confirmed*. **Still record whether code corroborates it** — on 2026-08-09 five of six operator confirmations were corroborated and one (`sample-funnel-stabilization`) was not, and that one is the row worth re-checking |
 | **Out-of-repo deliverables** | A spec whose output is a kit, a fork, or another repository can never be confirmed locally | ABSENT is meaningless there. Ask where it shipped and record the answer |
 
 An operator override is not a failure of the gate — it is the gate doing its job by surfacing a row

@@ -208,13 +208,13 @@ that check, and a half-updated manifest blocks every other session working on th
 Seven upstream skills are declined, each with its reason recorded in the
 `[[unported]]` rows of [upstream-sync.toml](upstream-sync.toml). In summary:
 
-- **`feedback-audit`, `interview-transcript-analysis`** — the source project's interview
+- **`rubric-audit`, `session-record-analysis`** — the source project's interview
   product. Same coupling class this pack removed four prompt-engineering skills for.
-- **`prompt-domain-reviewer`, `prompt-eng-reviewer`, `prompt-engineering-conventions`,
-  `review-prompts`** — removed as product-coupled. This repo was measurably *ahead* of
+- **`prompt-topic-reviewer`, `prompt-craft-reviewer`, `prompt-writing-conventions`,
+  `check-prompts`** — removed as product-coupled. This repo was measurably *ahead* of
   upstream on two of them, which is evidence of extraction-time generalization rather
   than neglect.
-- **`usage-guard`** — deferred, not rejected. Generically valuable, but 12,509 words of
+- **`quota-guard`** — deferred, not rejected. Generically valuable, but 12,509 words of
   which 9,049 are PowerShell, tied to a scheduled task and a statusline feed. It needs a
   cross-platform pass, as its own task, never inside a sync.
 

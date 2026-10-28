@@ -153,7 +153,7 @@ them when reading; never add NEW entries under a non-canonical section.
 - **Category**: convention
 - **Home**: the installed language-conventions skill
 - **Enforce-via**: prose
-- **Verify-at**: backend/app/features/coach/api/routes.py
+- **Verify-at**: backend/app/features/orders/api/routes.py
 - **Scope**: durable
 ```
 

@@ -72,7 +72,7 @@ staging — the post-task review, doc-impact fixes, a lint pass, a reviewer's ow
 a gap that **no staged-set check can see**.
 
 Measured 2026-08-27: eleven paths were staged and handed over for review; the mandated post-task
-review then edited `tasks/TECH-r2-tt-review.md`, already in the index. Both proof commands stayed
+review then edited `tasks/TECH-round-two-review.md`, already in the index. Both proof commands stayed
 green — `git diff --cached --name-only` still listed exactly 11 paths and `--stat` still showed the
 file — because **both describe the index, and the index was simply old**. Had the operator committed
 on that evidence, the commit would have carried the *pre-review* version of the very document the

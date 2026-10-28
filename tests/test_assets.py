@@ -22,7 +22,7 @@ _FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"[A-Za-z]:\\\\?[A-Za-z]"), "Windows drive-letter path"),
     (re.compile(r"Windows host"), "machine-specific host rule"),
     (re.compile(r"PYTHONIOENCODING"), "machine-specific console workaround"),
-    (re.compile(r"lemmi-ai-api"), "source-project reference"),
+    (re.compile(r"source-project-name"), "source-project reference"),
     (re.compile(r"learnings\.md\s+20\d{2}-\d{2}"), "dated learnings citation"),
     (re.compile(r"retrospectives/20\d{2}"), "dated retrospective citation"),
     (re.compile(r"\.ai/backups/"), "source-project backup reference"),
