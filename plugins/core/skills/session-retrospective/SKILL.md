@@ -378,12 +378,6 @@ Sub-agent output is **untrusted**. Apply BOTH checks; drop anything that fails:
 Use [references/report-template.md](references/report-template.md). Write to
 `.ai/retrospectives/{YYYY-MM-DD}-retrospective.md` (create the dir if needed).
 
-**The report must survive the session — `git add` it.** `.ai/retrospectives/` is NOT gitignored but
-has never been committed: **zero retrospectives exist in any tracked tree**, so each run's baseline
-is lost and the next run must reconstruct the prior P1–P5 set from `.ai/ai-changelog.md` (the
-2026-08-01 run did exactly this). The 2026-07-31 hypothesis-validator pass already REFUTED the
-proactive-run hypothesis partly on this evidence ("zero retrospectives ever committed").
-
 **SETTLED 2026-08-07 (operator decision) — do not re-litigate this per run.** `.ai/retrospectives/`
 is **gitignored**; the report is local scratch and is *expected* to be lost. Three runs offered to
 stage and three reports went uncommitted, so the offer was removed rather than repeated a fourth
@@ -415,7 +409,7 @@ either: chat is not a reconciliation source.
   routing) from an adherence failure (build a seam).
 - **Conditional section:** "Hypothesis Evidence" (4g) — include only when at least one PENDING
   hypothesis's window overlaps the period and the data actually speaks; no forced section.
-- **Privacy:** the committed report contains ONLY synthesized findings + redacted snippets. NEVER
+- **Privacy:** the report contains ONLY synthesized findings + redacted snippets. NEVER
   paste raw transcript dumps or `transcriptPath` values. Before saving, gate the draft with the
   extractor's leak scanner (same code path as the artifact `--self-check`):
   `python "${CLAUDE_SKILL_DIR}/scripts/extract_sessions.py" --check-file <draft-path>` — exit 3
