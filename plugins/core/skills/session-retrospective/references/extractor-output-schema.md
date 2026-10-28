@@ -102,6 +102,16 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
 }
 ```
 - **`userRejected` is a SEPARATE bucket** — permission denials are *friction*, not agent mistakes.
+  A result lands here only when it is an error whose text STARTS with the harness's own denial
+  sentence (`USER_REJECTED_SENTENCE`: "The user doesn't want to proceed with this tool use."; a
+  trailing note or the user's own feedback after it is fine). A phrase found ANYWHERE in the text
+  does not count: ripgrep's own usage errors ("ripgrep rejected the pattern, glob, or file type")
+  and any error that merely quotes a denial phrase are ordinary `tool-error` / shell results.
+  `count` is the TRUE number of hits (each session's own number is `sessions[].userRejected`);
+  `samples` stay capped at 3 per session, so their length is not the count. **A report that
+  compares with one built by an older extractor must say so:** the older run filed those usage
+  errors here, so this bucket reads lower and `tool-error` higher, and a sub-agent whose only
+  error was one is now error-bearing, which can change which sub-agent digests are emitted.
 - Category definitions:
   | Category | Meaning |
   |---|---|
@@ -147,6 +157,7 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
   "transcriptBytes": 0,          // size of sessions/<id>.md (use for "substantial session" ranking)
   "toolsUsed": { "Read": 12, … },
   "errorsByCategory": { "edit-stale-read": 3, … },   // per-session error counts
+  "userRejected": 0,             // v4 (additive) — per-session count of user-rejected results (see `errorTaxonomy`); kept out of errorsByCategory and NOT capped like the samples
   "behavior": {
     "reReads": [ { "file": "~/…/learnings.md", "count": 7 } ],   // file read >=3x
     "repeatedCommands": [ { "cmd": "git diff --staged", "count": 2 } ],   // identical cmd >=2x
@@ -179,7 +190,7 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
   GCP `private_key`/service-account JSON, PEM blocks, Google/AWS key prefixes, generic
   `*(KEY|TOKEN|SECRET|PASSWORD|PWD|CRED)* = value`, long hex/base64, and home-dir paths → `~`.
 - `transcriptPath` is the one intentionally **unredacted absolute path** (sub-agents need it). It
-  lives only in `aggregate.json` under the gitignored temp dir and never enters the committed report.
+  lives only in `aggregate.json` under the gitignored temp dir and never enters the report.
 - Emitted sub-agent transcripts (`sessions/sub/<id>/*.md`) are redacted by the SAME `redact()` and
   `--self-check` scans them too (it rglobs `sessions/`), so they cannot leak either.
 - `--self-check` greps the artifacts for high-confidence secret shapes; exit code 3 on any hit.
@@ -230,9 +241,12 @@ detectable by the caller** instead of silently becoming a finding about work it 
 `--digest` requires `--session` and writes `interaction-digest.md`: counted repetition signals
 (re-reads at or above `--rereads-min`, default `DEFAULT_REREADS_MIN` = 6), agent error classes with
 ≥2 occurrences, and the session's **human turns** — harness noise (skill payloads,
-task-notifications, command wrappers) filtered by `HARNESS_USER_PREFIXES`, which is deliberately
+task-notifications, command wrappers, and the plain-text notices that continue a compacted
+session, relay a peer session's message, report a classifier stop or open a
+workflow-authoring reference) filtered by `HARNESS_USER_PREFIXES`, which is deliberately
 separate from `SYSTEM_PREFIXES` because that tuple feeds `counts.userMsgs` and therefore
-`deepDiveCandidates` selection for the whole retrospective.
+`deepDiveCandidates` selection for the whole retrospective. `sweep_user_corrections.py` keeps a
+mirror list (`SKIP_PREFIX`); a test imports both by path and fails when the two differ.
 
 **Re-asks are deliberately NOT detected.** Corrections have lexical markers that
 `sweep_user_corrections.py` can grep; a re-ask is the same request restated in different words and

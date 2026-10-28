@@ -73,6 +73,7 @@ SCHEMA_KEYS = {
         "slashCommands",  # v4 (C-2): user-typed /skill invocations
         "models",  # v4 (C-4a): assistant model ids seen -> msg count
         "compactions",  # v4 (C-4b): context-compaction boundary count
+        "userRejected",  # v4 (additive): TRUE count of user-rejected results (samples are capped)
     ],
 }
 
@@ -241,7 +242,7 @@ DOC_EXAMPLE_ALLOWLIST = frozenset(
 )
 # Note: home-dir paths are masked in all emitted CONTENT via REDACTIONS (home -> ~). The only
 # unredacted absolute path is the functional `transcriptPath` field in the gitignored
-# aggregate.json (sub-agents need it); it is never part of the committed report, so the leak gate
+# aggregate.json (sub-agents need it); it is never part of the report, so the leak gate
 # below targets true secret shapes only, not the home username.
 
 
@@ -285,22 +286,29 @@ def result_text(content):
     return ""
 
 
+# The harness's own sentence when the user refuses a tool call, written at the START of the
+# tool_result. What follows it differs by build (a trailing note, "To tell you how to proceed,
+# the user said:", an older "provided the following reason"), so only the opening sentence is
+# the anchor. It is anchored, never a substring: ripgrep's own usage errors say "rejected the
+# pattern, glob, or file type", and any error that merely QUOTES a denial phrase (a log line, a
+# commit message) carries it mid-text — a substring match filed both as a permission denial.
+# The cancellation sentence ("... doesn't want to take this action right now") is the harness's
+# stamp for a cancelled call, not a denial, and is deliberately not matched.
+USER_REJECTED_SENTENCE = "The user doesn't want to proceed with this tool use."
+
+
 def classify_error(origin, is_error, text):
     """Return an error category, 'user-rejected', or None. Classifies by ORIGIN tool.
 
     Content tools are never errors unless is_error is set. Shell tools may also error via a
-    non-zero exit code surfaced in the result body.
+    non-zero exit code surfaced in the result body. 'user-rejected' is USER_REJECTED_SENTENCE at
+    the start of an is_error result and nothing looser; leading whitespace is tolerated because
+    a list-of-blocks result joins an empty first block into a leading newline.
     """
-    low = text.lower()
-    if is_error and (
-        "user doesn't want" in low
-        or "user rejected" in low
-        or "the user doesn't want to proceed" in low
-        or "rejected the" in low
-        or "user has chosen not to" in low
-    ):
+    if is_error and text.lstrip().startswith(USER_REJECTED_SENTENCE):
         return "user-rejected"
 
+    low = text.lower()
     is_shell = origin in SHELL_TOOLS
     nonzero_exit = bool(re.search(r"exit code:?\s*[1-9]", low))
     if not (is_error or (is_shell and nonzero_exit)):
@@ -415,10 +423,11 @@ def process_session(jsonl_path, sessions_dir):
         "slashCommands": [],
         "models": defaultdict(int),
         "compactions": 0,
+        "userRejected": 0,  # every user-rejected result; `user_rejected` below is a capped sample
     }
     # cross-session error samples collected by the caller; here we collect locally then return
     local_errors = defaultdict(list)  # category -> [redacted sample]
-    user_rejected = []  # [redacted sample]
+    user_rejected = []  # [redacted sample], capped at SAMPLES_PER_CATEGORY — NOT the count
 
     id_to_tool = {}
     skill_ids = {}  # tool_use_id -> skill name
@@ -550,6 +559,7 @@ def process_session(jsonl_path, sessions_dir):
                     txt = result_text(b.get("content"))
                     cat = classify_error(origin, is_err, txt)
                     if cat == "user-rejected":
+                        sess["userRejected"] += 1
                         if len(user_rejected) < SAMPLES_PER_CATEGORY:
                             user_rejected.append(
                                 f"[{sid[:8]}/{origin}] {redact(txt)[:160]}"
@@ -1043,9 +1053,10 @@ DIGEST_USER_MSG_CHARS = 220
 DIGEST_MIN_OCCURRENCES = 2
 
 # Injected machinery that arrives on the USER channel but is not the human speaking: skill
-# bodies, task notifications, command wrappers. Measured on a live session, 4 of 10 "user
-# messages" were this noise (two skill payloads, one task-notification, one more skill payload)
-# — enough to make the re-ask read useless, since a reader would be scanning skill prose.
+# bodies, task notifications, command wrappers, plain-text harness notices. Measured on a live
+# session, 4 of 10 "user messages" were this noise (two skill payloads, one task-notification,
+# one more skill payload) — enough to make the re-ask read useless, since a reader would be
+# scanning skill prose.
 #
 # Deliberately SEPARATE from SYSTEM_PREFIXES rather than widening it: that tuple feeds
 # is_real_user_text(), which drives counts.userMsgs and therefore deepDiveCandidates selection
@@ -1055,12 +1066,21 @@ DIGEST_MIN_OCCURRENCES = 2
 # Mirrors SKIP_PREFIX in the sibling sweep_user_corrections.py (same skill, same noise class).
 # The two lists must move together; they are duplicated because the scripts are invoked as
 # stand-alone files from the repo root and cannot import each other without path juggling.
+# test_sweep_user_corrections.py imports both by path and fails when they differ as sets.
 HARNESS_USER_PREFIXES = (
     "<",
     "Base directory for this skill",
     "ARGUMENTS:",
     "[Request interrupted",
     "Caveat:",
+    # Plain-text events the harness injects on the user channel. In real transcripts each is
+    # machine-marked (isMeta, isCompactSummary or a non-human origin), never operator typing:
+    # the workflow-authoring reference header, the notice that a compacted session continues,
+    # a message relayed from a peer session, and the stop notice a safety classifier leaves.
+    "# Workflow authoring reference",
+    "This session is being continued from a previous conversation",
+    "Another Claude session sent a message",
+    "Your response above was stopped by a safety classifier",
 )
 
 
@@ -1420,8 +1440,9 @@ def main():
             for s in samples:
                 if len(tax[cat]["samples"]) < 8:
                     tax[cat]["samples"].append(s)
-        if rejected:
-            user_rejected["count"] += len(rejected)
+        if sess["userRejected"]:
+            # the TRUE number: `rejected` is a capped sample list, so its length undercounts
+            user_rejected["count"] += sess["userRejected"]
             user_rejected["sessions"].append(sess["sessionId"][:8])
             for s in rejected:
                 if len(user_rejected["samples"]) < 8:

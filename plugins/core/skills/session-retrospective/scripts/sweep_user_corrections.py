@@ -34,8 +34,20 @@ MARKERS = re.compile(
     re.I,
 )
 
-# USER blocks that are injected machinery, not the human speaking.
-SKIP_PREFIX = ("<", "Base directory for this skill", "[Request interrupted", "Caveat:", "ARGUMENTS:")
+# USER blocks that are injected machinery, not the human speaking. Mirrors HARNESS_USER_PREFIXES
+# in extract_sessions.py: the two lists must move together, and test_sweep_user_corrections.py
+# imports both by path and fails when they differ as sets.
+SKIP_PREFIX = (
+    "<",
+    "Base directory for this skill",
+    "[Request interrupted",
+    "Caveat:",
+    "ARGUMENTS:",
+    "# Workflow authoring reference",
+    "This session is being continued from a previous conversation",
+    "Another Claude session sent a message",
+    "Your response above was stopped by a safety classifier",
+)
 
 
 def sweep(retro_dir: Path) -> list[str]:

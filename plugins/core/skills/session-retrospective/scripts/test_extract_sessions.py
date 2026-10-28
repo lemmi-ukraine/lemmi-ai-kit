@@ -162,14 +162,147 @@ def test_genuine_errors_get_correct_category():
     assert ex.classify_error("TodoWrite", True, "boom") == "tool-error"
 
 
+# --- user-rejected: the harness's own denial sentence, anchored at the START of the result ---
+# Synthetic fixtures that follow the shapes real transcripts carry. Multi-line texts are joined
+# from fragments, so no ":" sits directly in front of a backslash escape in this source.
+_DENIAL_OPENING = "The user doesn't want to proceed with this tool use."
+_DENIAL_EXPLAINED = (
+    _DENIAL_OPENING
+    + " The tool use was rejected (eg. if it was a file edit, the new_string was NOT written "
+    "to the file)."
+)
+_DENIAL_STOP = (
+    " STOP what you are doing and wait for the user to tell you how to proceed."
+)
+_DENIAL_FORMS = {
+    "plain": _DENIAL_EXPLAINED + _DENIAL_STOP,
+    "with-trailing-note": "\n\n".join(
+        [
+            _DENIAL_EXPLAINED + _DENIAL_STOP,
+            "Note: The user's next message may contain a correction or preference.",
+        ]
+    ),
+    "with-feedback": "\n".join(
+        [
+            _DENIAL_EXPLAINED + " To tell you how to proceed, the user said:",
+            "use the other file instead",
+        ]
+    ),
+    "older-reason": _DENIAL_EXPLAINED
+    + " The user provided the following reason for the rejection:  split this up",
+}
+_RIPGREP_USAGE_HEAD = "Search failed — ripgrep rejected the pattern, glob, or file type without searching:"
+_RIPGREP_ERRORS = {
+    "regex-parse": "\n".join(
+        [
+            _RIPGREP_USAGE_HEAD,
+            "rg: regex parse error:",
+            "    (?:foo(?!bar))",
+            "         ^^^",
+            "error: look-around, including look-ahead and look-behind, is not supported",
+        ]
+    ),
+    "glob-parse": "\n".join(
+        [
+            _RIPGREP_USAGE_HEAD,
+            "rg: error parsing glob '{a/**/*.{py,md},b/*.txt}': nested alternate groups "
+            "are not allowed",
+        ]
+    ),
+    "file-type": "\n".join([_RIPGREP_USAGE_HEAD, "rg: unrecognized file type: pyy"]),
+}
+
+
 def test_user_rejection_is_separate_bucket():
+    assert ex.classify_error("Bash", True, _DENIAL_FORMS["plain"]) == "user-rejected"
     assert (
-        ex.classify_error(
-            "Bash", True, "The user doesn't want to proceed with this tool use"
-        )
+        ex.classify_error("Edit", True, _DENIAL_FORMS["with-feedback"])
         == "user-rejected"
     )
-    assert ex.classify_error("Edit", True, "user rejected the edit") == "user-rejected"
+
+
+@pytest.mark.parametrize("form", sorted(_DENIAL_FORMS))
+@pytest.mark.parametrize("origin", ["Bash", "Read", "Write", "AskUserQuestion"])
+def test_every_harness_denial_form_is_user_rejected(origin, form):
+    """The follow-on text after the opening sentence differs by harness build (a trailing note,
+    the user's own feedback, an older 'reason' form); the opening sentence is the anchor."""
+    assert ex.classify_error(origin, True, _DENIAL_FORMS[form]) == "user-rejected"
+
+
+def test_a_denial_arriving_as_content_blocks_is_still_user_rejected():
+    blocks = [{"type": "text", "text": _DENIAL_FORMS["plain"]}]
+    assert ex.classify_error("Bash", True, ex.result_text(blocks)) == "user-rejected"
+    # an empty first block leaves a newline in front once the blocks are joined
+    padded = ex.result_text([{"type": "text", "text": ""}, *blocks])
+    assert padded.startswith("\n")
+    assert ex.classify_error("Bash", True, padded) == "user-rejected"
+
+
+@pytest.mark.parametrize("kind", sorted(_RIPGREP_ERRORS))
+def test_ripgrep_usage_errors_are_ordinary_tool_errors(kind):
+    """Grep's own usage error says "ripgrep rejected the pattern". Nobody refused anything: the
+    tool failed, so it belongs with the other tool errors and not in the permission bucket."""
+    assert ex.classify_error("Grep", True, _RIPGREP_ERRORS[kind]) == "tool-error"
+
+
+@pytest.mark.parametrize(
+    ("origin", "text", "category"),
+    [
+        (
+            "Bash",
+            "Exit code 1\nerror: the remote rejected the push because the branch is protected",
+            "runtime-exit",
+        ),
+        ("WebFetch", "The server rejected the request with status 403", "tool-error"),
+        (
+            "Bash",
+            "Exit code 1\nerror: user rejected the credential prompt",
+            "runtime-exit",
+        ),
+        ("Edit", "user rejected the edit", "tool-error"),
+        (
+            "Bash",
+            "Exit code 2\nnote: the user has chosen not to continue",
+            "runtime-exit",
+        ),
+        ("Read", "user doesn't want this file", "tool-error"),
+        (
+            "Bash",
+            "Exit code 1\nlog line: " + _DENIAL_FORMS["plain"],
+            "runtime-exit",
+        ),
+        # The harness stamps this sentence as a cancellation, not a denial.
+        (
+            "Bash",
+            "The user doesn't want to take this action right now." + _DENIAL_STOP,
+            "runtime-exit",
+        ),
+    ],
+    ids=[
+        "remote-rejected-the-push",
+        "server-rejected-the-request",
+        "quotes-user-rejected",
+        "quotes-user-rejected-edit",
+        "quotes-user-has-chosen-not-to",
+        "quotes-user-doesnt-want",
+        "denial-sentence-quoted-mid-text",
+        "cancel-sentence",
+    ],
+)
+def test_text_that_only_quotes_a_denial_phrase_is_not_a_denial(origin, text, category):
+    """A phrase match anywhere in the text misfiles any error that merely quotes the phrase;
+    only the harness's own sentence at the start of the result is a denial."""
+    assert ex.classify_error(origin, True, text) == category
+
+
+def test_hook_denials_stay_out_of_the_user_rejected_bucket():
+    """A hook block is a denial but not the user's refusal, so it keeps its ordinary category."""
+    hook = "PreToolUse:Bash hook error: Blocked by project policy; use the wrapper instead."
+    assert ex.classify_error("Bash", True, hook) == "runtime-exit"
+
+
+def test_a_denial_sentence_in_a_result_that_is_not_an_error_is_data():
+    assert ex.classify_error("Read", False, _DENIAL_FORMS["plain"]) is None
 
 
 def test_exit_code_zero_is_not_an_error():
@@ -181,8 +314,23 @@ def _write_jsonl(path, rows):
     path.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
 
 
+def _relative_out(monkeypatch, out_dir):
+    """Return `out_dir` as a path RELATIVE to a working directory the test moves into.
+
+    main() refuses an output dir that starts with /tmp (it asks for a repo-relative one), and
+    pytest's tmp_path lives under /tmp on Linux, so an absolute `tmp_path / "out"` is accepted
+    on Windows and refused on the CI runner. A relative path carries no such prefix anywhere.
+    """
+    monkeypatch.chdir(out_dir.parent)
+    return out_dir.name
+
+
 def _run(session_dir, out_dir, monkeypatch, self_check=True):
-    argv = ["extract_sessions.py", str(session_dir), str(out_dir)]
+    argv = [
+        "extract_sessions.py",
+        str(session_dir),
+        _relative_out(monkeypatch, out_dir),
+    ]
     if self_check:
         argv.append("--self-check")
     monkeypatch.setattr(sys, "argv", argv)
@@ -435,7 +583,9 @@ def test_main_omitting_session_dir_uses_autoderivation(tmp_path, monkeypatch):
     out_dir = tmp_path / "out"
     # ONE positional only (output_dir) — the omitted session_dir forces the derivation branch.
     monkeypatch.setattr(
-        sys, "argv", ["extract_sessions.py", str(out_dir), "--self-check"]
+        sys,
+        "argv",
+        ["extract_sessions.py", _relative_out(monkeypatch, out_dir), "--self-check"],
     )
     ex.main()
     agg = json.loads((out_dir / "aggregate.json").read_text(encoding="utf-8"))
@@ -646,6 +796,99 @@ def test_models_and_compactions_captured(tmp_path, monkeypatch):
     assert s["compactions"] == 2
 
 
+def _tool_error_rows(results):
+    """Assistant tool_use + user tool_result(is_error) row pairs for (tool, result text) pairs."""
+    rows = []
+    for i, (name, text) in enumerate(results):
+        tid = f"toolu_{i}"
+        rows.append(
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {"type": "tool_use", "id": tid, "name": name, "input": {}}
+                    ]
+                },
+            }
+        )
+        rows.append(
+            {
+                "type": "user",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tid,
+                            "is_error": True,
+                            "content": text,
+                        }
+                    ]
+                },
+            }
+        )
+    return rows
+
+
+def test_user_rejected_count_is_every_hit_not_the_capped_sample_list(
+    tmp_path, monkeypatch
+):
+    """The per-session sample list is capped at SAMPLES_PER_CATEGORY, and the aggregate count
+    used to add up the list lengths, so a session with more hits than the cap was undercounted."""
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    many = ex.SAMPLES_PER_CATEGORY + 2
+    few = 2
+    denial = ("Bash", _DENIAL_FORMS["plain"])
+    _write_jsonl(
+        sdir / "aaaa1111-0000-0000-0000-000000000000.jsonl",
+        _minimal_session_rows(extra=_tool_error_rows([denial] * many)),
+    )
+    _write_jsonl(
+        sdir / "bbbb2222-0000-0000-0000-000000000000.jsonl",
+        _minimal_session_rows(
+            ts="2026-06-21T10:00:00Z", extra=_tool_error_rows([denial] * few)
+        ),
+    )
+    agg = _run(sdir, tmp_path / "out", monkeypatch)
+
+    tax = agg["errorTaxonomy"]["userRejected"]
+    assert tax["count"] == many + few
+    assert sorted(tax["sessions"]) == ["aaaa1111", "bbbb2222"]
+    # the samples stay a capped subset, and the bucket keeps its shape
+    assert len(tax["samples"]) < tax["count"]
+    assert set(tax) == {"count", "sessions", "samples"}
+    # the true number is also carried on each session; the bucket stays out of the categories
+    hits = {s["sessionId"][:8]: s["userRejected"] for s in agg["sessions"]}
+    assert hits == {"aaaa1111": many, "bbbb2222": few}
+    assert all("user-rejected" not in s["errorsByCategory"] for s in agg["sessions"])
+
+
+def test_a_subagent_with_only_a_ripgrep_error_is_error_bearing(tmp_path, monkeypatch):
+    """Dropped from the permission bucket, a ripgrep usage error is an ordinary tool error: the
+    sub-agent that hit it is now error-bearing, which also decides which digests get emitted."""
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    sid = "cccc3333-0000-0000-0000-000000000000"
+    _write_jsonl(sdir / f"{sid}.jsonl", _minimal_session_rows())
+    subdir = sdir / sid / "subagents"
+    subdir.mkdir(parents=True)
+    _write_jsonl(
+        subdir / "agent-rg.jsonl",
+        [
+            {
+                "type": "user",
+                "message": {"content": [{"type": "text", "text": "search"}]},
+            },
+            *_tool_error_rows([("Grep", _RIPGREP_ERRORS["regex-parse"])]),
+        ],
+    )
+    agg = _run(sdir, tmp_path / "out", monkeypatch)
+    sub = agg["sessions"][0]["subAgents"]
+    assert sub["errorsByCategory"] == {"tool-error": 1}
+    assert sub["agentsWithErrors"] == 1
+    assert agg["subAgentErrorTaxonomy"]["byCategory"]["tool-error"]["count"] == 1
+
+
 def test_deep_dive_candidate_selection_rule():
     """v4 (C-1): deterministic Phase-3 selection — qualify, rank, cap, no silent drop."""
 
@@ -777,7 +1020,13 @@ def test_prescan_skips_out_of_range_and_falls_back(tmp_path, monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["extract_sessions.py", str(sdir), str(out_dir), "--since", "2026-06-01"],
+        [
+            "extract_sessions.py",
+            str(sdir),
+            _relative_out(monkeypatch, out_dir),
+            "--since",
+            "2026-06-01",
+        ],
     )
     ex.main()
     agg = json.loads((out_dir / "aggregate.json").read_text(encoding="utf-8"))
@@ -905,6 +1154,75 @@ def test_is_human_turn_filters_injected_machinery():
     assert not ex._is_human_turn("")
 
 
+# The four harness-injected user events: real first lines, synthetic bodies. Each body carries a
+# word the corrections sweep looks for, so an un-skipped one would surface as a "correction".
+_INJECTED_TURNS = {
+    "workflow-authoring header": "\n\n".join(
+        [
+            "# Workflow authoring reference",
+            "Read this before you change a script. Never rely on memory; fix gaps instead.",
+        ]
+    ),
+    "session-continuation notice": "\n\n".join(
+        [
+            "This session is being continued from a previous conversation that ran out "
+            "of context.",
+            "Summary: fix the build, do not revert the migration.",
+        ]
+    ),
+    "peer-message notice": "\n\n".join(
+        [
+            "Another Claude session sent a message:",
+            "please do not change the schema, fix the test again",
+        ]
+    ),
+    "safety-classifier stop notice": (
+        "Your response above was stopped by a safety classifier — this is not a tool or "
+        "API error. Do not produce that content again, even reworded."
+    ),
+}
+
+
+@pytest.mark.parametrize("kind", sorted(_INJECTED_TURNS))
+def test_harness_injected_turns_are_not_human_turns(kind):
+    text = _INJECTED_TURNS[kind]
+    assert not ex._is_human_turn(text)
+    # SYSTEM_PREFIXES must not move: these still arrive as user-channel messages for
+    # counts.userMsgs (see the test below), which the deep-dive selection reads.
+    assert ex.is_real_user_text(text)
+
+
+def test_digest_lists_only_the_operator_among_injected_turns(tmp_path):
+    jf = _user_session(
+        tmp_path,
+        "gggg7777-0000-0000-0000-000000000000",
+        ["real ask one", *_INJECTED_TURNS.values(), "real ask two"],
+    )
+    out = tmp_path / "out"
+    out.mkdir()
+    ex.write_interaction_digest(out, _fake_sess(), jf, ex.DEFAULT_REREADS_MIN)
+    text = (out / "interaction-digest.md").read_text(encoding="utf-8")
+    assert "real ask one" in text
+    assert "real ask two" in text
+    assert "User-message sequence (2 total" in text
+    for injected in _INJECTED_TURNS.values():
+        assert injected.split("\n")[0] not in text
+
+
+def test_injected_turns_still_count_as_user_messages(tmp_path, monkeypatch):
+    """counts.userMsgs picks the deep-dive sessions (see the comment above
+    HARNESS_USER_PREFIXES), so skipping these belongs to the digest layer only."""
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    _user_session(
+        sdir,
+        "hhhh8888-0000-0000-0000-000000000000",
+        ["real ask", *_INJECTED_TURNS.values()],
+    )
+    agg = _run(sdir, tmp_path / "out", monkeypatch)
+    assert agg["sessions"][0]["counts"]["userMsgs"] == 1 + len(_INJECTED_TURNS)
+
+
 def test_digest_applies_the_reread_threshold(tmp_path):
     jf = _user_session(tmp_path, "aaaa1111-0000-0000-0000-000000000000", ["do the thing"])
     out = tmp_path / "out"
@@ -1013,7 +1331,7 @@ def test_cli_session_scope_writes_digest_and_overrides_date_filter(tmp_path, mon
         [
             "extract_sessions.py",
             str(sdir),
-            str(out),
+            _relative_out(monkeypatch, out),
             "--session",
             "ffff6666",
             "--digest",
