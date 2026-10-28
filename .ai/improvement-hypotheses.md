@@ -15,6 +15,16 @@
 
 ---
 
+## 2026-10-28
+
+### [SKILL-MODIFIED] Keep every operator turn in the session digests, cite the lines Grep shows and count each event once
+- **Category:** Observability
+- **Hypothesis:** By keeping the operator turns the 120 KB cap cut off, reading mid-turn messages and question answers as operator turns, and numbering the sweep's citations by LF alone, we expect the next retrospective to find the operator's closing words in every capped digest and to cite lines that Grep and Read confirm, because one structural predicate now decides what an operator turn is for every digest and the sweep no longer reads through universal newlines.
+- **Signal:** In the next retrospective run over at least 10 sessions after the installed Core plugin carries this change, or by 2026-12-09, whichever comes first, check with Grep and Read on the raw transcripts and the digests, not with the extractor. For each digest that carries the line `[...transcript truncated at 120 KB...]`, find the last human-origin record of its transcript (`origin.kind` human, typed or mid-turn) and confirm its words are in the digest; for 30 citations of `user_corrections_sweep.txt` (all if fewer), Read the cited line and confirm it is the `USER:` line that starts the quoted text. Confirm if every check agrees; refute if one capped digest lacks its last operator turn or one citation names another line. Fewer than 3 capped digests or fewer than 10 citations leaves it inconclusive. The same checks fail on the previous scripts: over 206 real sessions 84 of 136 citations named another line, and 29 of 31 capped digests had operator turns after the cut that the digest did not hold.
+- **Risk:** The operator section sits outside the 120 KB cap, so the longest digests grow (over those 206 sessions the largest went from 125,638 to 129,356 bytes, the largest section being 6,290 bytes) and a deep read costs a little more context. The structural rule decides only for records that carry an origin stamp: 1,104 of the 2,692 user records without a tool result in that sample carry none, and for those the prefix list still decides. Nothing resolves this unless a session runs a retrospective and does the checks by hand.
+- **Status:** PENDING
+- **Changelog ref:** 2026-10-28 — Keep every operator turn in the session digests, cite the lines Grep shows and count each event once
+
 ## 2026-10-27
 
 ### [INFRA-MODIFIED] Collect the skill tests in CI, rebuild the learnings guard's shell arm and fix the extractor's rejection count

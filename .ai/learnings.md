@@ -64,3 +64,45 @@ to its home above and removed here.
 - **Enforce-via**: test
 - **Verify-at**: tests/test_skill_script_tests.py
 - **Scope**: durable
+
+### [2026-10-28] A line number that Grep and Read must confirm needs bytes split on LF: universal newlines and `splitlines` each drift on their own
+- **Context**: Making the session-retrospective corrections sweep cite the lines Grep and Read show, over digests the extractor had written on Windows.
+- **Finding**: Windows text mode wrote a CRLF inside a message as CR CR LF. `Path.read_text` (universal newlines) turns that into two line breaks, and `str.splitlines` breaks at a lone CR, at CR then CR LF, at a form feed and at seven more separators. Of 206 digests from a sample of real sessions, 152 held a CR CR LF and 144 numbered some `USER:` line differently from Grep (1,209 lines in all). Replacing only `splitlines` (read_text, then split on LF) or only `read_text` (bytes, then `splitlines`) left the same 144 digests and the same 1,209 lines wrong; only bytes split on LF matched, and the old sweep cited a line Grep does not show for 84 of its 136 citations.
+- **Impact**: A script that prints `file:line` for a reader who will check it with Grep or Read reads bytes, splits on `\n` and writes with `newline="\n"`. Pin it with a fixture set that holds a CR CR LF, a lone CR, a form feed and an LF-only control, plus a test that the old reader drifts on every fixture but the control: an LF-only fixture passes under every reader.
+- **Category**: pitfall
+- **Home**: comment:plugins/core/skills/session-retrospective/scripts/sweep_user_corrections.py:digest_lines
+- **Enforce-via**: test
+- **Verify-at**: plugins/core/skills/session-retrospective/scripts/test_sweep_user_corrections.py
+- **Scope**: durable
+
+## External Service Quirks
+
+### [2026-10-28] A resumed or compacted session repeats a span of events under the same top-level uuid, and no repeat is byte-identical to its original
+- **Context**: Making the session-retrospective extractor count each event once, checked over 206 real sessions.
+- **Finding**: One of the 206 sessions held 1,423 repeated events (29% of its 4,971 lines) in a single run of consecutive lines, in a session with two compactions: the same `uuid` and message, but a re-stamped `slug` (all 1,423), `gitBranch` (863), `promptId` (326), `toolUseResult` (278) and `cwd` (66), so none equals its original line and a whole-line key finds nothing. Counted as written, the session read 930 tool calls for 608 real ones and 33 user messages for 22, which put it in the deep-dive selection of its folder; the other 205 sessions had no repeat.
+- **Impact**: Read transcript events through `iter_jsonl`, which keeps the first occurrence of each top-level `uuid` per file, and make any new script that counts raw transcript lines do the same. Compare a report with an older one knowing that a replayed session now reads lower, and that a replay can move a session across the deep-dive cap because the rule ranks by `toolUse`.
+- **Category**: external-api
+- **Home**: readme:plugins/core/skills/session-retrospective/references/extractor-output-schema.md
+- **Enforce-via**: test
+- **Verify-at**: plugins/core/skills/session-retrospective/scripts/test_extract_sessions.py
+- **Scope**: durable
+
+### [2026-10-28] The question tool's answer is an operator turn that no typed record carries, and only the record's structure tells it
+- **Context**: Defining one operator-turn predicate for the session-retrospective extractor, measured over 206 real sessions.
+- **Finding**: Besides typed records, the operator's words reach a main transcript as a `queued_command` attachment typed while the model was working (142 in the sample) and as the answer to the question tool (250 results, 358 answers, 74 of them free text the operator typed). An answer record has no `origin`, `turnOrigin`, `promptSource` or `isMeta` key (0 of 250) and its text comes in two harness wordings (181 and 69 results), so neither a stamp nor the wording tells it; only the call (the question tool, paired by tool-use id) plus an `answers` dict in the record's `toolUseResult` does. The old interaction-digest list held 973 operator turns where the new rule lists 1,347, and the header's number (`counts.userMsgs`, which counts injected text) differed from the operator-turn count in 199 of 206 sessions.
+- **Impact**: Identify an operator turn by record structure (a human origin stamp on a user record, a human `queued_command`, an `answers` dict from the question tool), never by wording, `promptSource` or `turnOrigin`, and never read `counts.userMsgs` as how much the operator said.
+- **Category**: external-api
+- **Home**: comment:plugins/core/skills/session-retrospective/scripts/extract_sessions.py:operator_turn_text
+- **Enforce-via**: test
+- **Verify-at**: plugins/core/skills/session-retrospective/scripts/test_extract_sessions.py
+- **Scope**: durable
+
+### [2026-10-28] Hook denials in sub-agent transcripts outnumber the main thread's, so the extractor's per-session count is a floor
+- **Context**: Adding `hookDenials` to the session-retrospective extractor, which counts the harness's `PreToolUse:<Tool> hook error:` prefix on error results.
+- **Finding**: Over 206 real sessions the main-thread count is 347 (the aggregate and an independent scan of the raw files agree), while the sub-agent transcripts of the same sessions hold 569 results with the same prefix: 62% of the 916 sit where the count does not look. A hook that denies by JSON leaves no prefix, so it is in neither number (the schema reference says why).
+- **Impact**: Quote `errorTaxonomy.hookDenials` as "at least N main-thread denials", never as a guard's total or as a rate per tool call; a total needs the same prefix rule run over the `agent-*.jsonl` files.
+- **Category**: external-api
+- **Home**: readme:plugins/core/skills/session-retrospective/references/extractor-output-schema.md
+- **Enforce-via**: test
+- **Verify-at**: plugins/core/skills/session-retrospective/scripts/test_extract_sessions.py
+- **Scope**: durable
