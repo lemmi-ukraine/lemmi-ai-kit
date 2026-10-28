@@ -157,8 +157,10 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
 
 ### `subAgentErrorTaxonomy`
 Same shape and ORIGIN-tool classifier as `errorTaxonomy`, but computed over **sub-agent** transcripts
-(`<id>/subagents/**/*.jsonl` nested under each session, including workflow agents). Sub-agent errors
-were invisible before v3.
+(`<id>/subagents/**/agent-*.jsonl` nested under each session, including workflow agents). A workflow
+run's `journal.jsonl` is its event log, not a transcript, and is not counted (an older extractor
+counted it, so its sub-agent counts read one higher per workflow run). Sub-agent errors were invisible
+before v3.
 
 ```jsonc
 {
@@ -314,6 +316,14 @@ parameter, not a constant.
 - **`--check-file <path>`:** standalone leak gate — runs the same `LEAK_PATTERNS` over ONE file
   (exit 3 on a hit, 0 clean). Used by the SKILL's Phase 6 to gate the draft report; no other
   arguments required in this mode.
+- **Replayed events:** a session that was resumed or compacted can write earlier events into its
+  transcript a second time (the same top-level `uuid` and message, a re-stamped `slug`). The
+  extractor reads each `uuid` once per transcript file, the first occurrence, in the main thread and
+  in sub-agent files alike; a line with no usable `uuid` (state lines, older transcripts) is always
+  read. `counts`, `behavior` and both digests therefore count each event once, so a window that held
+  such a session reads lower than a report built by an older extractor. The number left out is
+  printed once on stderr (`Replayed events: skipped N repeated event(s) in M session(s)`), only when
+  it is above zero and only for sessions in the aggregate; there is no aggregate key for it.
 
 ## Porting the extractor to another repo
 

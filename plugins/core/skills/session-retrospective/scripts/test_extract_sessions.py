@@ -9,7 +9,10 @@ Docker/CI test harness. Run with:
 import inspect
 import json
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -89,6 +92,126 @@ def test_labelled_secrets_are_masked_even_at_exempt_lengths():
     assert forty not in ex.redact(f"API_SECRET: {forty}")
 
 
+# --- Stripe key shapes ------------------------------------------------------------------------
+# A secret or restricted API key (sk_ or rk_, then test or live) and a webhook signing secret
+# (whsec_), each followed by a run of letters and digits, are redacted, and the leak gate that
+# --self-check runs looks for the same shapes in what the extractor wrote, so a miss in the
+# redaction is not silent. The left-boundary guard is the one the sk- patterns carry: without it the
+# tail of an ordinary word that ends in the prefix ("task_test_...", "work_live_...") is redacted,
+# and the redaction silently rewrites real identifiers. The keys are joined from fragments at run
+# time: the repository never holds a contiguous one, only the code that makes one.
+_STRIPE_SHAPES = {
+    "secret-test": ("sk", "test"),
+    "secret-live": ("sk", "live"),
+    "restricted-test": ("rk", "test"),
+    "restricted-live": ("rk", "live"),
+    "webhook-secret": ("whsec",),
+}
+# the start of an ordinary word that ends in each prefix, so that the prefix sits inside a word
+_STRIPE_WORD_LEADS = {"sk": "ta", "rk": "wo", "whsec": "x"}
+_STRIPE_CONTEXTS = (
+    "{key}",
+    "token {key} end",
+    'cfg "{key}"',
+    "KEY_{key}",
+    "line\n{key}\nnext",
+)
+
+
+def _stripe_key(shape, body="q" * 24):
+    return "_".join(_STRIPE_SHAPES[shape]) + "_" + body
+
+
+def test_the_stripe_shapes_are_the_ones_the_tests_state():
+    """The surface in numbers: five shapes, and each prefix has a word it can hide in."""
+    assert len(_STRIPE_SHAPES) == 5
+    assert {parts[0] for parts in _STRIPE_SHAPES.values()} == set(_STRIPE_WORD_LEADS)
+
+
+@pytest.mark.parametrize("shape", sorted(_STRIPE_SHAPES))
+@pytest.mark.parametrize("context", _STRIPE_CONTEXTS)
+def test_a_stripe_key_is_redacted(shape, context):
+    out = ex.redact(context.format(key=_stripe_key(shape)))
+    assert "qqqqqqqq" not in out
+    assert "[REDACTED_KEY]" in out
+
+
+@pytest.mark.parametrize("shape", sorted(_STRIPE_SHAPES))
+@pytest.mark.parametrize("lead", ["letter", "digit"])
+def test_an_ordinary_word_that_contains_the_prefix_is_not_redacted(shape, lead):
+    """The tail of "task_test_..." is part of a word: a letter or a digit before the prefix means
+    it is not the start of a key."""
+    before = _STRIPE_WORD_LEADS[_STRIPE_SHAPES[shape][0]] if lead == "letter" else "7"
+    text = f"see {before}{_stripe_key(shape)} here"
+    assert ex.redact(text) == text
+
+
+@pytest.mark.parametrize("shape", sorted(_STRIPE_SHAPES))
+@pytest.mark.parametrize(
+    "body",
+    ["q" * 8, "checkout_flag_enabled_in_prod"],
+    ids=["short-body", "words-with-underscores"],
+)
+def test_a_prefix_with_no_key_after_it_is_not_redacted(shape, body):
+    text = f"set {_stripe_key(shape, body)} now"
+    assert ex.redact(text) == text
+
+
+@pytest.mark.parametrize("shape", sorted(_STRIPE_SHAPES))
+def test_redacting_a_stripe_key_twice_changes_nothing(shape):
+    once = ex.redact(f"x {_stripe_key(shape)} y")
+    assert "[REDACTED_KEY]" in once
+    assert ex.redact(once) == once
+
+
+@pytest.mark.parametrize("shape", sorted(_STRIPE_SHAPES))
+def test_the_leak_gate_sees_each_stripe_shape_and_the_redacted_text_is_clean(
+    shape, tmp_path
+):
+    key = _stripe_key(shape)
+    path = tmp_path / "digest.md"
+    path.write_text(f"USER: pasted {key} here", encoding="utf-8")
+    assert ex.check_file(path), "the leak gate does not see the shape"
+    path.write_text("USER: " + ex.redact(f"pasted {key} here"), encoding="utf-8")
+    assert ex.check_file(path) == []
+    word = _STRIPE_WORD_LEADS[_STRIPE_SHAPES[shape][0]] + key
+    path.write_text(f"USER: see {word} here", encoding="utf-8")
+    assert ex.check_file(path) == [], "the leak gate flagged an ordinary word"
+
+
+def _stripe_session(sdir, shape):
+    sdir.mkdir()
+    _write_rows(
+        sdir / "aaaa1111-0000-0000-0000-000000000000.jsonl",
+        [_human(f"pasted {_stripe_key(shape)} here", source="typed")],
+    )
+
+
+@pytest.mark.parametrize("shape", sorted(_STRIPE_SHAPES))
+def test_a_stripe_key_in_an_operator_turn_never_reaches_the_digests(
+    shape, tmp_path, monkeypatch
+):
+    _stripe_session(tmp_path / "src", shape)
+    out = tmp_path / "out"
+    agg = _run(tmp_path / "src", out, monkeypatch)  # --self-check: a leak would exit 3
+    digest = next((out / "sessions").glob("*.md")).read_bytes().decode("utf-8")
+    assert "[REDACTED_KEY]" in digest
+    assert "qqqqqqqq" not in digest + json.dumps(agg)
+
+
+@pytest.mark.parametrize("shape", sorted(_STRIPE_SHAPES))
+def test_self_check_stops_the_run_when_the_redaction_misses_a_stripe_key(
+    shape, tmp_path, monkeypatch
+):
+    """Known positive for the test above: with the redactions emptied the key reaches the digest,
+    and the leak gate stops the run with exit status 3, so a miss in the redaction is not silent."""
+    monkeypatch.setattr(ex, "REDACTIONS", [])
+    _stripe_session(tmp_path / "src", shape)
+    with pytest.raises(SystemExit) as stopped:
+        _run(tmp_path / "src", tmp_path / "out", monkeypatch)
+    assert stopped.value.code == 3
+
+
 # --- session-dir auto-derivation (portability) ----------------------------------------------
 def test_encode_repo_path_replaces_separators():
     # "/", "\" and ":" all collapse to "-" — mirrors how Claude Code names ~/.claude/projects/<dir>.
@@ -121,6 +244,263 @@ def test_find_session_dir_returns_none_when_absent(tmp_path):
     base = tmp_path / "projects"
     base.mkdir()
     assert ex._find_session_dir(Path("/no/such/repo"), base) is None
+
+
+# --- the session dir is derived from the working directory ----------------------------------
+# A plugin install places the extractor under the home directory's .claude/ folder, so the old walk
+# up from the script to the first parent that holds a .claude/ folder ended at the HOME directory:
+# the run either found no folder, or, when a session folder for the home directory happened to
+# exist, analysed that corpus and not the project's. The derivation now starts from the working
+# directory, which must be the project root with a session folder of its own, and refuses anything
+# else. The fake home below is built in a temporary folder, so no test touches the real one, and
+# the folder is a short one on purpose: the store names a session folder after the project's whole
+# path, so a path in these tests is about twice as long as the folder it hangs from, and under a
+# deep tmp_path (the wrapper test runs this file below its own) it passes the Windows limit.
+_SESSION_ROW = {
+    "type": "user",
+    "message": {"content": [{"type": "text", "text": "hi"}]},
+}
+
+
+@pytest.fixture
+def short_tmp():
+    folder = Path(tempfile.mkdtemp(prefix="k")).resolve()
+    try:
+        yield folder
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+def _fake_store(home, *directories):
+    """A fake home whose ~/.claude/projects holds one session folder, with a transcript in it,
+    named (by the extractor's own encoding) for each directory given: {directory: its folder}."""
+    projects = home / ".claude" / "projects"
+    projects.mkdir(parents=True)
+    folders = {}
+    for directory in directories:
+        folder = projects / ex._encode_repo_path(directory)
+        folder.mkdir()
+        _write_rows(
+            folder / "s0000001-0000-0000-0000-000000000000.jsonl", [_SESSION_ROW]
+        )
+        folders[directory] = folder
+    return folders
+
+
+def test_the_session_dir_is_the_one_of_the_working_directory(short_tmp):
+    home = short_tmp / "home"
+    project = short_tmp / "work" / "proj"
+    project.mkdir(parents=True)
+    folders = _fake_store(home, home, project)  # the home directory has a folder too
+    found = ex._derive_session_dir(cwd=project, home=home)
+    assert found.samefile(folders[project])
+    assert not found.samefile(folders[home])
+
+
+def test_the_home_directory_is_never_used_silently(short_tmp):
+    home = short_tmp / "home"
+    _fake_store(home, home)  # its session folder exists, and is still not used
+    with pytest.raises(SystemExit) as refused:
+        ex._derive_session_dir(cwd=home, home=home)
+    message = str(refused.value)
+    assert str(home) in message and "home directory" in message
+    assert "first argument" in message
+
+
+def test_a_directory_with_no_session_folder_of_its_own_is_refused(short_tmp):
+    """Below the project root, or beside it under a name that shares its start: the project's
+    folder is there, and is not borrowed."""
+    home = short_tmp / "home"
+    project = short_tmp / "work" / "proj"
+    below = project / "src" / "pkg"
+    beside = short_tmp / "work" / "proj-two"
+    for directory in (below, beside):
+        directory.mkdir(parents=True)
+    _fake_store(home, project)
+    for directory in (below, beside):
+        with pytest.raises(SystemExit) as refused:
+            ex._derive_session_dir(cwd=directory, home=home)
+        message = str(refused.value)
+        assert str(directory) in message and "no session folder" in message
+        assert "first argument" in message
+
+
+# Every test above puts the project BESIDE the fake home, and most real projects sit BELOW the home
+# directory (it holds the folders the repositories are cloned into). The layout needs tests of its
+# own, because in none of the tests above is the home an ancestor of the working directory. Without
+# them, a rule that reads any directory under the home as the home passes all of the above while it
+# refuses every real project, and a fallback that hands a directory below the home the home's own
+# folder passes all of it as well.
+def test_a_project_below_the_home_directory_is_derived(short_tmp):
+    home = short_tmp / "home"
+    project = home / "work" / "proj"
+    project.mkdir(parents=True)
+    folders = _fake_store(home, home, project)  # the home directory has a folder too
+    found = ex._derive_session_dir(cwd=project, home=home)
+    assert found.samefile(folders[project])
+    assert not found.samefile(folders[home])
+
+
+def test_a_directory_below_the_home_with_no_folder_of_its_own_is_refused(short_tmp):
+    """The home's folder is there, and is not borrowed for a directory below the home."""
+    home = short_tmp / "home"
+    below = home / "work" / "proj"
+    below.mkdir(parents=True)
+    _fake_store(home, home)
+    with pytest.raises(SystemExit) as refused:
+        ex._derive_session_dir(cwd=below, home=home)
+    message = str(refused.value)
+    assert str(below) in message and "no session folder" in message
+    assert "first argument" in message
+
+
+# The home directory is recognised by identity and not by how it is spelled, and a path that is not
+# there cannot be asked for its identity. In every test above the working directory is either the
+# home, spelled as the home is spelled, or another directory, and every path exists, so a home test
+# that compares the two as written passes them all, and so does one that raises on a missing path.
+# The first lets the home under another spelling use the home's own folder silently (another
+# letter case on a case-insensitive file system would, as the folder lookup ignores case); the
+# second turns a home that is not there into a crash, where the contract is a refusal that asks
+# for the session dir. A `..` step stands for the other spelling: it differs from the home as a
+# path on every system, which a letter case does not on Windows, and it needs no privilege to
+# build, which a link may.
+def test_another_spelling_of_the_same_directory_is_the_same_directory(short_tmp):
+    (short_tmp / "a").mkdir()
+    spelled = short_tmp / "a" / ".."
+    assert spelled != short_tmp, "the premise: the two spellings differ as paths"
+    assert ex._is_same_dir(spelled, short_tmp)
+    assert ex._is_same_dir(short_tmp, spelled)
+    assert not ex._is_same_dir(short_tmp / "a", short_tmp), "a child is not its parent"
+
+
+def test_a_path_that_is_not_there_is_compared_as_written(short_tmp):
+    assert ex._is_same_dir(short_tmp / "nope", short_tmp / "nope")
+    assert not ex._is_same_dir(short_tmp / "nope", short_tmp / "other")
+    assert not ex._is_same_dir(short_tmp / "nope", short_tmp)
+
+
+def test_the_home_directory_spelled_another_way_is_never_used_silently(short_tmp):
+    home = short_tmp / "home"
+    _fake_store(home, home)  # its session folder exists, and is still not used
+    (home / "work").mkdir()
+    spelled = home / "work" / ".."
+    with pytest.raises(SystemExit) as refused:
+        ex._derive_session_dir(cwd=spelled, home=home)
+    message = str(refused.value)
+    assert str(spelled) in message and "home directory" in message
+    assert "first argument" in message
+
+
+def test_a_home_that_is_not_there_is_a_refusal_and_not_a_crash(short_tmp):
+    project = short_tmp / "work" / "proj"
+    project.mkdir(parents=True)
+    with pytest.raises(SystemExit) as refused:
+        ex._derive_session_dir(cwd=project, home=short_tmp / "no-home")
+    message = str(refused.value)
+    assert str(project) in message and "no session folder" in message
+    assert "first argument" in message
+
+
+def test_an_explicit_session_dir_never_calls_the_derivation(tmp_path, monkeypatch):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("an explicit session dir must not start the derivation")
+
+    monkeypatch.setattr(ex, "_derive_session_dir", forbidden)
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    _write_rows(sdir / "aaaa1111-0000-0000-0000-000000000000.jsonl", [_SESSION_ROW])
+    agg = _run(sdir, tmp_path / "out", monkeypatch)
+    assert agg["generatedFor"]["sessionDir"] == str(sdir)
+
+
+def _run_installed_copy(home, cwd, *args):
+    """The extractor as an installed plugin runs it: a copy of the script under the home
+    directory's plugin cache, started in `cwd`, with `home` as the home directory."""
+    cache = home / ".claude" / "plugins" / "cache" / "kit" / "scripts"
+    cache.mkdir(parents=True, exist_ok=True)
+    script = cache / "extract_sessions.py"
+    shutil.copyfile(ex.__file__, script)
+    env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home)}
+    return subprocess.run(
+        [sys.executable, "-B", str(script), *args],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=120,
+        check=False,
+    )
+
+
+def _fake_home_and_project(short_tmp):
+    """The paths of a fake home and a project root beside it, both created."""
+    home = short_tmp / "home"
+    project = short_tmp / "work" / "proj"
+    home.mkdir()
+    project.mkdir(parents=True)
+    return home, project
+
+
+@pytest.mark.parametrize(
+    "home_has_a_folder", [False, True], ids=["no-folder-for-home", "folder-for-home"]
+)
+def test_an_installed_copy_derives_the_folder_of_the_project_it_runs_in(
+    home_has_a_folder, short_tmp
+):
+    home, project = _fake_home_and_project(short_tmp)
+    folders = _fake_store(home, project, *([home] if home_has_a_folder else []))
+    done = _run_installed_copy(home, project, "out")
+    assert done.returncode == 0, done.stderr
+    agg = json.loads((project / "out" / "aggregate.json").read_text(encoding="utf-8"))
+    assert Path(agg["generatedFor"]["sessionDir"]).samefile(folders[project])
+    assert agg["stats"]["totalSessions"] == 1
+
+
+@pytest.mark.parametrize(
+    "home_has_a_folder", [False, True], ids=["no-folder-for-home", "folder-for-home"]
+)
+def test_an_installed_copy_derives_the_folder_of_a_project_below_the_home_directory(
+    home_has_a_folder, short_tmp
+):
+    """The layout of a real install: the plugin cache and the project are both below the home."""
+    home = short_tmp / "home"
+    project = home / "work" / "proj"
+    project.mkdir(parents=True)
+    folders = _fake_store(home, project, *([home] if home_has_a_folder else []))
+    done = _run_installed_copy(home, project, "out")
+    assert done.returncode == 0, done.stderr
+    agg = json.loads((project / "out" / "aggregate.json").read_text(encoding="utf-8"))
+    assert Path(agg["generatedFor"]["sessionDir"]).samefile(folders[project])
+    assert agg["stats"]["totalSessions"] == 1
+
+
+@pytest.mark.parametrize("where", ["home", "below-the-root", "no-folder"])
+def test_an_installed_copy_refuses_and_asks_for_the_session_dir(where, short_tmp):
+    home, project = _fake_home_and_project(short_tmp)
+    below = project / "src"
+    elsewhere = short_tmp / "elsewhere"
+    below.mkdir()
+    elsewhere.mkdir()
+    _fake_store(home, home, project)
+    cwd = {"home": home, "below-the-root": below, "no-folder": elsewhere}[where]
+    done = _run_installed_copy(home, cwd, "out")
+    assert done.returncode == 1, (done.returncode, done.stderr)
+    assert "first argument" in done.stderr and str(cwd) in done.stderr
+    assert not (cwd / "out").exists(), "nothing is written when the run is refused"
+
+
+def test_the_help_and_the_docstring_say_the_working_directory_decides(
+    monkeypatch, capsys
+):
+    monkeypatch.setattr(sys, "argv", ["extract_sessions.py", "--help"])
+    with pytest.raises(SystemExit):
+        ex.main()
+    helptext = " ".join(capsys.readouterr().out.split())
+    doc = " ".join((ex.__doc__ or "").split())
+    assert "working directory" in helptext and "working directory" in doc
+    assert "auto-derived from the repo root" not in helptext
+    assert "auto-derived from this script's location" not in doc
 
 
 # --- error classification by ORIGIN tool ----------------------------------------------------
@@ -2896,3 +3276,544 @@ def test_the_report_template_says_a_helper_digest_cannot_show_a_structured_resul
     section = flat.split("### Sub-Agent Deep-Dive")[1].split("## ")[0]
     assert "sub-agent digest cannot show a structured returned result" in section
     assert "PER_MESSAGE_TEXT_CAP" in section
+
+
+# --- replayed events ------------------------------------------------------------------------
+# A session that was resumed or compacted can write earlier events into its transcript a second
+# time. A repeat has the same top-level uuid, message, parent and timestamp as the original and a
+# re-stamped slug, so it is not the same line byte for byte, and counted as written every tool call
+# in the replayed span counts twice. iter_jsonl keys on the uuid alone, keeps the first occurrence
+# and lets a line with no usable uuid through. The fixture has the shape of a real replay (the
+# whole earlier span once more, in order, after the events that followed it) and the traps a wrong
+# key falls into: two lines that share a message id (one API message is written as several lines,
+# each with its own uuid), two turns with the same text and different uuids, a request blob that
+# re-carries a tool call, and state lines that carry no uuid at all.
+def _event(row, uuid, parent, message_id=None, **extra):
+    event = {**row, "uuid": uuid, "parentUuid": parent, **extra}
+    if message_id:
+        event["message"] = {**row["message"], "id": message_id}
+    return event
+
+
+_REPLAYED_SPAN = [
+    _event({"type": "user", "message": {"content": "run"}}, "u1", None),
+    _event(_tool_call("t1", "Bash", "pytest"), "a1", "u1", "m1"),
+    _event(_tool_result("t1", "Exit code 1 FAILED", is_error=True), "u2", "a1"),
+]
+_THINKING_TURN = {
+    "type": "assistant",
+    "message": {"content": [{"type": "thinking", "thinking": "x"}]},
+}
+_REQUEST_BLOB = {
+    "type": "api-request-blob",
+    "hash": "h",
+    "message": {
+        "content": [{"type": "tool_use", "id": "t2", "name": "Read", "input": {}}]
+    },
+}
+_YES = {"type": "user", "message": {"content": "yes"}}
+
+
+def _replay_rows():
+    """Twelve rows: a state line, the span, four more events and a request blob, the span again."""
+    return [
+        {"type": "ai-title", "aiTitle": "t"},
+        *_REPLAYED_SPAN,
+        _event(_THINKING_TURN, "a2", "u2", "m2"),
+        _event(
+            _tool_call_with_input("t2", "Read", {"file_path": "a.py"}), "a3", "a2", "m2"
+        ),
+        _REQUEST_BLOB,
+        _event(_YES, "u3", "a3"),
+        _event(_YES, "u4", "u3"),
+        *[{**row, "slug": "s"} for row in _REPLAYED_SPAN],
+    ]
+
+
+def _stamped(rows):
+    """`rows` with a timestamp on each event, in file order. A repeat keeps the stamp of the event
+    it repeats, as real replays do, so the stamps run backwards where the replay begins."""
+    stamps = {}
+    stamped = []
+    for i, row in enumerate(rows):
+        if "uuid" not in row:
+            stamped.append(row)
+            continue
+        stamp = stamps.setdefault(row["uuid"], f"2026-06-20T10:00:{i:02d}Z")
+        stamped.append({**row, "timestamp": stamp})
+    return stamped
+
+
+def _process(tmp_path, rows, name="replay", replays=None):
+    """process_session over `rows`, written as <name>.jsonl; the session it returns."""
+    path = _write_rows(tmp_path / f"{name}.jsonl", rows)
+    sessions = tmp_path / "sessions"
+    sessions.mkdir(exist_ok=True)
+    args = () if replays is None else (replays,)
+    return ex.process_session(path, sessions, *args)[0]
+
+
+def test_the_replay_fixture_is_the_shape_the_tests_state():
+    """The surface in numbers: twelve rows, ten of them events with a uuid, seven distinct uuids
+    (so three repeats), and two rows with none: the state line and the request blob."""
+    rows = _replay_rows()
+    uuids = [row["uuid"] for row in rows if "uuid" in row]
+    assert (len(rows), len(uuids), len(set(uuids))) == (12, 10, 7)
+    without = [row["type"] for row in rows if "uuid" not in row]
+    assert without == ["ai-title", "api-request-blob"]
+    assert [row["slug"] for row in rows if "slug" in row] == ["s"] * 3
+
+
+def test_a_replayed_span_counts_each_tool_call_once(tmp_path):
+    sess = _process(tmp_path, _replay_rows())
+    # the replayed "run" is not a fourth user message, and the second "yes" is a third
+    assert sess["counts"] == {
+        "userMsgs": 3,
+        "assistantMsgs": 3,
+        "toolUse": 2,
+        "toolResult": 1,
+        "thinking": 1,
+    }
+    assert sess["toolsUsed"] == {"Bash": 1, "Read": 1}
+    assert sess["errorsByCategory"] == {"test-failure": 1}
+    assert sess["behavior"]["repeatedCommands"] == []
+    assert sess["behavior"]["buildTestLoops"] == []
+
+
+def test_two_turns_with_the_same_text_and_different_uuids_are_both_kept(tmp_path):
+    """A key on the message text would fold the second "yes" into the first. Real transcripts hold
+    many such pairs, and here the replay of the first one is the only repeat."""
+    rows = [
+        _event(_YES, "u3", None),
+        _event(_YES, "u4", "u3"),
+        _event(_YES, "u3", None, slug="s"),
+    ]
+    assert _process(tmp_path, rows)["counts"]["userMsgs"] == 2
+
+
+def test_events_that_share_a_message_id_are_each_kept(tmp_path):
+    """One API message is written as several lines, each with its own uuid. A key on the message id
+    would keep the first and lose the tool call the second one carries."""
+    call = _tool_call_with_input("t2", "Read", {"file_path": "a.py"})
+    rows = [
+        _event(_THINKING_TURN, "a2", None, "m2"),
+        _event(call, "a3", "a2", "m2"),
+        _event(_THINKING_TURN, "a2", None, "m2", slug="s"),
+    ]
+    counts = _process(tmp_path, rows)["counts"]
+    assert (counts["assistantMsgs"], counts["thinking"], counts["toolUse"]) == (2, 1, 1)
+
+
+@pytest.mark.parametrize(
+    "unusable",
+    [
+        {},
+        {"uuid": None},
+        {"uuid": ""},
+        {"uuid": 7},
+        {"uuid": ["x"]},
+        {"uuid": {"k": 1}},
+    ],
+    ids=["absent", "null", "empty", "number", "list", "object"],
+)
+def test_lines_without_a_usable_uuid_are_each_kept(unusable, tmp_path):
+    """State lines carry no uuid, and neither do the rows of an older transcript. Two such lines
+    that read alike are two events, never folded into one, and an id that cannot be a dict key (a
+    list) must not stop the run."""
+    row = {**_tool_call("t9", "Bash", "make"), **unusable}
+    sess = _process(
+        tmp_path, [row, row, {"type": "user", "message": {"content": "go"}}]
+    )
+    assert sess["counts"]["toolUse"] == 2
+
+
+def test_iter_jsonl_yields_each_event_once_and_keeps_the_first_occurrence(tmp_path):
+    path = _write_rows(
+        tmp_path / "t.jsonl",
+        [
+            {"type": "user", "uuid": "u1", "cwd": "first"},
+            {"type": "user", "uuid": "u2"},
+            {"type": "user", "uuid": "u1", "cwd": "second", "slug": "s"},
+        ],
+    )
+    events = list(ex.iter_jsonl(path))
+    assert [e["uuid"] for e in events] == ["u1", "u2"]
+    assert events[0]["cwd"] == "first"
+
+
+def test_iter_jsonl_reports_the_uuid_of_each_repeat_it_leaves_out(tmp_path):
+    path = _write_rows(tmp_path / "t.jsonl", _replay_rows())
+    left_out = []
+    assert len(list(ex.iter_jsonl(path, left_out))) == 9
+    assert left_out == ["u1", "a1", "u2"]
+    # each call remembers only its own file: the same read again finds the same nine
+    assert len(list(ex.iter_jsonl(path))) == 9
+
+
+def test_a_replayed_operator_turn_is_listed_once(tmp_path):
+    rows = [
+        _human("first typed message", source="typed", uuid="u1"),
+        _human("first typed message", source="typed", uuid="u2"),
+        _human("first typed message", source="typed", uuid="u1", slug="s"),
+    ]
+    assert _operator_turns_of(tmp_path, rows) == ["first typed message"] * 2
+
+
+def test_a_replayed_session_digest_holds_each_turn_and_call_once(tmp_path):
+    _, lines = _digest_lines_of(tmp_path, _replay_rows())
+    users = [ln for ln in lines if ln.startswith("USER: ")]
+    assert users == ["USER: run", "USER: yes", "USER: yes"]
+    assert lines.count("  [Bash] pytest") == 1
+
+
+def test_a_replay_in_a_subagent_transcript_is_counted_once(tmp_path):
+    path = _write_rows(tmp_path / "agent-r.jsonl", _replay_rows())
+    text, msgs, errs, _ = ex.render_subagent(path)
+    assert msgs == 7  # u1 a1 u2 a2 a3 u3 u4, once each
+    assert errs == {"test-failure": 1}
+    assert text.split("\n").count("  [Bash] pytest") == 1
+
+
+def test_process_session_reports_the_repeats_it_left_out_by_session(tmp_path):
+    replays = {}
+    _process(tmp_path, _replay_rows(), replays=replays)
+    assert replays == {"replay": 3}
+    # a session with no repeat leaves no entry
+    _process(tmp_path, _replay_rows()[:9], name="plain", replays=replays)
+    assert replays == {"replay": 3}
+    # a helper's repeats join the entry of the session that ran it
+    helpers = tmp_path / "replay" / "subagents"
+    helpers.mkdir(parents=True)
+    _write_rows(helpers / "agent-r.jsonl", _replay_rows())
+    replays.clear()
+    _process(tmp_path, _replay_rows(), replays=replays)
+    assert replays == {"replay": 6}
+
+
+def test_a_replay_only_in_a_helper_transcript_is_reported_for_its_session(tmp_path):
+    """The test above gives the main transcript a replay as well as the helper's. Here only the
+    helper's replays, so an entry made only when the main transcript repeats, or one counted
+    before the helpers are read, never sees the session."""
+    helpers = tmp_path / "replay" / "subagents"
+    helpers.mkdir(parents=True)
+    helper = _write_rows(helpers / "agent-r.jsonl", _replay_rows()[:9])
+    replays = {}
+    _process(tmp_path, _replay_rows()[:9], replays=replays)
+    assert replays == {}  # known negative: the helper repeats nothing either
+    _write_rows(helper, _replay_rows())
+    _process(tmp_path, _replay_rows()[:9], replays=replays)
+    assert replays == {"replay": 3}
+
+
+def _replay_lines(captured):
+    return [ln for ln in captured.err.splitlines() if ln.startswith("Replayed events")]
+
+
+def test_the_replays_left_out_are_reported_once_on_stderr(
+    tmp_path, monkeypatch, capsys
+):
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    replayed, other, plain = (
+        f"{head}-0000-0000-0000-000000000000"
+        for head in ("aaaa1111", "bbbb2222", "cccc3333")
+    )
+    _write_rows(sdir / f"{replayed}.jsonl", _replay_rows())
+    helpers = sdir / replayed / "subagents"
+    helpers.mkdir(parents=True)
+    _write_rows(helpers / "agent-r.jsonl", _replay_rows())
+    _write_rows(sdir / f"{other}.jsonl", _replay_rows())
+    _write_rows(sdir / f"{plain}.jsonl", _replay_rows()[:9])
+    _run(sdir, tmp_path / "out", monkeypatch)
+    lines = _replay_lines(capsys.readouterr())
+    # three in the main transcript and three in the helper's, all in one session, and three in another
+    assert len(lines) == 1, lines
+    assert "9 repeated event(s)" in lines[0] and "2 session(s)" in lines[0], lines[0]
+
+
+def test_a_replay_only_in_a_helper_transcript_is_reported_on_stderr(
+    tmp_path, monkeypatch, capsys
+):
+    """The line is for the repeats of a whole session. A session whose own transcript repeats
+    nothing is still reported when a helper's does, and not otherwise."""
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    sid = "aaaa1111-0000-0000-0000-000000000000"
+    _write_rows(sdir / f"{sid}.jsonl", _replay_rows()[:9])
+    helper = sdir / sid / "subagents" / "agent-r.jsonl"
+    helper.parent.mkdir(parents=True)
+    _write_rows(helper, _replay_rows()[:9])
+    _run(sdir, tmp_path / "out", monkeypatch)
+    # known negative: nothing repeats anywhere, so nothing is reported
+    assert _replay_lines(capsys.readouterr()) == []
+    _write_rows(helper, _replay_rows())
+    _run(sdir, tmp_path / "again", monkeypatch)
+    lines = _replay_lines(capsys.readouterr())
+    assert len(lines) == 1, lines
+    assert "3 repeated event(s)" in lines[0] and "1 session(s)" in lines[0], lines[0]
+
+
+def test_nothing_is_reported_when_nothing_was_replayed(tmp_path, monkeypatch, capsys):
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    transcript = sdir / "aaaa1111-0000-0000-0000-000000000000.jsonl"
+    _write_rows(transcript, _replay_rows()[:9])
+    _run(sdir, tmp_path / "out", monkeypatch)
+    assert _replay_lines(capsys.readouterr()) == []
+    # known positive: the same session with the replay put back is reported
+    _write_rows(transcript, _replay_rows())
+    _run(sdir, tmp_path / "again", monkeypatch)
+    assert len(_replay_lines(capsys.readouterr())) == 1
+
+
+def test_a_replay_in_a_session_the_aggregate_leaves_out_is_not_reported(
+    tmp_path, monkeypatch, capsys
+):
+    """The line sits beside the aggregate's counts and explains them, so it counts the sessions
+    that reached the aggregate: this one has no real user message and is dropped."""
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    dropped = [
+        _event(_THINKING_TURN, "a2", None, "m2"),
+        _event(_THINKING_TURN, "a2", None, "m2", slug="s"),
+    ]
+    _write_rows(sdir / "aaaa1111-0000-0000-0000-000000000000.jsonl", dropped)
+    agg = _run(sdir, tmp_path / "out", monkeypatch)
+    assert agg["sessions"] == []
+    assert _replay_lines(capsys.readouterr()) == []
+
+
+def test_the_aggregate_has_no_key_for_replays(tmp_path, monkeypatch):
+    """The number is for stderr: a key in the aggregate would change the schema for a count that a
+    run reports once. The same session without its replay shows the same keys."""
+    name = "aaaa1111-0000-0000-0000-000000000000.jsonl"
+    keys = {}
+    for label, rows in (("with", _replay_rows()), ("without", _replay_rows()[:9])):
+        sdir = tmp_path / f"src-{label}"
+        sdir.mkdir()
+        _write_rows(sdir / name, rows)
+        keys[label] = _run(sdir, tmp_path / f"out-{label}", monkeypatch)
+    agg = keys["with"]
+    assert set(agg) == set(ex.SCHEMA_KEYS["top"])
+    assert [set(s) for s in agg["sessions"]] == [set(ex.SCHEMA_KEYS["session"])]
+    for part in ("stats", "errorTaxonomy", "subAgentErrorTaxonomy"):
+        assert set(agg[part]) == set(keys["without"][part]), part
+    assert "replay" not in json.dumps(agg).lower()
+
+
+def test_the_prescan_still_reads_a_replayed_transcript(tmp_path, monkeypatch, capsys):
+    """The pre-scan reads timestamps off the raw lines and never goes through iter_jsonl, and a
+    repeat carries the original's timestamp: a window around the session keeps it, counted once,
+    and a window after it skips it before it is parsed, so nothing is reported for it."""
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    _write_rows(
+        sdir / "aaaa1111-0000-0000-0000-000000000000.jsonl", _stamped(_replay_rows())
+    )
+
+    def run(label, *window):
+        out = tmp_path / label
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "extract_sessions.py",
+                str(sdir),
+                _relative_out(monkeypatch, out),
+                *window,
+            ],
+        )
+        ex.main()
+        agg = json.loads((out / "aggregate.json").read_text(encoding="utf-8"))
+        return agg, capsys.readouterr()
+
+    agg, captured = run("inside", "--since", "2026-06-20", "--until", "2026-06-20")
+    assert [s["counts"]["toolUse"] for s in agg["sessions"]] == [2]
+    assert len(_replay_lines(captured)) == 1
+    assert "Pre-scan skipped 0" in captured.err
+
+    agg, captured = run("after", "--since", "2026-06-25")
+    assert agg["sessions"] == []
+    assert "Pre-scan skipped 1" in captured.err
+    assert _replay_lines(captured) == []
+
+
+def test_the_interaction_digest_counts_a_replayed_turn_once(tmp_path, monkeypatch):
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    sid = "rp000001-0000-0000-0000-000000000000"
+    _write_rows(sdir / f"{sid}.jsonl", _replay_rows())
+    out = tmp_path / "out"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "extract_sessions.py",
+            str(sdir),
+            _relative_out(monkeypatch, out),
+            "--session",
+            sid[:8],
+            "--digest",
+        ],
+    )
+    ex.main()
+    digest = (out / "interaction-digest.md").read_text(encoding="utf-8")
+    assert _listed(digest) == ["run", "yes", "yes"]
+    assert "- Volume: 3 operator turns," in digest
+
+
+# --- sub-agent files ------------------------------------------------------------------------
+# A session folder has three siblings: subagents/, workflows/ and tool-results/, and every .jsonl
+# file of the folder lives under subagents/. A helper's transcript is agent-<id>.jsonl, directly
+# under it or under workflows/wf_<run>/. Each workflow run also leaves one journal.jsonl beside
+# its agents: the run's event log (no message, no uuid), which is not a transcript, so counting it
+# made every workflow run one helper too many. A sidecar (agent-<id>.meta.json) is not a filter
+# either: real agent transcripts exist without one.
+_SUBAGENT_SIDECARS = {  # path under subagents/ -> the sidecar's agentType, None for no sidecar
+    "agent-a1.jsonl": "general-purpose",
+    "agent-a2.jsonl": None,
+    "workflows/wf_r1/agent-a3.jsonl": "workflow-subagent",
+    "workflows/wf_r1/agent-a4.jsonl": "workflow-subagent",
+    "workflows/wf_r2/agent-a5.jsonl": "workflow-subagent",
+}
+_JOURNALS = ("workflows/wf_r1/journal.jsonl", "workflows/wf_r2/journal.jsonl")
+# the siblings of subagents/ that hold no transcript at all (paths under the session folder)
+_RUN_FILES = (
+    "workflows/wf_r1.json",
+    "workflows/scripts/demo-wf_r1.js",
+    "tool-results/toolu_1.txt",
+)
+
+
+def _journal_rows():
+    """A run's event log, longer than any agent transcript here: launched, started, then results."""
+    return [
+        {"event": "launched", "run": "r1"},
+        {"event": "started", "agentId": "a3"},
+        *({"event": "result", "agentId": "a3", "step": i} for i in range(40)),
+    ]
+
+
+def _subagent_layout(tmp_path):
+    """One session that ran two plain helpers and two workflow runs, laid out as the harness does.
+    Returns the source dir, the session id and the paths of the five agent transcripts."""
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    sid = "sa000001-0000-0000-0000-000000000000"
+    _write_rows(sdir / f"{sid}.jsonl", _minimal_session_rows())
+    root = sdir / sid
+    agents = []
+    for rel, agent_type in _SUBAGENT_SIDECARS.items():
+        path = root / "subagents" / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _write_rows(
+            path,
+            [
+                {"type": "user", "message": {"content": [_text("do the task")]}},
+                {"type": "assistant", "message": {"content": [_text("done")]}},
+            ],
+        )
+        if agent_type:
+            path.with_suffix(".meta.json").write_text(
+                json.dumps({"agentType": agent_type, "description": "a helper"}),
+                encoding="utf-8",
+            )
+        agents.append(path)
+    for rel in _JOURNALS:
+        _write_rows(root / "subagents" / rel, _journal_rows())
+    for rel in _RUN_FILES:
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}", encoding="utf-8")
+    return sdir, sid, agents
+
+
+def test_only_agent_transcripts_are_sub_agents(tmp_path, monkeypatch):
+    sdir, sid, agents = _subagent_layout(tmp_path)
+    journals = [sdir / sid / "subagents" / rel for rel in _JOURNALS]
+    assert min(j.stat().st_size for j in journals) > max(
+        a.stat().st_size for a in agents
+    ), "the journals must be the largest files, or a count that took them would hide it"
+    agg = _run(sdir, tmp_path / "out", monkeypatch)
+    sub = agg["sessions"][0]["subAgents"]
+    assert sub["count"] == len(_SUBAGENT_SIDECARS) == 5
+    assert sub["bytes"] == sum(a.stat().st_size for a in agents)
+    assert sub["msgs"] == 10  # a user turn and an assistant turn in each of the five
+    # the agent with no sidecar is still an agent, typed "?"
+    assert sorted(a["type"] for a in sub["agents"]) == [
+        "?",
+        "general-purpose",
+        "workflow-subagent",
+        "workflow-subagent",
+        "workflow-subagent",
+    ]
+    assert agg["stats"]["subAgent"]["files"] == 5
+    assert agg["subAgentErrorTaxonomy"]["totalAgents"] == 5
+    # a journal among the largest files would also have been emitted as a high-signal digest
+    assert sub["highSignal"] and all(
+        "journal" not in h["file"] for h in sub["highSignal"]
+    )
+
+
+def _write_rows_deep(path, rows):
+    """_write_rows for a path whose folders do not exist yet."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return _write_rows(path, rows)
+
+
+def test_a_run_folder_with_only_a_journal_counts_no_sub_agent(tmp_path):
+    sid = "sa000002-0000-0000-0000-000000000000"
+    _write_rows(tmp_path / f"{sid}.jsonl", _minimal_session_rows())
+    _write_rows_deep(
+        tmp_path / sid / "subagents" / "workflows" / "wf_r1" / "journal.jsonl",
+        _journal_rows(),
+    )
+    (tmp_path / "sessions").mkdir()
+    sess = ex.process_session(tmp_path / f"{sid}.jsonl", tmp_path / "sessions")[0]
+    sub = sess["subAgents"]
+    assert (sub["count"], sub["bytes"], sub["msgs"]) == (0, 0, 0)
+    assert sub["agents"] == [] and sub["highSignal"] == []
+    assert not (tmp_path / "sessions" / "sub").exists()
+
+
+@pytest.mark.parametrize(
+    ("name", "counted"),
+    [
+        ("agent-x.jsonl", True),
+        ("agent-1.jsonl", True),
+        ("agent-07.jsonl", True),
+        ("agent-a0123456789abcdef.jsonl", True),
+        ("journal.jsonl", False),
+        ("notes.jsonl", False),
+        ("agent.jsonl", False),
+        ("agents.jsonl", False),
+        ("agent-x.meta.json", False),
+        ("agent-x.jsonl.bak", False),
+    ],
+)
+def test_the_file_name_decides_what_a_sub_agent_is(name, counted, tmp_path):
+    sid = "sa000003-0000-0000-0000-000000000000"
+    _write_rows(tmp_path / f"{sid}.jsonl", _minimal_session_rows())
+    _write_rows_deep(
+        tmp_path / sid / "subagents" / name,
+        [{"type": "user", "message": {"content": [_text("do the task")]}}],
+    )
+    (tmp_path / "sessions").mkdir()
+    sess = ex.process_session(tmp_path / f"{sid}.jsonl", tmp_path / "sessions")[0]
+    assert sess["subAgents"]["count"] == (1 if counted else 0)
+
+
+_SCHEMA_REFERENCE = (
+    Path(__file__).resolve().parent.parent / "references" / "extractor-output-schema.md"
+)
+
+
+def test_the_docstring_and_the_schema_reference_describe_the_sub_agent_file_pattern():
+    flat = " ".join(_SCHEMA_REFERENCE.read_text(encoding="utf-8").split())
+    assert "<id>/subagents/**/*.jsonl" not in flat, (
+        "the reference still says every .jsonl"
+    )
+    assert f"`<id>/subagents/**/{ex.SUBAGENT_GLOB}`" in flat
+    assert "journal.jsonl" in flat
+    doc = " ".join(inspect.getdoc(ex.walk_subagents).split())
+    assert ex.SUBAGENT_GLOB in doc and "journal.jsonl" in doc

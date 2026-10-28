@@ -14,16 +14,23 @@ Design (see references/extractor-output-schema.md):
     substring-on-content false-positive class — do NOT reintroduce substring matching on it.
   * Secret redaction is applied to every emitted string; --self-check greps outputs with the
     same high-confidence patterns to prove nothing leaked.
+  * Each event is counted once: a resumed or compacted session can write earlier events into its
+    transcript again, and iter_jsonl keeps the first occurrence of each uuid (a run that left any
+    out says how many on stderr).
   * Robust: streams line by line, guards malformed lines / huge files / unknown types, skips
     sessions with zero real user messages, never aborts the whole run on one bad file.
 
 Usage:
   python extract_sessions.py [<session-dir>] <output-dir> [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--self-check]
 
-<session-dir> is OPTIONAL — when omitted it is auto-derived from this script's location plus
+<session-dir> is OPTIONAL — when omitted it is derived from the working directory plus
 ~/.claude/projects/ (see _derive_session_dir), so the skill works for any engineer on any machine
-without a hardcoded path. Pass it explicitly only to override (e.g. a personal-scope install where
-the skill is not inside the project's .claude/). <output-dir> MUST be repo-relative
+without a hardcoded path. The working directory must be the project root, the directory Claude
+Code was launched in, and that project must have a session folder of its own. The script's own
+location says nothing about the project (an installed plugin sits under the home directory's
+.claude/), so it is not used. From anywhere else (a subdirectory, the home directory, a folder
+Claude Code never ran in) the run is refused and <session-dir> is required as the first argument:
+no corpus is ever guessed. <output-dir> MUST be repo-relative
 (e.g. .ai/tmp/retro/), never the system /tmp (shells and platforms resolve /tmp inconsistently).
 """
 
@@ -132,6 +139,11 @@ REPEAT_CMD_THRESHOLD = 2
 # can't explode the output; emitted-vs-total is logged (no silent truncation).
 SUBAGENT_TOP_BYTES_EMIT = 2
 MAX_SUBAGENT_EMIT_PER_SESSION = 8
+# A helper's transcript is agent-<id>.jsonl, directly under <session>/subagents/ or under
+# <session>/subagents/workflows/wf_<run>/. Nothing else under subagents/ is one: each workflow run
+# leaves a journal.jsonl there too, the run's event log (no message, no uuid). The sidecar
+# agent-<id>.meta.json is NOT part of the test, because real agent transcripts exist without one.
+SUBAGENT_GLOB = "agent-*.jsonl"
 
 # Deep-dive candidate selection (v4, C-1): the Phase-3/3b ranking used to be done by the model
 # (LLM arithmetic/sorting is a known error class; the 06-22 run hand-wrote an ad-hoc script for
@@ -181,6 +193,15 @@ REDACTIONS = [
     # below, deliberately as an exact-literal allow-list rather than a further regex relaxation.
     (re.compile(r"(?<![A-Za-z0-9])sk-ant-[A-Za-z0-9_\-]{12,}"), "[REDACTED_KEY]"),
     (re.compile(r"(?<![A-Za-z0-9])sk-[A-Za-z0-9_\-]{16,}"), "[REDACTED_KEY]"),
+    # Stripe: secret and restricted API keys (sk_ or rk_, then test or live) and webhook signing
+    # secrets (whsec_), then a run of letters and digits. Stripe keys hold nothing else, so the
+    # class is narrower than the sk- one: with `_` in it, an identifier such as
+    # `sk_live_flag_enabled_in_checkout` would be redacted whole. Same left-boundary guard as the
+    # sk- patterns, for the same reason: "ta|sk_test_..." is the tail of a word, not a key.
+    (
+        re.compile(r"(?<![A-Za-z0-9])(?:[sr]k_(?:test|live)|whsec)_[A-Za-z0-9]{16,}"),
+        "[REDACTED_KEY]",
+    ),
     (
         re.compile(r"eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{6,}"),
         "[REDACTED_JWT]",
@@ -219,6 +240,7 @@ REDACTIONS = [
 # High-confidence shapes whose presence in OUTPUT means a redaction miss (used by --self-check).
 LEAK_PATTERNS = [
     re.compile(r"(?<![A-Za-z0-9])sk-[A-Za-z0-9_\-]{16,}"),
+    re.compile(r"(?<![A-Za-z0-9])(?:[sr]k_(?:test|live)|whsec)_[A-Za-z0-9]{16,}"),
     re.compile(r"eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{6,}"),
     re.compile(r"AIza[A-Za-z0-9_\-]{20,}"),
     re.compile(r"AKIA[A-Z0-9]{12,}"),
@@ -555,8 +577,22 @@ def tool_input_summary(name, inp):
 
 
 # --- per-session processing ------------------------------------------------------------------
-def iter_jsonl(path):
-    """Yield parsed objects from a JSONL file; skip malformed lines without aborting."""
+def iter_jsonl(path, left_out=None):
+    """Yield parsed objects from a JSONL file; skip malformed lines without aborting.
+
+    Each event is yielded once. A session that was resumed or compacted can write earlier events
+    into its transcript a second time: the repeat has the same top-level `uuid` (and the same
+    message, parent and timestamp) as the original but a re-stamped slug and, usually, a shorter
+    toolUseResult, so it is not the same line byte for byte, and counted as written every tool call
+    in the replayed span counts twice. The key is the `uuid` alone, remembered per call, and the
+    FIRST occurrence is the one kept. Other keys fail on measured transcripts: one API message is
+    written as several lines that each carry a uuid of their own (a message-id key loses events),
+    two real turns can read alike (a text key folds them), and a whole-line key never matches a
+    repeat while it folds the state lines that have no uuid. A line whose uuid is absent, empty or
+    not a string is always yielded: state lines and the rows of an older transcript carry none.
+    When `left_out` is a list, the uuid of each repeat that was left out is appended to it, so that
+    the caller can say that it happened."""
+    seen = set()
     try:
         with open(path, encoding="utf-8", errors="replace") as fh:
             for line in fh:
@@ -567,15 +603,26 @@ def iter_jsonl(path):
                     obj = json.loads(line)
                 except (ValueError, json.JSONDecodeError):
                     continue
-                if isinstance(
-                    obj, dict
-                ):  # skip valid-but-non-object lines (bare strings/numbers)
-                    yield obj
+                if not isinstance(obj, dict):
+                    continue  # valid-but-non-object lines (bare strings/numbers)
+                uid = obj.get("uuid")
+                if isinstance(uid, str) and uid:
+                    if uid in seen:
+                        if left_out is not None:
+                            left_out.append(uid)
+                        continue
+                    seen.add(uid)
+                yield obj
     except OSError as exc:
         print(f"  ! cannot read {path}: {exc}", file=sys.stderr)
 
 
-def process_session(jsonl_path, sessions_dir):
+def process_session(jsonl_path, sessions_dir, replays=None):
+    """Walk one main-session transcript and the transcripts of its helpers.
+
+    `replays`, when given, is a dict that receives {session id: number of repeated events left out}
+    for a session that had any (see iter_jsonl; a helper's repeats count for the session that ran
+    it). The caller reports the number: it is not part of the returned session."""
     sid = jsonl_path.stem
     sess = {
         "sessionId": sid,
@@ -634,6 +681,7 @@ def process_session(jsonl_path, sessions_dir):
     transcript_bytes = 0
     truncated = False
     operator_tail = []  # operator turns the byte cap cut off: kept outside it, in a section
+    left_out = []  # uuids of the repeated events iter_jsonl dropped, here and in the helpers
 
     def emit(line):
         """Add a line to the capped transcript; False when the cap kept it out."""
@@ -657,7 +705,7 @@ def process_session(jsonl_path, sessions_dir):
         if not emit(line):
             operator_tail.append(_lf(line))
 
-    for obj in iter_jsonl(jsonl_path):
+    for obj in iter_jsonl(jsonl_path, left_out):
         otype = obj.get("type")
         ts = obj.get("timestamp")
         if ts:
@@ -829,7 +877,9 @@ def process_session(jsonl_path, sessions_dir):
 
     # sub-agents (nested per parent session): aggregate metrics + an error taxonomy, and emit
     # redacted transcripts for the high-signal ones so they can be deep-dived without raw .jsonl.
-    walk_subagents(jsonl_path.parent / sid, sess, sessions_dir)
+    walk_subagents(jsonl_path.parent / sid, sess, sessions_dir, left_out)
+    if replays is not None and left_out:
+        replays[sid] = len(left_out)
 
     # finalize types
     sess["toolsUsed"] = dict(sess["toolsUsed"])
@@ -859,12 +909,13 @@ def process_session(jsonl_path, sessions_dir):
     return sess, local_errors, user_rejected, hook_denials
 
 
-def render_subagent(jf):
+def render_subagent(jf, left_out=None):
     """Parse one sub-agent transcript .jsonl → (redacted_text, msgs, errorsByCategory, samples).
 
     Mirrors process_session's message walk but lighter: no behavior metrics, just the readable
     redacted narrative + an error taxonomy (same classify_error, by ORIGIN tool). `samples` is a
     list of (category, redacted_sample) tuples. Errors inside sub-agents were previously invisible.
+    `left_out` is the list iter_jsonl appends the uuid of each repeated event to.
     """
     id_to_tool = {}
     lines = []
@@ -887,7 +938,7 @@ def render_subagent(jf):
         lines.append(line)
         nbytes += b
 
-    for obj in iter_jsonl(jf):
+    for obj in iter_jsonl(jf, left_out):
         otype = obj.get("type")
         if otype in ("user", "assistant"):
             msgs += 1
@@ -943,17 +994,20 @@ def render_subagent(jf):
     return "\n".join(lines), msgs, dict(errs), samples
 
 
-def walk_subagents(session_dir, sess, sessions_dir):
-    """Aggregate nested sub-agent transcripts (<id>/subagents/*.jsonl and
-    .../workflows/wf_*/*.jsonl), build a per-session sub-agent error taxonomy, and emit redacted
-    transcripts for the HIGH-SIGNAL ones (any error, or the largest few) so they can be deep-dived
-    without ever reading raw .jsonl. Uses agent-*.meta.json sidecars for type/goal. Mutates `sess`."""
+def walk_subagents(session_dir, sess, sessions_dir, left_out=None):
+    """Aggregate nested sub-agent transcripts (<id>/subagents/agent-*.jsonl and
+    .../workflows/wf_*/agent-*.jsonl: see SUBAGENT_GLOB), build a per-session sub-agent error
+    taxonomy, and emit redacted transcripts for the HIGH-SIGNAL ones (any error, or the largest
+    few) so they can be deep-dived without ever reading raw .jsonl. A workflow run's journal.jsonl
+    is an event log, not a transcript, and is not counted. Uses agent-*.meta.json sidecars for
+    type/goal (an agent without one is typed "?"). Mutates `sess`. `left_out` collects the repeated
+    events the transcripts held (see iter_jsonl)."""
     sub_root = session_dir / "subagents"
     if not sub_root.is_dir():
         return
     sid8 = sess["sessionId"][:8]
     parsed = []
-    for jf in sorted(sub_root.rglob("*.jsonl")):
+    for jf in sorted(sub_root.rglob(SUBAGENT_GLOB)):
         sess["subAgents"]["count"] += 1
         size = 0
         with contextlib.suppress(OSError):
@@ -966,7 +1020,7 @@ def walk_subagents(session_dir, sess, sessions_dir):
                 m = json.loads(meta.read_text(encoding="utf-8", errors="replace"))
                 atype = m.get("agentType")
                 goal = m.get("description")
-        text, msgs, errs, samples = render_subagent(jf)
+        text, msgs, errs, samples = render_subagent(jf, left_out)
         sess["subAgents"]["msgs"] += msgs
         if len(sess["subAgents"]["agents"]) < 30:
             sess["subAgents"]["agents"].append(
@@ -1058,11 +1112,14 @@ def walk_subagents(session_dir, sess, sessions_dir):
     sess["subAgents"]["transcriptsEmitted"] = len(sess["subAgents"]["highSignal"])
 
 
-# --- session-dir auto-derivation -------------------------------------------------------------
+# --- session-dir derivation -------------------------------------------------------------------
 # Claude Code stores a project's sessions under ~/.claude/projects/<encoded>, where <encoded> is the
 # project's ABSOLUTE path with every "/", "\" and ":" replaced by "-". That name is machine-specific
 # (drive letter, username, clone location all differ per engineer), so it MUST be derived at runtime,
 # never hardcoded — a hardcoded path is portable to exactly one person.
+# Not measured: whether Claude Code replaces other characters too (a dot, an underscore, a space).
+# If it does, a working directory whose path holds one is not found by this encoding, and the
+# derivation refuses and asks for the session dir, as it does for every directory it cannot match.
 def _encode_repo_path(root):
     """Encode an absolute repo path the way Claude Code names its ~/.claude/projects/<dir>."""
     return re.sub(r"[/\\:]", "-", str(root))
@@ -1085,30 +1142,56 @@ def _find_session_dir(repo_root, projects_base):
     return None
 
 
-def _derive_session_dir():
-    """Auto-derive THIS repo's Claude session dir from the script location + the user's home.
+def _is_same_dir(a, b):
+    """True when two paths name the same directory (case, links and short names aside)."""
+    try:
+        return a.samefile(b)
+    except OSError:  # one of them does not exist: compare the paths as written
+        return a == b
 
-    Walks up from this file to the repo root (the dir containing `.claude/`), encodes it, and looks
-    under ~/.claude/projects/. Pure runtime derivation (Path(__file__) / Path.home()) so it works for
-    any engineer on any machine; exits with a hint (pass the dir explicitly) if it cannot resolve —
-    e.g. a personal-scope install where this skill does not live in the project's `.claude/`.
+
+def _derive_session_dir(cwd=None, home=None):
+    """Derive the Claude session dir of the project this run was started in, from the WORKING
+    DIRECTORY.
+
+    The working directory must be the project root (the directory Claude Code was launched in) and
+    must have a session folder of its own under ~/.claude/projects/, found by _find_session_dir:
+    the folder is the proof that Claude Code ran there. The script's own location is not used. An
+    installed plugin sits under the home directory's .claude/, so a walk up from it ends at the home
+    directory and either finds no folder or finds the home directory's, which holds everything ever
+    started there and is not one project's corpus. Refused, with exit status 1 and a message that
+    asks for the session dir as the first argument, and never guessed:
+      * the home directory, even when a session folder for it exists;
+      * a directory with no folder of its own: below the project root, beside it, a launch
+        directory that is not the project root, or a folder Claude Code never ran in.
+    CLAUDE_PROJECT_DIR is not set in tool calls, so it cannot stand in for the working directory.
+    `cwd` and `home` default to the process's own; they exist so that a test patches neither.
     """
-    here = Path(__file__).resolve()
-    repo_root = next((p for p in here.parents if (p / ".claude").is_dir()), Path.cwd())
-    projects_base = Path.home() / ".claude" / "projects"
-    found = _find_session_dir(repo_root, projects_base)
+    cwd = Path.cwd() if cwd is None else Path(cwd)
+    home = Path.home() if home is None else Path(home)
+    projects_base = home / ".claude" / "projects"
+    is_home = _is_same_dir(cwd, home)
+    found = None if is_home else _find_session_dir(cwd, projects_base)
     if found is None:
         avail = (
             sorted(p.name for p in projects_base.iterdir() if p.is_dir())
             if projects_base.is_dir()
             else []
         )
+        why = (
+            "it is the home directory, and a session folder for the home directory is never "
+            "used silently"
+            if is_home
+            else "no session folder is named for it (looked for "
+            f"{projects_base / _encode_repo_path(cwd)}); it must be the project root, the "
+            "directory Claude Code was launched in"
+        )
         raise SystemExit(
-            "ERROR: could not auto-derive the Claude session dir.\n"
-            f"  repo root:  {repo_root}\n"
-            f"  looked for: {projects_base / _encode_repo_path(repo_root)}\n"
-            f"  available:  {avail or '(none)'}\n"
-            "  Pass the session dir explicitly as the first argument to override."
+            "ERROR: could not derive the Claude session dir.\n"
+            f"  working dir: {cwd}\n"
+            f"  why:         {why}\n"
+            f"  available:   {avail or '(none)'}\n"
+            "  Pass the session dir explicitly as the first argument."
         )
     return found
 
@@ -1558,7 +1641,10 @@ def main():
     ap.add_argument(
         "session_dir",
         nargs="?",
-        help="Claude session dir under ~/.claude/projects/; auto-derived from the repo root if omitted",
+        help="Claude session dir under ~/.claude/projects/. When omitted it is derived from the "
+        "working directory, which must be the project root (the directory Claude Code was "
+        "launched in) with a session folder of its own; anywhere else the run is refused and "
+        "this argument is required",
     )
     ap.add_argument(
         "output_dir", help="repo-relative output dir (e.g. .ai/tmp/retro/), never /tmp"
@@ -1637,6 +1723,7 @@ def main():
     tax = {c: {"count": 0, "sessions": [], "samples": []} for c in ERROR_CATEGORIES}
     user_rejected = {"count": 0, "sessions": [], "samples": []}
     hook_denials = {"count": 0, "sessions": [], "samples": []}
+    replays = {}  # session id -> repeated events left out of it: for stderr, not the aggregate
 
     prescan_skipped = 0
     for f in files:
@@ -1651,7 +1738,9 @@ def main():
                 prescan_skipped += 1
                 continue
         try:
-            sess, local_errors, rejected, hooked = process_session(f, sessions_dir)
+            sess, local_errors, rejected, hooked = process_session(
+                f, sessions_dir, replays
+            )
         except Exception as exc:  # never abort the whole run on one file
             print(f"  ! error processing {f.name}: {exc}", file=sys.stderr)
             continue
@@ -1798,6 +1887,17 @@ def main():
         + (f" | {sub_cat}" if sub_cat else ""),
         file=sys.stderr,
     )
+    # Never silent: the counts above read each replayed event once, so a run over a replayed
+    # transcript reads lower than one built before the extractor dropped repeats. Only the
+    # sessions that reached the aggregate are counted, and only when there is something to say.
+    kept = {s["sessionId"] for s in sessions}
+    replayed = {sid: n for sid, n in replays.items() if sid in kept}
+    if replayed:
+        print(
+            f"Replayed events: skipped {sum(replayed.values())} repeated event(s) in "
+            f"{len(replayed)} session(s); each event is counted once, by its uuid",
+            file=sys.stderr,
+        )
     if since or until:
         print(
             f"Pre-scan skipped {prescan_skipped} out-of-range session file(s) before parsing",
