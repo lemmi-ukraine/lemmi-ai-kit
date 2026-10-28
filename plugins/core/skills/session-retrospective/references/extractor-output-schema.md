@@ -21,8 +21,22 @@ The extractor writes into `<output-dir>` (always repo-relative, e.g. `.ai/tmp/re
 | File | Purpose |
 |------|---------|
 | `aggregate.json` | Cross-session error taxonomy + per-session behavioral metrics + stats |
-| `sessions/<id>.md` | Per-session readable transcript, size-capped (120 KB), fully redacted — for deep reading by sub-agents |
+| `sessions/<id>.md` | Per-session readable transcript, size-capped (120 KB), fully redacted — for deep reading by sub-agents. The operator turns the cap cut off follow the capped transcript in a section of their own (see below) |
 | `sessions/sub/<id>/<agent>.md` | Redacted, size-capped transcript of a HIGH-SIGNAL sub-agent (any error, or the largest few) under parent session `<id>` — for the Phase-3b sub-agent deep-dive |
+
+**The operator section.** A session digest stops at `TRANSCRIPT_BYTE_CAP` and drops the rest, and the
+operator's last turns are in that rest. They are kept: every operator turn after the cut is appended
+as a `USER: ` line (each clipped at `PER_MESSAGE_TEXT_CAP`, redacted, outside the byte cap) under a
+heading line that starts with `---` and says how many there are. A turn before the cut stays where it
+happened, so each operator turn is in the digest exactly once. The rule line also ends the `USER:`
+block before it for `sweep_user_corrections.py`. A sub-agent digest has no such section: no operator
+speaks in a helper's transcript.
+
+**Line endings.** Every file the extractor writes (`aggregate.json`, both kinds of digest,
+`interaction-digest.md`) holds LF line endings and no carriage return at all, on every OS, and
+`sweep_user_corrections.py` writes its own output the same way. The sweep numbers digest lines by LF
+alone, as Grep and the Read tool do, so a `[session:line]` citation is the line they show — also in a
+digest an older extractor wrote on Windows, where a CRLF inside a message had become CR CR LF.
 
 ## `aggregate.json` top-level keys
 
@@ -98,7 +112,8 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
     "tool-error":      { "count": 5,  "sessions": […], "samples": […] },
     "other":           { "count": 0,  "sessions": [], "samples": [] }
   },
-  "userRejected": { "count": 1, "sessions": ["0f65932c"], "samples": ["[id/Bash] The user doesn't want to proceed…"] }
+  "userRejected": { "count": 1, "sessions": ["0f65932c"], "samples": ["[id/Bash] The user doesn't want to proceed…"] },
+  "hookDenials":  { "count": 2, "sessions": ["0f65932c"], "samples": ["[id/Bash] PreToolUse:Bash hook error: …"] }   // v4 (additive)
 }
 ```
 - **`userRejected` is a SEPARATE bucket** — permission denials are *friction*, not agent mistakes.
@@ -112,6 +127,19 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
   compares with one built by an older extractor must say so:** the older run filed those usage
   errors here, so this bucket reads lower and `tool-error` higher, and a sub-agent whose only
   error was one is now error-bearing, which can change which sub-agent digests are emitted.
+- **`hookDenials` is a count BESIDE the categories, not a category.** It is the number of error
+  results whose text STARTS with the harness's hook prefix (`PreToolUse:<Tool> hook error: `),
+  counted over the whole main-thread transcript while it is walked — not over the capped digest, so
+  a denial after the cut is counted. `count` is the TRUE number (each session's own number is
+  `sessions[].hookDenials`); `samples` stay capped at 3 per session. The result keeps the category
+  it always had (`runtime-exit` for a shell tool, `tool-error` for most others): nothing in
+  `byCategory` moved, so a hook-heavy window still inflates those buckets, and this count is how to
+  take it back out. Output that quotes the prefix mid-text, a non-error result that starts with it,
+  and a hook that did not answer in time are not denials. **Known loss:** a hook that denies by
+  JSON returns only its own reason, with no prefix, and nothing else in the record names a hook (the
+  harness's `toolDenialKind` stamp is shared with don't-ask mode, built-in safety checks and
+  protected paths), so that form is NOT counted and the count is a floor. Sub-agent transcripts are
+  not counted here; their denials stay in the sub-agent taxonomy under their ordinary category.
 - Category definitions:
   | Category | Meaning |
   |---|---|
@@ -158,6 +186,7 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
   "toolsUsed": { "Read": 12, … },
   "errorsByCategory": { "edit-stale-read": 3, … },   // per-session error counts
   "userRejected": 0,             // v4 (additive) — per-session count of user-rejected results (see `errorTaxonomy`); kept out of errorsByCategory and NOT capped like the samples
+  "hookDenials": 0,              // v4 (additive) — per-session count of results a PreToolUse hook blocked (see `errorTaxonomy`); main thread, over the whole transcript, NOT capped; the result still counts in errorsByCategory
   "behavior": {
     "reReads": [ { "file": "~/…/learnings.md", "count": 7 } ],   // file read >=3x
     "repeatedCommands": [ { "cmd": "git diff --staged", "count": 2 } ],   // identical cmd >=2x
@@ -240,13 +269,25 @@ detectable by the caller** instead of silently becoming a finding about work it 
 
 `--digest` requires `--session` and writes `interaction-digest.md`: counted repetition signals
 (re-reads at or above `--rereads-min`, default `DEFAULT_REREADS_MIN` = 6), agent error classes with
-≥2 occurrences, and the session's **human turns** — harness noise (skill payloads,
-task-notifications, command wrappers, and the plain-text notices that continue a compacted
-session, relay a peer session's message, report a classifier stop or open a
-workflow-authoring reference) filtered by `HARNESS_USER_PREFIXES`, which is deliberately
-separate from `SYSTEM_PREFIXES` because that tuple feeds `counts.userMsgs` and therefore
-`deepDiveCandidates` selection for the whole retrospective. `sweep_user_corrections.py` keeps a
-mirror list (`SKIP_PREFIX`); a test imports both by path and fails when the two differ.
+≥2 occurrences, and the session's **operator turns**: what the operator typed, what they typed
+while the model was working (a `queued_command` attachment record, which no user record
+duplicates), and the answers they gave the question tool. ONE function, `operator_turn_text`,
+decides which records those are, by structure and not by wording — `origin.kind` human on a user
+record, a human `queued_command` prompt, an `AskUserQuestion` result that carries a dict of
+answers — and the operator section of a session digest shares it with this list and its header.
+Harness noise (skill payloads, task-notifications, command wrappers, hand-backs, and the plain-text
+notices that continue a compacted session, nudge a resume, report a classifier stop or open a
+workflow-authoring reference) is not an operator turn and is not listed; neither is a slash command
+the operator typed, which `sessions[].slashCommands` captures. A record with no `origin` stamp (an
+older transcript) falls back to its machine markers and to `HARNESS_USER_PREFIXES`, which is
+deliberately separate from `SYSTEM_PREFIXES` because that tuple feeds `counts.userMsgs` and
+therefore `deepDiveCandidates` selection for the whole retrospective. `sweep_user_corrections.py`
+keeps a mirror list (`SKIP_PREFIX`); a test imports both by path and fails when the two differ.
+
+The digest's header prints `Volume: N operator turns` (the number listed, not capped at the 40
+shown) and, on a line of its own, `User-channel records: M`. `M` is `counts.userMsgs`: it counts
+injected text as well, so it is not the number of operator turns, and it stays as it is because it
+selects the deep-dive sessions.
 
 **Re-asks are deliberately NOT detected.** Corrections have lexical markers that
 `sweep_user_corrections.py` can grep; a re-ask is the same request restated in different words and

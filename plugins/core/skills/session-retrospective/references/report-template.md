@@ -112,7 +112,10 @@ Volume: {stats.subAgent.files} agents, {bytes}, {msgs} msgs.}
 ### Sub-Agent Deep-Dive (top ≤6 high-signal)
 {Findings from the bounded deep-dive of emitted `sessions/sub/<id>/*.md`: errors hit, any
 WRONG/FABRICATED result returned to the orchestrator, internal thrash — each with the sub-agent
-transcript as evidence. State how many were scanned via taxonomy only (beyond the ≤6 cap).}
+transcript as evidence. State how many were scanned via taxonomy only (beyond the ≤6 cap). A
+sub-agent digest cannot show a structured returned result: a tool call's return is cut to `ok` or
+an error line and a plain-text final report to `PER_MESSAGE_TEXT_CAP` characters, so when a finding
+turns on what a helper handed back, say the digest could not show it rather than judging it.}
 
 ## Absence Sweep (Phase 4i)
 

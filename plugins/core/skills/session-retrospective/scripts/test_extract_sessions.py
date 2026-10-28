@@ -6,6 +6,7 @@ Docker/CI test harness. Run with:
     uv run python -m pytest "${CLAUDE_SKILL_DIR}/scripts/test_extract_sessions.py"
 """
 
+import inspect
 import json
 import os
 import sys
@@ -1344,3 +1345,1554 @@ def test_cli_session_scope_writes_digest_and_overrides_date_filter(tmp_path, mon
     text = (out / "interaction-digest.md").read_text(encoding="utf-8")
     assert "the only ask" in text
     assert "ffff6666" in text
+
+
+# --- digest text is LF only, on every OS ----------------------------------------------------
+# A CRLF inside a message reached the digest as it was, and a Windows text-mode write then turned
+# every LF into CRLF on top of that, so a CRLF inside a message became CR CR LF and a reader that
+# counts lines differently from Grep and the Read tool cited the wrong line (see the sweep tests).
+# The invariant is that no file the extractor writes holds a carriage return at all. It is checked
+# as this OS writes and again through an emulation of Windows text mode, so that a regression in
+# the writing half is caught on a host whose text mode translates nothing.
+def _emulate_windows_text_mode(monkeypatch):
+    original = Path.write_text
+
+    def write_text(self, data, encoding=None, errors=None, newline=None):
+        if newline is None:  # text mode with no newline argument: LF becomes CR LF
+            data = data.replace("\n", "\r\n")
+        return original(
+            self,
+            data,
+            encoding=encoding,
+            errors=errors,
+            newline="" if newline is None else newline,
+        )
+
+    monkeypatch.setattr(Path, "write_text", write_text)
+
+
+def test_the_text_mode_emulation_does_translate_line_feeds(tmp_path, monkeypatch):
+    """Known positive for the emulation: a write with no newline argument gets CR LF, a write that
+    names its newline does not, so a green result below is the writer's doing."""
+    _emulate_windows_text_mode(monkeypatch)
+    plain = tmp_path / "plain.txt"
+    plain.write_text("a\nb", encoding="utf-8")
+    exact = tmp_path / "exact.txt"
+    exact.write_text("a\nb", encoding="utf-8", newline="\n")
+    assert plain.read_bytes() == b"a\r\nb"
+    assert exact.read_bytes() == b"a\nb"
+
+
+def _bytes_jsonl(path, rows):
+    """Write rows as bytes, so the fixture itself is the same on every OS."""
+    path.write_bytes(("\n".join(json.dumps(r) for r in rows) + "\n").encode("utf-8"))
+
+
+def _tool_call(call_id, name, command):
+    return {
+        "type": "assistant",
+        "message": {
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": call_id,
+                    "name": name,
+                    "input": {"command": command},
+                }
+            ]
+        },
+    }
+
+
+def _tool_result(call_id, text, is_error=False):
+    block = {"type": "tool_result", "tool_use_id": call_id, "content": text}
+    if is_error:
+        block["is_error"] = True
+    return {"type": "user", "message": {"content": [block]}}
+
+
+# Every place a carriage return can enter: a command with a lone CR (the summary used to replace
+# only LF), an error result with CRLF (its first characters land on the status line), a skill body
+# written with CRLF line endings, and a sub-agent whose brief and error carry CRLF as well.
+_CR_COMMAND = "echo a\rb"
+_CR_ERROR = "Exit code 1\r\nboom line two\r\nsecond failing line"
+_CR_SKILL_BODY = (
+    "Base directory for this skill: skills/demo\r\n\r\n# Demo skill\r\nsteps"
+)
+
+
+def _carriage_return_corpus(tmp_path):
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    sid = "cr000001-0000-0000-0000-000000000000"
+    _bytes_jsonl(
+        sdir / f"{sid}.jsonl",
+        [
+            {
+                "type": "user",
+                "timestamp": "2026-06-20T10:00:00Z",
+                "message": {
+                    "content": [{"type": "text", "text": "please fix the build"}]
+                },
+            },
+            # the same command twice: it is a repeated command, so the interaction digest lists it
+            _tool_call("c1", "Bash", _CR_COMMAND),
+            _tool_result("c1", _CR_ERROR, is_error=True),
+            _tool_call("c2", "Bash", _CR_COMMAND),
+            _tool_result("c2", "ok"),
+            {
+                "type": "user",
+                "message": {"content": [{"type": "text", "text": _CR_SKILL_BODY}]},
+                "isMeta": True,
+            },
+        ],
+    )
+    subdir = sdir / sid / "subagents"
+    subdir.mkdir(parents=True)
+    _bytes_jsonl(
+        subdir / "agent-cr.jsonl",
+        [
+            {
+                "type": "user",
+                "message": {
+                    "content": [{"type": "text", "text": "brief one\r\nbrief two"}]
+                },
+            },
+            _tool_call("s1", "Bash", "make"),
+            _tool_result("s1", _CR_ERROR, is_error=True),
+        ],
+    )
+    return sdir, sid
+
+
+@pytest.mark.parametrize(
+    "windows_text_mode", [False, True], ids=["this-os", "windows-text-mode"]
+)
+def test_no_file_the_extractor_writes_holds_a_carriage_return(
+    windows_text_mode, tmp_path, monkeypatch
+):
+    sdir, sid = _carriage_return_corpus(tmp_path)
+    if windows_text_mode:
+        _emulate_windows_text_mode(monkeypatch)
+    out = tmp_path / "out"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "extract_sessions.py",
+            str(sdir),
+            _relative_out(monkeypatch, out),
+            "--session",
+            sid[:8],
+            "--digest",
+            "--self-check",
+        ],
+    )
+    ex.main()
+
+    written = [
+        out / "aggregate.json",
+        out / "interaction-digest.md",
+        out / "sessions" / f"{sid}.md",
+        *sorted((out / "sessions" / "sub").rglob("*.md")),
+    ]
+    # the surface in numbers: the aggregate, the interaction digest, the session digest and the
+    # one emitted sub-agent digest
+    assert len(written) == 4 and all(p.is_file() for p in written), written
+    dirty = [p.name for p in written if b"\r" in p.read_bytes()]
+    assert not dirty, f"carriage returns written to {dirty}"
+
+    # the sizes the aggregate records are the bytes on disk, not the size before a translation
+    agg = json.loads((out / "aggregate.json").read_text(encoding="utf-8"))
+    s = agg["sessions"][0]
+    assert s["transcriptBytes"] == written[2].stat().st_size
+    assert s["subAgents"]["highSignal"][0]["emittedBytes"] == written[3].stat().st_size
+
+
+def test_the_digests_carry_the_text_of_the_carriage_return_fixtures(tmp_path):
+    """Known positive for the test above: each fixture's text reaches the digest (the first three
+    checks hold before the fix too), and its line breaks are LF, so a result with no carriage
+    return in it is not a digest with nothing in it."""
+    sdir, sid = _carriage_return_corpus(tmp_path)
+    sessions = tmp_path / "out" / "sessions"
+    sessions.mkdir(parents=True)
+    sess = ex.process_session(sdir / f"{sid}.jsonl", sessions)[0]
+    digest = Path(sess["transcriptPath"]).read_bytes().decode("utf-8")
+    assert "boom line two" in digest and "second failing line" in digest
+    assert "Demo skill" in digest and "steps" in digest
+    assert "echo a" in digest
+    assert "Exit code 1\nboom line two\nsecond" in digest
+    assert "Demo skill\nsteps" in digest
+
+
+def test_a_command_summary_is_one_line_whatever_line_break_it_holds():
+    assert ex.tool_input_summary("Bash", {"command": "a\r\nb\rc\nd"}) == "a b c d"
+
+
+def test_a_subagent_digest_is_lf_only(tmp_path):
+    sdir, sid = _carriage_return_corpus(tmp_path)
+    text, _, _, _ = ex.render_subagent(sdir / sid / "subagents" / "agent-cr.jsonl")
+    assert "brief one\nbrief two" in text
+    assert "\r" not in text
+
+
+# --- operator turns -------------------------------------------------------------------------
+# The operator's own words reach a transcript by three carriers: a user record the operator typed,
+# an attachment record for a message typed while the model was working, and the answer the question
+# tool returns. ONE predicate, `operator_turn_text`, says which records are such a turn, and it
+# feeds both the section of operator turns after the byte cap and the interaction digest's list and
+# header. The fixtures are synthetic and carry the keys that decide the verdict in real
+# transcripts; each text holds a unique marker (fxNN, qqNN for a question) so that a test can ask
+# where it ended up.
+def _text(text):
+    return {"type": "text", "text": text}
+
+
+def _human(content, source="sdk", **extra):
+    record = {
+        "type": "user",
+        "message": {"role": "user", "content": content},
+        "origin": {"kind": "human"},
+        "turnOrigin": "human",
+        "promptSource": source,
+    }
+    record.update(extra)
+    return record
+
+
+def _injected(content, **flags):
+    """Text the harness put on the user channel: a record without a human origin."""
+    return {"type": "user", "message": {"role": "user", "content": content}, **flags}
+
+
+def _midturn(text, **overrides):
+    attachment = {
+        "type": "queued_command",
+        "prompt": [_text(text)],
+        "commandMode": "prompt",
+        "origin": {"kind": "human"},
+        "humanTurn": True,
+    }
+    attachment.update(overrides)
+    return {"type": "attachment", "attachment": attachment}
+
+
+def _question(call_id, question, tool="AskUserQuestion"):
+    return _tool_call_with_input(
+        call_id,
+        tool,
+        {
+            "questions": [
+                {
+                    "question": question,
+                    "header": "Q",
+                    "multiSelect": False,
+                    "options": [
+                        {"label": "A", "description": "a"},
+                        {"label": "B", "description": "b"},
+                    ],
+                }
+            ]
+        },
+    )
+
+
+def _tool_call_with_input(call_id, name, tool_input):
+    return {
+        "type": "assistant",
+        "message": {
+            "content": [
+                {"type": "tool_use", "id": call_id, "name": name, "input": tool_input}
+            ]
+        },
+    }
+
+
+# The question tool's result is written in two wordings by different harness builds, with the same
+# structure: the record-level toolUseResult carries the answers.
+_ANSWER_WORDINGS = {
+    "first": 'Your questions have been answered: "{q}"="{a}". You can now continue with these answers in mind.',
+    "second": 'The user answered: "{q}"="{a}". Read the answers carefully before you go on.',
+}
+
+
+def _answered(call_id, question, answer, wording="first", tool_result=None):
+    block = {
+        "type": "tool_result",
+        "tool_use_id": call_id,
+        "content": _ANSWER_WORDINGS[wording].format(q=question, a=answer),
+    }
+    block.update(tool_result or {})
+    return {
+        "type": "user",
+        "message": {"role": "user", "content": [block]},
+        "toolUseResult": {
+            "questions": [{"question": question}],
+            "answers": {question: answer},
+        },
+        "sourceToolAssistantUUID": "a",
+    }
+
+
+def _result_record(call_id, text, tool_use_result, **block_extra):
+    block = {"type": "tool_result", "tool_use_id": call_id, "content": text}
+    block.update(block_extra)
+    return {
+        "type": "user",
+        "message": {"role": "user", "content": [block]},
+        "toolUseResult": tool_use_result,
+    }
+
+
+_IDE_NOTE = "<ide_opened_file>The user opened a file in the IDE.</ide_opened_file>"
+_IDE_SELECTION = "<ide_selection>The user selected lines in the IDE.</ide_selection>"
+_PEER = {"origin": {"kind": "peer"}, "turnOrigin": "peer", "promptSource": "system"}
+_PEER_LEAD = "Another Claude session sent a message:"
+
+# name -> (carrier, records, marker): the turns an operator typed or answered by, as real
+# transcripts carry them (how many is asserted by the test that states the groups, not here).
+# One slash command is NOT here: it stays with sessions[].slashCommands.
+_OPERATOR_TURNS = {
+    "typed-in-the-editor": (
+        "user-record",
+        [_human([_text("fx01 typed in the editor, this is wrong")])],
+        "fx01",
+    ),
+    "typed-in-a-terminal": (
+        "user-record",
+        [_human("fx02 typed in a terminal, this is wrong", source="typed")],
+        "fx02",
+    ),
+    "ide-note-then-typed": (
+        "user-record",
+        [
+            _human(
+                [_text(_IDE_NOTE), _text("fx03 typed after an ide note, this is wrong")]
+            )
+        ],
+        "fx03",
+    ),
+    "pasted-only": (
+        "user-record",
+        [
+            _human(
+                [
+                    _text(
+                        '<pasted_content id="1">fx04 pasted body, this is wrong</pasted_content>'
+                    )
+                ]
+            )
+        ],
+        "fx04",
+    ),
+    "ide-note-then-pasted": (
+        "user-record",
+        [
+            _human(
+                [
+                    _text(_IDE_SELECTION),
+                    _text(
+                        '<pasted_content id="2">fx05 pasted after a selection, this is wrong</pasted_content>'
+                    ),
+                ]
+            )
+        ],
+        "fx05",
+    ),
+    "queued-then-delivered-as-a-user-record": (
+        "user-record",
+        [
+            _human(
+                "fx06 queued then delivered as a user record, this is wrong",
+                source="queued",
+            )
+        ],
+        "fx06",
+    ),
+    "image-then-typed": (
+        "user-record",
+        [
+            _human(
+                [
+                    {"type": "image", "source": {"type": "base64", "data": "AAAA"}},
+                    _text("fx07 typed under an image, this is wrong"),
+                ]
+            )
+        ],
+        "fx07",
+    ),
+    "mid-turn-message": (
+        "mid-turn",
+        [_midturn("fx08 typed while the model was working, this is wrong")],
+        "fx08",
+    ),
+    "answer-in-the-first-wording": (
+        "answer",
+        [
+            _question("qa", "qq09 which option, is this wrong?"),
+            _answered("qa", "qq09 which option, is this wrong?", "fx09 A is wrong"),
+        ],
+        "fx09",
+    ),
+    "answer-in-the-second-wording": (
+        "answer",
+        [
+            _question("qb", "qq10 which option, is this wrong?"),
+            _answered(
+                "qb",
+                "qq10 which option, is this wrong?",
+                "fx10 free text, wrong",
+                "second",
+            ),
+        ],
+        "fx10",
+    ),
+}
+
+# name -> (records, marker): text and records that are NOT the operator speaking.
+_NOT_OPERATOR_TURNS = {
+    # the operator did type this one; it is captured by sessions[].slashCommands
+    "typed-slash-command": (
+        [
+            _human(
+                [
+                    _text(
+                        "<command-message>demo</command-message>\n<command-name>/demo</command-name>\n"
+                        "<command-args>fx21 args typed by the operator, this is wrong</command-args>"
+                    )
+                ]
+            )
+        ],
+        "fx21",
+    ),
+    "queue-operation-copy": (
+        [
+            {
+                "type": "queue-operation",
+                "operation": "remove",
+                "content": "fx22 typed mid-turn, this is wrong",
+                "reason": "absorbed_mid_turn",
+            }
+        ],
+        "fx22",
+    ),
+    "question-refused": (
+        [
+            _question("qr", "qq23 which option?"),
+            _result_record(
+                "qr",
+                "The user doesn't want to proceed with this tool use. fx23 refused",
+                "User rejected tool use",
+                is_error=True,
+            ),
+            _injected([_text("[Request interrupted by user for tool use]")]),
+        ],
+        "fx23",
+    ),
+    "question-interrupted": (
+        [
+            _question("qi", "qq24 which option?"),
+            _result_record(
+                "qi",
+                "[Tool call interrupted: the session ended before this call's result was recorded, fx24]",
+                "[Tool call interrupted]",
+                is_error=True,
+            ),
+        ],
+        "fx24",
+    ),
+    "skill-body": (
+        [
+            _injected(
+                [
+                    _text(
+                        "Base directory for this skill: skills/demo\n\n# Demo skill\nfx25 steps, never skip a check, this is wrong"
+                    )
+                ],
+                isMeta=True,
+                turnCompanion=True,
+                sourceToolUseID="t1",
+            )
+        ],
+        "fx25",
+    ),
+    "skill-invocation-wrapper": (
+        [
+            _injected(
+                [
+                    _text(
+                        "<command-message>demo</command-message>\n<command-name>/demo</command-name>\n"
+                        "<skill-format>true</skill-format> fx26 wrong"
+                    )
+                ],
+                isMeta=True,
+            )
+        ],
+        "fx26",
+    ),
+    "task-notification": (
+        [
+            _injected(
+                "<task-notification>\n<task-id>t1</task-id>\n<summary>fx27 build wrong</summary>\n</task-notification>",
+                origin={"kind": "task-notification"},
+                turnOrigin="task_notification",
+                promptSource="system",
+            )
+        ],
+        "fx27",
+    ),
+    "hand-back": (
+        [
+            _injected(
+                f"{_PEER_LEAD}\n\n<agent-message>fx28 report from a helper, wrong</agent-message>",
+                isMeta=True,
+                **_PEER,
+            )
+        ],
+        "fx28",
+    ),
+    "peer-session-message": (
+        [
+            _injected(
+                f"{_PEER_LEAD}\n\n<cross-session-message>fx29 from another session, wrong</cross-session-message>",
+                isMeta=True,
+                **_PEER,
+            )
+        ],
+        "fx29",
+    ),
+    "compaction-summary": (
+        [
+            _injected(
+                "This session is being continued from a previous conversation that ran out of context. fx30 summary: do not revert, wrong",
+                isCompactSummary=True,
+                isVisibleInTranscriptOnly=True,
+                turnOrigin="human",
+            )
+        ],
+        "fx30",
+    ),
+    "resume-nudge": (
+        [
+            _injected(
+                [_text("Continue from where you left off. fx31 wrong")],
+                isMeta=True,
+                turnOrigin="system",
+                promptSource="system",
+            )
+        ],
+        "fx31",
+    ),
+    "idle-notice": (
+        [
+            _injected(
+                '[Cross-session idle notice] "worker" is idle now. fx32 wrong',
+                isMeta=True,
+                turnOrigin="system",
+                promptSource="system",
+            )
+        ],
+        "fx32",
+    ),
+    "classifier-stop-notice": (
+        [
+            _injected(
+                "Your response above was stopped by a safety classifier. fx33 do not repeat it, wrong",
+                isMeta=True,
+                turnCompanion=True,
+            )
+        ],
+        "fx33",
+    ),
+    "skill-reinvocation-note": (
+        [
+            _injected(
+                "(Re-invocation of /demo: the skill instructions are unchanged.) fx34 wrong",
+                isMeta=True,
+                turnCompanion=True,
+                sourceToolUseID="t2",
+            )
+        ],
+        "fx34",
+    ),
+    "image-note": (
+        [
+            _injected(
+                "[Image: original 100x100, displayed at 50x50.] fx35 wrong",
+                isMeta=True,
+                turnCompanion=True,
+            )
+        ],
+        "fx35",
+    ),
+    "prompt-sent-by-a-script": (
+        [
+            _injected(
+                "fx36 prompt sent by a script, this is wrong",
+                turnOrigin="sdk",
+                promptSource="sdk",
+            )
+        ],
+        "fx36",
+    ),
+    "scheduled-prompt": (
+        [
+            _injected(
+                "fx37 scheduled run, this is wrong",
+                isMeta=True,
+                turnOrigin="scheduled",
+                promptSource="system",
+            )
+        ],
+        "fx37",
+    ),
+    "interrupt-marker": (
+        [_injected([_text("[Request interrupted by user]")])],
+        "Request interrupted",
+    ),
+    "local-command-caveat": (
+        [
+            _injected(
+                "<local-command-caveat>Caveat: the messages below were generated while running local commands. fx39 wrong</local-command-caveat>",
+                isMeta=True,
+            )
+        ],
+        "fx39",
+    ),
+    "local-command-output": (
+        [
+            _injected(
+                "<local-command-stdout>fx40 output of a local command, wrong</local-command-stdout>"
+            )
+        ],
+        "fx40",
+    ),
+    "slash-command-without-origin": (
+        [
+            _injected(
+                "<command-name>/demo</command-name>\n<command-message>demo</command-message>\n<command-args>fx41 args, this is wrong</command-args>"
+            )
+        ],
+        "fx41",
+    ),
+    "system-reminder-block": (
+        [
+            _injected(
+                [_text("<system-reminder>fx42 reminder text, wrong</system-reminder>")],
+                isMeta=True,
+            )
+        ],
+        "fx42",
+    ),
+    "queued-task-notification": (
+        [
+            _midturn(
+                "<task-notification>fx43 wrong</task-notification>",
+                prompt="<task-notification>fx43 wrong</task-notification>",
+                commandMode="task-notification",
+                origin={"kind": "task-notification"},
+            )
+        ],
+        "fx43",
+    ),
+    "queued-peer-message": (
+        [
+            _midturn(
+                "x",
+                prompt="<agent-message>fx44 wrong</agent-message>",
+                origin={"kind": "peer"},
+                isMeta=True,
+            )
+        ],
+        "fx44",
+    ),
+    "answers-key-on-another-tool": (
+        [
+            _tool_call_with_input("tx", "Bash", {"command": "echo hi"}),
+            _result_record(
+                "tx",
+                "hello",
+                {
+                    "questions": [{"question": "q"}],
+                    "answers": {"q": "fx45 planted answer"},
+                },
+            ),
+        ],
+        "fx45",
+    ),
+    "ordinary-tool-result": (
+        [
+            _tool_call_with_input("ty", "Bash", {"command": "echo hello"}),
+            _result_record("ty", "hello fx46", {"stdout": "hello", "stderr": ""}),
+        ],
+        "fx46",
+    ),
+}
+
+
+def _write_rows(path, rows):
+    _bytes_jsonl(path, rows)
+    return path
+
+
+def _operator_turns_of(tmp_path, records):
+    path = _write_rows(tmp_path / "one.jsonl", records)
+    return list(ex.iter_operator_turns(path))
+
+
+def test_the_operator_turn_fixtures_are_the_groups_the_tests_state():
+    """The surface in numbers: ten turns (seven carried by a user record, one by an attachment,
+    two by the question tool) and twenty-six records that are not one."""
+    assert len(_OPERATOR_TURNS) == 10
+    carriers = [carrier for carrier, _, _ in _OPERATOR_TURNS.values()]
+    assert {c: carriers.count(c) for c in set(carriers)} == {
+        "user-record": 7,
+        "mid-turn": 1,
+        "answer": 2,
+    }
+    assert len(_NOT_OPERATOR_TURNS) == 26
+    markers = [m for _, _, m in _OPERATOR_TURNS.values()] + [
+        m for _, m in _NOT_OPERATOR_TURNS.values()
+    ]
+    assert len(set(markers)) == len(markers), (
+        "a marker shared by two fixtures proves nothing"
+    )
+
+
+@pytest.mark.parametrize("name", sorted(_OPERATOR_TURNS))
+def test_the_predicate_admits_each_operator_turn(name, tmp_path):
+    _, records, marker = _OPERATOR_TURNS[name]
+    turns = _operator_turns_of(tmp_path, records)
+    assert len(turns) == 1, turns
+    assert marker in turns[0]
+    assert "qq" not in turns[0], "the question text is not the operator's answer"
+    assert "You can now continue" not in turns[0]
+    assert "Read the answers carefully" not in turns[0]
+
+
+@pytest.mark.parametrize("name", sorted(_NOT_OPERATOR_TURNS))
+def test_the_predicate_refuses_everything_that_is_not_an_operator_turn(name, tmp_path):
+    records, _ = _NOT_OPERATOR_TURNS[name]
+    assert _operator_turns_of(tmp_path, records) == []
+
+
+def test_the_text_blocks_of_one_user_record_are_one_turn(tmp_path):
+    turns = _operator_turns_of(tmp_path, _OPERATOR_TURNS["ide-note-then-pasted"][1])
+    assert turns == [
+        '<pasted_content id="2">fx05 pasted after a selection, this is wrong</pasted_content>'
+    ]
+    two_blocks = _human([_text("fx51 first block"), _text("fx52 second block")])
+    assert _operator_turns_of(tmp_path, [two_blocks]) == [
+        "fx51 first block\nfx52 second block"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("flags", "admitted"),
+    [
+        ({}, True),
+        ({"turnOrigin": "human"}, True),
+        ({"isMeta": True}, False),
+        ({"isCompactSummary": True}, False),
+        ({"turnOrigin": "sdk"}, False),
+        ({"turnOrigin": "system"}, False),
+        ({"turnOrigin": "peer"}, False),
+        ({"turnOrigin": "task_notification"}, False),
+        ({"turnOrigin": "scheduled"}, False),
+        ({"origin": {"kind": "coordinator"}}, False),
+        ({"origin": {}}, False),
+        ({"origin": "human"}, False),
+        ({"origin": {"kind": "human"}}, True),
+    ],
+    ids=[
+        "no-stamp-no-marker",
+        "turn-origin-human",
+        "meta",
+        "compaction-summary",
+        "sdk",
+        "system",
+        "peer",
+        "task-notification",
+        "scheduled",
+        "other-origin-kind",
+        "origin-without-kind",
+        "origin-that-is-not-a-dict",
+        "human-origin",
+    ],
+)
+def test_the_stamp_decides_and_a_record_without_one_is_judged_by_its_markers(
+    flags, admitted
+):
+    record = {
+        "type": "user",
+        "message": {"content": "please look at the build"},
+        **flags,
+    }
+    assert bool(ex.operator_turn_text(record, {})) is admitted
+
+
+def test_a_record_without_a_stamp_still_needs_to_pass_the_injected_text_prefixes():
+    skill = {"type": "user", "message": {"content": "Base directory for this skill: x"}}
+    assert ex.operator_turn_text(skill, {}) == ""
+
+
+def test_an_answer_needs_the_question_tool_a_clean_result_and_an_answers_dict():
+    answered = _answered("q1", "which?", "B")
+    assert ex.operator_turn_text(answered, {"q1": "AskUserQuestion"}) == "B"
+    assert ex.operator_turn_text(answered, {"q1": "Bash"}) == ""
+    assert ex.operator_turn_text(answered, {}) == ""
+    failed = _answered("q1", "which?", "B", tool_result={"is_error": True})
+    assert ex.operator_turn_text(failed, {"q1": "AskUserQuestion"}) == ""
+    no_dict = _answered("q1", "which?", "B")
+    no_dict["toolUseResult"] = {"answers": ["B"]}
+    assert ex.operator_turn_text(no_dict, {"q1": "AskUserQuestion"}) == ""
+
+
+def test_several_answers_are_one_turn_in_question_order():
+    record = _answered("q1", "first?", "B")
+    record["toolUseResult"]["answers"] = {"first?": "B", "second?": "A, C", "third?": 3}
+    assert ex.operator_turn_text(record, {"q1": "AskUserQuestion"}) == "B | A, C"
+
+
+def test_a_mid_turn_prompt_may_be_a_plain_string():
+    record = _midturn("x", prompt="fx53 typed while the model was working")
+    assert ex.operator_turn_text(record, {}) == "fx53 typed while the model was working"
+
+
+def test_the_text_of_an_operator_turn_is_redacted():
+    key = "sk" + "-" + "k" * 24
+    record = _human(f"my key is {key} please keep it out")
+    text = ex.operator_turn_text(record, {})
+    assert "kkkkkkkk" not in text and "[REDACTED_KEY]" in text
+
+
+def test_a_record_that_mixes_an_answer_with_typed_text_is_read_for_the_answer_alone():
+    """The stated limit of operator_turn_text: a record that holds a tool_result block is read for
+    that block alone, so typed text beside an answer is not an operator turn. The transcripts
+    measured never mix the two; this pins the limit so that changing it is a decision, not drift."""
+    record = _answered("q1", "which?", "B")
+    record["message"]["content"].append(_text("fx62 typed beside the answer"))
+    assert ex.operator_turn_text(record, {"q1": "AskUserQuestion"}) == "B"
+
+
+# A record of an unexpected shape must not stop the run. iter_operator_turns feeds the interaction
+# digest and the session identity, and main() calls both outside its per-file guard, so a record
+# that raised there would abort the whole run instead of skipping one session. These are shapes the
+# harness is not known to write: a message that is not a dict, content that is not a list, an id
+# that cannot be a dict key. Each is read as "not an operator turn", and the typed turn behind it is
+# still found.
+_TYPED_BEHIND_THE_ODD_RECORD = "fx61 typed behind the odd record"
+_ODD_RECORDS = {
+    "assistant-message-is-a-string": {"type": "assistant", "message": "a plain string"},
+    "assistant-message-is-a-list": {"type": "assistant", "message": ["a", "list"]},
+    "assistant-message-is-null": {"type": "assistant", "message": None},
+    "assistant-without-a-message": {"type": "assistant"},
+    "assistant-content-is-a-string": {
+        "type": "assistant",
+        "message": {"content": "not a list"},
+    },
+    "assistant-content-holds-non-dicts": {
+        "type": "assistant",
+        "message": {"content": [None, "x", 3, [], {"type": "tool_use"}]},
+    },
+    "tool-use-id-is-a-list": _tool_call_with_input(
+        ["unhashable"], "AskUserQuestion", {}
+    ),
+    "tool-use-id-is-a-dict": _tool_call_with_input({"a": 1}, "AskUserQuestion", {}),
+    "user-message-is-a-string": {
+        "type": "user",
+        "message": "a plain string",
+        "origin": {"kind": "human"},
+    },
+    "user-message-is-a-list": {
+        "type": "user",
+        "message": ["a"],
+        "origin": {"kind": "human"},
+    },
+    "result-id-is-a-list": {
+        "type": "user",
+        "message": {
+            "content": [{"type": "tool_result", "tool_use_id": ["x"], "content": "y"}]
+        },
+        "toolUseResult": {"answers": {"q": "a"}},
+    },
+    "typed-text-is-a-number": _human([{"type": "text", "text": 5}]),
+    "attachment-is-a-string": {"type": "attachment", "attachment": "a string"},
+    "attachment-prompt-is-a-number": {
+        "type": "attachment",
+        "attachment": {
+            "type": "queued_command",
+            "commandMode": "prompt",
+            "origin": {"kind": "human"},
+            "prompt": 5,
+        },
+    },
+}
+
+
+def test_the_odd_records_are_the_shapes_the_test_states():
+    """The surface in numbers: fourteen shapes, eight of an assistant record, four of a user
+    record and two of an attachment."""
+    types = [record["type"] for record in _ODD_RECORDS.values()]
+    assert len(types) == 14
+    assert {t: types.count(t) for t in set(types)} == {
+        "assistant": 8,
+        "user": 4,
+        "attachment": 2,
+    }
+
+
+@pytest.mark.parametrize("name", sorted(_ODD_RECORDS))
+def test_a_record_of_an_unexpected_shape_does_not_stop_the_operator_turns(
+    name, tmp_path
+):
+    path = _write_rows(
+        tmp_path / "odd.jsonl",
+        [_ODD_RECORDS[name], _human(_TYPED_BEHIND_THE_ODD_RECORD)],
+    )
+    assert list(ex.iter_operator_turns(path)) == [_TYPED_BEHIND_THE_ODD_RECORD]
+    assert (
+        ex._session_identity(path)["firstUserMessage"] == _TYPED_BEHIND_THE_ODD_RECORD
+    )
+
+
+# The fixtures as one session, each followed by an assistant message, in a fixed order.
+# counts.userMsgs of that session as the extractor reported it BEFORE operator turns were
+# introduced (it counts every user record with a text block that is not system-prefixed, injected
+# text included): the test below fails if answers or mid-turn messages ever move it.
+_FIXTURE_SESSION_USER_MSGS = 19
+
+
+def _fixture_session_rows():
+    everything = {name: records for name, (_, records, _) in _OPERATOR_TURNS.items()}
+    everything.update(
+        {name: records for name, (records, _) in _NOT_OPERATOR_TURNS.items()}
+    )
+    rows = []
+    for name in sorted(everything):
+        rows.extend(everything[name])
+        rows.append({"type": "assistant", "message": {"content": [_text("ok")]}})
+    return rows
+
+
+def _run_fixture_session(tmp_path, monkeypatch):
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    sid = "fix00000-0000-0000-0000-000000000000"
+    _write_rows(sdir / f"{sid}.jsonl", _fixture_session_rows())
+    out = tmp_path / "out"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "extract_sessions.py",
+            str(sdir),
+            _relative_out(monkeypatch, out),
+            "--session",
+            sid[:8],
+            "--digest",
+            "--self-check",
+        ],
+    )
+    ex.main()
+    agg = json.loads((out / "aggregate.json").read_text(encoding="utf-8"))
+    return out, agg["sessions"][0]
+
+
+def _listed(digest):
+    """The numbered entries under the interaction digest's user-message heading."""
+    lines = digest.split("\n")
+    start = next(
+        i for i, ln in enumerate(lines) if ln.startswith("## User-message sequence")
+    )
+    items = []
+    for ln in lines[start + 1 :]:
+        if ln.startswith("## "):
+            break
+        head, _, rest = ln.partition(". ")
+        if head.isdigit():
+            items.append(rest)
+    return items
+
+
+def test_the_interaction_digest_lists_each_operator_turn_and_nothing_else(
+    tmp_path, monkeypatch
+):
+    out, _ = _run_fixture_session(tmp_path, monkeypatch)
+    digest = (out / "interaction-digest.md").read_text(encoding="utf-8")
+    listed = _listed(digest)
+    expected = sorted(_OPERATOR_TURNS)
+    assert len(listed) == len(expected) == 10
+    for entry, name in zip(listed, expected, strict=True):
+        assert _OPERATOR_TURNS[name][2] in entry, f"{name} is not where it should be"
+    for name, (_, marker) in _NOT_OPERATOR_TURNS.items():
+        assert marker not in digest, f"{name} reached the interaction digest"
+    for _, _, marker in _OPERATOR_TURNS.values():
+        assert digest.count(marker) == 1
+    assert "qq" not in digest and "You can now continue" not in digest
+
+
+def test_the_header_counts_the_operator_turns_it_lists(tmp_path, monkeypatch):
+    out, sess = _run_fixture_session(tmp_path, monkeypatch)
+    digest = (out / "interaction-digest.md").read_text(encoding="utf-8")
+    assert "- Volume: 10 operator turns," in digest
+    assert "User-message sequence (10 total" in digest
+    # the user-channel record count survives, labelled as what it is
+    assert (
+        f"- User-channel records: {sess['counts']['userMsgs']} (counts.userMsgs;"
+        in digest
+    )
+    assert "not a count of operator turns" in digest
+    assert "user msgs" not in digest, (
+        "the old label said user msgs for the record count"
+    )
+
+
+def test_counts_user_msgs_does_not_move(tmp_path, monkeypatch):
+    """counts.userMsgs picks the deep-dive sessions, so counting answers and mid-turn messages as
+    operator turns must not change it: neither a mid-turn attachment nor a tool result is a user
+    message. The number is what the extractor reported for this session before the change."""
+    _, sess = _run_fixture_session(tmp_path, monkeypatch)
+    assert sess["counts"]["userMsgs"] == _FIXTURE_SESSION_USER_MSGS
+
+
+# --- operator turns after the byte cap ----------------------------------------------------------
+# A digest stops at TRANSCRIPT_BYTE_CAP and drops the tail, and the operator's last turns are in
+# that tail. They go into a section of their own after the capped transcript, outside the cap, in
+# the same "USER: " format the corrections sweep reads. Turns before the cut stay where they are.
+_FILLER_RECORDS = 80  # 80 x 1.9 KB is well past the 120 KB cap
+
+
+def _filler(i):
+    return {
+        "type": "assistant",
+        "message": {"content": [_text("x" * 1900 + f" filler {i}")]},
+    }
+
+
+def _cap_crossing_rows(after_cap_turns=None):
+    return [
+        _human("first typed message", source="typed"),
+        _midturn("first mid turn message"),
+        _question("c1", "question 1"),
+        _answered("c1", "question 1", "A"),
+        _human("second typed message", source="typed"),
+        *[_filler(i) for i in range(_FILLER_RECORDS)],
+        *(
+            after_cap_turns
+            or [
+                _human("third typed message after the cap", source="typed"),
+                _midturn("second mid turn message after the cap"),
+                _question("c2", "question 2"),
+                _answered("c2", "question 2", "A"),
+                _human("fourth typed message after the cap", source="typed"),
+            ]
+        ),
+    ]
+
+
+def _digest_lines_of(tmp_path, rows):
+    path = _write_rows(tmp_path / "cap-session.jsonl", rows)
+    sessions = tmp_path / "sessions"
+    sessions.mkdir(exist_ok=True)
+    sess = ex.process_session(path, sessions)[0]
+    return sess, Path(sess["transcriptPath"]).read_bytes().decode("utf-8").split("\n")
+
+
+def _section_start(lines):
+    """The line that opens the operator section: it starts with a rule, which the corrections
+    sweep treats as the end of the block before it."""
+    return next(i for i, ln in enumerate(lines) if ln.startswith("---"))
+
+
+def test_an_operator_turn_after_the_byte_cap_is_in_the_session_digest(tmp_path):
+    sess, lines = _digest_lines_of(tmp_path, _cap_crossing_rows())
+    kept = [ln for ln in lines if ln.startswith("ASSISTANT: x")]
+    assert 0 < len(kept) < _FILLER_RECORDS, (
+        "the cap must bite for this test to mean anything"
+    )
+    assert any("truncated at 120 KB" in ln for ln in lines)
+    # every operator turn is in the digest exactly once, in order: the four before the cut stay
+    # where they happened, the four after it follow in the section
+    assert [ln for ln in lines if ln.startswith("USER: ")] == [
+        "USER: first typed message",
+        "USER: first mid turn message",
+        "USER: A",
+        "USER: second typed message",
+        "USER: third typed message after the cap",
+        "USER: second mid turn message after the cap",
+        "USER: A",
+        "USER: fourth typed message after the cap",
+    ]
+    assert sess["counts"]["userMsgs"] == 4, (
+        "mid-turn messages and answers are not user messages"
+    )
+
+
+def test_the_operator_section_follows_the_capped_transcript_and_says_how_many(tmp_path):
+    _, lines = _digest_lines_of(tmp_path, _cap_crossing_rows())
+    start = _section_start(lines)
+    assert "(4)" in lines[start]
+    assert lines[start - 1] == "", (
+        "a blank line sets the section apart from the truncation marker above it"
+    )
+    assert all(ln.startswith("USER: ") for ln in lines[start + 1 :])
+    assert len(lines[start + 1 :]) == 4
+    # nothing but the capped transcript precedes it, and the capped transcript ends at its marker
+    assert any("truncated at 120 KB" in ln for ln in lines[:start])
+    assert not any(ln.startswith("---") for ln in lines[start + 1 :])
+    assert sum(1 for ln in lines if ln.startswith("---")) == 1
+
+
+def test_a_session_under_the_cap_has_no_operator_section(tmp_path):
+    rows = [
+        _human("one typed message", source="typed"),
+        _filler(0),
+        _midturn("a mid turn message"),
+    ]
+    _, lines = _digest_lines_of(tmp_path, rows)
+    assert not any(ln.startswith("---") for ln in lines)
+    assert [ln for ln in lines if ln.startswith("USER: ")] == [
+        "USER: one typed message",
+        "USER: a mid turn message",
+    ]
+
+
+def test_each_turn_in_the_operator_section_is_clipped_at_the_per_message_cap(tmp_path):
+    rows = _cap_crossing_rows([_human("w" * 5000, source="typed")])
+    _, lines = _digest_lines_of(tmp_path, rows)
+    tail = lines[_section_start(lines) + 1 :]
+    assert tail == ["USER: " + "w" * ex.PER_MESSAGE_TEXT_CAP]
+
+
+def test_the_operator_section_is_outside_the_byte_cap(tmp_path):
+    """Operator turns after the cut add up to more than the cap, and none of them is dropped."""
+    turns = [_human(f"turn {i} " + "t" * 1800, source="typed") for i in range(100)]
+    _, lines = _digest_lines_of(tmp_path, _cap_crossing_rows(turns))
+    tail = lines[_section_start(lines) + 1 :]
+    assert len(tail) == 100
+    assert sum(len(ln.encode("utf-8")) for ln in tail) > ex.TRANSCRIPT_BYTE_CAP
+    assert [ln.split(" ")[2] for ln in tail] == [str(i) for i in range(100)]
+
+
+def test_the_turn_that_crosses_the_cap_goes_to_the_section_and_not_to_the_floor(
+    tmp_path, monkeypatch
+):
+    """The line the cap cuts at is itself an operator turn here: it is neither lost nor listed
+    twice."""
+    monkeypatch.setattr(ex, "TRANSCRIPT_BYTE_CAP", 120)
+    rows = [
+        _human("kept before the cut", source="typed"),
+        _human("this one crosses the cap " + "z" * 200, source="typed"),
+        _human("and this one follows it", source="typed"),
+    ]
+    _, lines = _digest_lines_of(tmp_path, rows)
+    assert [ln for ln in lines if ln.startswith("USER: ")] == [
+        "USER: kept before the cut",
+        "USER: this one crosses the cap " + "z" * 200,
+        "USER: and this one follows it",
+    ]
+    assert "(2)" in lines[_section_start(lines)]
+
+
+def test_operator_turns_after_the_cap_are_redacted(tmp_path):
+    key = "sk" + "-" + "k" * 24
+    rows = _cap_crossing_rows([_human(f"key {key} after the cap", source="typed")])
+    _, lines = _digest_lines_of(tmp_path, rows)
+    tail = lines[_section_start(lines) + 1 :]
+    assert tail == ["USER: key [REDACTED_KEY] after the cap"]
+
+
+# The tests above use plain text after the cut. A real store also holds turns that start with a tag
+# (a pasted body, an IDE note in front of the typed text), and a section that judged a turn by its
+# first characters would drop exactly those while every test above stayed green.
+@pytest.mark.parametrize("name", sorted(_OPERATOR_TURNS))
+def test_each_kind_of_operator_turn_is_kept_after_the_cap(name, tmp_path):
+    _, records, marker = _OPERATOR_TURNS[name]
+    _, lines = _digest_lines_of(tmp_path, _cap_crossing_rows(records))
+    assert any("truncated at 120 KB" in ln for ln in lines), "the cap must bite"
+    tail = lines[_section_start(lines) + 1 :]
+    assert len(tail) == 1 and marker in tail[0], tail
+    assert sum(marker in ln for ln in lines) == 1, "in the digest once: in the section"
+
+
+def test_the_section_is_the_list_the_interaction_digest_builds(tmp_path):
+    """Every fixture comes after the cut. The ten operator turns are all in the section, in order,
+    none of the twenty-six records that are not one is, and the section is the interaction digest's
+    list turn for turn (each clipped as the section clips it): one predicate, two readers."""
+    rows = [*[_filler(i) for i in range(_FILLER_RECORDS)], *_fixture_session_rows()]
+    path = _write_rows(tmp_path / "all-after-the-cap.jsonl", rows)
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    sess = ex.process_session(path, sessions)[0]
+    lines = Path(sess["transcriptPath"]).read_bytes().decode("utf-8").split("\n")
+    start = _section_start(lines)
+    assert not any(ln.startswith("USER: ") for ln in lines[:start])
+    tail = lines[start + 1 :]
+    listed = list(ex.iter_operator_turns(path))
+    assert len(tail) == len(listed) == len(_OPERATOR_TURNS) == 10
+    assert tail == [f"USER: {turn[: ex.PER_MESSAGE_TEXT_CAP]}" for turn in listed]
+    for line, name in zip(tail, sorted(_OPERATOR_TURNS), strict=True):
+        assert _OPERATOR_TURNS[name][2] in line, f"{name} is not where it should be"
+    section = "\n".join(tail)
+    for name, (_, marker) in _NOT_OPERATOR_TURNS.items():
+        assert marker not in section, f"{name} reached the section"
+
+
+# --- a key in an operator turn, whichever way it arrived ------------------------------------------
+# Each carrier takes the operator's words out of a record and redacts them, so a carrier that
+# forgot to would put a key into the session digest, into the section after the cut and into the
+# interaction digest. The keys are built from fragments: the repository never holds a contiguous one.
+def _key(fill):
+    return "sk" + "-" + fill * 24
+
+
+# name -> (the character the key is filled with, a function from the key and an id for the question
+# call to the records that carry it). The three carriers and the record with no origin stamp.
+_KEY_CARRIERS = {
+    "typed-record": (
+        "k",
+        lambda key, _call: [_human(f"typed {key} typed", source="typed")],
+    ),
+    "record-without-an-origin-stamp": (
+        "p",
+        lambda key, _call: [
+            {"type": "user", "message": {"content": f"typed {key} typed"}}
+        ],
+    ),
+    "mid-turn-message": (
+        "m",
+        lambda key, _call: [_midturn(f"queued {key} queued")],
+    ),
+    "answer": (
+        "n",
+        lambda key, call: [
+            _question(call, "which one?"),
+            _answered(call, "which one?", f"picked {key} picked"),
+        ],
+    ),
+}
+
+
+def _run_key_session(tmp_path, monkeypatch, name):
+    """One session that carries the key before the byte cap and again after it, run through the
+    CLI. Returns a run of eight of the key's filler (what a leak is looked for by), the session
+    digest, the interaction digest and the aggregate, each as text."""
+    fill, records = _KEY_CARRIERS[name]
+    key = _key(fill)
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    sid = "rd000001-0000-0000-0000-000000000000"
+    rows = [
+        _human("begin", source="typed"),
+        *records(key, "before"),
+        *[_filler(i) for i in range(_FILLER_RECORDS)],
+        *records(key, "after"),
+    ]
+    _write_rows(sdir / f"{sid}.jsonl", rows)
+    out = tmp_path / "out"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "extract_sessions.py",
+            str(sdir),
+            _relative_out(monkeypatch, out),
+            "--session",
+            sid[:8],
+            "--digest",
+        ],
+    )
+    ex.main()
+    return (
+        fill * 8,
+        (out / "sessions" / f"{sid}.md").read_bytes().decode("utf-8"),
+        (out / "interaction-digest.md").read_text(encoding="utf-8"),
+        (out / "aggregate.json").read_text(encoding="utf-8"),
+    )
+
+
+def test_the_key_carriers_are_the_ways_the_predicate_reads_an_operator_turn():
+    """The surface in numbers: the predicate redacts the text it returns once per way it reads a
+    record, and there is one fixture for each. A way added or dropped there moves one of the two
+    numbers, and the test below would otherwise claim more than it covers."""
+    assert len(_KEY_CARRIERS) == 4
+    assert inspect.getsource(ex.operator_turn_text).count("redact(") == 4
+
+
+@pytest.mark.parametrize("name", sorted(_KEY_CARRIERS))
+def test_a_key_in_an_operator_turn_is_redacted_whichever_way_it_arrived(
+    name, tmp_path, monkeypatch
+):
+    fragment, digest, interaction, aggregate = _run_key_session(
+        tmp_path, monkeypatch, name
+    )
+    for where, text in (
+        ("the session digest", digest),
+        ("the interaction digest", interaction),
+        ("the aggregate", aggregate),
+    ):
+        assert fragment not in text, f"a key reached {where}"
+    lines = digest.split("\n")
+    tail = lines[_section_start(lines) + 1 :]
+    assert len(tail) == 1 and "[REDACTED_KEY]" in tail[0], tail
+    marked = [ln for ln in lines if ln.startswith("USER: ") and "[REDACTED_KEY]" in ln]
+    assert len(marked) == 2, "one before the cut and one in the section after it"
+    assert sum("[REDACTED_KEY]" in entry for entry in _listed(interaction)) == 2
+
+
+@pytest.mark.parametrize("name", sorted(_KEY_CARRIERS))
+def test_the_key_reaches_both_digests_when_nothing_redacts(name, tmp_path, monkeypatch):
+    """Known positive for the test above: with the redactions emptied the same session carries the
+    key into the session digest (before the cut and in the section) and into the interaction
+    digest, so the absence asserted there is the redaction's doing and not a key that never got
+    there."""
+    monkeypatch.setattr(ex, "REDACTIONS", [])
+    fragment, digest, interaction, _ = _run_key_session(tmp_path, monkeypatch, name)
+    user_lines = [ln for ln in digest.split("\n") if ln.startswith("USER: ")]
+    assert sum(fragment in ln for ln in user_lines) == 2
+    assert sum(fragment in entry for entry in _listed(interaction)) == 2
+
+
+def test_a_subagent_digest_has_no_operator_section(tmp_path):
+    """No operator exists in a helper's transcript: its user channel is the lead agent. The shared
+    predicate serves main-session digests only."""
+    path = tmp_path / "agent-big.jsonl"
+    _write_rows(
+        path,
+        [
+            {"type": "user", "message": {"content": [_text("brief")]}},
+            *[_filler(i) for i in range(_FILLER_RECORDS)],
+            {"type": "user", "message": {"content": [_text("a later brief")]}},
+        ],
+    )
+    text, _, _, _ = ex.render_subagent(path)
+    assert "truncated at 120 KB" in text
+    assert not any(ln.startswith("---") for ln in text.split("\n"))
+    assert "a later brief" not in text
+
+
+# --- hook denials ---------------------------------------------------------------------------
+# A hook that blocks a tool call comes back as an error result whose text starts with the harness's
+# own prefix, "PreToolUse:<Tool> hook error: ", followed by what the hook wrote. The count is made
+# while the whole transcript is walked, so it does not depend on what the capped digest kept, and
+# the result keeps the category it always had: this count sits beside the categories.
+_HOOK_REASON = "Blocked by project policy; use the wrapper script instead."
+_HOOK_DENIAL = f"PreToolUse:Bash hook error: {_HOOK_REASON}"
+
+
+def _hook_session_rows(*calls):
+    """A user turn, then one call per (tool, result text, is_error) triple."""
+    rows = [_human("run the checks", source="typed")]
+    for i, (tool, text, is_error) in enumerate(calls):
+        rows.append(_tool_call(f"h{i}", tool, "make check"))
+        rows.append(_tool_result(f"h{i}", text, is_error=is_error))
+    return rows
+
+
+def test_hook_denials_are_counted_whatever_the_tool_and_keep_their_category(tmp_path):
+    rows = _hook_session_rows(
+        ("Bash", _HOOK_DENIAL, True),
+        ("Edit", "PreToolUse:Edit hook error: Blocked by project policy.", True),
+        ("Write", "PreToolUse:Write hook error: [hook-script]: crashed", True),
+    )
+    sess, _lines = _digest_lines_of(tmp_path, rows)
+    assert sess["hookDenials"] == 3
+    # the categories are what they were before this count existed: the shell result is a runtime
+    # exit and the other two tools' errors are tool errors, and none is a user refusal
+    assert sess["errorsByCategory"] == {"runtime-exit": 1, "tool-error": 2}
+    assert sess["userRejected"] == 0
+
+
+def test_text_that_only_resembles_a_hook_denial_is_not_counted(tmp_path):
+    rows = _hook_session_rows(
+        # output that quotes a denial is data, and so is an error that quotes one mid-text
+        ("Bash", f"build log: {_HOOK_DENIAL}", False),
+        ("Bash", f"Exit code 1\n12:  -> ERROR(runtime-exit): {_HOOK_DENIAL}", True),
+        # a file whose content starts with the prefix is data unless the tool itself failed
+        ("Read", _HOOK_DENIAL, False),
+        # a hook that never answered is a timeout, not a denial
+        (
+            "Read",
+            "PreToolUse hook did not respond before its timeout (host client may be unreachable).",
+            True,
+        ),
+        ("Bash", "PostToolUse:Bash hook error: not a block", True),
+    )
+    assert _digest_lines_of(tmp_path, rows)[0]["hookDenials"] == 0
+    # known positive: the same session with one real denial added counts exactly that one
+    real = _hook_session_rows(("Bash", _HOOK_DENIAL, True))
+    (tmp_path / "again").mkdir()
+    assert _digest_lines_of(tmp_path / "again", real)[0]["hookDenials"] == 1
+
+
+def test_a_hook_reason_that_carries_no_prefix_is_not_counted(tmp_path):
+    """The KNOWN LOSS. A hook that denies by JSON returns only its own reason as the result text:
+    no prefix, no harness sentence. In a real store the only marker is the harness's
+    toolDenialKind stamp ("permission-rule"), which a don't-ask mode, a built-in safety check and a
+    protected path also carry, so a count by the stamp would add those. No marker names a hook, so
+    this form is not counted and the aggregate says so in its documentation."""
+    rows = _hook_session_rows(("Bash", _HOOK_REASON, True))
+    rows[-1]["toolDenialKind"] = "permission-rule"
+    assert _digest_lines_of(tmp_path, rows)[0]["hookDenials"] == 0
+
+
+def test_a_hook_denial_after_the_byte_cap_is_still_counted(tmp_path):
+    """The count is made over the whole transcript, not over the digest the cap cut short."""
+    rows = [
+        _human("run the checks", source="typed"),
+        *[_filler(i) for i in range(_FILLER_RECORDS)],
+        _tool_call("late", "Bash", "make check"),
+        _tool_result("late", _HOOK_DENIAL, is_error=True),
+    ]
+    sess, lines = _digest_lines_of(tmp_path, rows)
+    assert any("truncated at 120 KB" in ln for ln in lines)
+    assert not any("PreToolUse" in ln for ln in lines), "the digest must have lost it"
+    assert sess["hookDenials"] == 1
+
+
+def test_hook_denials_inside_subagents_are_not_in_the_session_count(
+    tmp_path, monkeypatch
+):
+    """The count is the main thread's. A helper's denial stays where it always was, in the
+    sub-agent error taxonomy under its ordinary category."""
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    sid = "hk000001-0000-0000-0000-000000000000"
+    _write_rows(sdir / f"{sid}.jsonl", _hook_session_rows(("Bash", _HOOK_DENIAL, True)))
+    subdir = sdir / sid / "subagents"
+    subdir.mkdir(parents=True)
+    _write_rows(
+        subdir / "agent-h.jsonl", _hook_session_rows(("Bash", _HOOK_DENIAL, True))
+    )
+    agg = _run(sdir, tmp_path / "out", monkeypatch)
+    s = agg["sessions"][0]
+    assert s["hookDenials"] == 1
+    assert s["subAgents"]["errorsByCategory"] == {"runtime-exit": 1}
+
+
+def test_the_aggregate_rolls_hook_denials_up(tmp_path, monkeypatch, capsys):
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    _write_rows(
+        sdir / "aaaa1111-0000-0000-0000-000000000000.jsonl",
+        _hook_session_rows(("Bash", _HOOK_DENIAL, True), ("Bash", _HOOK_DENIAL, True)),
+    )
+    _write_rows(
+        sdir / "bbbb2222-0000-0000-0000-000000000000.jsonl",
+        _hook_session_rows(("Bash", _HOOK_DENIAL, True)),
+    )
+    _write_rows(
+        sdir / "cccc3333-0000-0000-0000-000000000000.jsonl",
+        _hook_session_rows(("Bash", "ok", False)),
+    )
+    agg = _run(sdir, tmp_path / "out", monkeypatch)
+    assert "hookDenials" in ex.SCHEMA_KEYS["session"]
+    per_session = {s["sessionId"][:8]: s["hookDenials"] for s in agg["sessions"]}
+    assert per_session == {"aaaa1111": 2, "bbbb2222": 1, "cccc3333": 0}
+    bucket = agg["errorTaxonomy"]["hookDenials"]
+    assert set(bucket) == {"count", "sessions", "samples"}
+    assert bucket["count"] == 3
+    assert sorted(bucket["sessions"]) == ["aaaa1111", "bbbb2222"]
+    assert 0 < len(bucket["samples"]) <= 8
+    assert all(smp.endswith(_HOOK_DENIAL) for smp in bucket["samples"])
+    # the categories stay the categories: three runtime exits, and the user-refusal bucket is empty
+    assert agg["errorTaxonomy"]["byCategory"]["runtime-exit"]["count"] == 3
+    assert agg["errorTaxonomy"]["userRejected"]["count"] == 0
+    assert "hook-denials=3" in capsys.readouterr().err
+
+
+def test_hook_denials_are_counted_beyond_the_sample_caps(tmp_path, monkeypatch, capsys):
+    """The samples are capped and the count is not. A session keeps SAMPLES_PER_CATEGORY samples
+    and the roll-up keeps eight in all; these four sessions go past both, so a count taken while
+    the samples still fit, or taken from them, comes out lower than the number of denials."""
+    denials = {"aaaa1111": 7, "bbbb2222": 4, "cccc3333": 2, "dddd4444": 5}
+    kept = sum(min(n, ex.SAMPLES_PER_CATEGORY) for n in denials.values())
+    total = sum(denials.values())
+    assert (ex.SAMPLES_PER_CATEGORY, kept, total) == (3, 11, 18), (
+        "the fixture must go past the per-session cap (3 + 3 + 2 + 3 kept of 18) and the "
+        "roll-up's cap of eight"
+    )
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    for sid8, n in denials.items():
+        _write_rows(
+            sdir / f"{sid8}-0000-0000-0000-000000000000.jsonl",
+            _hook_session_rows(*[("Bash", _HOOK_DENIAL, True)] * n),
+        )
+    agg = _run(sdir, tmp_path / "out", monkeypatch)
+    assert {s["sessionId"][:8]: s["hookDenials"] for s in agg["sessions"]} == denials
+    bucket = agg["errorTaxonomy"]["hookDenials"]
+    assert bucket["count"] == total
+    assert len(bucket["samples"]) == 8 < kept, "the samples are the capped part"
+    assert f"hook-denials={total}" in capsys.readouterr().err
+
+
+# A hook's own words are in the sample, and the hook's author wrote them: a key in them must not
+# reach the aggregate. The sample is redacted on its own line, apart from the category samples.
+def _run_hook_key_session(tmp_path, monkeypatch):
+    key = _key("h")
+    denial = f"PreToolUse:Bash hook error: blocked, token {key}, ask the owner"
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    sid = "hk000002-0000-0000-0000-000000000000"
+    _write_rows(sdir / f"{sid}.jsonl", _hook_session_rows(("Bash", denial, True)))
+    agg = _run(sdir, tmp_path / "out", monkeypatch, self_check=False)
+    digest = (tmp_path / "out" / "sessions" / f"{sid}.md").read_bytes().decode("utf-8")
+    return "h" * 8, agg["errorTaxonomy"]["hookDenials"]["samples"], digest, agg
+
+
+def test_a_key_in_a_hook_denial_is_redacted_in_the_samples(tmp_path, monkeypatch):
+    fragment, samples, digest, agg = _run_hook_key_session(tmp_path, monkeypatch)
+    assert len(samples) == 1 and "[REDACTED_KEY]" in samples[0], samples
+    assert fragment not in json.dumps(agg) and fragment not in digest
+
+
+def test_the_hook_sample_carries_the_key_when_nothing_redacts(tmp_path, monkeypatch):
+    """Known positive for the test above: with the redactions emptied the sample holds the key, so
+    its absence there is the redaction's doing and not a key that never reached the sample."""
+    monkeypatch.setattr(ex, "REDACTIONS", [])
+    fragment, samples, _, _ = _run_hook_key_session(tmp_path, monkeypatch)
+    assert len(samples) == 1 and fragment in samples[0], samples
+
+
+# --- what a helper's digest can show --------------------------------------------------------
+# A sub-agent digest keeps the helper's messages and tool calls. A tool call's return is cut to
+# "ok" or an error line, and a plain-text final report to PER_MESSAGE_TEXT_CAP characters, so a
+# structured returned result (the payload of a structured-output call, the content of a tool
+# result) is not in it. The report template says so, because an analyst who reads only the digest
+# cannot otherwise tell "the helper returned nothing" from "the digest cannot show it".
+_REPORT_TEMPLATE = (
+    Path(__file__).resolve().parent.parent / "references" / "report-template.md"
+)
+
+
+def test_a_subagent_digest_cannot_show_a_structured_returned_result(tmp_path):
+    long_report = "REPORT " + "r" * 2990
+    path = tmp_path / "agent-h.jsonl"
+    _write_rows(
+        path,
+        [
+            {"type": "user", "message": {"content": [_text("do the task")]}},
+            _tool_call_with_input(
+                "so1", "StructuredOutput", {"parts": [{"part": "STRUCTUREDPAYLOAD"}]}
+            ),
+            _result_record("so1", "STRUCTUREDRETURN accepted", {"ok": True}),
+            {"type": "assistant", "message": {"content": [_text(long_report)]}},
+        ],
+    )
+    text, _, _, _ = ex.render_subagent(path)
+    lines = text.split("\n")
+    assert "STRUCTUREDPAYLOAD" not in text and "STRUCTUREDRETURN" not in text
+    assert "  [StructuredOutput] " in lines and "    -> ok" in lines
+    report = next(ln for ln in lines if ln.startswith("ASSISTANT: REPORT"))
+    assert (
+        len(report) == len("ASSISTANT: ") + ex.PER_MESSAGE_TEXT_CAP < len(long_report)
+    )
+
+
+def test_the_report_template_says_a_helper_digest_cannot_show_a_structured_result():
+    flat = " ".join(_REPORT_TEMPLATE.read_text(encoding="utf-8").split())
+    section = flat.split("### Sub-Agent Deep-Dive")[1].split("## ")[0]
+    assert "sub-agent digest cannot show a structured returned result" in section
+    assert "PER_MESSAGE_TEXT_CAP" in section

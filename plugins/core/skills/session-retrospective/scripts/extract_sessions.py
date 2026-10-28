@@ -4,7 +4,8 @@
 Reads a project's Claude session directory and emits TWO artifacts into <output-dir>:
 
   aggregate.json    cross-session error taxonomy + per-session behavioral metrics
-  sessions/<id>.md  per-session readable, size-capped, redacted transcript (for deep reading)
+  sessions/<id>.md  per-session readable, size-capped, redacted transcript (for deep reading); the
+                    operator's turns the cap cut off follow it in a section of their own
 
 Design (see references/extractor-output-schema.md):
   * tool_result is paired to its originating tool_use by id; errors are classified by ORIGIN
@@ -74,6 +75,7 @@ SCHEMA_KEYS = {
         "models",  # v4 (C-4a): assistant model ids seen -> msg count
         "compactions",  # v4 (C-4b): context-compaction boundary count
         "userRejected",  # v4 (additive): TRUE count of user-rejected results (samples are capped)
+        "hookDenials",  # v4 (additive): TRUE count of results a PreToolUse hook blocked, main thread
     ],
 }
 
@@ -118,6 +120,10 @@ SYSTEM_PREFIXES = (
 
 PER_MESSAGE_TEXT_CAP = 2000
 TRANSCRIPT_BYTE_CAP = 120 * 1024
+# Opens the section of operator turns a session digest keeps after the byte cap (outside it). It
+# starts with a rule on purpose: sweep_user_corrections.py ends a USER block at a line that begins
+# with "---", so the block before the section does not absorb the heading.
+OPERATOR_SECTION_RULE = "--- Operator turns after the cut ({n}): outside the byte cap, in transcript order ---"
 SAMPLES_PER_CATEGORY = 3
 RE_READ_THRESHOLD = 3
 REPEAT_CMD_THRESHOLD = 2
@@ -255,6 +261,26 @@ def redact(text):
     return text
 
 
+# --- line endings ----------------------------------------------------------------------------
+# Every file this script writes holds LF line endings and no carriage return at all. Text mode
+# turns each LF into CR LF on Windows, and a CR LF already inside a message then reached the file
+# as CR CR LF, so a reader that numbers lines as ripgrep and the Read tool do (LF only) and one
+# that does not (universal newlines) cited different lines. Normalise the text, and write it with
+# newline="\n" so that nothing translates it back.
+_CR_LF_RE = re.compile(r"\r\n?")
+_LINE_BREAK_RE = re.compile(r"\r\n|\r|\n")
+
+
+def _lf(text):
+    """`text` with every CR LF and every lone CR turned into LF."""
+    return _CR_LF_RE.sub("\n", text)
+
+
+def _write_lf(path, text):
+    """Write `text` to `path` as UTF-8 with LF line endings, on every OS."""
+    Path(path).write_text(_lf(text), encoding="utf-8", newline="\n")
+
+
 # --- helpers ---------------------------------------------------------------------------------
 def is_real_user_text(text):
     if not text or not text.strip():
@@ -284,6 +310,157 @@ def result_text(content):
                 parts.append(b["text"])
         return "\n".join(parts)
     return ""
+
+
+# --- operator turns --------------------------------------------------------------------------
+# The operator's own words reach a main-session transcript by three carriers, and only structure
+# tells them from the text the harness injects on the same channel (skill bodies, task
+# notifications, hand-backs, compaction summaries, resume nudges). This is the ONE definition of an
+# operator turn: the section of operator turns after the byte cap and the interaction digest's list
+# and header all read it, so the three cannot disagree.
+#   * a user record the operator typed: origin.kind is "human" and no block is a tool_result;
+#   * an attachment record of type queued_command, for a message typed while the model was working
+#     (commandMode "prompt", origin.kind "human"). The text is attachment.prompt, never the
+#     `rendered` copy of it, which sits in a system-reminder frame;
+#   * the question tool's answer: a tool_result whose call was AskUserQuestion, with no is_error and
+#     a record-level toolUseResult holding a dict `answers`. The result's own sentence repeats
+#     every question, so the answer values are the operator's words and that sentence is not.
+# Not carriers: queue-operation and last-prompt records, which only copy text one of the above
+# already holds. Not operator flags: promptSource (a prompt a program sent carries it too),
+# turnOrigin "human" (compaction summaries carry it) and the wording of an answer (it comes in two
+# forms).
+# A slash command the operator typed stays with sessions[].slashCommands: its wrapper is dropped
+# with the other system-prefixed blocks.
+ASK_TOOL = "AskUserQuestion"
+ANSWER_SEPARATOR = " | "
+# turnOrigin values of prompts a program or the harness sent. Consulted only for a record with no
+# origin stamp, which is how a transcript written before the harness stamped one looks.
+MACHINE_TURN_ORIGINS = frozenset(
+    {"sdk", "system", "peer", "task_notification", "scheduled"}
+)
+
+
+def _record_blocks(content):
+    """The blocks of a message content: a list as it is, a plain string as one text block."""
+    if isinstance(content, list):
+        return content
+    if isinstance(content, str):
+        return [{"type": "text", "text": content}]
+    return []
+
+
+def _message_content(obj):
+    """The content of a record's message, or None when there is no message or it is not a dict."""
+    message = obj.get("message")
+    return message.get("content") if isinstance(message, dict) else None
+
+
+def _typed_text(blocks):
+    """The operator's words in a record's text blocks: each block cleaned, a block that is only an
+    IDE note dropped, pasted bodies kept, the blocks joined with a newline. Not yet redacted."""
+    parts = []
+    for b in blocks:
+        if (
+            isinstance(b, dict)
+            and b.get("type") == "text"
+            and isinstance(b.get("text"), str)
+            and is_real_user_text(b["text"])
+        ):
+            cleaned = clean_user_text(b["text"])
+            if cleaned:
+                parts.append(cleaned)
+    return "\n".join(parts)
+
+
+def _is_human_origin(origin):
+    return isinstance(origin, dict) and origin.get("kind") == "human"
+
+
+def _answer_text(obj, blocks, id_to_tool):
+    """The answers the operator gave the question tool, or '' for any other tool result. The call
+    must have been the question tool AND the record must carry the answers: structure alone would
+    admit any tool whose result happens to hold an `answers` dict."""
+    result = obj.get("toolUseResult")
+    answers = result.get("answers") if isinstance(result, dict) else None
+    if not isinstance(answers, dict):
+        return ""
+    for b in blocks:
+        if (
+            isinstance(b, dict)
+            and b.get("type") == "tool_result"
+            and b.get("is_error") is not True
+            and isinstance(b.get("tool_use_id"), str)
+            and id_to_tool.get(b.get("tool_use_id")) == ASK_TOOL
+        ):
+            values = [v.strip() for v in answers.values() if isinstance(v, str)]
+            return ANSWER_SEPARATOR.join(v for v in values if v)
+    return ""
+
+
+def operator_turn_text(obj, id_to_tool):
+    """The operator's own words carried by ONE transcript record, redacted, or '' when the record
+    is not an operator turn. `id_to_tool` maps tool_use ids seen so far to their tool names (it
+    pairs an answer with its question call). The text is not clipped: callers clip.
+
+    A record that holds a tool_result block is read for that block alone: typed text beside an
+    answer in the same record is not an operator turn, and process_session leaves it out of the
+    digest as well. No transcript measured so far mixes the two, so this is a stated limit and not
+    a handled case."""
+    otype = obj.get("type")
+    if otype == "attachment":
+        att = obj.get("attachment")
+        if (
+            isinstance(att, dict)
+            and att.get("type") == "queued_command"
+            and att.get("commandMode") == "prompt"
+            and _is_human_origin(att.get("origin"))
+        ):
+            return redact(_typed_text(_record_blocks(att.get("prompt"))))
+        return ""
+    if otype != "user":
+        return ""
+    blocks = _record_blocks(_message_content(obj))
+    if any(isinstance(b, dict) and b.get("type") == "tool_result" for b in blocks):
+        return redact(_answer_text(obj, blocks, id_to_tool))
+    origin = obj.get("origin")
+    if origin is not None:
+        return redact(_typed_text(blocks)) if _is_human_origin(origin) else ""
+    # No origin stamp: the record is the operator's unless something marks it as machine text, and
+    # the injected-text prefixes still apply (they are all that tells such records apart).
+    if (
+        obj.get("isMeta")
+        or obj.get("isCompactSummary")
+        or str(obj.get("turnOrigin")) in MACHINE_TURN_ORIGINS
+    ):
+        return ""
+    text = _typed_text(blocks)
+    return redact(text) if _is_human_turn(text) else ""
+
+
+def iter_operator_turns(jsonl_path):
+    """Yield the text of every operator turn of one main-session transcript, in file order.
+
+    The interaction digest and the session identity call this outside main()'s per-file guard, so a
+    record of an unexpected shape is read as "not an operator turn" and never raised on. A tool_use
+    id is taken only when it is a string: it becomes a dict key, and an id of any other type must
+    not stop the run."""
+    id_to_tool = {}
+    for obj in iter_jsonl(jsonl_path):
+        if obj.get("type") == "assistant":
+            content = _message_content(obj)
+            for b in content if isinstance(content, list) else []:
+                if (
+                    isinstance(b, dict)
+                    and b.get("type") == "tool_use"
+                    and isinstance(b.get("id"), str)
+                    and b["id"]
+                    and b.get("name")
+                ):
+                    id_to_tool[b["id"]] = b["name"]
+            continue
+        text = operator_turn_text(obj, id_to_tool)
+        if text:
+            yield text
 
 
 # The harness's own sentence when the user refuses a tool call, written at the START of the
@@ -338,6 +515,24 @@ def classify_error(origin, is_error, text):
     return "tool-error"
 
 
+# A hook that blocks a tool call comes back as an error result that starts with the harness's own
+# prefix, "PreToolUse:<Tool> hook error: ", and then whatever the hook wrote. It is anchored at
+# the start and counted only on an error result: shell output, a log line or a quoted message
+# carries the same words mid-text, and a hook that never answered says "did not respond" instead.
+# The count sits BESIDE the error categories (the result keeps its category). A hook that denies by
+# JSON returns only its own reason, with no prefix, and nothing else in the record names a hook:
+# the harness's denial stamp is shared with don't-ask mode, built-in safety checks and protected
+# paths, so that form is deliberately not counted. extractor-output-schema.md says so too.
+# (Two literals, so that no colon sits right before a backslash: the asset hygiene scan reads
+# letter-colon-backslash-letter as a drive path.)
+HOOK_DENIAL_RE = re.compile("PreToolUse:" r"\S+ hook error: ")
+
+
+def is_hook_denial(is_error, text):
+    """True for an error result carrying the harness's hook-error prefix at its start."""
+    return bool(is_error) and HOOK_DENIAL_RE.match(text.lstrip()) is not None
+
+
 def tool_input_summary(name, inp):
     """One-line, redacted summary of a tool_use input for the readable transcript."""
     if not isinstance(inp, dict):
@@ -356,7 +551,7 @@ def tool_input_summary(name, inp):
         s = f"{len(inp.get('todos', []))} todos"
     else:
         s = inp.get("description") or inp.get("prompt") or inp.get("query") or ""
-    return redact(str(s).replace("\n", " "))[:100]
+    return redact(_LINE_BREAK_RE.sub(" ", str(s)))[:100]
 
 
 # --- per-session processing ------------------------------------------------------------------
@@ -424,10 +619,12 @@ def process_session(jsonl_path, sessions_dir):
         "models": defaultdict(int),
         "compactions": 0,
         "userRejected": 0,  # every user-rejected result; `user_rejected` below is a capped sample
+        "hookDenials": 0,  # every hook-blocked result; `hook_denials` below is a capped sample
     }
     # cross-session error samples collected by the caller; here we collect locally then return
     local_errors = defaultdict(list)  # category -> [redacted sample]
     user_rejected = []  # [redacted sample], capped at SAMPLES_PER_CATEGORY — NOT the count
+    hook_denials = []  # [redacted sample], capped at SAMPLES_PER_CATEGORY — NOT the count
 
     id_to_tool = {}
     skill_ids = {}  # tool_use_id -> skill name
@@ -436,18 +633,29 @@ def process_session(jsonl_path, sessions_dir):
     transcript = []
     transcript_bytes = 0
     truncated = False
+    operator_tail = []  # operator turns the byte cap cut off: kept outside it, in a section
 
     def emit(line):
+        """Add a line to the capped transcript; False when the cap kept it out."""
         nonlocal transcript_bytes, truncated
         if truncated:
-            return
+            return False
+        line = _lf(line)
         b = len(line.encode("utf-8", "replace")) + 1
         if transcript_bytes + b > TRANSCRIPT_BYTE_CAP:
             transcript.append("\n[...transcript truncated at 120 KB...]")
             truncated = True
-            return
+            return False
         transcript.append(line)
         transcript_bytes += b
+        return True
+
+    def emit_operator(text):
+        """An operator turn goes where it happened; one the cap has already cut off is kept in
+        `operator_tail` instead, so the byte cap never costs the operator's own words."""
+        line = f"USER: {text[:PER_MESSAGE_TEXT_CAP]}"
+        if not emit(line):
+            operator_tail.append(_lf(line))
 
     for obj in iter_jsonl(jsonl_path):
         otype = obj.get("type")
@@ -531,6 +739,7 @@ def process_session(jsonl_path, sessions_dir):
                     else []
                 )
             )
+            operator = operator_turn_text(obj, id_to_tool)
             had_user_text = False
             for b in blocks:
                 if not isinstance(b, dict):
@@ -540,7 +749,8 @@ def process_session(jsonl_path, sessions_dir):
                     cleaned = clean_user_text(b["text"])
                     if cleaned:
                         had_user_text = True
-                        emit(f"USER: {redact(cleaned)[:PER_MESSAGE_TEXT_CAP]}")
+                        if not operator:  # injected text rides along as it always did
+                            emit(f"USER: {redact(cleaned)[:PER_MESSAGE_TEXT_CAP]}")
                 elif bt == "text":
                     # v4 (C-2): user-typed slash invocations surface as <command-name>
                     # pseudo-user messages (filtered from user text; still not a userMsg).
@@ -558,6 +768,12 @@ def process_session(jsonl_path, sessions_dir):
                     is_err = b.get("is_error") is True
                     txt = result_text(b.get("content"))
                     cat = classify_error(origin, is_err, txt)
+                    if is_hook_denial(is_err, txt):
+                        sess["hookDenials"] += 1
+                        if len(hook_denials) < SAMPLES_PER_CATEGORY:
+                            hook_denials.append(
+                                f"[{sid[:8]}/{origin}] {redact(txt)[:160]}"
+                            )
                     if cat == "user-rejected":
                         sess["userRejected"] += 1
                         if len(user_rejected) < SAMPLES_PER_CATEGORY:
@@ -579,11 +795,21 @@ def process_session(jsonl_path, sessions_dir):
                         )
                     status = "ok" if not cat else f"ERROR({cat}): {redact(txt)[:120]}"
                     emit(f"    -> {status}")
+            if operator:
+                emit_operator(operator)
             if had_user_text:
                 sess["counts"]["userMsgs"] += 1
             continue
-        # other entry types (last-prompt, queue-operation, file-history-snapshot, attachment, mode)
-        # are intentionally ignored for behavioral analysis.
+
+        if otype == "attachment":
+            # a message the operator typed while the model was working: not a user record, so
+            # not a userMsg either, but the operator's words all the same
+            operator = operator_turn_text(obj, id_to_tool)
+            if operator:
+                emit_operator(operator)
+            continue
+        # other entry types (last-prompt, queue-operation, file-history-snapshot, mode) are
+        # intentionally ignored for behavioral analysis.
 
     # behavioral aggregates
     sess["behavior"]["reReads"] = [
@@ -614,12 +840,23 @@ def process_session(jsonl_path, sessions_dir):
     if sess["counts"]["userMsgs"] > 0:
         header = f"# Session {sid}\nTitle: {redact(sess['title'] or '(none)')}\nBranch: {sess['gitBranch']}\n{sess['startTime']} -> {sess['endTime']}\n\n"
         body = header + "\n".join(transcript)
+        if operator_tail:
+            # The rule line ends the USER block before it for the corrections sweep, which would
+            # otherwise absorb the section's title line into that candidate. A blank line precedes
+            # the rule so the section reads apart from the truncation marker above it.
+            body += (
+                "\n\n"
+                + OPERATOR_SECTION_RULE.format(n=len(operator_tail))
+                + "\n"
+                + "\n".join(operator_tail)
+            )
+        body = _lf(body)
         out = sessions_dir / f"{sid}.md"
-        out.write_text(body, encoding="utf-8")
+        _write_lf(out, body)
         sess["transcriptPath"] = str(out.resolve())
         sess["transcriptBytes"] = len(body.encode("utf-8", "replace"))
 
-    return sess, local_errors, user_rejected
+    return sess, local_errors, user_rejected, hook_denials
 
 
 def render_subagent(jf):
@@ -641,6 +878,7 @@ def render_subagent(jf):
         nonlocal nbytes, truncated
         if truncated:
             return
+        line = _lf(line)
         b = len(line.encode("utf-8", "replace")) + 1
         if nbytes + b > TRANSCRIPT_BYTE_CAP:
             lines.append("\n[...sub-agent transcript truncated at 120 KB...]")
@@ -804,7 +1042,7 @@ def walk_subagents(session_dir, sess, sessions_dir):
                 f"  msgs: {p['msgs']}  errors: {p['errs'] or 'none'}\n\n"
             )
             outp = sub_dir / safe
-            outp.write_text(header + p["text"], encoding="utf-8")
+            _write_lf(outp, header + p["text"])
             sess["subAgents"]["highSignal"].append(
                 {
                     "file": safe,
@@ -1063,6 +1301,11 @@ DIGEST_MIN_OCCURRENCES = 2
 # for the WHOLE retrospective — widening it would silently shift every session's metrics and
 # change which sessions get deep-dived. This layer applies to the digest only.
 #
+# Which records are the operator is decided by operator_turn_text: a record with an origin stamp is
+# told apart by the stamp, because a prefix cannot do it (the blanket "<" below also matches a
+# pasted block the operator sent). This list still decides for a record with no stamp, and the
+# sweep reads the same prefixes off the digest it is given.
+#
 # Mirrors SKIP_PREFIX in the sibling sweep_user_corrections.py (same skill, same noise class).
 # The two lists must move together; they are duplicated because the scripts are invoked as
 # stand-alone files from the repo root and cannot import each other without path juggling.
@@ -1089,20 +1332,6 @@ def _is_human_turn(text):
     return bool(text) and not text.lstrip().startswith(HARNESS_USER_PREFIXES)
 
 
-def _user_text(obj):
-    """Redacted, cleaned text of one user record — '' if it is not real user input."""
-    content = (obj.get("message") or {}).get("content")
-    if isinstance(content, list):
-        content = " ".join(
-            b.get("text", "")
-            for b in content
-            if isinstance(b, dict) and b.get("type") == "text"
-        )
-    if not isinstance(content, str) or not is_real_user_text(content):
-        return ""
-    return redact(clean_user_text(content))
-
-
 def _session_identity(path):
     """Identity fields a CALLER CAN FALSIFY — not just an opaque id.
 
@@ -1110,13 +1339,7 @@ def _session_identity(path):
     never sent knows immediately that the wrong session was measured.
     """
     mtime = datetime.fromtimestamp(path.stat().st_mtime, UTC)
-    first = ""
-    for obj in iter_jsonl(path):
-        if obj.get("type") == "user":
-            first = _user_text(obj)
-            if _is_human_turn(first):
-                break
-            first = ""
+    first = next(iter_operator_turns(path), "")
     return {
         "sessionId": path.stem,
         "lastActivity": mtime.isoformat(timespec="seconds"),
@@ -1202,13 +1425,7 @@ def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
         for cat, n in (sess.get("errorsByCategory") or {}).items()
         if n >= DIGEST_MIN_OCCURRENCES
     }
-    msgs = [
-        t
-        for t in (
-            _user_text(o) for o in iter_jsonl(jsonl_path) if o.get("type") == "user"
-        )
-        if _is_human_turn(t)
-    ]
+    msgs = list(iter_operator_turns(jsonl_path))
 
     signal_count = (
         len(rereads)
@@ -1225,8 +1442,14 @@ def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
     L.append(f"- Last activity: {ident['lastActivity']}")
     L.append(f"- Branch: {sess.get('gitBranch') or 'unknown'}")
     L.append(
-        f"- Volume: {sess['counts']['userMsgs']} user msgs, "
+        f"- Volume: {len(msgs)} operator turns, "
         f"{sess['counts']['toolUse']} tool calls, {sess.get('compactions', 0)} compaction(s)"
+    )
+    # counts.userMsgs is every user-channel record that carries text, injected text included, so it
+    # is not the number of operator turns above; it stays, labelled, because it drives selection.
+    L.append(
+        f"- User-channel records: {sess['counts']['userMsgs']} (counts.userMsgs; includes skill, "
+        "hand-back and compaction text, so it is not a count of operator turns)"
     )
     L.append(
         f"- Re-read threshold applied: >={rereads_min} (see DEFAULT_REREADS_MIN provenance)"
@@ -1275,6 +1498,12 @@ def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
         "marker exists, which is why this is a sequence to read and not a detector's output."
     )
     L.append("")
+    L.append(
+        "Operator turns only: typed messages, messages typed while the model was working, and "
+        "the answers given to the question tool. Skill bodies, task notifications, hand-backs "
+        "and compaction text are not listed."
+    )
+    L.append("")
     for i, t in enumerate(msgs[:DIGEST_USER_MSG_CAP], 1):
         flat = " ".join(t.split())[:DIGEST_USER_MSG_CHARS]
         L.append(f"{i}. {flat}")
@@ -1296,10 +1525,10 @@ def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
     L.append("")
 
     path = Path(output_dir) / "interaction-digest.md"
-    path.write_text("\n".join(L), encoding="utf-8")
+    _write_lf(path, "\n".join(L))
     print(
         f"Wrote {path} — gate={'SIGNAL' if signal_count or errors else 'NO SIGNAL'}, "
-        f"{signal_count} repetition signal(s), {len(errors)} error class(es), {len(msgs)} user msgs",
+        f"{signal_count} repetition signal(s), {len(errors)} error class(es), {len(msgs)} operator turns",
         file=sys.stderr,
     )
     return path
@@ -1407,6 +1636,7 @@ def main():
     sessions = []
     tax = {c: {"count": 0, "sessions": [], "samples": []} for c in ERROR_CATEGORIES}
     user_rejected = {"count": 0, "sessions": [], "samples": []}
+    hook_denials = {"count": 0, "sessions": [], "samples": []}
 
     prescan_skipped = 0
     for f in files:
@@ -1421,7 +1651,7 @@ def main():
                 prescan_skipped += 1
                 continue
         try:
-            sess, local_errors, rejected = process_session(f, sessions_dir)
+            sess, local_errors, rejected, hooked = process_session(f, sessions_dir)
         except Exception as exc:  # never abort the whole run on one file
             print(f"  ! error processing {f.name}: {exc}", file=sys.stderr)
             continue
@@ -1447,6 +1677,13 @@ def main():
             for s in rejected:
                 if len(user_rejected["samples"]) < 8:
                     user_rejected["samples"].append(s)
+        if sess["hookDenials"]:
+            # the TRUE number again: `hooked` is a capped sample list
+            hook_denials["count"] += sess["hookDenials"]
+            hook_denials["sessions"].append(sess["sessionId"][:8])
+            for s in hooked:
+                if len(hook_denials["samples"]) < 8:
+                    hook_denials["samples"].append(s)
 
     sessions.sort(key=lambda s: s["startTime"] or "")
 
@@ -1524,7 +1761,11 @@ def main():
             "generatedAt": datetime.now(UTC).isoformat(),
         },
         "stats": stats,
-        "errorTaxonomy": {"byCategory": tax, "userRejected": user_rejected},
+        "errorTaxonomy": {
+            "byCategory": tax,
+            "userRejected": user_rejected,
+            "hookDenials": hook_denials,
+        },
         "subAgentErrorTaxonomy": {"byCategory": sub_tax, **sub_totals},
         "deepDiveCandidates": deep_dive,
         "subAgentDeepDiveCandidates": sub_deep_dive,
@@ -1534,9 +1775,7 @@ def main():
     # validate schema contract before writing
     _validate_schema(out)
 
-    (output_dir / "aggregate.json").write_text(
-        json.dumps(out, indent=2), encoding="utf-8"
-    )
+    _write_lf(output_dir / "aggregate.json", json.dumps(out, indent=2))
     print(
         f"Wrote aggregate.json ({len(sessions)} sessions) + {len(list(sessions_dir.glob('*.md')))} transcripts to {output_dir}",
         file=sys.stderr,
@@ -1546,7 +1785,7 @@ def main():
         + ", ".join(
             f"{c}={tax[c]['count']}" for c in ERROR_CATEGORIES if tax[c]["count"]
         )
-        + f" | user-rejected={user_rejected['count']}",
+        + f" | user-rejected={user_rejected['count']} | hook-denials={hook_denials['count']}",
         file=sys.stderr,
     )
     sub_cat = ", ".join(
