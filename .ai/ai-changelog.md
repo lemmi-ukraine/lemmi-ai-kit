@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-10-27
+
+### INFRA-MODIFIED: Collect the skill tests in CI, rebuild the learnings guard's shell arm and fix the extractor's rejection count
+- **What:** CI now runs every test file under the skills folders, each in its own process, through a wrapper test. The Windows-only pack-isolation failure and the probe-stamps timeout are fixed, and the five documents name every CI gate instead of counting four. The session-retrospective skill no longer says its report folder is both ignored and committed. The learnings drain guard now parses a shell command instead of matching words (quotes, comments, heredocs, pipelines, a name held in a variable): nearly all reads and appends pass, a denial names the matched shape and the routes that are never blocked, and PowerShell writes, python scripts on stdin and `mv` onto the file are denied. Its known gaps and one known false positive (a python script that reads the file and writes another) are listed in its docstring and pinned in its tests. The extractor counts a user rejection only for the harness's own refusal sentence, carries the true count per session, skips four more harness-injected prefixes in both of its lists, and its tests no longer fail on Linux.
+- **Why:** CI never ran the extractor's tests, and the first time it did they would have failed on Linux. In a replay of about 1,200 recorded commands that name the learnings file, the old guard denied 96, mostly reads and appends, while allowing the python scripts that rewrite it; the rebuilt guard denies 24, most of them python scripts that write some other file. The retrospective skill contradicted itself about its own report folder, and a ripgrep pattern error was counted as a user rejection.
+- **Files:** `tests/test_skill_script_tests.py`, `tests/test_ci_gates_documented.py`, `tests/test_gate_learnings_drain.py`, `tests/test_session_retrospective_text.py`, `tests/test_pack_isolation.py`, `tests/test_flow_mapping.py`, `plugins/core/hooks/gate_learnings_drain.py`, `plugins/core/skills/session-retrospective/` (SKILL.md, the schema reference, the extractor, the sweep and their tests), `AGENTS.md`, `CONTRIBUTING.md`, `docs/faq.md`, `docs/working-on-the-kit.md`, `docs/syncing-from-upstream.md`, `.ai/ai-changelog.md`, `.ai/improvement-hypotheses.md`, `.ai/learnings.md`.
+- **Affected workflows:** Every pull request's CI run; `learning-consolidator` and `task-learnings` (the guard); `session-retrospective` (the extractor, the sweep and the report-folder wording). Pass K-1 of the 2026-10 consolidation; its operator-input, replay, sub-agent-file, session-folder and key-shape requests are deferred to the pass's continuation.
+
 ## 2026-09-23
 
 ### INFRA-MODIFIED: Run the Core learnings hook through uv

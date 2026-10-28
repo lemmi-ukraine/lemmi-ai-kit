@@ -44,3 +44,23 @@ to its home above and removed here.
 - **Enforce-via**: test
 - **Verify-at**: tests/test_flow_mapping.py
 - **Scope**: durable
+
+### [2026-10-27] A guard pinned only by its own table of shapes ships defects that a replay of real recorded input finds
+- **Context**: Rebuilding the learnings drain guard's shell arm against a table of 27 shapes.
+- **Finding**: The table passed while a replay of 1,216 real commands that name the file found a regular expression that took 11 seconds on a 25 KB line, a `py` word matching inside `.py` file names, and three new false denials of read-only PowerShell. An execution oracle that ran about 1,000 commands in sandboxes then found a dozen shapes the regular expressions could not see, such as a `;` inside a sed script and the word `rm` used as text.
+- **Impact**: Before trusting a guard, replay recorded real input through the old and the new version and diff the verdicts, and run the commands for real in a sandbox to measure their effect. A table written from the same mental model as the code shares its blind spots.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: prose
+- **Verify-at**: tests/test_gate_learnings_drain.py
+- **Scope**: durable
+
+### [2026-10-27] Tests that CI collects for the first time can fail on the other operating system
+- **Context**: Making CI run the session-retrospective extractor's tests, which lived outside the collected test folder.
+- **Finding**: 9 of the extractor's 38 tests failed on Linux though they pass on Windows: the extractor rejects an output folder under /tmp, and pytest's tmp_path is under /tmp on Linux.
+- **Impact**: When a change makes CI collect tests that already exist, run them on the CI operating system first (a docker image is enough) and fix them in the same change, or the first pull request goes red for a reason nobody recently touched.
+- **Category**: pitfall
+- **Home**: comment:plugins/core/skills/session-retrospective/scripts/test_extract_sessions.py:_run
+- **Enforce-via**: test
+- **Verify-at**: tests/test_skill_script_tests.py
+- **Scope**: durable
