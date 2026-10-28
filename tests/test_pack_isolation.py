@@ -29,7 +29,7 @@ def _broken_payload_links(copied: Path) -> list[str]:
                 continue
             target = (path.parent / target_name).resolve()
             if not target.is_relative_to(copied.resolve()) or not target.exists():
-                broken.append(f"{path.relative_to(copied)} -> {link}")
+                broken.append(f"{path.relative_to(copied).as_posix()} -> {link}")
     return broken
 
 

@@ -10,7 +10,7 @@ one that rots:
 
 | Question | Where it is answered |
 |---|---|
-| How do I report an issue, set up the development environment, run the four checks CI runs, or add a skill? | [CONTRIBUTING.md](../CONTRIBUTING.md) |
+| How do I report an issue, set up the development environment, run the gates CI runs, or add a skill? | [CONTRIBUTING.md](../CONTRIBUTING.md) |
 | How do I author a pack — the scaffold command, and the registration edits it does not make? | [Authoring a pack](authoring-a-pack.md) |
 
 What is below is the mechanics both of those stand on: where things live, what the

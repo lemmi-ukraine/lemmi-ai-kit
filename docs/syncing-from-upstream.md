@@ -186,8 +186,10 @@ three-way merge will attribute it to you.
    reached 16 call sites across 10 skills once, and it resolved in testing only because
    the development environment had the package installed. **When a skill names a command,
    check it against the install path the adopter uses, not the one the developer has.**
-7. **Run the four checks:** `uv run ruff check .`, `uv run ruff format --check .`,
-   `uv run basedpyright`, `uv run pytest`. If a vocabulary test in `test_checks.py` goes
+7. **Run every CI gate:** `uv run ruff check .`, `uv run ruff format --check .`,
+   `uv run basedpyright`, `uv run pytest`,
+   `uv run python -B -m lemmi_ai_kit audit-skills --fail-on major` and
+   `uv run python -B -m lemmi_ai_kit publish-check`. If a vocabulary test in `test_checks.py` goes
    red because upstream added a changelog type or a learnings category, that is the alarm
    working — extend the constant in `plugins/core/src/lemmi_ai_kit/checks.py`. Do not loosen the test
    to keep a refresh green.
@@ -284,7 +286,7 @@ Both of the kit's upstream-facing checks ship as reports and are promoted only o
 evidence. Recording the criteria here is what stops "promote it later" from meaning
 "never".
 
-**The drift check → a CI gate.** Promote when all four hold:
+**The drift check → a CI gate.** Promote when each of these holds:
 
 1. Two consecutive syncs have run where the report's `BEHIND` set matched the set of
    skills the maintainer independently intended to carry — no false positives from the

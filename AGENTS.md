@@ -2,8 +2,10 @@
 
 ## Commands
 
-Run from the repository root. The four CI gates are `ruff check`, `ruff format
---check`, `basedpyright` and `pytest`; all four must be green.
+Run from the repository root. Every command below except `uv sync --dev` is a CI gate:
+CI runs each as its own step, in this order, and every one must be green.
+`.github/workflows/ci.yaml` is the authority on which gates exist and what each runs,
+so none is counted here, and `tests/test_ci_gates_documented.py` fails if one goes missing.
 
 ```bash
 uv sync --dev
@@ -13,10 +15,15 @@ uv run basedpyright
 
 # ALWAYS pass --basetemp. A bare `pytest` and a bare `ruff format --check .` both
 # trip on an unreadable .pytest-tmp/ — ruff exits 2 while printing "already
-# formatted", which reads as a pass. Say which invocation you ran.
+# formatted", which reads as a pass. Say which invocation you ran. CI itself runs a
+# bare `uv run pytest`.
 T=$(mktemp -d); uv run pytest -q --basetemp "$T"; rm -rf "$T"
 
-# Before publishing or installing anything an adopter will consume.
+# The skill audit. Its 500-line SKILL.md cap can be crossed by an ordinary edit while
+# every gate above stays green.
+uv run python -B -m lemmi_ai_kit audit-skills --fail-on major
+
+# Before publishing or installing anything an adopter will consume, and as a CI gate.
 # -B is not optional: this package lives inside the plugin payload, so without it
 # the import writes .pyc into the tree being measured and the check blocks on
 # files it created itself. Exit 0 clean, 1 blocked, 2 could-not-measure — gate on
@@ -249,14 +256,14 @@ cost attached is the first one dropped.
   inside a document about not hand-writing counts. Derive it, or state the command that
   answers it and no number at all.
 
-#### The four checks
+#### The CI gates
 
-- **Run all four — `ruff check`, `ruff format --check`, `basedpyright`, `pytest` — not
-  just the suite.** They are separate CI steps, so a green suite is evidence about the
-  suite. A formatting failure sat on `main` for five commits because sessions ran only
-  the tests, and four of those commits were the author of this rule.
-- **Prefix every `uv run` with `PYTHONDONTWRITEBYTECODE=1`.** All four import the package
-  and write `__pycache__` under `plugins/core/src/`, which is inside the pack payload —
+- **Run every gate in Commands — not just the suite.** They are separate CI steps, so a
+  green suite is evidence about the suite. A formatting failure sat on `main` for five
+  commits because sessions ran only the tests, and four of those commits were the author
+  of this rule.
+- **Prefix every `uv run` with `PYTHONDONTWRITEBYTECODE=1`.** Every gate imports the package,
+  and an import writes `__pycache__` under `plugins/core/src/`, which is inside the pack payload —
   so running the checks is enough to make `publish-check` refuse afterwards, with a
   failure naming files you never wrote. `export` is bash; PowerShell needs
   `$env:PYTHONDONTWRITEBYTECODE = "1"`, and getting that wrong sets nothing silently.

@@ -27,7 +27,21 @@ def installation(tmp_path: Path) -> tuple[Path, Path]:
     return installed, project
 
 
+# Both limits guard against a hang, not against a slow machine. `--probe-stamps` is the one
+# call whose duration scales with the tool's probe manifest: it runs every probe pair in a
+# single call, on a positive and a negative file each, so it gets a limit in minutes while
+# every other call keeps 45 s. At 4244f3c on a loaded Windows machine the two calls took
+# between 45 s and 158 s from one run to the next, and a flat 45 s killed both in one run.
+_CALL_TIMEOUT_SECONDS = 45
+_PROBE_STAMPS_TIMEOUT_SECONDS = 10 * 60
+
+
 def run(script: Path, cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    timeout = (
+        _PROBE_STAMPS_TIMEOUT_SECONDS
+        if "--probe-stamps" in args
+        else _CALL_TIMEOUT_SECONDS
+    )
     return subprocess.run(
         [sys.executable, "-B", str(script), *args],
         cwd=cwd,
@@ -38,7 +52,7 @@ def run(script: Path, cwd: Path, *args: str) -> subprocess.CompletedProcess[str]
         },
         capture_output=True,
         text=True,
-        timeout=45,
+        timeout=timeout,
     )
 
 

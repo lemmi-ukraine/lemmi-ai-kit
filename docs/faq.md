@@ -236,7 +236,7 @@ sign and no `Signed-off-by` trailer to remember.
 ## Can I contribute a skill, or a pack?
 
 Yes. [CONTRIBUTING.md](../CONTRIBUTING.md) covers reporting an issue, setting up the
-development environment, the four checks CI runs, the hygiene contract that can fail
+development environment, the gates CI runs, the hygiene contract that can fail
 a documentation-only pull request, adding a skill, and contributing a language or
 domain pack.
 
