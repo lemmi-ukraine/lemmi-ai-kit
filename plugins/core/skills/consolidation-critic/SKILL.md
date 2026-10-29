@@ -48,6 +48,7 @@ already written into always-loaded rules. Both were invisible until checked.
 | The pre-drain snapshot (`.ai/learnings-pre-drain-<date>.md`) | C1 cannot run without it |
 | `git diff HEAD` over the promotion targets | The actual change under review — not your memory of it |
 | The consolidation plan (`.ai/consolidation-plan-*.md`) | Promotions the plan promised but the drain never made |
+| The gate record (`.ai/consolidation-gates/<date>-plan-approved.md`) | The plan as recorded approved before any removal: a written claim C1 checks against the plan the operator saw |
 
 ---
 
@@ -58,26 +59,36 @@ Run all eight. Each names the failure it has actually caught.
 ### C1 — Landing audit (mechanical, non-negotiable)
 
 Removal verification proves entries left the buffer. It is **structurally blind** to the opposite
-failure: an entry removed whose knowledge reached no home.
+failure: an entry removed whose knowledge reached no home. Run the audit that fits the state of the
+promotions; the base ref is mandatory (no ref exits 2):
 
 ```bash
+# Promotions still UNCOMMITTED: HEAD is the pre-promotion state.
 python "${CLAUDE_PLUGIN_ROOT}/skills/learning-consolidator/scripts/drain_audit.py" \
-  .ai/learnings-pre-drain-<date>.md
+  .ai/learnings-pre-drain-<date>.md HEAD
+
+# Promotions ALREADY COMMITTED: the commit before the promotion commit, never HEAD.
+python "${CLAUDE_PLUGIN_ROOT}/skills/learning-consolidator/scripts/drain_audit.py" \
+  .ai/learnings-pre-drain-<date>.md <promo-commit>~1
 ```
 
-Adjudicate **every** `[LOSS?]` and no-probe-token row by hand. Expected-clean: ARCHIVED entries, and
-entries whose only tokens are incidental paths from their anecdote. Anything else is deleted
-knowledge — recover it from the snapshot and promote it before proceeding.
+Exit 1 means rows to adjudicate, not a failed run. Adjudicate **every** `[LOSS?]` and no-probe-token
+row by hand. Expected-clean: ARCHIVED entries, and entries whose only tokens are incidental paths
+from their anecdote. Anything else is deleted knowledge — recover it from the snapshot and promote
+it before proceeding.
 
 **If no snapshot exists** (a drain that predates the Phase-5 snapshot requirement), reconstruct one
-from git into scratch — `git show HEAD:.ai/learnings.md > .ai/tmp/learnings-pre-drain-recovered.md`,
-deliberately NOT the committed snapshot path, because a reconstruction is not evidence — and say so
-in the report: a snapshot rebuilt from the last commit misses anything appended since, so C1's
-coverage is partial and must be stated as partial, not clean.
+from git into scratch: the operator writes the buffer's last committed contents to a scratch path in
+their own terminal (a session never names the buffer on a shell line), deliberately NOT the
+committed snapshot path, because a reconstruction is not evidence — and say so in the report: a
+snapshot rebuilt from the last commit misses anything appended since, so C1's coverage is partial
+and must be stated as partial, not clean.
 
 Then check the plan: for each promotion it promised, confirm the target file actually exists and
 carries it. *A promotion assigned in the plan and skipped in execution is the most common loss* —
-one plan named a `docs/` note that was never created, silently dropping two entries.
+one plan named a `docs/` note that was never created, silently dropping two entries. Read the gate
+record too: it is a written claim, not proof, that the operator approved this plan before the
+removals, so confirm it holds the plan approved at the Phase 3 gate and report any difference.
 
 > **Caught:** 6 of 87 entries deleted without a home, including a rule the same consolidation
 > cross-referenced from a skill as if it existed — a dangling pointer to knowledge just deleted.
@@ -173,8 +184,8 @@ This review **edits** — so its own output is unverified until the gates run ag
 them, unfiltered, and read the exit codes:
 
 ```bash
-PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint
-PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit audit-skills
+uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint --project "<project root>"
+uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit audit-skills --project "<project root>"
 ```
 
 …plus the project's canonical lint gate for any code touched — use the exact invocation

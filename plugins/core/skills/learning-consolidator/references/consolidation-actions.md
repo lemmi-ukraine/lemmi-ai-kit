@@ -386,8 +386,8 @@ including a rule the same consolidation then cross-referenced from a skill as if
 a dangling pointer to knowledge it had just deleted.
 
 Run it against the pre-drain snapshot (Phase 5 requires taking one before any deletion). **The
-second argument is mandatory, and which ref is correct depends on whether the promotions are
-committed yet — this is the step's sharpest edge:**
+second argument, the base ref, is mandatory, and which ref is correct depends on whether the
+promotions are committed yet — this is the step's sharpest edge:**
 
 ```bash
 # Promotions still UNCOMMITTED (drain and promote in one session): HEAD is the pre-promotion state.
@@ -400,10 +400,18 @@ python "${CLAUDE_SKILL_DIR}/scripts/drain_audit.py" <pre-drain-snapshot>.md <pro
 
 Passing `HEAD` after the promotions are committed makes the haystack ("lines ADDED since ref")
 nearly empty, so every entry reads as a loss. Omitting the ref is the opposite and more dangerous
-failure: the audit then greps each target's CURRENT contents, where a token that predates the drain
-counts as a landing. Measured on one buffer — `landed 96 / LOSS 7` with no ref versus
-`landed 78 / LOSS 25` in sound mode, hiding **18** candidate losses behind pre-existing tokens. Only
-the sound-mode figure may be quoted.
+failure, so the script refuses it: with no ref it exits 2 and names the one flag that asks for the
+other scan, `--current-contents`. That scan greps each target's CURRENT contents, where a token
+that predates the drain counts as a landing. Measured on one buffer — `landed 96 / LOSS 7` with
+the current-contents scan versus `landed 78 / LOSS 25` in sound mode, hiding **18** candidate losses
+behind pre-existing tokens. Only the sound-mode figure may be quoted.
+
+**Exit codes.** 0 is clean: every entry landed (under `--current-contents` an exit 0 is an upper
+bound, never a clean audit). 1 is rows to adjudicate — a `[LOSS?]` row or a no-probe row remains —
+and **exit 1 means rows to adjudicate**: it is neither a crash nor a pass, and a caller that gates
+on the code must read it as "a human has work to do". 2 is a usage error or a run that could not
+measure (no ref, an unreadable snapshot or one with no entry, a diff that could not be taken):
+never read it as clean.
 
 **Reconcile the report's coverage before trusting it.** The entry splitter matches only
 `### [`-prefixed headings, so entries headed `### YYYY-MM-DD — Title` are invisible and nothing
@@ -431,7 +439,9 @@ at all, so the script cannot speak to them and a human must confirm each one lan
 
 > Keep `TARGET_GLOBS` in the script in sync with the promotion surfaces above. A missing glob
 > produces false `[LOSS?]` rows, which trains readers to skim the output — the same
-> noisy-check-gets-ignored failure the entry-integrity lint was tightened to avoid.
+> noisy-check-gets-ignored failure the entry-integrity lint was tightened to avoid. Each glob
+> reaches git as a `:(glob)` pathspec, so `**/` matches zero or more directories and `*` never
+> crosses `/`: `docs/**/*.md` includes `docs/x.md`, and `tasks/*.md` is that folder's own files only.
 
 ## Calibration Examples
 
@@ -468,6 +478,11 @@ It should be PROMOTE_TO_RULE or KEEP until 2+ related entries form a cluster.
 
 **Snapshot the buffer FIRST** — copy it to `.ai/learnings-pre-drain-<date>.md` before
 any deletion. Step 6 requires it, and it is the only recovery path if the drain goes wrong.
+
+**The copy is an operator step** ([§ Operator Steps](#operator-steps)): the operator makes the
+byte copy in their own terminal and confirms it is byte-identical; the session never names the
+buffer on a shell line. You then confirm with Grep in count mode that the snapshot and the
+buffer hold the same number of entries, and commit the snapshot with the drain.
 
 **Do NOT put it in `.ai/tmp/`.** That directory is gitignored, so a snapshot
 there can never be committed, never reaches a reviewer, and is routinely swept. One drain
@@ -561,3 +576,74 @@ file path so the next pass can re-verify cheaply. **And grep every code symbol t
 cites against the CURRENT branch** — entries written on another branch carry that branch's names
 One drain shipped a symbol name into a README that the target branch had already renamed;
 only a post-promotion symbol sweep caught it.
+
+## Operator Steps
+
+Three steps need bytes of the buffer that no Grep, Read or Edit call delivers: the previous drain's
+heading count at its commit (Phase 1), the pre-drain snapshot copy (Phase 5) and the critic's
+recovery read of the buffer's last committed contents (check C1 of `consolidation-critic`). No kit
+script makes these copies or reads (the `lint learnings` subcommand reads the buffer to check it,
+and copies nothing). **In every project the operator makes each copy or read in their own
+terminal** and the session never names the buffer on a shell line: Phase 1, Phase 5 and C1 describe
+this one route. A project whose own rules (AGENTS.md or its override document) keep the buffer path
+off session shell lines requires exactly this; a project without such a rule takes the same route,
+because these skills print no shell line that names the buffer and a session's routes on it are
+the three below. Either way the route is stricter than the kit's guard, which judges a shell line
+by the shape of its text, best-effort, and matches only shapes that can rewrite or delete the
+buffer: a plain read or copy passes it, while an inline script that reads the buffer and writes
+another file is a known false positive.
+
+The routes a session may use on the buffer are the three the guard names when it denies a line:
+**Grep in count mode** (pattern `^### \[`) to count entries, **Read with offset and limit** to read
+them, and **Edit appending after the last entry** to add one.
+
+| Step | The operator, in their own terminal | The session, afterwards |
+|---|---|---|
+| Previous drain's count (Phase 1, step 0) | reads the buffer's `### ` heading count at the drain's commit | compares it with the post-drain count the drain reported |
+| Snapshot (Phase 5) | copies the buffer to the snapshot path and confirms the copy is byte-identical | confirms with Grep in count mode that both files hold the same number of entries, then commits the snapshot with the drain |
+| Recovery read (C1, no snapshot exists) | writes the buffer's last committed contents to a scratch path that is NOT the snapshot path | audits against it and states the coverage as partial: a reconstruction is not evidence |
+
+## Gate Record
+
+Phase 3 ends in a STOP, and a prose stop was skipped once: a drain removed 263 entries without ever
+presenting its plan. The learnings guard, a PreToolUse hook the core pack ships, now denies a call
+it sees removing entries from the buffer unless a **gate record** exists:
+`.ai/consolidation-gates/<YYYY-MM-DD>-plan-approved.md` under the project root. It sees an Edit or
+Write exactly, by counting entries; a shell call it judges by the shape of the command text,
+best-effort and with known gaps.
+
+- **Day rule.** `<YYYY-MM-DD>` is today's LOCAL calendar day, as the machine running the hook reads
+  it. A record dated an earlier day does not count: approval and drain must happen on the same
+  calendar day, so a plan approved yesterday needs a fresh record today.
+- **Length rule.** The file must hold at least 200 characters once surrounding whitespace is
+  stripped (characters, not bytes). Write the approved Phase 3 plan itself, not a stub: an absent,
+  empty or short record denies the removal, and the denial names the path it needs.
+- **When.** Write the record only AFTER the operator's approval of the plan, never before it.
+- **What it gates.** Removals only. Appends to the buffer are never blocked, so intake stays
+  frictionless.
+- **What it is.** A written claim, not enforcement. The record is forgeable: nothing proves a human
+  approved the plan, and a session can write the file itself. It turns skipping the gate from an
+  invisible omission into a dated written claim that `consolidation-critic` and the changelog entry
+  audit against what the operator actually approved. The drain session has no exemption from the
+  guard.
+
+## Hypothesis Lifecycle in the Plan
+
+The validator splits around the Phase 3 approval gate (its Steps 1 to 4 and its Step 7 ledger-state
+line at the end of Phase 2; its Steps 6 and 8 in Phase 6.5), because a verdict the operator never
+saw in the plan is a status change nobody approved.
+
+- **Its lifecycle actions are plan items, never post-approval side effects.** There is no archive
+  and no rotation: terminal entries stay in `.ai/improvement-hypotheses.md` permanently, so do not
+  plan a rotation and do not create an archive file. What still **writes** is the Meta-Synthesis, so
+  it is *discovered* during Phases 1–2 and carried into the Phase 3 plan with its target named —
+  whether the lint's synthesis-due NOTE is currently firing. To know before the gate, run the lint
+  the validator's Step 8 names at the end of Phase 2 as well (it only reads) and carry any NOTE it
+  prints into the plan. Approval then covers it exactly as it covers the verdicts.
+- **The ledger-state line** the validator's Step 7 produces (`N PENDING · M terminal · last verdict
+  <date>`) goes into the plan: a plan that never mentions the ledger is how a stalled ledger stays
+  invisible.
+- **Late discovery.** Phase 6.5 runs after the gate, so anything it discovers for the first time
+  there has not been approved: if the NOTE only starts firing once this run's own verdicts land, do
+  not execute the synthesis silently — present it as a one-line delta for a second approval, or
+  carry it to the next run with a dated note. Discovery may happen late; writing may not.
