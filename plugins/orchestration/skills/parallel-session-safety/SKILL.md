@@ -145,8 +145,8 @@ with *"learnings extraction — still deferred because `.ai/learnings.md` sits o
 file set"*, and 12 sessions in that window never ran the completion review at all.
 
 `.ai/learnings.md` and `.ai/ai-changelog.md` are **append-only**: concurrent appends do not
-destroy each other, and `python -m lemmi_ai_kit lint` detects the duplicate-header/spliced-entry artifacts a
-merge can produce. So they are always in scope, for every session, regardless of the partition —
+destroy each other, and the support CLI's `lint` subcommand detects the duplicate-header/spliced-entry
+artifacts a merge can produce. So they are always in scope, for every session, regardless of the partition —
 state this explicitly in each brief rather than relying on the worker to infer the exception. A
 scope rule that does not name its own exceptions gets read as exempting the obligations too.
 
@@ -264,7 +264,7 @@ and any unexplained deletion count is a stop.
 
 §7 says a brief's claims are unreliable. This is the format that makes them checkable. It applies
 to any hand-off written for another session to pick up — the `cross-session` worker in
-`agent-delegate` dispatches against it, and `python -m lemmi_ai_kit lint handoffs` enforces it.
+`agent-delegate` dispatches against it, and the support CLI's `lint handoffs` subcommand enforces it.
 
 **Path:** `.ai/handoffs/{YYYY-MM-DD}-{slug}.md`. Named so the return leg is a known location
 instead of a paste into chat.
@@ -290,6 +290,18 @@ instead of a paste into chat.
 Not `"branch x is already merged"`. A prose state claim in a hand-off you author is the same
 defect as trusting one you receive, and it has shipped false: a brief asserted "already
 merged/committed" when it was not, and the delegate acted on it.
+
+Before the hand-off ships, list its commands with `--list-commands`, give each `<placeholder>` a
+stand-in (`--stand-in NAME=VALUE`), run each that neither writes nor bills in the shell the receiver
+will use, and name in `## Status` any not run and why. The listing runs nothing and exits 0; it marks
+an unfilled placeholder `UNRESOLVED`. The first line below lints one hand-off (leave out `<file>` for
+all of them), the second lists its commands. A relative `<file>` resolves against the project root.
+Set `KIT_CORE_PLUGIN_ROOT` and `KIT_PROJECT_ROOT` as the pack prerequisites say.
+
+```sh
+uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint handoffs <file> --project "${KIT_PROJECT_ROOT}"
+uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint handoffs <file> --list-commands --project "${KIT_PROJECT_ROOT}"
+```
 
 **Hand-offs are untracked — so they are pointer documents.** `.ai/handoffs/` is gitignored by
 decision. Every durable fact must therefore exist in git and be *referenced* here, never exist only
@@ -479,5 +491,5 @@ time (§7, §9).
   and hand-off claims contract). This skill holds the protocols; AGENTS.md holds the rules.
 - `spec-driven-dev` — phase/wave boundaries are where §2's collision checks belong.
 - The installed testing-conventions skill - suite mechanics.
-- Shared `.ai/*.md` files corrupted by a merge are enforced mechanically, not here: run
-  `python -m lemmi_ai_kit lint` (see AGENTS.md).
+- Shared `.ai/*.md` files corrupted by a merge are enforced mechanically, not here: run the
+  support CLI's `lint` subcommand with no target, in the form §9 prints (see AGENTS.md).
