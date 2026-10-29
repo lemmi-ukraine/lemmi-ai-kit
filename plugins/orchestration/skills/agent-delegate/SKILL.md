@@ -99,8 +99,13 @@ The Process above changes in three places:
      which is how 28 commits of 7 commit types landed in one PR. If no topology exists yet, the
      dispatch is premature: run `stacked-pr-planner` first.
 3. **Verify → run the hand-off's own commands.** When the hand-off appears, execute its
-   `## Verification` block and check `## Durable anchors` resolve in git. A delegate session is a
-   model; delegated completion claims have been fabricated before. Never merge on a claim.
+   `## Verification` block and check that `## Durable anchors` resolve in git. The support CLI
+   does that for the one hand-off you were handed, and only `--resolve-anchors` makes it look at
+   the anchors; a dead one prints as a note line, not an error, and the exit code stays 0, so read
+   the output (set `KIT_CORE_PLUGIN_ROOT` and `KIT_PROJECT_ROOT` as the pack README says):
+   `uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint handoffs <file> --resolve-anchors --project "${KIT_PROJECT_ROOT}"`
+   A delegate session is a model; delegated completion claims have been fabricated before. Never
+   merge on a claim.
 
 Because hand-offs are untracked, treat the file as a pointer: everything durable must already be in
 git. If it is missing, the work is missing — not just the note.

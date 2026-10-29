@@ -63,7 +63,7 @@ a valid result, not a skipped step.**
    > sub-agent shares the parent's project directory, and its scratchpad path carries the **parent's**
    > session id. So the extractor resolves, runs, **exits 0**, and writes a well-formed digest of the
    > *orchestrator's* transcript: measured, `first user message` came back as the orchestrator's
-   > takeover brief and the counts (10 user msgs, 1 error class, 3 sub-agents) all described the
+   > takeover brief and the counts (10 user-channel records, 1 error class, 3 sub-agents) all described the
    > parent. Nothing fails — the self-check passes and step 3's verification passes, because the
    > digest is genuinely valid for the session it measured.
    >
@@ -81,7 +81,7 @@ a valid result, not a skipped step.**
    > against the session. When a repeated command is mandated, record it as compliance and name
    > the rule that mandates it; the repeated-command list is evidence to interpret, not a defect list.
 
-2. **Run the extractor, scoped to that session:**
+2. **Run the extractor from the project root, scoped to that session:**
 
    ```bash
    python "${CLAUDE_PLUGIN_ROOT}/skills/session-retrospective/scripts/extract_sessions.py" \
@@ -107,9 +107,10 @@ a valid result, not a skipped step.**
    `first user message`. If that message is not one YOU received, you measured someone else's
    session — stop and re-run with the correct id.
 
-4. **Exit codes:** `0` digest written · `4` ambiguous `current` (re-run with the explicit id) ·
-   `3` leak gate tripped and the digest was deleted → write **no** interaction entries ·
-   `2` usage error or the session had no analyzable content.
+4. **Exit codes:** `0` digest written · `1` the session dir could not be derived (the working
+   directory is not the project root: pass the session dir as the first argument) · `4` ambiguous
+   `current` (re-run with the explicit id) · `3` leak gate tripped and the digest was deleted →
+   write **no** interaction entries · `2` usage error or the session had no analyzable content.
 
 5. **Any failure falls through to Steps 1–8.** A measurement failure must never block the
    learnings append — but do **not** write interaction entries from recollection to compensate.
@@ -267,10 +268,10 @@ Fifteen days later the identical defect blocked the pipeline again.
    header and the next `## ` header. Then run, and read the verdict:
 
    ```bash
-   PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint learnings
+   uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --project "<absolute project root>"
    ```
 
-   It validates section placement, entry format, and category slugs. **This call was labelled
+   It validates section placement, entry format, and category slugs (`--project` takes the absolute project root: a relative path resolves inside the plugin, so the lint exits 2 for a buffer that exists). **This call was labelled
    "optional" once, and that is exactly how three malformed entries reached the buffer**: each was
    missing **all four** required fields, and nothing at append time looked wrong. If the lint reports findings on YOUR entries, fix them before finishing; findings on
    other sessions' entries are theirs — report, do not edit.
@@ -282,8 +283,9 @@ Fifteen days later the identical defect blocked the pipeline again.
    > contract with different field names and different punctuation (colon INSIDE the bold, not
    > after it). Writing one shape into the other passes every eyeball check and fails the lint.
    > If you have written to memory in this session, re-read the field list above before appending.
-4. **Buffer-pressure check (REQUIRED, mechanical):** the same lint call's `list learnings` mode
-   prints the entry count. If the buffer holds **> 25 entries** OR the newest `CONSOLIDATION`
+4. **Buffer-pressure check (REQUIRED, mechanical):** the same lint with `--list-entries`
+   (`uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --list-entries --project "<absolute project root>"`)
+   prints the entry count; there is no `list` mode. If the buffer holds **> 25 entries** OR the newest `CONSOLIDATION`
    entry in `.ai/ai-changelog.md` is **≥ 7 days old**, you MUST surface one line in your
    user-facing output: `intake at {N} entries, last drain {D} days ago → run
    /lemmi-ai-kit-core:learning-consolidator`. Never refuse or defer the append itself (a lost learning is worse

@@ -104,11 +104,12 @@ Use the entry format above. Rules:
 After appending, run the data-file lint:
 
 ```
-PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint changelog
+uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint changelog --project "<absolute project root>"
 ```
 
 It checks date-heading order, the 12-type taxonomy, and required fields. Fix any
-finding before moving on.
+finding before moving on. `--project` takes the absolute project root: a relative path
+resolves inside the plugin, so the lint exits 2 for a ledger that exists.
 Fallback only if the lint cannot run: manually verify the entry is under the correct date
 heading, headings are reverse-chronological, no fields are missing, and no duplicate exists.
 

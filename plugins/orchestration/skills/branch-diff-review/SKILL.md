@@ -287,8 +287,13 @@ not-reviewed sections is a finished review, not a failed one.
    reading, not for withholding it. Measured: a review skipped the handoff citing this clause and a
    directory count of 222 — condition 2 was genuinely unmet, but condition 3 **was** met, and the
    operator asked for the handoff in their very next message. Counting the directory is a measurement
-   that feels like evidence while being irrelevant to whether THIS work has a consumer. If written, check it with `python -m lemmi_ai_kit lint handoffs`, attributing findings **by
-   filename** — the target lints every handoff, not only yours.
+   that feels like evidence while being irrelevant to whether THIS work has a consumer. If written,
+   lint that one hand-off, with its file straight after the target, and read the anchor notes that
+   only `--resolve-anchors` prints (`<file>` is the hand-off you wrote, relative to the project
+   root; set `KIT_CORE_PLUGIN_ROOT` and `KIT_PROJECT_ROOT` as the pack README says):
+   `uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint handoffs <file> --resolve-anchors --project "${KIT_PROJECT_ROOT}"`
+   Leave `<file>` out and the target lints every hand-off in the directory, so attribute those
+   findings **by filename**.
 
 ## Example — the verification line, wrong and right
 

@@ -77,18 +77,20 @@ _SUBCOMMAND_ALTERNATION = "|".join(re.escape(sub) for sub in _cli_subcommands())
 _ASSET_ONLY_FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
     (
         re.compile(r"ai_files_lint"),
-        "unshipped linter (use `python -m lemmi_ai_kit lint`)",
+        'unshipped linter (use the `lint` subcommand, printed as `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint --project "<absolute project root>"`)',
     ),
     (
         re.compile(r"audit_skills"),
-        "unshipped audit (use `python -m lemmi_ai_kit audit-skills`)",
+        'unshipped audit (use the `audit-skills` subcommand, printed as `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit audit-skills --project "<absolute project root>"`)',
     ),
     # The `lemmi-ai-kit` console script comes from `[project.scripts]`, so it exists
     # only after a pip/uv install of the package. The kit installs as a Claude Code
     # plugin -- `/plugin install` places skills and never installs the distribution --
     # so a skill telling an adopter to run `lemmi-ai-kit <sub>` names a command they do
-    # not have. Use the module form, which `kit-setup` already documents:
-    # PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit <sub>
+    # not have. Use the one printed form, which sets nothing before the command and
+    # which `tests/test_printed_commands.py` parses:
+    # uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit <sub>
+    # (a skill of another pack prints `${KIT_CORE_PLUGIN_ROOT}` for the plugin root).
     # The bare plugin name stays legal -- it is the marketplace id and the
     # `/lemmi-ai-kit-core:<skill>` invocation prefix.
     (

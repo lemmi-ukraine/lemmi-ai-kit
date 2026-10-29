@@ -145,7 +145,7 @@ period AND the data speaks. Report-only: statuses are the hypothesis-validator's
 
 {REQUIRED — fixed per-window trend table; consumed by hypothesis-validator and the
 learning-consolidator. Data: aggregate.json, git history of `.ai/` data files,
-`PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint learnings --list-entries`. One table — not a dashboard.}
+`uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --list-entries --project "<absolute project root>"`. One table — not a dashboard.}
 
 | Metric | This window | Prior window |
 |--------|-------------|--------------|

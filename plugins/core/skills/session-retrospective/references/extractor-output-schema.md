@@ -236,9 +236,10 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
 ## Invocation
 
 ```bash
-# <session-dir> is auto-derived from the repo root + ~/.claude/projects/ — omit it (pass it only to
-# override, e.g. a personal-scope install). `generatedFor.sessionDir` records which dir was used.
-python scripts/extract_sessions.py \  # path relative to this skill's directory
+# <session-dir> is derived from the working directory, which must be the project root — omit it.
+# From anywhere else the run exits 1 and asks for it as the first argument.
+# `generatedFor.sessionDir` records which dir was used.
+python "${CLAUDE_SKILL_DIR}/scripts/extract_sessions.py" \
   ".ai/tmp/retro/" [--since YYYY-MM-DD] [--until YYYY-MM-DD] --self-check
 ```
 Pure stdlib (no third-party deps). The project `.venv` python or system `python` both work;
@@ -333,7 +334,8 @@ parameter, not a constant.
   (b) The redaction is **SECRET-shapes only** (keys/JWTs/bearer/PEM/hex/home-paths) — there are **no
   email or PII patterns**. For transcripts carrying customer or research content, re-evaluate that
   scope and state it honestly rather than claiming "redacted" generically. (c) Root detection
-  differs per script: this extractor walks up to the dir containing `.claude/`, while
-  the kit's `lint` command looks for `.ai` + `.git` — so an install must create `.ai/` **before** the
-  first lint run, and a repo never opened in Claude Code has no `~/.claude/projects/<encoded>` dir
-  for the extractor to find at all.
+  differs per script: this extractor reads the working directory, which must be the project root
+  with a session folder of its own under `~/.claude/projects/`, while the kit's `lint` command
+  looks for `.ai` + `.git` — so an install must create `.ai/` **before** the first lint run, and a
+  repo never opened in Claude Code has no `~/.claude/projects/<encoded>` dir, so the extractor
+  refuses it (exit 1) and asks for the session dir.

@@ -548,7 +548,7 @@ def _gate_record_gaps(section: str) -> list[str]:
 _CANONICAL = re.compile(
     r'^uv run --no-project --directory "\$\{CLAUDE_PLUGIN_ROOT\}/src" '
     r"python -B -m lemmi_ai_kit "
-    r'(?:lint|audit-skills)\b.*--project "<project root>"$'
+    r'(?:lint|audit-skills)\b.*--project "<absolute project root>"$'
 )
 _ENV_PREFIX = re.compile(r"\b(?:PYTHONPATH|PYTHONDONTWRITEBYTECODE)=")
 
@@ -1021,10 +1021,15 @@ def test_every_rule_sees_its_planted_positive() -> None:
         assert _kit_command_problems(old), f"missed an old command form: {old!r}"
     canonical = (
         '`uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m '
-        'lemmi_ai_kit lint learnings --list-entries --project "<project root>"`'
+        'lemmi_ai_kit lint learnings --list-entries --project "<absolute project root>"`'
     )
     assert _kit_command_problems(canonical) == []
-    assert _kit_command_problems(canonical.replace(' --project "<project root>"', ""))
+    assert _kit_command_problems(
+        canonical.replace(' --project "<absolute project root>"', "")
+    )
+    assert _kit_command_problems(
+        canonical.replace("<absolute project root>", "<project root>")
+    ), "a project root that does not say it is absolute is the old form"
     assert _kit_command_problems("a fresh run of the `audit-skills` subcommand") == []
 
     assert _EXIT_ONE.search("so exit 1 means\n rows to adjudicate")

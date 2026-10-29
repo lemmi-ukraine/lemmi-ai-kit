@@ -73,7 +73,7 @@ prose. Map common synonyms to the closed set instead of inventing near-duplicate
 | Efficiency (incl. "hot-path efficiency") | Speed |
 | Reusability / Effectiveness | Coverage |
 
-(`python -m lemmi_ai_kit lint hypotheses` flags any new violation.)
+(The hypotheses lint run in Step 5 flags any new violation.)
 
 ## Entry Format
 
@@ -112,9 +112,9 @@ Append under the current date heading in `.ai/improvement-hypotheses.md`:
   remember), say so here — all 3 REFUTED verdicts to date share exactly that mechanism.
 - **Status** — always starts as `PENDING` and its value is EXACTLY one of `PENDING`,
   `CONFIRMED`, `REFUTED`, `INCONCLUSIVE`, `SUPERSEDED`. Only the `hypothesis-validator`
-  skill (invoked from learning-consolidator Phase 6.5, approval-gated; offered by
-  session-retrospective when its data settles a signal) changes it; session-retrospective
-  §4g reports evidence but never edits statuses.
+  skill (invoked from learning-consolidator at the end of its Phase 2 and again in its Phase 6.5,
+  approval-gated; offered by session-retrospective when its data settles a signal) changes it;
+  session-retrospective §4g reports evidence but never edits statuses.
 - **Validation notes** — optional sub-field placed directly above Status. Partial or
   interim evidence (e.g. "1 supporting run") goes HERE while Status stays `PENDING` —
   never inline annotations on the Status value itself. Written by `hypothesis-validator`
@@ -175,11 +175,13 @@ Before writing, verify:
 Append the entry, then run the data-file lint:
 
 ```
-PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint hypotheses
+uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint hypotheses --project "<absolute project root>"
 ```
 
 It checks heading order, heading-vs-`Changelog ref` date consistency, the category and
 status vocabularies, and required fields for new entries. Fix any finding before moving on.
+`--project` takes the absolute project root: a relative path resolves inside the plugin, so
+the lint exits 2 for a ledger that exists.
 
 ## Integration Points
 
@@ -267,6 +269,6 @@ close of every pass so the backlog cannot silently accumulate again.
 - Do NOT write compound hypotheses covering multiple categories — split them
 - Do NOT record retroactive hypotheses for past changes — hindsight bias corrupts predictions
 - Do NOT modify hypothesis Status — that is reserved for the `hypothesis-validator` skill
-  (invoked via learning-consolidator Phase 6.5); interim evidence goes in `Validation notes:`
+  (run by learning-consolidator at the end of its Phase 2 and in its Phase 6.5); interim evidence goes in `Validation notes:`
 - Do NOT modify the changelog to link back to hypotheses — keep the formats independent
 - Do NOT selectively interpret signals to confirm a hypothesis — record disconfirming evidence with equal weight (confirmation bias)

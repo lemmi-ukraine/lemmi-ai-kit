@@ -181,11 +181,11 @@ sessions to run a check and no session ran it, hardening the check beats re-word
 ### C8 — Re-run every gate
 
 This review **edits** — so its own output is unverified until the gates run again. Re-run all of
-them, unfiltered, and read the exit codes:
+them, unfiltered, and read the exit codes (`--project` takes the absolute project root: a relative path such as `.` resolves inside the plugin, so the lint and the audit would measure nothing and still pass):
 
 ```bash
-uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint --project "<project root>"
-uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit audit-skills --project "<project root>"
+uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint --project "<absolute project root>"
+uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit audit-skills --project "<absolute project root>"
 ```
 
 …plus the project's canonical lint gate for any code touched — use the exact invocation

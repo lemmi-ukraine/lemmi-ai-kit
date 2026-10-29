@@ -43,7 +43,7 @@ You verify each entry against the current codebase before deciding its fate.
 ### Phase 1: Inventory & Cluster Detection
 
 0. **Cadence guard** — count intake entries (run
-   `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --list-entries --project "<project root>"`)
+   `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --list-entries --project "<absolute project root>"`)
    and read the newest `CONSOLIDATION` entry date in `.ai/ai-changelog.md`. Proceed when intake > 0 AND the
    last consolidation is ≥7 days old — or whenever the user explicitly asked. Otherwise report
    why not ("buffer empty" / "last drain {D} days ago — fresh") and stop. This is the pair of
@@ -352,8 +352,8 @@ After all promotions are executed:
    survived the TWO previous consolidation runs as KEEP (check its date against the two most
    recent `CONSOLIDATION` entries in `.ai/ai-changelog.md`), KEEP is no longer available —
    promote it to a home or drop it. A lean buffer must not silently re-accumulate.
-5. **Verify removal (structural, not eyeballed)** — run
-   `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --project "<project root>"`
+5. **Verify removal (structural, not eyeballed)** — run (`--project` takes the absolute project root: a relative path resolves inside the plugin, so the lint exits 2 for a buffer that exists):
+   `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --project "<absolute project root>"`
    (zero findings required), then re-read `.ai/learnings.md` and confirm:
    - All promoted entries are removed
    - All archived entries are removed

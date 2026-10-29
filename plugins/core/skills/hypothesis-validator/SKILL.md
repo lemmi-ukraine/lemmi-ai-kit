@@ -158,10 +158,10 @@ would be re-solving the wrong failure and re-hiding this one.
 
 ### Step 8: Verify
 
-Run the data-file lint:
+Run the data-file lint (`--project` takes the absolute project root: a relative path resolves inside the plugin, so the lint exits 2 for a ledger that exists):
 
 ```
-uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint hypotheses --project "<project root>"
+uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint hypotheses --project "<absolute project root>"
 ```
 
 Zero findings required (statuses must be exactly in-vocabulary; heading structure intact).

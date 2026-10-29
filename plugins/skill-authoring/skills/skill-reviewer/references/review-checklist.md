@@ -2,7 +2,7 @@
 
 Sources: Agent Skills spec (agentskills.io/specification), Claude Code docs (code.claude.com/docs/en/skills)
 Facts verified 2026-07-02 — re-fetch both sources before editing numbers or field semantics here.
-Mechanical rows are automated by `python -m lemmi_ai_kit audit-skills`.
+Mechanical rows are automated by the `audit-skills` subcommand of the support CLI.
 
 ## Structural Compliance (Blockers)
 

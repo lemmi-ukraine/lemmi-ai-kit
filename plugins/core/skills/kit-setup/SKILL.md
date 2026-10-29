@@ -56,7 +56,7 @@ scaffolding), with seed semantics — existing files are never overwritten:
 
 ```bash
 KIT_PROJECT_ROOT="$(pwd)"
-PYTHONDONTWRITEBYTECODE=1 uv run --no-project --directory "${KIT_PLUGIN_ROOT}/src" python -m lemmi_ai_kit scaffold "${KIT_PROJECT_ROOT}"
+uv run --no-project --directory "${KIT_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit scaffold "${KIT_PROJECT_ROOT}"
 ```
 
 Use the project's uv/Python conventions. The explicit target prevents the core

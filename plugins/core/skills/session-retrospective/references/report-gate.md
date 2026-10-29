@@ -42,7 +42,11 @@ Otherwise the moment the writing starts silently decides the corpus.
 ## `--check durability`
 
 Asserts the date's `.ai/ai-changelog.md` entry is reachable from `HEAD` — not merely present on
-disk — and that a companion hypothesis exists for the same date.
+disk — and, unless `--proposals-only` says the run applied nothing, that a companion hypothesis
+exists for the same date. A project that keeps P1/P2 as proposals registers them in the entry and
+has no prediction to make, so `check_report.py --check durability --proposals-only` drops the
+hypothesis requirement and only that one: the entry is still required and still has to be
+reachable, because it is the only durable record of the proposals.
 
 *Why:* on 2026-08-29 the changelog entry and 15 learnings existed **only inside a stash**.
 `git show HEAD:.ai/ai-changelog.md | grep -c '## 2026-08-29'` returned **0**, while the report's own

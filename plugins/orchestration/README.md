@@ -19,10 +19,13 @@ set `KIT_CORE_PLUGIN_ROOT` to that plugin root. Keep `KIT_PROJECT_ROOT` as the
 absolute consuming-project directory and `KIT_SKILLS_DIR` as the skill tree under review:
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit audit-skills --project "${KIT_PROJECT_ROOT}" --skills-dir "${KIT_SKILLS_DIR}" --fail-on major
-PYTHONDONTWRITEBYTECODE=1 uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint all --project "${KIT_PROJECT_ROOT}"
+uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit audit-skills --project "${KIT_PROJECT_ROOT}" --skills-dir "${KIT_SKILLS_DIR}" --fail-on major
+uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint all --project "${KIT_PROJECT_ROOT}"
 ```
 
-The source checkout can also run the same commands through `uv run python -m
-lemmi_ai_kit`. Installing a plugin does not install a Python package into the
-consumer's environment. Never assume the current plugin root contains core's `src/`.
+Run each command as printed, with nothing set in front of it. `--project` names the consuming
+project: under `uv --directory` the working directory is core's `src/`, so without it the checks
+measure that directory, not the project (a single-file lint target exits 2 for the missing file;
+`lint all` skips every file and still prints a pass). A checkout of the kit can run the same
+subcommands from its repository root. Installing a plugin does not install a Python package into
+the consumer's environment. Never assume the current plugin root contains core's `src/`.

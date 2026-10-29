@@ -362,7 +362,7 @@ Run this checklist before presenting the skill to the user:
 After creating the skill files:
 
 1. If it's a project skill, add it to the project's `CLAUDE.md` skills listing
-1b. **Registration is not reachability — wire the CALLER in the same task.** `python -m lemmi_ai_kit audit-skills`
+1b. **Registration is not reachability — wire the CALLER in the same task.** The mechanical audit (`audit-skills`)
    verifies a skill is *listed*, never that any workflow *calls* it, so a skill nothing invokes
    passes every gate and still only runs if a human remembers it exists. That is the same defect as
    a rule with no detector, one level up: four stacked-PR skills shipped with
@@ -391,7 +391,8 @@ After creating the skill files:
    so later description tuning has a re-runnable fixture
 8. **Modification rule (standing):** any later non-trivial SKILL.md edit (steps, invocation
    flags, description) re-runs the mechanical audit
-   (`python -m lemmi_ai_kit audit-skills`) plus the relevant
+   (`uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit audit-skills --project "${KIT_PROJECT_ROOT}"`;
+   `KIT_CORE_PLUGIN_ROOT` and `KIT_PROJECT_ROOT` as the pack README says) plus the relevant
    skill-reviewer steps — pipeline skills included, and keep the CLAUDE.md listing in sync
 
 ## Output Format

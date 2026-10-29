@@ -181,8 +181,10 @@ three-way merge will attribute it to you.
 6. **Check the command forms an adopter can actually reach.** A skill that names
    `lemmi-ai-kit <sub>` names a console script from `[project.scripts]`, which exists
    only after a pip or uv install of the distribution. A plugin install places skills and
-   never installs the package. The reachable form is
-   `PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit <sub>`. This defect
+   never installs the package. The reachable form sets nothing before the command and
+   names the project (a skill of another pack prints `${KIT_CORE_PLUGIN_ROOT}`):
+   `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit <sub> ... --project "<absolute project root>"`.
+   `tests/test_printed_commands.py` parses every line a shipped file prints. This defect
    reached 16 call sites across 10 skills once, and it resolved in testing only because
    the development environment had the package installed. **When a skill names a command,
    check it against the install path the adopter uses, not the one the developer has.**

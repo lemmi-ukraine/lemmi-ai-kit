@@ -38,9 +38,10 @@ You have two modes:
 > agentskills.io/specification — re-fetch BOTH before editing budget numbers, field
 > semantics, or override rules here.
 >
-> The mechanical subset of Steps 2, 5, and parts of 8 is automated: run
-> `python -m lemmi_ai_kit audit-skills` (read-only, fleet-wide) and fold its findings in; the tables
-> below define the severities. Add `--fail-on major` to make it gate rather than report.
+> The mechanical subset of Steps 2, 5, and parts of 8 is automated: run (read-only, fleet-wide)
+> `uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit audit-skills --project "${KIT_PROJECT_ROOT}"`
+> (`KIT_CORE_PLUGIN_ROOT` and `KIT_PROJECT_ROOT` as the pack README says) and fold its findings in;
+> the tables below define the severities. Add `--fail-on major` to make it gate rather than report.
 >
 > **The audit only scans the directory it is pointed at.** By default that is the project's
 > `.claude/skills/`, so a skill living anywhere else — a shareable kit, a scaffold, a vendored

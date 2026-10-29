@@ -27,9 +27,21 @@ USAGE
     python check_report.py --report .ai/retrospectives/{date}-retrospective.md
     python check_report.py --report <path> --check sections
     python check_report.py --report <path> --check workers --date 2026-08-29
+    python check_report.py --report <path> --check durability --proposals-only
 
 Findings go to STDOUT, one per line (so `probe_checker.py` can count them).
 The summary goes to STDERR, so stdout line count == finding count.
+
+PROPOSALS ONLY
+--------------
+A project that keeps P1/P2 as proposals has its retrospective register them in the changelog
+entry and apply none, so there is no applied change to make a prediction about. With
+`--proposals-only` the durability check drops the companion-hypothesis requirement and
+nothing else: the changelog entry for the date is STILL required and still has to be
+reachable from HEAD, because it is the only durable record of the proposals a later
+consolidation reads. The flag changes `--check durability` and the durability part of
+`--check all`; without it nothing changes, and the summary says when the requirement was
+dropped so the skip is never silent.
 
 EXIT CODES
     0  no findings
@@ -168,11 +180,17 @@ def _git(root: Path, args: list[str]) -> tuple[int, str]:
     return proc.returncode, proc.stdout
 
 
-def check_durability(root: Path, date: str) -> list[str]:
+def check_durability(
+    root: Path, date: str, proposals_only: bool = False
+) -> list[str]:
     """Phase 7: the changelog entry is the sole reconciliation source of record.
 
     A working-tree-only or stash-only entry is NOT durable -- the next run reads the
     committed file. Verify the entry is reachable from HEAD, not merely present on disk.
+
+    `proposals_only` drops the companion-hypothesis requirement and only that: a run that
+    registered P1/P2 and applied none has no prediction to make, but its entry is still
+    the one durable record of what it proposed, so every changelog finding above stays.
     """
     out: list[str] = []
     heading = f"## {date}"
@@ -194,7 +212,7 @@ def check_durability(root: Path, date: str) -> list[str]:
         )
 
     hyp = root / ".ai" / "improvement-hypotheses.md"
-    if hyp.is_file() and heading not in read_text(hyp):
+    if not proposals_only and hyp.is_file() and heading not in read_text(hyp):
         out.append(
             f"improvement-hypotheses.md: NO hypothesis dated {date} -- Phase 7 requires a "
             f"companion falsifiable prediction for the P1/P2 changes applied"
@@ -212,6 +230,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument(
         "--date", help="YYYY-MM-DD; default: parsed from the report filename"
+    )
+    ap.add_argument(
+        "--proposals-only",
+        action="store_true",
+        help="the run registered P1/P2 and applied none: do not require a companion "
+        "hypothesis (the changelog entry is still required and must be reachable from HEAD)",
     )
     args = ap.parse_args(argv)
 
@@ -248,14 +272,20 @@ def main(argv: list[str] | None = None) -> int:
         findings += check_sections(report)
     if args.check in ("all", "workers"):
         findings += check_workers(report, root, date)
+    skipped_hypothesis = args.proposals_only and args.check in ("all", "durability")
     if args.check in ("all", "durability"):
-        findings += check_durability(root, date)
+        findings += check_durability(root, date, proposals_only=args.proposals_only)
 
     for f in findings:
         print(f)
     print(
         f"check_report[{args.check}]: {len(findings)} finding(s)"
-        + ("" if findings else " -- report is complete"),
+        + ("" if findings else " -- report is complete")
+        + (
+            " (proposals only: no companion hypothesis required)"
+            if skipped_hypothesis
+            else ""
+        ),
         file=sys.stderr,
     )
     return 1 if findings else 0
