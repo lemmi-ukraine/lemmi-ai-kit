@@ -17,6 +17,30 @@
 
 ## 2026-10-29
 
+### [SKILL-MODIFIED] Put the hypothesis verdicts in the plan the operator approves
+- **Category:** Observability
+- **Hypothesis:** By running the validator's Steps 1 to 4 before the Phase 3 gate and putting its verdict table and ledger-state line in the plan, we expect consolidation runs to stop skipping `hypothesis-validator`, because the plan the operator approves now shows an empty section without it.
+- **Signal:** Over the next 2 consolidation runs, or by 2026-12-23, whichever comes first: confirm if each run's changelog entry or gate record carries the line `N PENDING · M terminal · last verdict <date>`; refute if either run has none; inconclusive if fewer than 2 runs happen.
+- **Risk:** The validator's reads now happen before approval, so a run that stops at the gate pays for them; its writes still wait for Phase 6.5.
+- **Status:** PENDING
+- **Changelog ref:** 2026-10-29 — Make the landing audit refuse to guess, give the lint a ledger-growth note and a one-file hand-off mode, and print every CLI command in one runnable form
+
+### [INFRA-MODIFIED] The lint prints the meta-synthesis note the validator waits for
+- **Category:** Observability
+- **Hypothesis:** By printing `NOTE: meta-synthesis due` at 10 terminal verdicts not yet covered by a synthesis, we expect the next ledger that reaches 10 to get its meta-synthesis in the following consolidation pass, because the note fires for whoever runs the lint and nobody has to remember the count.
+- **Signal:** In the first ledger that reaches 10 uncovered terminal verdicts after this ships, or by 2026-12-23, whichever comes first, read its `Last meta-synthesis` marker: confirm if the marker moved within two consolidation runs of the note first printing, refute if the note printed in both runs and the marker did not move, inconclusive if no ledger reaches 10.
+- **Risk:** A ledger whose marker is never updated keeps printing the note; it is a note, so no gate fails on it.
+- **Status:** PENDING
+- **Changelog ref:** 2026-10-29 — Make the landing audit refuse to guess, give the lint a ledger-growth note and a one-file hand-off mode, and print every CLI command in one runnable form
+
+### [SKILL-MODIFIED] Print every support-CLI command in one form that runs where it is read, and name the retrospective's proposals seam
+- **Category:** Quality
+- **Hypothesis:** By printing each support-CLI command in the one form measured to run from an installed plugin copy, with the project named and a CI test that parses every printed line, we expect a session that follows a printed lint or audit line to get its project's verdict instead of an import error or a pass over the plugin's own directory, because the line now sets nothing first and carries an absolute `--project`.
+- **Signal:** Over the next 2 retrospectives or by 2026-12-23, whichever comes first, Grep the emitted digests for `No module named lemmi_ai_kit` and for a printed lint or audit run without `--project`: confirm at 0 in both, refute if either shows one, inconclusive if no session ran a printed command.
+- **Risk:** It helps only a session that runs the printed line; one that retypes a shorter command still passes `lint all` without `--project`, because the CLI does not fail closed.
+- **Status:** PENDING
+- **Changelog ref:** 2026-10-29 — Make the landing audit refuse to guess, give the lint a ledger-growth note and a one-file hand-off mode, and print every CLI command in one runnable form
+
 ### [INFRA-MODIFIED] Read a checker's one-number output, run a checker script without a shell, and find a citation's file from a scratch export
 - **Category:** Quality
 - **Hypothesis:** By reading a bare-integer checker output as its count and offering a shell-free `--script` mode, we expect sessions to certify a sound checker as CAN-SEE on the first run, because the two causes of a false UNUSABLE verdict (a lone "0" counted as a line, a pattern mangled by the platform shell) no longer arise.

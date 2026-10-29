@@ -75,6 +75,36 @@ to its home above and removed here.
 - **Verify-at**: plugins/core/skills/session-retrospective/scripts/test_sweep_user_corrections.py
 - **Scope**: durable
 
+### [2026-10-29] On Python 3.11 an option before the positional FILE of `lint handoffs` makes argparse refuse FILE, while 3.12 and later accept either order
+- **Context**: Giving `lint handoffs` a FILE argument and printing it in the skills.
+- **Finding**: CPython 3.11, the version CI pins, exits 2 with "unrecognized arguments" for `lint handoffs --project P FILE`; 3.12 and 3.13 accept it, so a run on a newer interpreter cannot show the defect. A printed command with FILE first parses on all three.
+- **Impact**: Print FILE before the options, and test the order of a printed command's arguments, not only that the host's parser accepts it.
+- **Category**: pitfall
+- **Home**: comment:plugins/core/src/lemmi_ai_kit/cli.py:_FILE_POSITION_HINT
+- **Enforce-via**: test
+- **Verify-at**: tests/test_printed_commands.py
+- **Scope**: durable
+
+### [2026-10-29] A replica of CI must copy the workflow's job env, not only its run lines
+- **Context**: Running CI's gates in a Linux container to check a change before a push.
+- **Finding**: ci.yaml sets PYTHONDONTWRITEBYTECODE once for the whole job, not in a step. A container that ran the same steps without it left `.pyc` files in the plugin payload after the bare pytest, and publish-check blocked on them; with it set, every gate exited 0.
+- **Impact**: Build a CI replica from the whole job, its env block included. A publish-check block that names only `__pycache__` files after a bare pytest points at a missing bytecode setting, not at the change.
+- **Category**: pitfall
+- **Home**: doc:docs/working-on-the-kit.md
+- **Enforce-via**: none
+- **Verify-at**: .github/workflows/ci.yaml
+- **Scope**: durable
+
+### [2026-10-29] A lint run with no --project from the plugin's own folder measures that folder and passes
+- **Context**: Giving every printed support-CLI command `--project` and running the printed forms from a foreign working directory.
+- **Finding**: `find_project_root` returns its starting directory when no ancestor holds a project marker, and a printed command runs under `uv --directory <plugin root>/src`, so without `--project` the working directory is the plugin's own folder. `lint all`, `lint`, `lint handoffs` and `audit-skills` then exit 0 with "LINT PASSED (0 finding(s))" over nothing, while `lint changelog` and `lint learnings` exit 2 ("no such file"). A relative `--project .` resolves inside the plugin the same way.
+- **Impact**: Read a clean lint as evidence only when the run named an absolute project root, and never from a printed form that lacks one. Failing closed in the CLI (cannot measure is never a pass) is an open decision, not a built change.
+- **Category**: pitfall
+- **Home**: comment:plugins/core/src/lemmi_ai_kit/checks.py:find_project_root
+- **Enforce-via**: test
+- **Verify-at**: tests/test_printed_commands.py
+- **Scope**: durable
+
 ## External Service Quirks
 
 ### [2026-10-28] A resumed or compacted session repeats a span of events under the same top-level uuid, and no repeat is byte-identical to its original
