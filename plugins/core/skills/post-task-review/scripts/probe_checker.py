@@ -22,9 +22,16 @@ USAGE
         --positive <file-that-MUST-match> \
         --negative <file-that-MUST-NOT-match> \
         [--expect-positive N | --expect-positive-exact N] [--label "what this checks"]
+    python probe_checker.py --script <checker.py> --positive ... --negative ...
 
 `{file}` in --cmd is substituted with each fixture path. The checker's own output is
-counted by lines unless --count-mode is `grep-c` (parse a bare integer on stdout).
+read as the count when it is ONE bare integer (what `grep -c` prints) and counted by
+lines otherwise; --count-mode `lines` or `grep-c` forces either reading.
+
+--cmd runs in the platform shell: cmd.exe on Windows, where a single quote is an
+ordinary character and `|`, `&`, `<`, `>`, `^` and parentheses can be shell syntax. A
+check that needs any of them belongs in a Python script that takes the fixture path:
+pass it with --script, which runs `python -B <script> <fixture>` with no shell.
 
 EXIT CODES
     0  checker demonstrated sight: positive matched, negative did not
@@ -48,6 +55,9 @@ from pathlib import Path
 # A stamp the caller pastes next to the number the checker produced, so a reader can
 # tell a probed verdict from an unprobed one without re-running anything.
 STAMP = "probe_checker: positive={pos} negative={neg} verdict={verdict}"
+
+# The whole of a checker's output being one bare integer: what `grep -c` prints.
+_BARE_INTEGER = re.compile(r"\A\s*\d+\s*\Z")
 
 
 class ProbeError(RuntimeError):
@@ -79,20 +89,39 @@ def _normalise_exe_path(cmd: str) -> str:
     return head.replace("/", "\\") + sep + tail
 
 
-def _run(cmd: str, fixture: Path) -> tuple[int, str]:
-    """Run the checker against one fixture. Returns (exit_code, stdout)."""
-    if "{file}" not in cmd:
-        raise ProbeError("--cmd must contain the {file} placeholder")
-    filled = _normalise_exe_path(cmd.replace("{file}", str(fixture)))
-    # shell=True: the checkers this wraps are ad-hoc grep/rg/python one-liners.
-    proc = subprocess.run(  # noqa: S602 - deliberate, see above
-        filled,
-        shell=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+def _platform_shell() -> str:
+    return "cmd.exe" if os.name == "nt" else "sh"
+
+
+def _run(cmd: str | list[str], fixture: Path) -> tuple[int, str]:
+    """Run the checker against one fixture. Returns (exit_code, stdout).
+
+    A string is a shell command. A list is an argument list, run with no shell at all:
+    that is what --script builds, so a pattern inside the script never meets a shell.
+    """
+    filled: str | list[str]
+    if isinstance(cmd, list):
+        filled = [part.replace("{file}", str(fixture)) for part in cmd]
+        proc = subprocess.run(
+            filled,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    else:
+        if "{file}" not in cmd:
+            raise ProbeError("--cmd must contain the {file} placeholder")
+        filled = _normalise_exe_path(cmd.replace("{file}", str(fixture)))
+        # shell=True: the checkers this wraps are ad-hoc grep/rg/python one-liners.
+        proc = subprocess.run(  # noqa: S602 - deliberate, see above
+            filled,
+            shell=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
     # When the ONLY thing the command produced was an error message, it did not run --
     # and counting that as "0 matches" is how a broken invocation becomes a BLIND verdict
     # against an innocent checker. Such a case looks like "no output and no visible
@@ -104,25 +133,40 @@ def _run(cmd: str, fixture: Path) -> tuple[int, str]:
     # result for a negative fixture. Distinguishing them needs the caller's knowledge of
     # the tool, not a heuristic here.
     if proc.returncode != 0 and not proc.stdout.strip() and proc.stderr.strip():
+        shell_note = (
+            ""
+            if isinstance(cmd, list)
+            else (
+                f"\n--cmd runs in the platform shell ({_platform_shell()}); on Windows "
+                "a single quote is an ordinary character and | & < > ^ and parentheses "
+                "can be shell syntax. Write a check that needs any of them as a Python "
+                "script that takes the fixture path, and pass it with --script."
+            )
+        )
         raise ProbeError(
             f"checker exited {proc.returncode} on {fixture.name} having written nothing "
             f"to stdout and this to stderr: {proc.stderr.strip()!r}\n"
             f"Command as run: {filled!r}\n"
             f"That is an INVOCATION failure, not a blind checker -- fix the command "
             f"before concluding anything about what the checker can see."
+            f"{shell_note}"
         )
     return proc.returncode, proc.stdout
 
 
-def count_matches(cmd: str, fixture: Path, count_mode: str) -> int:
+def count_matches(cmd: str | list[str], fixture: Path, count_mode: str) -> int:
     """How many matches did the checker report for this fixture?
 
-    `grep-c` mode reads a bare integer off stdout (what `grep -c` prints). Any other
-    mode counts non-empty stdout lines. A checker that CRASHES counts as zero matches
-    AND is reported by the caller - a traceback with "timeouts: 0" above it is exactly
-    the shape that has fooled this repo before.
+    `grep-c` mode reads bare integers off stdout (what `grep -c` prints). `auto` reads
+    the same way when the WHOLE output is one bare integer, and counts non-empty lines
+    otherwise; counting a lone "0" as one line of output reads a correct checker as
+    over-matching. `lines` always counts lines. A checker that CRASHES counts as zero
+    matches AND is reported by the caller - a traceback with "timeouts: 0" above it is
+    exactly the shape that has fooled this repo before.
     """
     code, out = _run(cmd, fixture)
+    if count_mode == "auto" and _BARE_INTEGER.match(out):
+        return int(out)
     if count_mode == "grep-c":
         nums = re.findall(r"^\s*(\d+)\s*$", out, flags=re.MULTILINE)
         if not nums:
@@ -137,12 +181,12 @@ def count_matches(cmd: str, fixture: Path, count_mode: str) -> int:
 
 
 def probe(
-    cmd: str,
+    cmd: str | list[str],
     positive: Path,
     negative: Path,
     expect_positive: int = 1,
     exact_positive: bool = False,
-    count_mode: str = "lines",
+    count_mode: str = "auto",
     label: str = "",
 ) -> tuple[bool, str]:
     """Return (ok, human-readable report). ok=False means DO NOT QUOTE the verdict."""
@@ -171,10 +215,11 @@ def probe(
         )
 
     verdict = "CAN-SEE" if not problems else "UNUSABLE"
+    shown = cmd if isinstance(cmd, str) else " ".join(cmd)
     lines = [
         f"probe_checker {'PASS' if not problems else 'FAIL'}"
         + (f" - {label}" if label else ""),
-        f"  cmd            : {cmd}",
+        f"  cmd            : {shown}",
         f"  positive ({positive.name}): {pos} match(es)  [need {'exactly' if exact_positive else '>='} {expect_positive}]",
         f"  negative ({negative.name}): {neg} match(es)  [need 0]",
     ]
@@ -227,13 +272,20 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(
         description="Prove an ad-hoc checker can see before quoting its verdict."
     )
-    ap.add_argument("--cmd", help="checker command; must contain {file}")
+    how = ap.add_mutually_exclusive_group()
+    how.add_argument(
+        "--cmd", help="checker command, run in the platform shell; must contain {file}"
+    )
+    how.add_argument(
+        "--script",
+        help="checker script, run as python -B <script> <fixture> with no shell",
+    )
     ap.add_argument("--positive", help="fixture the checker MUST match")
     ap.add_argument("--negative", help="fixture the checker must NOT match")
     expected = ap.add_mutually_exclusive_group()
     expected.add_argument("--expect-positive", type=int)
     expected.add_argument("--expect-positive-exact", type=int)
-    ap.add_argument("--count-mode", choices=("lines", "grep-c"), default="lines")
+    ap.add_argument("--count-mode", choices=("auto", "lines", "grep-c"), default="auto")
     ap.add_argument("--label", default="")
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args(argv)
@@ -241,12 +293,16 @@ def main(argv: list[str]) -> int:
     if args.self_test:
         return _self_test()
 
-    if not (args.cmd and args.positive and args.negative):
-        ap.error("--cmd, --positive and --negative are required (or use --self-test)")
+    if not ((args.cmd or args.script) and args.positive and args.negative):
+        ap.error(
+            "--cmd or --script, --positive and --negative are required "
+            "(or use --self-test)"
+        )
+    cmd: str | list[str] = args.cmd or [sys.executable, "-B", args.script, "{file}"]
 
     try:
         ok, report = probe(
-            args.cmd,
+            cmd,
             Path(args.positive),
             Path(args.negative),
             expect_positive=(

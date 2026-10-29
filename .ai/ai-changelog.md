@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-10-29
+
+### INFRA-MODIFIED: Read a checker's one-number output, run a checker script without a shell, and find a citation's file from a scratch export
+- **What:** `probe_checker.py` reads a checker whose whole output is one bare integer as that count (new default `--count-mode auto`; `lines` and `grep-c` still force a reading), gains `--script <file>`, which runs `python -B <script> <fixture>` as an argument list with no shell, and its invocation error now names the platform shell and points at `--script`. `validate_register.py` accepts a citation as tracked at HEAD when git finds it relative to the project root or, failing that, from the repository top. Two new test files drive both scripts as the sessions run them.
+- **Why:** A correct checker that printed one number read as over-matching because its "0" counted as a line; a check whose pattern held a quote, pipe, caret or parenthesis never started under cmd.exe; and every citation in a register validated on a scratch export inside a repository read "not tracked at HEAD". Each was shown red on the unmodified code before the change and green after.
+- **Files:** `plugins/core/skills/post-task-review/scripts/probe_checker.py`, `plugins/core/skills/flow-mapping/scripts/validate_register.py`, `tests/test_probe_checker.py`, `tests/test_validate_register_tracking.py`, `docs/research/2026-10-29-python-consumer-change-request-decisions.md`.
+- **Affected workflows:** The probe seam of post-task-review and every skill that quotes it, and flow-mapping's register validation. The default counting mode changes from lines to auto: a checker that prints exactly one bare integer is now read as that number. Both skills are upstream-origin, so these are local overrides to carry on the next sync. No SKILL.md text changed.
+
 ## 2026-10-28
 
 ### SKILL-MODIFIED: Keep every operator turn in the session digests, cite the lines Grep shows and count each event once

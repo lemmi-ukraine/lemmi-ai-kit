@@ -188,17 +188,31 @@ def resolve_flow_scenarios(flows_root: Path, slug: str) -> set[str]:
 _TRACKED_CACHE: dict[str, bool] = {}
 
 
+def _ls_tree_finds(rel_path: str, *options: str) -> bool:
+    result = subprocess.run(
+        ["git", "ls-tree", "-r", "--name-only", *options, "HEAD", "--", rel_path],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    return bool(result.stdout.strip())
+
+
 def is_tracked_at_head(rel_path: str) -> bool:
+    """Tracked at HEAD, relative to the project root or to the repository top.
+
+    The project root is the working directory, so git reads the pathspec relative to
+    it: right for a project below the top of a larger repository. A scratch export made
+    inside the repository holds repository-relative paths, so that lookup finds nothing
+    and every citation reads "not tracked at HEAD". Asking again from the repository
+    top covers it without losing the first reading.
+    """
     if rel_path not in _TRACKED_CACHE:
-        result = subprocess.run(
-            ["git", "ls-tree", "-r", "--name-only", "HEAD", "--", rel_path],
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            check=False,
+        _TRACKED_CACHE[rel_path] = _ls_tree_finds(rel_path) or _ls_tree_finds(
+            rel_path, "--full-tree"
         )
-        _TRACKED_CACHE[rel_path] = bool(result.stdout.strip())
     return _TRACKED_CACHE[rel_path]
 
 

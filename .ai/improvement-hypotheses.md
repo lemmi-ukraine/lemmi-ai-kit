@@ -15,6 +15,16 @@
 
 ---
 
+## 2026-10-29
+
+### [INFRA-MODIFIED] Read a checker's one-number output, run a checker script without a shell, and find a citation's file from a scratch export
+- **Category:** Quality
+- **Hypothesis:** By reading a bare-integer checker output as its count and offering a shell-free `--script` mode, we expect sessions to certify a sound checker as CAN-SEE on the first run, because the two causes of a false UNUSABLE verdict (a lone "0" counted as a line, a pattern mangled by the platform shell) no longer arise.
+- **Signal:** Inspect the next two sessions that quote a `probe_checker` verdict, or look by 2026-11-29, whichever comes first, counting verdicts that read UNUSABLE for a checker later shown sound and invocation errors that needed a second attempt. Confirm if both counts are zero; refute if either recurs with the new default.
+- **Risk:** A checker that deliberately prints one line holding only a number is now read as that number, so an exact-count expectation can shift; `--count-mode lines` restores the old reading.
+- **Status:** PENDING
+- **Changelog ref:** 2026-10-29 — Read a checker's one-number output, run a checker script without a shell, and find a citation's file from a scratch export
+
 ## 2026-10-28
 
 ### [SKILL-MODIFIED] Keep every operator turn in the session digests, cite the lines Grep shows and count each event once
