@@ -35,6 +35,16 @@ OWNED_TABLE_SECTIONS = (
     "Runtime applicability",
 )
 
+# What --certify cannot see. It compares the derived columns of the rows a document declares, so
+# a column a person writes and a row the person never wrote both read as clean. Printed on every
+# run; keep it equal to the authored columns of the four tables (a test derives them).
+NOT_CHECKED = (
+    "NOT CHECKED: authored columns (Symbol index: file, invariants; Call graph: site; "
+    "Coverage: coverage note; Runtime applicability: profile, effective switches, "
+    "reachable scenarios, evidence) and row sets (a symbol, edge, file or profile the "
+    "document leaves out is not seen: only declared rows are compared)"
+)
+
 
 class SectionName(StrEnum):
     SYMBOL_INDEX = "symbol-index"
@@ -677,6 +687,7 @@ def run_certify(
             print(f"  [{report.name}] {note}")
     for offender in refusals:
         print(offender, file=sys.stderr)
+    print(NOT_CHECKED)
 
     # A bare bottom line, deliberately separate from the human-readable table above:
     # this is the machine-parseable seam `probe_checker.py --count-mode grep-c` reads.

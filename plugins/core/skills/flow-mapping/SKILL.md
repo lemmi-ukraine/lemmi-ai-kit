@@ -85,6 +85,7 @@ about what a setting's default implies after deployment.
 
 Read [evidence and closing rules](references/evidence-and-close.md) for citation
 durability, cross-flow ownership, completeness sweeps and safe document retirement.
+Before closing an edit, read [register and validator pitfalls](references/register-and-validator-pitfalls.md).
 
 ## C. Generate projections
 

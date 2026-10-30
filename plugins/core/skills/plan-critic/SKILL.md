@@ -79,6 +79,7 @@ Work through each dimension from [references/review-dimensions.md](references/re
    every other document. Dimension 5's testing bullets are about the *implementation's* tests and
    do not substitute for this pass, so a verification plan reviewed without Dimension 6 has been
    checked against nothing that applies to it.
+7. Quantified Claims — **only when a plan states attempts, retries, charges or a per-record field**.
 
 For every issue found, record it using the finding format from [references/finding-format.md](references/finding-format.md).
 

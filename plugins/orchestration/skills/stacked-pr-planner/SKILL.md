@@ -142,6 +142,14 @@ a second reason to batch.
 This is structural, not disciplinary. It makes "a comment on a changelog blocks a migration"
 impossible rather than discouraged.
 
+**A journal branch is a deletion event for the untracked files it tracks.** Those files exist only
+in the working tree; committing them on the journal branch makes them tracked there, and switching
+to a base that lacks them makes git delete them from disk (measured in a throwaway repository: 2
+present on the branch, 0 after the switch back). Take byte-exact copies first (binary copy, compare
+hashes), commit last, and compare hashes again after the switch. Do not rely on `git restore
+--source=<branch>` to return them unchanged: under `core.autocrlf` it rewrites line endings, so the
+bytes differ.
+
 **Lane policy is a team decision, recorded in one column.** If the operator wants prose reviewed, the
 `Lane` column changes and nothing else does. Do not re-litigate it per initiative; do surface it once
 if the operator has never seen it.

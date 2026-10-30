@@ -819,6 +819,24 @@ _PARSER_SHAPES: list[Row] = [
         "find . -name learnings.md -exec rm {} +",
         "DENY",
     ),
+    (
+        "read-only awk whose quoted output holds an arrow (=>)",
+        "Bash",
+        "awk 'BEGIN{print \"a => b\"} {print}' .ai/learnings.md",
+        "ALLOW",
+    ),
+    (
+        "read-only grep for an arrow (=>)",
+        "Bash",
+        "grep -n '=>' .ai/learnings.md",
+        "ALLOW",
+    ),
+    (
+        "a redirect onto the file is still denied after an arrow in a string",
+        "Bash",
+        'echo "=> done" > .ai/learnings.md',
+        "DENY",
+    ),
 ]
 
 _SHELL_ROWS: list[Row] = (

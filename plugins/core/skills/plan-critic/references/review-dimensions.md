@@ -184,3 +184,22 @@ substitute for this pass.
 > Automatic flag: an expected result with no citation.
 > Automatic flag: a case listed at more than one level with no stated reason.
 > Automatic flag: a condition with no named technique.
+
+---
+
+## Dimension 7 — Quantified Claims
+
+**Applies only when a plan or spec states attempts, retries, charges, or a field present per caller
+or per record.** Skip it for every document that states no such number.
+
+- Was the set of callers or call sites taken from a full listing that was run, not from memory or
+  from a reviewer's wording? A missing row makes the count wrong.
+- Is there one executed scenario for each distinct row, with controls taken from the pinned tests?
+  A hand trace is not an execution; careful readers can trace the same wrong path.
+- Is every column that was derived rather than executed marked as derived?
+- Is a field stated per event type, not per group name? "Every record of the group carries it" is
+  a claim about each emitter call site.
+- Was a sentence copied from a reviewer's report enumerated again? Once written into the plan it is
+  the author's claim, and it needs its own listing.
+
+> Automatic flag: a count or per-caller claim with no enumerated rows beside it.

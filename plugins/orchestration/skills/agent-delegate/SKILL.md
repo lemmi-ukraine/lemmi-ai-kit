@@ -66,7 +66,8 @@ you chose.
    definition-of-done check. If the result is off, either re-dispatch with a corrected brief
    (default) or fix trivially yourself — say which you did.
 6. **Report.** What was delegated, to whom, in which mode; the verified outcome with evidence;
-   anything off-brief the worker flagged.
+   anything off-brief the worker flagged. Save each hand-back report verbatim and stamp last:
+   [hand-back and stamps](references/hand-back-and-stamps.md).
 
 ## Cross-session mode
 

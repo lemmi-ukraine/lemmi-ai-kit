@@ -15,6 +15,16 @@
 
 ---
 
+## 2026-10-30
+
+### [INFRA-MODIFIED] A branch switch starts from a backup that exists
+- **Category:** Quality
+- **Hypothesis:** By making the pre-switch backup one command that starts with `python`, writes under the git directory and exits non-zero on any failed step, we expect every model-initiated branch switch to be preceded by a complete six-file backup folder and a quoted path, because the old block's assignment-led first line, its unignored folder and its same-day overwrite no longer exist.
+- **Signal:** Over the next 3 model-initiated branch switches, or by 2026-12-30, whichever comes first: confirm if each is preceded by a folder under the git directory's `pre-switch-backups` holding all 6 files, the session reports its path before switching, and no run of the backup command is denied by a shell guard; refute if a switch happens with no such folder or the command is denied; inconclusive if fewer than 3 switches happen.
+- **Risk:** A machine whose `python` is not on the path under that name fails the command, and by design the switch then waits; a repository with an unwritable git directory does the same.
+- **Status:** PENDING
+- **Changelog ref:** 2026-10-30 — Back a branch switch up with a script, make the projection certifier say what it did not check, and add four short lessons to existing skills
+
 ## 2026-10-29
 
 ### [SKILL-MODIFIED] Put the hypothesis verdicts in the plan the operator approves

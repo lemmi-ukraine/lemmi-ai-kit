@@ -43,17 +43,14 @@ where work disappears.
 cheap — it costs one command and it is the only thing standing between a bad switch and lost work.**
 
 ```bash
-D=".ai/pre-switch-backups/$(date +%Y-%m-%d)-<target-branch>"
-mkdir -p "$D"
-git diff                                  > "$D/unstaged-tracked.patch"
-git diff --cached                         > "$D/staged-tracked.patch"
-git ls-files --others --exclude-standard  > "$D/untracked-inventory.txt"
-git stash list                            > "$D/stash-list.txt"
-git rev-parse HEAD                        > "$D/head-at-backup.txt"
+python -B "${CLAUDE_SKILL_DIR}/scripts/pre_switch_backup.py" <target-branch>
 ```
 
-Then **report the backup path to the user before switching.** A backup nobody knows about is not a
-backup.
+It writes a new folder under the git directory and prints its path as the last line; a non-zero
+exit means there is no backup, so do not switch. It saves the tracked and staged diffs, the
+untracked file names, the stash list and HEAD, and says what it does not: untracked file contents
+(Step 2's stash takes those, with `--include-untracked`) and ignored files. Then **report the
+backup path to the user before switching.** A backup nobody knows about is not a backup.
 
 Three refusals that are absolute for a model-initiated switch — stop and hand back to the user:
 
