@@ -105,6 +105,28 @@ to its home above and removed here.
 - **Verify-at**: tests/test_printed_commands.py
 - **Scope**: durable
 
+### [2026-10-30] A wording test that reads one physical line of a wrapped item breaks on a re-wrap, and every new test file carries its own fold helper
+- **Context**: Verifying the two packages of prose edits whose new tests assert sentences in skills and templates.
+- **Finding**: Re-wrap mutations turned a wording test red in 9 of 77 runs (1 of 23 in one package, 8 of 54 in the other): each such test located its sentence by the first physical line of a long list item or table row, so re-wrapping unchanged words failed it. Each of the 8 new test files defines its own fold helper (`_fold` in 4, `_folded` in 4), because each package owned only its own files.
+- **Impact**: Assert a sentence only after slicing the whole item or section and folding line breaks, never on one physical line; when the next wording tests are written, move the helpers into one shared test module so a fix lands once.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: test
+- **Verify-at**: tests/test_completion_trigger_wording.py
+- **Scope**: durable
+
+## Convention Clarifications
+
+### [2026-10-30] A skill's step list restated outside the skill goes stale when the skill grows
+- **Context**: Widening the review's trigger to every completion event, which the kit's own AGENTS.md, the seeded template, the README and a delegation skill each describe in their own words.
+- **Finding**: The review has had Steps 0 and 9 for a while, yet the Post-task review bullets of the kit's own AGENTS.md and of the template still list Steps 1 to 8 beside a checklist line that says Steps 0 to 9; a README row describes a narrower trigger than the skill, and a delegation skill paraphrases a rule the brief contract has since changed: 4 stale places, found by a verifier after the edit.
+- **Impact**: Point at the skill instead of restating its steps or its count in AGENTS.md, a template or a README row, and when a skill's steps or trigger change, sweep those four kinds of file for the retired wording.
+- **Category**: convention
+- **Home**: agents-rule
+- **Enforce-via**: test
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
 ## External Service Quirks
 
 ### [2026-10-28] A resumed or compacted session repeats a span of events under the same top-level uuid, and no repeat is byte-identical to its original

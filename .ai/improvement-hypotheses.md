@@ -17,6 +17,22 @@
 
 ## 2026-10-30
 
+### [SKILL-MODIFIED] A continuation hand-off written under the planner passes the hand-off lint
+- **Category:** Quality
+- **Hypothesis:** By rewording the planner's usage-wall hand-off so its `## Status` reads `in-progress — post-task-review not run`, we expect the continuation hand-offs written under it to pass `lint handoffs` on the Status vocabulary, because the retired `Status: incomplete` wording failed that check in a measured probe.
+- **Signal:** Over the next 3 continuation hand-offs written under the reworded planner, or by 2026-12-30, whichever comes first, run `lint handoffs` on each: confirm if none reports a Status error; refute if one that follows the planner's sentence still fails the Status check; inconclusive with fewer than 3 such hand-offs.
+- **Risk:** Plans copied into other projects keep the old wording until they are refreshed, and a reader that keys on the status word sees only `in-progress`.
+- **Status:** PENDING
+- **Changelog ref:** 2026-10-30 — Review at every completion event, a project switch for the usage gate, a named writer for ledger entries, a sequencing check, a re-plan sweep and a fetch-summary rule
+
+### [SKILL-MODIFIED] The completion review runs at the close of a task of any size
+- **Category:** Coverage
+- **Hypothesis:** By naming every completion event in the review's description, its activation list, the seeded checklist and orchestrate's brief line, we expect the operator to have to ask for the review or the self-challenge by hand in fewer sessions, because a size limit of 3 or more files stood in all four places.
+- **Signal:** In the first retrospective that covers sessions run under this text, or by 2026-12-30, whichever comes first, count the sessions in which the operator typed a request for the review or the self-challenge: confirm if the share is under half of the 23 of 66 sessions (a floor) the earlier retrospective counted; refute if it is the same or higher.
+- **Risk:** More review runs on small tasks for every consumer, because the description decides when the model calls the skill; a project whose own AGENTS.md keeps the size limit is not reached by this change.
+- **Status:** PENDING
+- **Changelog ref:** 2026-10-30 — Review at every completion event, a project switch for the usage gate, a named writer for ledger entries, a sequencing check, a re-plan sweep and a fetch-summary rule
+
 ### [INFRA-MODIFIED] A proceed is classified before it is counted as feedback
 - **Category:** Quality
 - **Hypothesis:** By telling a retrospective to classify the assistant message above a "proceed" before counting it as feedback, we expect the next retrospective reports to stop listing restarts after a limit or a guard wait among corrections, preferences and redirections, because the schema reference now names that kind, gives its share (about 90% in the one corpus measured) and says what a bare "proceed" after a completion report means.
