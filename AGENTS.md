@@ -121,7 +121,7 @@ SKILL CREATION                          PERIODIC (weekly/biweekly)
 
 ### Task completion checklist (mandatory)
 When a task is complete, ALWAYS perform these steps before considering it done:
-1. **Post-task review** (major tasks: 3+ files, new feature, spec completion) — Run the full 8-step review: code review (1–6), documentation impact (7), learnings extraction (8). See the `post-task-review` skill.
+1. **Post-task review** (every completion event: a finished task of any size, a precondition stop, a gate report, a hand-off) — Run the full review, Step 0 through Step 9: blast radius (0), code review (1–6), documentation impact (7), learnings extraction (8), close self-challenge (9). See the `post-task-review` skill.
 2. **Learnings extraction** (all tasks) — Extract project-level findings and append to `.ai/learnings.md`. See the `task-learnings` skill.
 3. **Documentation updates** — If any modified files affect docs (per `references/doc-impact-matrix.md` in the `post-task-review` skill), update the affected documentation.
 4. **Rebuild/restart** — not needed. This repository runs no long-lived services; it ships a plugin and a support CLI, both of which take effect on the next invocation.
@@ -155,7 +155,7 @@ Uses: spec-driven-dev (workflow), test-planner (task), plan-critic (review)
 
 ### Post-task review
 Uses: post-task-review (workflow), task-learnings (task), commit-message (task)
-- Run the 8-step review for all major tasks (3+ files modified, new features, spec completions).
+- Run the full post-task review at every completion event: a finished task of any size, a precondition stop, a gate report, a hand-off. A close with no changed files still runs every step, reading the report's claims where there is no diff, and always Step 9. Inside a workflow skill, run it as its own top-level step after that workflow ends (a workflow skill is never invoked from inside another).
 - Steps 1–6: code review and convention compliance (see the `post-task-review` skill).
 - Step 7: documentation impact analysis — check and update affected docs.
 - Step 8: learnings extraction — capture and record project knowledge.

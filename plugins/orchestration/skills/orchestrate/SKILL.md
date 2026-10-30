@@ -81,7 +81,8 @@ Every delegation gets a written brief. A good brief has exactly:
    [references/brief-template.md](references/brief-template.md)).
 5. **The completion gates ride in the DoD, run BEFORE the handoff, and operator questions are
    self-addressed.** An implementation brief's definition of done includes the AGENTS.md
-   task-completion checklist (post-task-review for 3+ files, learnings extraction) — **and the brief
+   task-completion checklist (post-task-review at every completion event: a finished task of any
+   size, a precondition stop, a gate report, a hand-off; and learnings extraction) — **and the brief
    must state that it runs before the worker writes its return handoff, not after.** The handoff is
    the only thing you will read; one written first carries whatever the review would have corrected,
    and you inherit it as fact (measured 2026-08-15: a pre-review handoff shipped a false gate claim
@@ -98,10 +99,16 @@ Every delegation gets a written brief. A good brief has exactly:
    **The completion checklist is ALWAYS in scope, whatever the declared file set says.** A worker
    closed with *"learnings extraction — still deferred because `.ai/learnings.md` sits outside my
    declared file set"*, and 12 sessions in the window never ran the review at all. The disjoint-file
-   partition exists to stop destructive write collisions; `.ai/learnings.md` and
-   `.ai/ai-changelog.md` are append-only, do not collide destructively, and the kit's data-file lint
-   catches the merge artifacts that do occur. State this exemption in the brief — a scope
-   rule that does not name its own exceptions gets read as exempting the obligations too.
+   partition exists to stop destructive write collisions; `.ai/learnings.md`, `.ai/ai-changelog.md`
+   and, for appends only, `.ai/improvement-hypotheses.md` are append-only, do not collide
+   destructively, and the kit's data-file lint catches the merge artifacts that do occur. A worker
+   appends a new hypothesis entry; a Status or marker edit stays with the validator's run, outside
+   this rule, so the exemption's append-only reason stays true. State this exemption in the brief —
+   a scope rule that does not name its own exceptions gets read as exempting the obligations too.
+   If the project or the plan bars workers from these files, the brief names one writer for each
+   entry (the worker in its own branch, the session that receives the return, or the next
+   consolidation) and adds the files to that writer's set; any other worker returns its drafts and
+   lists each as not done, with the writer's name (under `## Status` in a hand-off).
 
 6. **The target branch, as an assertion the worker runs — not as prose.** The brief carries its
    layer's branch from `.specs/{initiative}/topology.md`, and the worker asserts
@@ -146,17 +153,25 @@ Every delegation gets a written brief. A good brief has exactly:
      only transcripts with zero violations were pointed at a rules *file*. One condition in a small
      corpus, so: current best practice with a named test (re-measure the violation rate), not a law.
      It costs one line either way.
-   - *Write the report file EARLY and INCREMENTALLY.* State this in the brief. **22% of one measured
-     sub-agent corpus was killed mid-run by the usage window and returned nothing at all** — and a
-     worker that dies returns exactly what a worker that found nothing returns, so you cannot tell a
-     missing gate from a passing one. In the one recorded controlled contrast, the worker given this
-     clause survived the window that killed its sibling. Also treat it as a hypothesis with a test:
-     re-measure the no-return rate.
+   - *Write the report file EARLY and INCREMENTALLY — if the worker may write.* State this in the
+     brief. **22% of one measured sub-agent corpus was killed mid-run by the usage window and
+     returned nothing at all** — and a worker that dies returns exactly what a worker that found
+     nothing returns, so you cannot tell a missing gate from a passing one. In the one recorded
+     controlled contrast, the worker given this clause survived the window that killed its sibling.
+     Also treat it as a hypothesis with a test: re-measure the no-return rate. A harness may refuse a
+     sub-agent's write of a report file: such a sub-agent returns its findings as text, so "write your
+     report early" applies only to workers allowed to write.
 
    Both clauses exist because **a prose rule does not bind, and a seam binds only the exact shape it
    matches.** When you add a guard, match the resulting *state*, not a leading token: guards that
    match a token are routinely reached by a rephrasing, and the violation counter then reads zero
    for a worker that violated throughout.
+
+   **Two harness limits are the exception to "point, don't paste"** — the template restates both,
+   because a worker meets them on its first command and its last write. A leading `NAME=value`
+   assignment before a command can be denied by a shell hook: put the value inline, write multi-step
+   logic to a script file, or use the interpreter's UTF-8 mode flag instead of an environment
+   variable. The other limit is the refused report file, in the clause above.
 
 9. **The close block — paste it verbatim into every brief.** The single largest behavioural finding
    in the measured corpus: an operator hand-pasted an adversarial self-challenge in **114 of 303
@@ -177,6 +192,9 @@ Every delegation gets a written brief. A good brief has exactly:
    > 3. Save everything into the handoff.
    > 4. Then write a short summary for whoever reads it next: bullets, ≤10 lines, plain language,
    >    no internal ids.
+
+   Step 3 writes a file: a sub-agent whose harness refuses the write returns the handoff content as
+   text (item 8).
 
    Plus three operator-interface rules, which apply to **every turn addressed to a human**, not just
    to briefs:
@@ -246,11 +264,17 @@ Three rules, enforced at this step because dispatch is where the choice exists:
 
 - **Preflight the usage window before every wave.** Check the remaining usage window (whatever
   your client exposes — a statusline rate-limit feed, or the provider's console) before any
-  fan-out of ≥3 workers. Past the warn threshold: do not start the
-  wave — checkpoint first (continuation notes + workflow `resumeFromRunId` lines), then wait or hand
-  off. A wave that dies at the wall costs re-dispatch AND duplicate-dispatch races: every resume
-  message must state who else is on the item ("two workers ran this assignment" was found by the
-  worker, not the orchestrator).
+  fan-out of ≥3 workers, and note how old the reading is: a reading older than a few minutes is
+  stale during a fan-out, and every other live session draws on the same window. Past the warn
+  threshold: do not start the wave — checkpoint first (continuation notes + workflow
+  `resumeFromRunId` lines), then wait or hand off. **If the project's AGENTS.md or its override
+  documents say the usage window is not a gate**, report the reading and its age, if one exists,
+  and never defer, shrink or skip verification on a wave because of it. The kit ships no usage
+  guard, so never presume a reading exists; a project that opts out accepts the risk the gate
+  protects against (waves killed at the limit, duplicate dispatch after a re-run). A wave that dies
+  at the wall costs re-dispatch AND duplicate-dispatch races: every resume message must state who
+  else is on the item ("two workers ran this assignment" was found by the worker, not the
+  orchestrator).
 - **Epic implementation slices leave the session by default** — the plan-time rule, now owned by
   `initiative-planner` (step 3 assigns each slice a session; step 4 derives what may run at once).
   What still binds you at run time: the orchestrator thread keeps plan, briefs, verification and

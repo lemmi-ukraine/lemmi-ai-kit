@@ -4,23 +4,27 @@ metadata:
   type: workflow
 description: >
   Comprehensive post-task review including code review, convention compliance, documentation
-  impact analysis, and learnings extraction. Extends the existing task-completion-review
-  process with two new mandatory steps. Use after completing any major task (3+ files
-  modified, new feature, significant refactoring, or spec task completion).
+  impact analysis, and learnings extraction. Use at every completion event: a finished task of
+  any size, a precondition stop, a gate report, a hand-off.
 ---
 
 # Post-Task Review — Comprehensive Completion Process
 
 ## When This Skill Activates
 
-Run this review when any of these conditions are met:
+Run this review at every completion event, whatever the task's size or kind:
 
-- A new feature or significant functionality was implemented
-- Refactoring touched 3 or more files
-- A spec-driven development task was completed
-- A bug fix revealed a systemic issue
+- A task of any size or kind is finished (code, a plan, an audit, a report, a migration)
+- A task stops at a precondition it could not meet
+- A gate report or a hand-off is about to be written; inside a workflow skill, the review runs as
+  its own top-level step after that workflow ends, since a workflow skill is never invoked from
+  inside another
 - The human explicitly requests a review
-- Any task that created or modified database migrations
+
+A close with no changed files still runs every step, reading the report's claims where there is no
+diff, and always Step 9. A stage report may defer a gate only as the staged-delivery note under
+Important Notes allows. At a phase gate inside a workflow, Step 9 runs inline, as a step of the
+gate; the full review runs as its own top-level step after the workflow ends.
 
 ## Review Pipeline
 
@@ -287,7 +291,9 @@ Invoke the `task-learnings` skill to:
 5. Update project rules if any convention gaps were found
 6. **If any AI infrastructure files were modified** during steps 1–7 (convention updates,
    skill modifications, rule additions), read the `ai-changelog` skill and
-   append the appropriate changelog entry to `.ai/ai-changelog.md`
+   append the appropriate changelog entry to `.ai/ai-changelog.md`. If the brief names another
+   writer, draft the changelog entry and the hypothesis in your return and name that writer;
+   append neither.
 7. **After writing a changelog entry**, read the `ai-improvement-tracker` skill
    and evaluate whether the change warrants a testable improvement hypothesis
 

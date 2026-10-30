@@ -144,11 +144,13 @@ misread as a scope boundary that also excuses the task-completion obligations, b
 with *"learnings extraction — still deferred because `.ai/learnings.md` sits outside my declared
 file set"*, and 12 sessions in that window never ran the completion review at all.
 
-`.ai/learnings.md` and `.ai/ai-changelog.md` are **append-only**: concurrent appends do not
-destroy each other, and the support CLI's `lint` subcommand detects the duplicate-header/spliced-entry
-artifacts a merge can produce. So they are always in scope, for every session, regardless of the partition —
-state this explicitly in each brief rather than relying on the worker to infer the exception. A
-scope rule that does not name its own exceptions gets read as exempting the obligations too.
+`.ai/learnings.md`, `.ai/ai-changelog.md` and, for appends only, `.ai/improvement-hypotheses.md` are **append-only**:
+concurrent appends do not destroy each other (a Status or marker edit stays with the validator's run), and the support
+CLI's `lint` subcommand detects the duplicate-header/spliced-entry artifacts a merge can produce. So they are always
+in scope, for every session, regardless of the partition — state this explicitly in each brief rather than relying
+on the worker to infer the exception. A scope rule that does not name its own exceptions gets read as exempting the
+obligations too. If the project or the plan bars workers from them, the brief names one writer for each entry, and any
+other worker returns its drafts as not done, naming that writer (`orchestrate`, item 5).
 
 ## 5. The Docker test suites are globally exclusive
 

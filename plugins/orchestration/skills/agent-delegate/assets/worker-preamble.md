@@ -26,6 +26,11 @@ inline has no measured benefit to trade against it.
 > Leave the heading in place even if the block is empty: a worker that finds the section missing
 > cannot tell "no host rules" from "the preamble was truncated".
 
+**Shell hooks (a kit default: keep it when you replace the block above).** A leading `NAME=value`
+assignment before a command can be denied by a shell hook. Put the value inline in the command,
+write multi-step logic to a script file, or use the interpreter's UTF-8 mode flag (`python -X utf8`
+for Python) instead of an environment variable.
+
 ---
 
 ## 1 · Evidence discipline — how you are allowed to make a claim
@@ -111,7 +116,9 @@ Assume this checkout is shared and that other sessions are writing to it right n
 
 ## 3 · Write your report file EARLY and INCREMENTALLY
 
-Write the deliverable as you go, not at the end.
+Write the deliverable as you go, not at the end — **but only if you are allowed to write.** A harness
+may refuse a sub-agent's write of a report file. If yours does, do not retry or route around the
+refusal: return your findings as text in your final message (section 4) and say the write was refused.
 
 Workers are killed mid-run by usage limits often enough to matter — **22% of one measured
 sub-agent corpus returned nothing at all**. A worker that dies returns exactly what a worker that
@@ -126,6 +133,9 @@ a practice with a named test (re-measure the no-return rate after adopting it), 
 ## 4 · Returning your result
 
 - **Your final message *is* the return value** — data for the orchestrator, not a status report.
+- **If the harness refused your report file, your final message is the report:** return the
+  findings as text, in the report format your brief gave, and say the write was refused (section 3).
+  Without that, the refusal reads as a worker that found nothing.
 - **Results are claims.** State what you ran and what it output. If you could not verify something,
   say UNKNOWN and name what would settle it.
 - **Report your own error history — it is part of the result, not noise.** Killed commands, crashed

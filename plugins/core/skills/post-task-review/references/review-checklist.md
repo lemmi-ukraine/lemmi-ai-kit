@@ -75,6 +75,9 @@ invisible to anyone working from it.
 - [ ] Findings classified (project-level vs task-specific)
 - [ ] Project-level findings appended to `.ai/learnings.md`
 - [ ] Rules updated if convention gaps found
+- [ ] AI-infrastructure files modified: changelog entry appended to `.ai/ai-changelog.md`
+- [ ] Changelog entry written: hypothesis evaluated, and appended to `.ai/improvement-hypotheses.md` if warranted (appends only; a Status or marker edit stays with the validator's run)
+- [ ] Brief names another writer for these two entries: both drafted in the return, that writer named, each listed as not done
 - [ ] Results reported (count + summary)
 
 ## Step 9: Close Self-Challenge (MANDATORY — runs LAST)

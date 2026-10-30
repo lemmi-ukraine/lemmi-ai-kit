@@ -339,6 +339,11 @@ Each phase is executed as a semi-independent unit:
 | **Standard** | Default for most phases | Steps 1–6 of post-task-review |
 | **Full** | Final phase, or phases with cross-feature impact | Full post-task-review, every step |
 
+Every gate report is a completion event: whatever the level, Step 9 of `post-task-review` runs
+inline, as a step of the gate, before the report is written, and a step the level leaves out is
+named in the report with the gate that will run it; the full review runs as its own top-level
+step after the workflow ends.
+
 ### Context Handoff Rules
 
 - The spec documents (requirements.md, design.md, tasks.md) are the **persistent memory** across phases
@@ -359,7 +364,8 @@ When implementing from a spec (phased or non-phased):
 
 A spec is not finished when its last task is ticked. Two steps close it, in order:
 
-1. **Self-review — `post-task-review`** (mandatory for Medium and Large; the full pass). Its
+1. **Self-review — `post-task-review`** (mandatory at every completion event, a Small task closed
+   by direct implementation included; a spec gets the full pass). Its
    step 4 self-challenge, step 7 documentation-impact sweep and step 9 CLOSE self-challenge (a
    separate, later pass than step 4) are what catch the defects the
    implementation pass cannot see, because they check the work against the *approved scenarios* and

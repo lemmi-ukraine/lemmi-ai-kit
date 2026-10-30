@@ -6,9 +6,10 @@ metadata:
 description: >
   Extract and record project learnings after task completion. Captures architecture
   decisions, pitfalls, patterns, and convention gaps discovered during implementation.
-  Automatically updates .ai/learnings.md and relevant project rules. Use after completing
-  any coding task, bug fix, refactoring, or when the AI discovers something non-obvious
-  about the project.
+  Automatically updates .ai/learnings.md and relevant project rules. Use at the close of
+  every task, whatever its kind or size (code, documentation, a plan, an audit, a report),
+  at a stop or hand-off before it, and when the AI discovers something non-obvious about
+  the project.
 ---
 
 # Task Learnings — Extract and Record Project Knowledge
@@ -17,7 +18,7 @@ description: >
 
 Run the learnings extraction process when any of these occur:
 
-- A coding task, bug fix, or refactoring is completed
+- A task of any kind or size is completed, or stops at a gate or a hand-off
 - A surprising or non-obvious behavior is discovered in the codebase
 - The human corrects the AI's approach or assumption
 - An external API or service behaves unexpectedly
@@ -26,7 +27,12 @@ Run the learnings extraction process when any of these occur:
 
 ## Learnings Extraction Process
 
-Follow these steps in order at the end of every qualifying task:
+Follow these steps in order at the close of every task and at each event above:
+
+A run that finds nothing new is a valid result, not a skipped step: say so in one line. When
+`post-task-review` runs, its Step 8 is this run. At a stop, a candidate that waits on an answer
+is not yet a finding and may wait if the report names it; a finding already settled is appended
+now, and Step 5's rule that the append itself is never deferred stands.
 
 ### Step 0: Measure This Session (gated)
 

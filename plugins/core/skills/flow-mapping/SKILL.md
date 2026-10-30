@@ -174,6 +174,7 @@ after a check and rerun if it changed. A fresh shared-corpus edit can invalidate
 otherwise correct reconciliation within the same session.
 
 Return output paths, pinned revision, evidence limits, actual gate results and
-outstanding register IDs. Run Core's post-task-review for major mapping work.
+outstanding register IDs. Run Core's post-task-review at every completion event of
+mapping work, whatever its size.
 Do not claim a structural pass proves runtime truth, commit/push without user
 authorization, or leave actionable findings only in temporary session notes.
