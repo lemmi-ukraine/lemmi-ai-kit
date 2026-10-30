@@ -58,7 +58,7 @@ Use these sources in priority order. Fetch the most specific source for the ques
 
 ### OpenAI
 
-> **Access status (re-verified 2026-07-27)**: `developers.openai.com/api/docs/*` **renders fine via WebFetch** — guides, model cards, the changelog, deprecations, and pricing all return full content. The older "returns empty JS/CSS" note is stale. `platform.openai.com` still 301s to developers.openai.com (changelog) or returns 403 (blog/pricing). Try the `developers.openai.com` page **first** for conceptual, model-card, pricing, and deprecation facts; keep the **SDK raw source** URLs below as the authority for exact field literals and wire shapes, and cross-check schemas there.
+> **Access status (re-verified 2026-07-27)**: `developers.openai.com/api/docs/*` **renders fine via WebFetch** — guides, model cards, the changelog, deprecations, and pricing all fetch, though the answer can be a summary of the page (see Step 2). The older "returns empty JS/CSS" note is stale. `platform.openai.com` still 301s to developers.openai.com (changelog) or returns 403 (blog/pricing). Try the `developers.openai.com` page **first** for conceptual, model-card, pricing, and deprecation facts; keep the **SDK raw source** URLs below as the authority for exact field literals and wire shapes, and cross-check schemas there.
 
 | Source | URL | Use for | Status |
 |---|---|---|---|
@@ -114,17 +114,21 @@ and nothing will flag it.
 
 Classify what needs to be looked up:
 
-- **Model facts**: name, ID, context window, modality support → fetch **Models** page
+- **Model facts**: name, ID, context window, modality support → fetch **Models** page; whether a
+  model exists is checked on **that model's own page**, never inferred from the index
 - **API behavior**: events, parameters, session config → fetch the **Guide** page
 - **SDK usage**: class names, method signatures → fetch the **SDK README**
 - **Multiple aspects**: fetch 1–2 most relevant pages, not all of them
 
 ### Step 2 — Fetch the Source
 
-Use `WebFetch` with the URL from the table above.
+Use `WebFetch` with the URL from the table above, and a prompt that asks for the exact text.
 
 ```
-WebFetch(url="https://platform.openai.com/docs/guides/realtime")
+WebFetch(
+  url="https://developers.openai.com/api/docs/guides/realtime",
+  prompt="Quote verbatim every sentence that states <the fact>. If there is none, answer NOT ON THE PAGE.",
+)
 ```
 
 If the fetched content is a navigation page (table of contents, no direct content),
@@ -146,11 +150,16 @@ Limit: fetch at most **2 pages** per question. Do not crawl indefinitely.
 > follow through with a `WebFetch` of the primary URL before using any characterization. This
 > generalizes the uncited-number caution to ANY specific claim.
 
+> **A `WebFetch` answer can be a model's summary of the page, not the page:** an index summary can
+> say an item is missing when its own page exists, and a 404 speaks for that URL only. Never
+> conclude that a model, parameter or page does not exist from a summarized fetch; fetch the item's
+> own page or make a live API call, else use the Step 4 template and name the URLs read.
+
 ### Step 3 — Extract and Answer
 
 From the fetched content:
 
-1. Quote or paraphrase the relevant section directly
+1. Quote only text the fetch returned verbatim; label any paraphrase as one
 2. State the source URL
 3. Distinguish between what the docs say and any project-specific inference you make
 4. If the docs don't answer the question clearly, say so — do not fall back to memory silently

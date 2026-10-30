@@ -34,7 +34,7 @@ serialization — concurrency is otherwise re-derived per session and collapses 
 uncertainty, which is invisible unless the plan carries both numbers. Derived from:
 1. {disjoint-file-set constraint}
 2. {the chokepoint}
-3. {the usage window}
+3. {the usage window — or "not applied: project opt-out" when the project says it is not a gate; the cap is then the minimum of the other two}
 
 ## 2. The session tree
 
@@ -44,7 +44,10 @@ Mark the cheapest unblocked session START HERE and the highest-value one.}
 ## 3. Session register
 
 `Owns` is the **declared disjoint file set** — the parallel-safety contract. A session touching a
-path outside its set is a collision, not initiative.
+path outside its set is a collision, not initiative. When the plan bars workers from the ledgers
+(`.ai/ai-changelog.md`, `.ai/improvement-hypotheses.md`, `.ai/learnings.md`), `Owns` also names the
+writer of each of the session's entries: the worker in its own branch, the session that receives the
+return, or the next consolidation.
 
 ### {Type} — {count}
 
@@ -155,15 +158,16 @@ pre-switch backup — never a raw checkout in a contended tree.
 
 ### §6 Re-plan triggers
 **Commands with expected results, run at every wave boundary** — not prose to be re-read. A trigger
-that must be remembered has already failed. `topology.md` carries the branch-shaped triggers; these
-are the session-shaped ones:
+that must be remembered has already failed. When a dependency is added or withdrawn,
+`stacked-pr-planner` Step 6's sweep covers these triggers and §4's reasons. `topology.md` carries
+the branch-shaped triggers; these are the session-shaped ones:
 
 | Trigger | Check | Response |
 |---|---|---|
 | A falsifier held | the measuring deliverable reported | Re-open the charter that day; the session count is now wrong |
 | Two sessions editing the same file | either reports a path outside its `Owns` | Stop the later one; re-partition. Not "merge carefully" |
 | A new deliverable appeared | `topology.md` has no row for it | Re-run `stacked-pr-planner`, then re-derive §1's cap |
-| A wave would start below the usage floor | preflight the usage guard | Checkpoint continuation notes; do not start the wave |
+| A wave would start below the usage floor | preflight the usage guard (a reading older than a few minutes is stale during a fan-out) | Checkpoint continuation notes; do not start the wave. If the project's AGENTS.md or its override documents say the usage window is not a gate, report the reading and its age, if one exists, and never defer, shrink or skip verification on a wave because of it; §1's derivation 3 then reads "not applied: project opt-out" |
 | A blocker went a full wave unanswered | dates in `roadmap.md` §3 | Re-state what is UNKNOWN because of it; do not silently assume |
 | Status claim needs settling | `git grep -l <symbol> origin/dev` | Content, **never** ancestry — ancestry answers a different question after a squash-merge |
 

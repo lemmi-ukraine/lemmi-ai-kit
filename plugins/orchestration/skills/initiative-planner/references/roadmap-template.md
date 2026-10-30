@@ -80,6 +80,12 @@ Recurring ones in this repo: a shared multi-session checkout (declared disjoint 
 new worktree); untracked deployment artifacts that never appear in a diff (no PR lane, no automatic
 regression catch); external CLI workers absent from PATH; the usage window.
 
+**The usage window is a gate unless the project says otherwise.** If the project's AGENTS.md or its
+override documents say the usage window is not a gate, the row reads "usage window: not a gate
+(project opt-out)" and its consequence is the rule: report the reading and its age, if one exists, and
+never defer, shrink or skip verification on a wave because of it. The project accepts the risk the
+gate protects against: waves killed at the limit, and duplicate dispatch after a re-run.
+
 ### §3 Operator critical path
 **External blockers no session can resolve.** A dependency between two deliverables is not one —
 that lives in `topology.md`.
@@ -115,11 +121,13 @@ The two lines worth repeating per initiative, because they are initiative-specif
 - **Results are claims.** Read the returned diff and run the definition-of-done check yourself. Where
   a returned finding contradicts a recorded learning, the learning wins until the contradiction is
   reproduced in the shape this codebase actually uses.
-- **The completion checklist runs BEFORE the handoff is written.** Every brief states this
-  explicitly. A handoff written first carries whatever the review would have corrected, and it is
-  the only artifact the next session reads — so the error propagates as fact rather than as a
-  claim. A session stopped by the usage wall inverts this on purpose: continuation handoff first,
-  marked `Status: incomplete — post-task-review not run`.
+- **The completion checklist runs BEFORE the handoff is written, at every completion event** (a
+  finished task of any size, a precondition stop, a gate report, a hand-off). Every brief states this
+  explicitly, naming the events and never a size threshold. A handoff written first carries whatever
+  the review would have corrected, and it is the only artifact the next session reads — so the error
+  propagates as fact rather than as a claim. A session stopped by the usage wall inverts this on
+  purpose: continuation handoff first, whose `## Status` (`parallel-session-safety` §9) reads
+  `in-progress — post-task-review not run`.
 
 ### §5.1 Testing and rollback
 Per risk class. The class that matters most is the one with **no test suite and no code review** —

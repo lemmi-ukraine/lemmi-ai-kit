@@ -2431,3 +2431,84 @@ def test_upstream_hypothesis_statuses_are_all_carried() -> None:
         set(_STATUS_TOKEN_RE.findall(lifecycle.group(1))),
         set(checks.HYPOTHESIS_STATUSES),
     )
+
+
+# --- the continuation hand-off the planner tells a session to write -----------------------
+#
+# `initiative-planner` and its roadmap template each say what `## Status` a hand-off reads
+# when a session stops at the usage window with the review not run. The hand-off lint is the
+# only reader of that field, so the sentence is judged by running the lint over what it
+# prints: a status the lint rejects is an instruction to write a hand-off that fails it.
+
+_CONTINUATION_MARKER = "post-task-review not run"
+_SENTENCE_BOUNDARY_RE = re.compile(r"(?<=[.!?])\s+")
+_CODE_SPAN_RE = re.compile(r"`([^`]+)`")
+_RETIRED_CONTINUATION_STATUS = "Status: incomplete"
+_GOOD_HANDOFF_STATUS = "in-progress. The second half is not done."
+_PLANNER_FILES: tuple[tuple[str, ...], ...] = (
+    ("SKILL.md",),
+    ("references", "roadmap-template.md"),
+)
+_PLANNER_FILE_IDS = ["skill", "roadmap-template"]
+
+
+def _continuation_status(text: str) -> str:
+    """The status a file's continuation sentence prints.
+
+    It is the last backticked span of the one sentence that names the marker, read with line
+    breaks folded so a re-wrap of the paragraph changes nothing.
+    """
+    folded = " ".join(text.split())
+    sentences = [
+        s for s in _SENTENCE_BOUNDARY_RE.split(folded) if _CONTINUATION_MARKER in s
+    ]
+    assert len(sentences) == 1, (
+        f"expected one sentence naming {_CONTINUATION_MARKER!r}, found {len(sentences)}"
+    )
+    spans = _CODE_SPAN_RE.findall(sentences[0])
+    assert spans, "the continuation sentence prints its status in no code span"
+    return spans[-1]
+
+
+def _status_findings(status: str) -> list[str]:
+    """What the lint says about `_GOOD_HANDOFF` once `status` is its `## Status` body."""
+    assert _GOOD_HANDOFF_STATUS in _GOOD_HANDOFF
+    handoff = _GOOD_HANDOFF.replace(_GOOD_HANDOFF_STATUS, status)
+    return [
+        f.message for f in checks.lint_handoff(handoff, "h.md") if "Status" in f.message
+    ]
+
+
+def test_the_continuation_status_reader_sees_a_planted_positive() -> None:
+    """The lint rejects the retired wording and accepts the new, and the reader finds the span."""
+    retired = f"Status: incomplete {_EM} post-task-review not run"
+    accepted = f"in-progress {_EM} post-task-review not run"
+    assert _status_findings(accepted) == []
+    assert any("'## Status' must state one of" in m for m in _status_findings(retired))
+
+    planted = f"One sentence. Its `## Status` reads `{accepted}`, so a reader knows. Then `x`."
+    assert _continuation_status(planted) == accepted
+    with pytest.raises(AssertionError, match="expected one sentence"):
+        _continuation_status("no marker in this text.")
+
+
+@pytest.mark.parametrize("parts", _PLANNER_FILES, ids=_PLANNER_FILE_IDS)
+def test_the_continuation_status_the_planner_prints_passes_the_handoff_lint(
+    parts: tuple[str, ...],
+) -> None:
+    text = _shipped_skill("initiative-planner", *parts).read_text(encoding="utf-8")
+    status = _continuation_status(text)
+    assert _status_findings(status) == [], (
+        f"initiative-planner {'/'.join(parts)} tells a session to write `## Status` as "
+        f"{status!r}, which the hand-off lint rejects"
+    )
+
+
+@pytest.mark.parametrize("parts", _PLANNER_FILES, ids=_PLANNER_FILE_IDS)
+def test_the_planner_no_longer_prints_the_retired_continuation_status(
+    parts: tuple[str, ...],
+) -> None:
+    text = _shipped_skill("initiative-planner", *parts).read_text(encoding="utf-8")
+    assert _RETIRED_CONTINUATION_STATUS not in text, (
+        f"initiative-planner {'/'.join(parts)} still prints {_RETIRED_CONTINUATION_STATUS!r}"
+    )

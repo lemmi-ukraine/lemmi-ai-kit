@@ -264,6 +264,11 @@ fire has the same failure mode — so make them commands.**
 > another session's scratch directory is one cleanup away from deletion: copy it into the durable
 > hand-off directory byte-perfect before amending.
 
+**The sweep covers the plan too.** When a revision adds or withdraws a dependency, search every plan
+document, tracked or not, for every name of each changed pair (branch, row label, session label,
+item id), trigger commands, `Depends on (why)` cells and order rationale included. A search for the
+old wording misses a command that names the pair.
+
 Each trigger is a command **with an expected result** — the `parallel-session-safety` §9 contract
 ("preconditions and verification are commands, never prose"). Escaped pipes below are markdown table
 escapes; drop the backslash when running.
@@ -311,6 +316,13 @@ TOOLING=$(printf   '%s\n' "$F" | grep -cE '^(\.claude|\.cursor|scripts|tests)/')
 > **S-rows (siblings) are not in `gh stack`.** A `gh stack` chain is strictly linear — each branch is
 > based on the previous one, with no fork or sibling flag. Siblings are ordinary PRs against trunk;
 > check them with `gh pr list --base dev`, and scope the drift check to L-rows or it fires every time.
+
+> **Never order siblings by ancestry.** Siblings are not ancestors of each other until a rebase or
+> merge brings one into the other, so `git merge-base --is-ancestor` between them fails at every
+> check and holds the later merge. When a dependency is withdrawn, delete that check. If the two
+> share a file, the later one must pass `git merge-tree --write-tree <trunk> <branch>` (exit 0; git
+> 2.38 or later) and the gate on an export of the tree it prints before it merges; if their order
+> still matters, check that the earlier one's work is in trunk (Step 7).
 
 Run them at every dispatch round. **Any trigger firing re-opens the topology that day** — not at the
 end of the initiative, when the repair costs a closed PR.

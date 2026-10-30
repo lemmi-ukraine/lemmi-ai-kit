@@ -52,7 +52,8 @@ forward.
 
 ### Step 1 — Orient and Run DoR Pre-Flight
 
-Read the document end to end. Identify:
+Read the document end to end. For a plan that orders work across initiatives, branches or pull
+requests, Step 2.7 also sends you to the documents its steps depend on. Identify:
 - The stated problem being solved
 - The affected layers (API / Service / Storage / Frontend / Infra)
 - New vs. modified components
@@ -112,6 +113,17 @@ citation is exactly what survives a reading pass.
 
 Skip this step for every other document type.
 
+### Step 2.7 — Sequencing Check (plans that order work across initiatives, branches or pull requests)
+
+When reviewing a plan that orders work across initiatives, branches or pull requests, read the
+documents its steps depend on, not only the plan: each initiative's plans and prompts, the topology,
+the project's rules. List the preconditions they state: a clean tree, a pin or settle check against
+the trunk, a file deleted only after its work ships, a file with one editor, a trigger that expires.
+Test each step, in plan order, against them at the point where it runs. A step that runs before its
+precondition can hold is Major; one that loses work or breaks another initiative's gate is a Blocker.
+
+Skip this step for a single-slice spec.
+
 ### Step 3 — Apply the Universal Challenge Questions
 
 After the five dimensions, answer these six questions regardless of scope.
@@ -164,10 +176,11 @@ Each question must produce either a confident answer or a finding:
      the frame by a human is not measurement.
    - Flag as **Major Completeness** when a scoping claim carries no provenance. This is the plan-time
      twin of question 6 below: 6 asks who chose the sample, this asks who chose the frame.
-   - **A review pass cannot audit its own framing.** This skill reads the plan against itself, so a
-     premise the plan and its source document share is invisible to every question above except this
-     one — which is why the checks here are phrased as "produce the provenance list", not "does it
-     look consistent". Where a plan overrode an inherited claim, make it record what it overrode.
+   - **A review pass cannot audit its own framing.** Apart from the cross-document checks (Steps 2.5
+     to 2.7), this skill reads the plan against itself, so a premise the plan and its source document
+     share is invisible to every question above except this one — which is why the checks here are
+     phrased as "produce the provenance list", not "does it look consistent". Where a plan overrode
+     an inherited claim, make it record what it overrode.
 
 6. **Evidence provenance**: for every load-bearing "all N instances have property P" claim, ask
    **who chose the N**. When the population came from a detector, scan, or grep the author also
