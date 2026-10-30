@@ -29,6 +29,10 @@ _CONFORMANT = (
 _ROW = "| `IdlePolicy._silent_for` | `src/policy.py` | FP-02 | `IdlePolicy.evaluate` | — |\n"
 _INVARIANT_CELL = "`external: connection-manager sweep` | INV-01 |"
 _DERIVED_ROW = "| `IdlePolicy._reset` | `src/policy.py` | FP-01, FP-03 | `IdlePolicy.evaluate` | — |"
+_CITED_COVERAGE_ROW = "| `src/policy.py` | FP-01, FP-02, FP-03 | all indexed symbols, call sites, and evidence live in this fixture file |\n"
+_UNCITED_COVERAGE_ROW = (
+    "| `src/constants.py` | _none_ | read in full; no cited use in this fixture |\n"
+)
 
 # Per table: the columns --certify compares, and the columns that name a row. Everything else is
 # authored, and the NOT CHECKED line has to name exactly that.
@@ -145,6 +149,24 @@ def test_a_wrong_derived_cell_is_still_reported_and_the_line_is_still_printed(
     assert _last_line(done) == "1"
     assert "| Symbol index | 6 | 1 | 0 |" in done.stdout
     _not_checked(done)
+
+
+def test_a_cited_file_with_no_coverage_row_is_refused_not_certified(
+    installation: tuple[Path, Path],
+) -> None:
+    """The one row-set check there is: a cited file needs a Coverage row, or --certify refuses."""
+    done = _certify(installation, _edited(_CITED_COVERAGE_ROW, ""))
+    assert done.returncode == 2, done.stdout + done.stderr
+    assert "has no Coverage row" in done.stderr
+
+
+def test_a_file_no_scenario_cites_can_lose_its_coverage_row_unseen_and_the_line_says_so(
+    installation: tuple[Path, Path],
+) -> None:
+    done = _certify(installation, _edited(_UNCITED_COVERAGE_ROW, ""))
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert _last_line(done) == "0"
+    assert "a file no scenario cites" in _not_checked(done)
 
 
 def _columns(markdown: str, section: str) -> list[str]:

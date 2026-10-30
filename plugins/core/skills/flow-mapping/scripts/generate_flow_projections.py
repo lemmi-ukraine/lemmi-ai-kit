@@ -41,8 +41,10 @@ OWNED_TABLE_SECTIONS = (
 NOT_CHECKED = (
     "NOT CHECKED: authored columns (Symbol index: file, invariants; Call graph: site; "
     "Coverage: coverage note; Runtime applicability: profile, effective switches, "
-    "reachable scenarios, evidence) and row sets (a symbol, edge, file or profile the "
-    "document leaves out is not seen: only declared rows are compared)"
+    "reachable scenarios, evidence) and row sets (a symbol, edge or profile the "
+    "document leaves out is not seen, and neither is a file no scenario cites: only "
+    "declared rows are compared, and a cited file's Coverage note is read only for "
+    "being present)"
 )
 
 

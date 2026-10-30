@@ -1,4 +1,4 @@
-"""Save a restorable snapshot of the working tree BEFORE a model-initiated branch switch.
+"""Save the tracked changes and an inventory of the untracked files BEFORE a branch switch.
 
 Usage:
 
