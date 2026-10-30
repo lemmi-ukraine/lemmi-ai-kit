@@ -205,15 +205,16 @@ def _prose(section: str) -> str:
     return "\n".join(kept)
 
 
-# --- K29: the session folder comes from the working directory --------------------------------
+# --- the session folder comes from the working directory -------------------------------------
 
-# Each is a sentence the extractor's present behavior no longer supports. Four describe the
-# retired derivation, where the extractor walked up from its own location to the repo root and
-# the session folder came from there; it now reads the working directory. The fifth quotes the
-# digest's old label for the record count ("user msgs"), which is a change of label and has
-# nothing to do with the walk: the digest now says "User-channel records". Matched against
-# whitespace-collapsed text, so a phrase that wraps a line is still seen.
-_K29_STALE: dict[str, re.Pattern[str]] = {
+# Each is a sentence the extractor's present behavior no longer supports. All but the last
+# describe the retired derivation, where the extractor walked up from its own location and
+# detected the repo root, and the session folder came from there; it now reads the working
+# directory. The last quotes the digest's old label for the record count ("user msgs"), which
+# is a change of label and has nothing to do with the walk: the digest now says
+# "User-channel records". Matched against whitespace-collapsed text, so a phrase that wraps a
+# line is still seen.
+_SESSION_DIR_STALE: dict[str, re.Pattern[str]] = {
     "says the extractor walks up from its own location": re.compile(
         r"walks\s+up\s+from\s+its\s+own\s+location", re.IGNORECASE
     ),
@@ -226,18 +227,23 @@ _K29_STALE: dict[str, re.Pattern[str]] = {
     "says the extractor walks up to the dir holding .claude/": re.compile(
         r"walks\s+up\s+to\s+the\s+dir\s+containing", re.IGNORECASE
     ),
+    "says the extractor detects the repo root": re.compile(
+        r"detects\s+the\s+repo\s+root", re.IGNORECASE
+    ),
     "quotes the digest's old count label (user msgs)": re.compile(
         r"\buser\s+msgs\b", re.IGNORECASE
     ),
 }
 
 
-def _k29_stale_hits(text: str) -> list[str]:
+def _session_dir_stale_hits(text: str) -> list[str]:
     flat = _collapsed(text)
-    return [name for name, pattern in _K29_STALE.items() if pattern.search(flat)]
+    return [
+        name for name, pattern in _SESSION_DIR_STALE.items() if pattern.search(flat)
+    ]
 
 
-def _k29_files() -> list[Path]:
+def _session_dir_files() -> list[Path]:
     """Markdown of the two skills that talk about the extractor's session folder."""
     return sorted(
         path
@@ -246,10 +252,10 @@ def _k29_files() -> list[Path]:
     )
 
 
-def test_the_k29_scan_covers_the_markdown_of_both_skills() -> None:
-    files = _k29_files()
+def test_the_session_dir_scan_covers_the_markdown_of_both_skills() -> None:
+    files = _session_dir_files()
     names = {path.relative_to(_REPO_ROOT).as_posix() for path in files}
-    assert len(files) >= 6, f"only {len(files)} markdown files in the K29 scan"
+    assert len(files) >= 6, f"only {len(files)} markdown files in the session-dir scan"
     for path in (_RETRO, _SCHEMA, _GATE, _TASK_LEARNINGS):
         assert path.relative_to(_REPO_ROOT).as_posix() in names, path.name
 
@@ -257,8 +263,8 @@ def test_the_k29_scan_covers_the_markdown_of_both_skills() -> None:
 def test_no_file_states_the_retired_session_dir_derivation() -> None:
     offenders = {
         path.relative_to(_REPO_ROOT).as_posix(): hits
-        for path in _k29_files()
-        if (hits := _k29_stale_hits(path.read_text(encoding="utf-8")))
+        for path in _session_dir_files()
+        if (hits := _session_dir_stale_hits(path.read_text(encoding="utf-8")))
     }
     assert not offenders, (
         f"{sum(len(hits) for hits in offenders.values())} sentence(s) in {len(offenders)} "
@@ -276,7 +282,7 @@ _EXIT_CODES_LIST_ONE = re.compile(
     r"\*\*Exit codes:\*\*.{0,400}`1`.{0,200}first argument", re.IGNORECASE
 )
 
-_K29_FACTS: tuple[tuple[str, Path, str, re.Pattern[str]], ...] = (
+_SESSION_DIR_FACTS: tuple[tuple[str, Path, str, re.Pattern[str]], ...] = (
     (
         "Phase 1 says the working directory decides",
         _RETRO,
@@ -335,10 +341,10 @@ _K29_FACTS: tuple[tuple[str, Path, str, re.Pattern[str]], ...] = (
 )
 
 
-def _k29_gaps() -> list[str]:
+def _session_dir_gaps() -> list[str]:
     return [
         name
-        for name, path, heading, pattern in _K29_FACTS
+        for name, path, heading, pattern in _SESSION_DIR_FACTS
         if not pattern.search(
             _collapsed(_section(path.read_text(encoding="utf-8"), heading))
         )
@@ -346,8 +352,10 @@ def _k29_gaps() -> list[str]:
 
 
 def test_the_working_directory_rule_and_its_exit_1_are_stated() -> None:
-    gaps = _k29_gaps()
-    assert not gaps, f"{len(gaps)} of {len(_K29_FACTS)} facts are not stated: {gaps}"
+    gaps = _session_dir_gaps()
+    assert not gaps, (
+        f"{len(gaps)} of {len(_SESSION_DIR_FACTS)} facts are not stated: {gaps}"
+    )
 
 
 def test_the_schema_invocation_prints_the_command_in_the_skill_dir_form() -> None:
@@ -366,7 +374,7 @@ def test_the_schema_invocation_prints_the_command_in_the_skill_dir_form() -> Non
     ), first
 
 
-def test_the_k29_scans_flag_the_text_they_replaced() -> None:
+def test_the_session_dir_scans_flag_the_text_they_replaced() -> None:
     """Planted positives: the old sentences, one of them wrapped across a line."""
     old = [
         "The extractor walks up from its own location to the repo root.",
@@ -375,16 +383,25 @@ def test_the_k29_scans_flag_the_text_they_replaced() -> None:
         "this extractor walks up to the dir containing `.claude/`",
         "the counts (10 user msgs, 1 error class, 3 sub-agents)",
         "The extractor walks up\n   from its own location.",
+        "email/PII patterns), and detects the repo root differently from the kit's `lint` "
+        "command:",
+        "and detects the\n  repo root differently from lint",
     ]
     for text in old:
-        assert _k29_stale_hits(text), f"the scan missed a planted positive: {text!r}"
+        assert _session_dir_stale_hits(text), (
+            f"the scan missed a planted positive: {text!r}"
+        )
     new = [
         "`<session-dir>` is derived from the working directory",
         "the counts (10 user-channel records, 1 error class, 3 sub-agents)",
         "the schema key userMsgs counts user-channel records",
+        "and reads the working directory as the project root (the kit's `lint` command "
+        "looks for `.ai` + `.git` instead)",
     ]
     for text in new:
-        assert _k29_stale_hits(text) == [], f"the scan flagged new text: {text!r}"
+        assert _session_dir_stale_hits(text) == [], (
+            f"the scan flagged new text: {text!r}"
+        )
 
     assert _EXIT_ONE.search("refused with exit 1: pass the session dir")
     assert _EXIT_ONE.search("the run exits 1")
@@ -398,7 +415,7 @@ def test_the_k29_scans_flag_the_text_they_replaced() -> None:
     )
 
 
-# --- K29: each printed extractor command, taken out of the text, runs ------------------------
+# --- each printed extractor command, taken out of the text, runs -----------------------------
 
 
 @pytest.fixture
@@ -549,7 +566,7 @@ def test_the_printed_extractor_command_runs_from_the_project_root(
     assert _named_session_dir(given.stderr).samefile(fake.folder)
 
 
-# --- K33: the seam, and the gate that takes it ------------------------------------------------
+# --- the proposals seam, and the gate that takes it -------------------------------------------
 
 _SEAM_PHRASE = re.compile(r"keep P1/P2 as proposals")
 _SEAM_SOURCE = re.compile(r"AGENTS\.md`? or (?:its|the) override document")

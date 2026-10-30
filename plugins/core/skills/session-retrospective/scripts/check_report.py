@@ -180,9 +180,7 @@ def _git(root: Path, args: list[str]) -> tuple[int, str]:
     return proc.returncode, proc.stdout
 
 
-def check_durability(
-    root: Path, date: str, proposals_only: bool = False
-) -> list[str]:
+def check_durability(root: Path, date: str, proposals_only: bool = False) -> list[str]:
     """Phase 7: the changelog entry is the sole reconciliation source of record.
 
     A working-tree-only or stash-only entry is NOT durable -- the next run reads the

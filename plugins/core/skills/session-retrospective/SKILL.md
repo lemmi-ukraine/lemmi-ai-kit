@@ -90,8 +90,8 @@ python "${CLAUDE_SKILL_DIR}/scripts/extract_sessions.py" \
   `uv run` (it may trigger an environment sync that rebuilds project deps this stdlib script
   doesn't need). On Windows the venv python is `.venv/Scripts/python.exe`.
 - **Porting this script elsewhere** — it pins Python **3.11+**, redacts SECRET shapes only (no
-  email/PII patterns), and detects the repo root differently from the kit's `lint` command:
-  [references/extractor-output-schema.md](references/extractor-output-schema.md) § Porting.
+  email/PII patterns), and reads the working directory as the project root (the kit's `lint`
+  command looks for `.ai` + `.git` instead): [references/extractor-output-schema.md](references/extractor-output-schema.md) § Porting.
 - **Date default:** the extractor has NO built-in default — with no `--since/--until` it processes
   ALL history. To honor the 14-day default, THIS skill computes `--since` (today − 14 days) and
   passes it unless the user gave a range. `--since/--until` filter on date *overlap*, not strict

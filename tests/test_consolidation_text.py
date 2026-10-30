@@ -26,8 +26,8 @@ can fire it at text that carries the defect before its silence on the real files
 trusted, and `test_the_scan_covers_the_three_skills` states the scan surface in numbers.
 The tests that assert a fact about the text each fail on the text they replaced.
 
-The command-form rule checks the printed FORM only. Parsing every printed command with the
-support CLI's own parser is a separate test, written once the packs are merged.
+The command-form rule checks the printed FORM only. `test_printed_commands.py` parses
+every printed command with the support CLI's own parser.
 """
 
 import ast
@@ -425,13 +425,11 @@ def _item_5_gaps(validator: str) -> list[str]:
 
 # --- rule: the marker line is the one the ledger lint reads ----------------------------
 
-# The ledger lint's reader of the marker, mirrored while the support CLI in this tree has
-# none: the first line outside a fence that opens with the bold label (a blockquote `>`
-# before it is allowed), with its count taken from `N terminal verdicts covered` after the
-# label. Once `checks.read_meta_synthesis_marker` exists the lint's own reader is asked
-# instead, so the text is held to the code and not to this copy of it.
-_MARKER_MIRROR = re.compile(r"^\s*(?:>\s*)?\*\*Last meta-synthesis:?\*\*:?(.*)$")
-_COVERED_MIRROR = re.compile(r"(\d+)\s+terminal\s+verdicts?\s+covered")
+# The marker line is read by the ledger lint's own reader,
+# `checks.read_meta_synthesis_marker`: the first line outside a fence that opens with the
+# bold label (a blockquote `>` before it is allowed), with its count taken from
+# `N terminal verdicts covered` after the label. Asking that reader, and not a pattern
+# copied from it, holds the text to the code.
 
 # What the lint does with a marker that is missing, unreadable or ahead of the ledger: each
 # case is a NOTE, and the validator must say which.
@@ -453,15 +451,8 @@ _MARKER_CASES: dict[str, re.Pattern[str]] = {
 
 def _lint_reads_marker(line: str) -> int | None:
     """The covered count the ledger lint reads from `line`, or None when it reads none."""
-    reader = getattr(checks, "read_meta_synthesis_marker", None)
-    if callable(reader):
-        covered = getattr(reader(line + "\n"), "covered", None)
-        return covered if isinstance(covered, int) else None
-    match = _MARKER_MIRROR.match(line)
-    if match is None:
-        return None
-    count = _COVERED_MIRROR.search(match.group(1))
-    return int(count.group(1)) if count else None
+    marker = checks.read_meta_synthesis_marker(line + "\n")
+    return None if marker is None else marker.covered
 
 
 def _filled(template: str, covered: int) -> str:
@@ -853,7 +844,8 @@ def test_the_critic_reads_the_gate_record_the_reference_says_it_audits() -> None
 def test_every_printed_support_cli_command_has_the_one_canonical_form() -> None:
     """Red before the fix: four commands carried an environment assignment, two were the
     bare module form, and none passed `--project` (which `uv --directory` makes mandatory).
-    This pins the printed FORM; parsing each with the CLI's own parser is a later test."""
+    This pins the printed FORM; `test_printed_commands.py` parses each with the CLI's
+    own parser."""
     offenders = {
         _relative(p): problems
         for p in _markdown_files()
