@@ -117,3 +117,29 @@ this family is not *"is my reasoning correct?"* — it was, every time — but:
 
 Write the enumeration down next to the conclusion. If you cannot say how you know it is exhaustive,
 the conclusion is a hypothesis wearing a conclusion's grammar.
+
+---
+
+## Four shorter cases: a status word or a figure stood in for what it summarises
+
+Each of these was true of what it examined. The gap is between that and what it was taken to cover.
+
+- **A suite "stands in" for a file's verification only after you have grepped which switches its
+  tests pass.** If every test passes the same mode flag, the branch behind the other values was
+  never run, however many tests are green. List the flag's values in the tests before you write
+  "covered by the suite".
+- **A drafted commit message copies figures from the run that existed when it was written.** A
+  count of tests, files or findings belongs to one run, and the run that gates the commit is a
+  later one. Compare every figure in the draft with the final log before committing.
+- **A mutant that survives may be equivalent.** Trace why it survived before adding a test: the
+  mutated code may guard nothing the program can reach, and deleting it is then the fix. A mutation
+  runner needs, in the same run, an unmutated control (it must pass) and an old-wording control, the
+  text the change replaced (it must fail). Its "applied" line proves only that the needle occurs
+  once, so a needle that drifted onto a different construct "applies" and the mutant survives for
+  the wrong reason.
+- **A lint's pass is its summary line, not the word PASSED.** The kit's hand-off lint covers a
+  folder and prints `--- handoffs: N finding(s), M file(s) ---` and then `LINT PASSED`, and it
+  prints PASSED over zero files as well: pointed at an empty project folder it reads
+  `--- handoffs: 0 finding(s), 0 file(s) ---` and exits 0. A pass is 0 findings and M equal to the
+  number of files you meant to lint. (The ledger lints take one file, print no count, and refuse a
+  missing file with an error.)

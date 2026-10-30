@@ -932,3 +932,125 @@ def test_the_gate_reference_check_fails_on_the_wording_it_guards() -> None:
     assert not _GATE_ALWAYS_HAS_HYPOTHESIS.search(
         "and, unless --proposals-only says nothing was applied, that a companion hypothesis exists"
     )
+
+
+# --- a "proceed" is read against the message above it -----------------------------------------
+
+# The section of the schema that lists the operator's turns. The paragraph on a "proceed" sits
+# beside the one on re-asks: both say what a digest cannot decide by wording, so the reader does.
+_PROCEED_SECTION = "### Session scoping"
+_PROCEED_LEAD = (
+    '**A message that opens with "proceed" is read against the message above it.**'
+)
+_RE_ASKS_LEAD = "**Re-asks are deliberately NOT detected.**"
+
+# What the paragraph must say. Matched against the whitespace-collapsed paragraph, so a phrase
+# that wraps a line is still seen.
+_PROCEED_FACTS: dict[str, re.Pattern[str]] = {
+    "says to classify the assistant message above before filing the proceed as feedback": (
+        re.compile(r"Classify that assistant message first.{0,80}as feedback")
+    ),
+    "names a platform stop and a guard wait as what most of them follow": re.compile(
+        r"\bfollowed a platform stop or a guard wait\b"
+    ),
+    "says that kind is a restart, neither an approval nor a correction": re.compile(
+        r"\bneither an approval nor a correction\b"
+    ),
+    "gives the share, about 90%": re.compile(r"\bAbout 90% of such messages\b"),
+    "says a bare proceed after a completion report marks a premature completion": (
+        re.compile(
+            r"\bbare .proceed. after the agent.s own completion report\b"
+            r".{0,120}\bpremature completion\b"
+        )
+    ),
+}
+
+
+def _proceed_paragraph(text: str) -> str:
+    """The paragraph that opens with the lead-in, whitespace collapsed, or "" if none does."""
+    for paragraph in re.split(r"\n\s*\n", text):
+        flat = _collapsed(paragraph)
+        if flat.startswith(_PROCEED_LEAD):
+            return flat
+    return ""
+
+
+def _proceed_gaps(paragraph: str) -> list[str]:
+    """Each fact the paragraph lacks; an empty paragraph is one gap by itself."""
+    if not paragraph:
+        return ["no paragraph opens with the lead-in"]
+    return [
+        name
+        for name, pattern in _PROCEED_FACTS.items()
+        if not pattern.search(paragraph)
+    ]
+
+
+def test_the_schema_says_how_to_read_a_message_that_opens_with_proceed() -> None:
+    gaps = _proceed_gaps(_proceed_paragraph(_SCHEMA.read_text(encoding="utf-8")))
+    assert not gaps, (
+        f"the schema's paragraph on a proceed lacks {len(gaps)} fact(s): {gaps}"
+    )
+
+
+def test_the_proceed_paragraph_sits_in_the_section_that_lists_the_operators_turns() -> (
+    None
+):
+    """The neighbour on re-asks is the positive control: it must still be there, or the
+    placement below would be measured against nothing."""
+    section = _collapsed(
+        _section(_SCHEMA.read_text(encoding="utf-8"), _PROCEED_SECTION)
+    )
+    assert _RE_ASKS_LEAD in section, (
+        "the paragraph on re-asks is no longer in the section"
+    )
+    assert _PROCEED_LEAD in section, (
+        "the paragraph on a proceed is not in the section that lists the operator's turns"
+    )
+    assert section.index(_RE_ASKS_LEAD) < section.index(_PROCEED_LEAD)
+
+
+def test_the_skill_links_the_schema_that_carries_the_paragraph() -> None:
+    """SKILL.md has no room for the paragraph, so it lives in a reference the skill links."""
+    assert "references/extractor-output-schema.md" in _RETRO.read_text(encoding="utf-8")
+
+
+def test_the_proceed_check_fails_on_the_wording_it_guards() -> None:
+    """Planted: the real paragraph with one claim reversed at a time, each producing exactly
+    the gap it targets, and the schema without the paragraph (the text it replaced)."""
+    text = _SCHEMA.read_text(encoding="utf-8")
+    paragraph = _proceed_paragraph(text)
+    assert _proceed_gaps(paragraph) == []
+    plants = {
+        "says to classify the assistant message above before filing the proceed as feedback": (
+            "Classify that assistant message first",
+            "Read the next message first",
+        ),
+        "names a platform stop and a guard wait as what most of them follow": (
+            "followed a platform stop or a guard wait",
+            "followed an error",
+        ),
+        "says that kind is a restart, neither an approval nor a correction": (
+            "neither an approval nor a correction",
+            "an approval",
+        ),
+        "gives the share, about 90%": (
+            "About 90% of such messages",
+            "Most such messages",
+        ),
+        "says a bare proceed after a completion report marks a premature completion": (
+            "premature completion",
+            "finished task",
+        ),
+    }
+    for expected, (before, after) in plants.items():
+        assert before in paragraph, f"the paragraph no longer holds {before!r}"
+        assert _proceed_gaps(paragraph.replace(before, after)) == [expected], expected
+    without = "\n\n".join(
+        part
+        for part in re.split(r"\n\s*\n", text)
+        if not _collapsed(part).startswith(_PROCEED_LEAD)
+    )
+    assert _proceed_gaps(_proceed_paragraph(without)) == [
+        "no paragraph opens with the lead-in"
+    ]

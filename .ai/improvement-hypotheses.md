@@ -17,6 +17,14 @@
 
 ## 2026-10-30
 
+### [INFRA-MODIFIED] A proceed is classified before it is counted as feedback
+- **Category:** Quality
+- **Hypothesis:** By telling a retrospective to classify the assistant message above a "proceed" before counting it as feedback, we expect the next retrospective reports to stop listing restarts after a limit or a guard wait among corrections, preferences and redirections, because the schema reference now names that kind, gives its share (about 90% in the one corpus measured) and says what a bare "proceed" after a completion report means.
+- **Signal:** Over the next 2 retrospective runs whose session store holds at least one message that opens with "proceed", or by 2026-12-30, whichever comes first: confirm if neither report lists such a message after a platform stop or a guard wait as a correction, preference or redirection, and every "proceed" a report does list names the message above it; refute if a report lists a restart as feedback or lists a "proceed" without naming what preceded it; inconclusive if fewer than 2 such runs happen.
+- **Risk:** The share comes from one corpus and may not hold in another; a reader who files every "proceed" as a restart would hide a real premature-completion finding, which is why the paragraph names that kind too.
+- **Status:** PENDING
+- **Changelog ref:** 2026-10-30 — Say how to read a message that opens with proceed, and add six short evidence lessons to existing skills
+
 ### [INFRA-MODIFIED] A branch switch starts from a backup that exists
 - **Category:** Quality
 - **Hypothesis:** By making the pre-switch backup one command that starts with `python`, writes under the git directory and exits non-zero on any failed step, we expect every model-initiated branch switch to be preceded by a complete six-file backup folder and a quoted path, because the old block's assignment-led first line, its unignored folder and its same-day overwrite no longer exist.

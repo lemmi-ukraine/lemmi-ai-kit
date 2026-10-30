@@ -297,6 +297,16 @@ selects the deep-dive sessions.
 has none, so a similarity score would false-positive on shared domain vocabulary and miss terse
 restatements. The digest emits the sequence and the reader classifies.
 
+**A message that opens with "proceed" is read against the message above it.** Classify that
+assistant message first, and do not file the "proceed" as feedback on the agent's claim until you
+have. About 90% of such messages, in the one corpus where this was measured, followed a platform stop
+or a guard wait (a session or weekly limit, an access or connector notice, a quota-guard pause): the
+operator was restarting halted work, which is neither an approval nor a correction, and counting it
+as either inflates the feedback tally. Another kind is a bare "proceed" after the agent's own
+completion report: it marks a premature completion (a local milestone presented as the end of the
+task) and belongs in the findings as such. If the message above is not in the digest, read it in the
+transcript before classifying.
+
 Threshold provenance (measured 2026-08-14, 90 sessions / 85 substantial): the extractor never
 records a re-read below **3**, so a "≥2 occurrences" filter is vacuous; a count of exactly 3 is the
 **mode** (63 of 137, 46%) and is most likely the AGENTS.md-mandated read→edit→re-read cycle, i.e.

@@ -207,7 +207,7 @@ direction = "upstream-origin"
 name = "analyze-logs"
 upstream = "analyze-logs"
 direction = "upstream-origin"
-note = "This repo shipped it as `analyge-logs` (a typo) until the rename; the upstream spelling is the correct one. A name-keyed check would have reported it as an upstream-only skill for six weeks."
+note = "This repo shipped it as `analyge-logs` (a typo) until the rename; the upstream spelling is the correct one. A name-keyed check would have reported it as an upstream-only skill for six weeks. Local override, 2026-10-30: references/analysis-examples.md gains Example 4 (an absence found by a join). Re-apply on the next sync."
 
 [[skills]]
 name = "branch-diff-review"
@@ -268,7 +268,7 @@ name = "metric-validity-check"
 upstream = "metric-validity-check"
 direction = "upstream-origin"
 base = "e0a7eb9c1d703e937e80ca4e8ae7e8610ca8b778"
-note = "Was an [[unported]] row: declined by operator ruling 2026-08-31 because, as written, its `when_to_use` routed the caller to `feedback-audit` (never shipped) and its evidence pointed at one product audit. Carried 2026-09-14 by operator dispatch after that ruling was re-evaluated: the two unshipped pointers (`feedback-audit`, `outcome-audit`) are stripped, the audit is cited as a source the kit does not carry, and the known-groups method itself is generic. Carried at upstream INDEX state (the upstream change was staged, not committed, at carry time), so `base` pins the last upstream commit that holds the skill (the record pin predates the skill's directory, which the drift check reports as a MAP ERROR); the 9 index lines carried beyond that commit will read as 1 commit BEHIND once upstream commits them -- already carried. The record pin is unchanged."
+note = "Was an [[unported]] row: declined by operator ruling 2026-08-31 because, as written, its `when_to_use` routed the caller to `feedback-audit` (never shipped) and its evidence pointed at one product audit. Carried 2026-09-14 by operator dispatch after that ruling was re-evaluated: the two unshipped pointers (`feedback-audit`, `outcome-audit`) are stripped, the audit is cited as a source the kit does not carry, and the known-groups method itself is generic. Carried at upstream INDEX state (the upstream change was staged, not committed, at carry time), so `base` pins the last upstream commit that holds the skill (the record pin predates the skill's directory, which the drift check reports as a MAP ERROR); the 9 index lines carried beyond that commit will read as 1 commit BEHIND once upstream commits them -- already carried. The record pin is unchanged. Local override, 2026-10-30: references/join-diagnostics.md gains a section on counting recorded commands and reading a zero. Re-apply on the next sync."
 
 [[skills]]
 name = "orchestrate"
@@ -298,7 +298,7 @@ note = "Local override, 2026-10-30: Dimension 7 (quantified claims) in reference
 name = "post-task-review"
 upstream = "post-task-review"
 direction = "upstream-origin"
-note = "Local override, 2026-10-29: probe_checker.py reads a bare-integer checker as its count and takes --script. Re-apply on the next sync."
+note = "Local overrides, to re-apply on the next sync: 2026-10-29, probe_checker.py reads a bare-integer checker as its count and takes --script; 2026-10-30, references/claim-boundaries.md gains a section of four shorter cases."
 
 [[skills]]
 name = "pr-comment-resolver"
@@ -341,7 +341,7 @@ note = "Kit original. Verified rather than assumed: zero commits touch a path of
 name = "session-retrospective"
 upstream = "session-retrospective"
 direction = "upstream-origin"
-note = "Reconciled 2026-08-23 against the correct base. The `base` override and the `divergent-both` direction this row used to carry are dropped in the same commit as that reconciliation, per the instruction the row itself left. What they existed for: a merge attempted against `c05bf72d` reported 13 conflicts and 8 of 35 tests failing, and the ~1,100-word removal blamed for it was an artifact of that too-new base -- upstream added schema v4 three days AFTER this repo extracted, so the diff rendered the whole v4 feature set as a kit deletion. Against `extraction_base` the kit edit set is four hunks and the extractor merges with zero conflicts. Now v4, 99.0% of upstream's added lines carried verbatim, 35 tests passing."
+note = "Reconciled 2026-08-23 against the correct base. The `base` override and the `divergent-both` direction this row used to carry are dropped in the same commit as that reconciliation, per the instruction the row itself left. What they existed for: a merge attempted against `c05bf72d` reported 13 conflicts and 8 of 35 tests failing, and the ~1,100-word removal blamed for it was an artifact of that too-new base -- upstream added schema v4 three days AFTER this repo extracted, so the diff rendered the whole v4 feature set as a kit deletion. Against `extraction_base` the kit edit set is four hunks and the extractor merges with zero conflicts. Now v4, 99.0% of upstream's added lines carried verbatim, 35 tests passing. Local override, 2026-10-30: references/extractor-output-schema.md gains a paragraph on reading a message that opens with the word proceed. Re-apply on the next sync."
 
 [[skills]]
 name = "skill-content-reviewer"
