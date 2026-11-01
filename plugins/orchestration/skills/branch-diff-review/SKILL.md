@@ -146,9 +146,12 @@ and the dirty-set count is deliberately unrelated to the reviewed diff.
 **Committed only.** Local uncommitted work is out of scope. Say so in the report — a tree with
 modified tracked files can produce a clean verdict on code that is about to change.
 
-**Re-snapshot `git diff HEAD --stat` after reviewing.** If the set changed, another session edited the
-tree mid-review and the verdict is void — restart, do not merge a stale verdict
-(`parallel-session-safety` § 6, which also notes `git status --short` under-reports).
+**Re-snapshot `git diff HEAD --stat` after reviewing, and compare content hashes of the dirty set, not
+only counts** (record them with the first snapshot:
+[12g](../parallel-session-safety/references/shared-index-protocol.md)): equal counts do not prove an
+unchanged tree. If the set changed, another session edited the tree mid-review and the verdict is void —
+restart, do not merge a stale verdict (`parallel-session-safety` § 6, which also notes
+`git status --short` under-reports).
 
 ## Step 2 — Map ownership before reviewing anything
 

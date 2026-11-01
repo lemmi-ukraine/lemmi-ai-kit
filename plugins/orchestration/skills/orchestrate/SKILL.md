@@ -125,11 +125,11 @@ Every delegation gets a written brief. A good brief has exactly:
 7. **Every list in the brief is a starting set written before the mechanism was known — say so in
    the brief.** Three of its lists fail the same way, and the worker cannot tell which sentences
    aged:
-   - **The file set.** A brief's declared files are a scope boundary drawn before anyone knew where
-     the fix lives; the required file was the one it omitted. The worker must derive its sweep from
-     the *claim* (2–3 phrasings, grepped tree-wide) and report **"N named / M actually carried it /
-     K found outside the list"** — over-inclusion is caught free by grepping before editing, but
-     under-inclusion is invisible unless someone deliberately searches outside the list.
+   - **The file set.** A brief's declared files are a scope boundary drawn before anyone knew where the fix lives;
+     the required file was the one it omitted. The worker must derive its sweep from the *claim* (2–3 phrasings,
+     grepped tree-wide, untracked files included: `git grep --untracked` or a working-tree grep) and report **"N
+     named / M actually carried it / K found outside the list"** — over-inclusion is caught free by grepping
+     before editing, but under-inclusion is invisible unless someone deliberately searches outside the list.
    - **The governing documents.** A brief is not a complete statement of what governs the task:
      search `.specs/` by the **symbol you are about to change**, not by the brief's doc list. One
      dispatch missed four `tasks.md` items and two use-cases that constrained the exact function
@@ -142,8 +142,8 @@ Every delegation gets a written brief. A good brief has exactly:
    that inherited claims are to be verified rather than adopted — the one time that instruction was
    present, it is what caught a wrong figure before it propagated.
 
-8. **Point the worker at the preamble FILE — do not restate the rules inline, and require the
-   report to be written incrementally.** Two clauses, both measured:
+8. **Point the worker at the preamble FILE — do not restate the rules inline (the two harness
+   limits excepted), and require the report written incrementally if it may write.** Two clauses, both measured:
 
    - *Point, don't paste.* Give the worker the path to
      [`../agent-delegate/assets/worker-preamble.md`](../agent-delegate/assets/worker-preamble.md)
@@ -360,8 +360,8 @@ inherit a previous wave's serialization.
   through per-scope owners is exactly as global as the union of the scopes.
 - Safety: prefer read-only/plan modes for opinion tasks (`codex exec` default sandbox,
   `cursor-agent --mode plan`, `grok --permission-mode plan`). Grant write access only for
-  implementation briefs, only workspace-scoped, never bypass/danger modes. Ensure `git status`
-  is clean (or checkpoint) before any worker may write.
+  implementation briefs, only workspace-scoped, never bypass/danger modes. Ensure `git status` is clean, or
+  checkpoint the dirty set by content ([12g](../parallel-session-safety/references/shared-index-protocol.md)), before any worker may write.
 - **Before auto-dispatching into a cleared blocker, read
   [references/dispatch-gates.md](references/dispatch-gates.md) §3–§6** — the forward plan as a
   wave-boundary deliverable, the staging-list intersection a comment-only branch needs, one dispatch
@@ -400,7 +400,7 @@ run-time facts, all verified on CLI **2.1.224**, 2026-08-15:
 
 ### 2b. Dispatching to a peer session (cross-session)
 A peer session is not a tool call: you emit a brief, the user carries it, and the result comes back
-as a file. Three rules make that survivable — the full contract is in `agent-delegate`
+as a file. These rules make that survivable — the full contract is in `agent-delegate`
 (dispatch-brief shape) and `parallel-session-safety` (handoff artifact schema):
 
 - **Preconditions are commands, not prose.** Write every state claim as something the delegate
@@ -419,12 +419,21 @@ as a file. Three rules make that survivable — the full contract is in `agent-d
   `parallel-session-safety` §10. Delegates never run stack surgery or outward actions
   (`gh stack sync`/`rebase`/`modify`/`merge`/`submit`, any push) — those are user-authorized at
   session boundaries, where layer PRs open as drafts.
+- **The first step finds a duplicate.** Before any write the delegate runs a done check (the return note
+  exists; `git log -1` on its own paths) and a live-peer check (the host's live-session list, else files
+  changed in 30 minutes at its target paths) and stops on either; the
+  [paste line](references/brief-template.md) carries state, repository folder and branch.
 
 ### 3. Review before merging — results are claims
-A worker's summary is a claim, not verification. For every returned result: read the actual
-diff/files, run the brief's definition-of-done check yourself (or have fast-worker run it), and
-reconcile against the plan. If something's off, **rewrite the brief and spin another worker** —
-don't silently patch over it yourself unless the fix is trivial.
+A worker's summary is a claim, not verification. For every returned result: read the actual diff/files, run the brief's
+definition-of-done check yourself (or have fast-worker run it), and reconcile against the plan. If something's off,
+**rewrite the brief and spin another worker** — don't silently patch over it yourself unless the fix is trivial. Prove no path
+outside the declared set changed by equal hashes ([12g](../parallel-session-safety/references/shared-index-protocol.md)).
+**A verifier is an instrument too.** Give it one to three controls: real claims with one fact changed, planted unmarked by the
+dispatcher or invented by the pass. Trust its confirmations only if it rejected every control; a return without control
+results is unverified. Keep the key out of the artifact. A fresh reader (a new agent that re-derives each claim from the
+pinned source) gets a brief with at most four claims per pass, a tool-call budget stated in the brief and, from the
+repository, the counting traps its AGENTS.md lists, if any; the author re-runs every finding it cites.
 
 **The review loop has three skills and none is optional:**
 

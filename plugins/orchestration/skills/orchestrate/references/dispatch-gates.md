@@ -49,8 +49,10 @@ subscription's usage window went 12% → 76% in 30 minutes with three sessions l
 at HTTP 429. **The collision was survived only because the brief carried a deliverable-path existence
 check as a STOP precondition**, so the second run wrote to scratch instead of overwriting. So: state
 per block *"the orchestrator dispatches this"* or *"the operator pastes this"*, never both; keep the
-deliverable-path STOP precondition in every brief; and check the escalation file and the deliverable
-path before auto-dispatching.
+deliverable-path STOP precondition in every brief and repeat the check at the write, because a path
+absent at the precondition can exist by the time the worker writes it
+([12k](../../parallel-session-safety/references/shared-index-protocol.md)); and check the escalation
+file and the deliverable path before auto-dispatching.
 
 ## 6. Designing the gates that guard a dispatch — three measured failure shapes
 

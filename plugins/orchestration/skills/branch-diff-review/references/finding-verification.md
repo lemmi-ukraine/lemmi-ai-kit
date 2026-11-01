@@ -46,6 +46,14 @@ not the ratio. (The source doc's own decomposition does not sum: 7 held + 7 down
 1 escalated = 17, not 19. Two findings are unaccounted for. Recompute your own counts from the table
 at write time; see A5.)
 
+**A verifier is an instrument too.** Give it one to three controls: real claims with one fact
+changed, planted unmarked by the dispatcher or invented by the pass. Trust its confirmations only if
+it rejected every control; a return without control results is unverified. Keep the key out of the
+artifact. A fresh reader (the re-review after a fix round, `post-task-review` Step 5) is expensive and
+not always right, so its brief carries at most four claims per pass, a tool-call budget stated in the
+brief and, from the repository, the counting traps its AGENTS.md lists, if any; the author re-runs every
+finding it cites.
+
 ---
 
 ## Part A — tool-grounded (may move severity)

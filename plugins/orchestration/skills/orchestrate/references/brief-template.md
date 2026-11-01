@@ -72,3 +72,18 @@ Rules of thumb:
   time. "Looks good" is not a definition of done.
 - **The report is for a decision, not a story.** If the orchestrator can't accept/reject the
   result from the report in under a minute, ask for less prose and more evidence.
+
+## Paste line
+
+A peer session the user drives starts from one pasted line, and the brief is the file it points at.
+The line carries the items below, so that the delegate's first precondition can compare each with
+what it finds:
+
+- the state: not started, running in a named window, or done;
+- the repository folder, compared with `git rev-parse --show-toplevel`;
+- the branch, compared with `git rev-parse --abbrev-ref HEAD`.
+
+A line that disagrees with what the delegate finds, or that holds a placeholder, is a stop: the
+delegate writes nothing and says so in one sentence. The delegate's first step, before any write, is
+a done check (the return note at the named return path exists) and a live-peer check, as `SKILL.md`
+§ 2b says: copy both into the brief's preconditions.

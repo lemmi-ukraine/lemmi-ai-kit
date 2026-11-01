@@ -67,7 +67,8 @@ Each rule below is a measured failure mode, not a style preference. The unifying
 - **On conflicting sources return UNKNOWN with both quotes.** Do not silently pick one.
 - **Verify a path exists before reading it.** Do not read a conventional path you assume is there.
 - **Treat your brief's file list as a starting set, not a boundary.** Derive the sweep from the
-  *claim*, grep tree-wide, and report `N named / M actually carried it / K found outside the list`.
+  *claim*, grep tree-wide, untracked files included (`git grep --untracked` or a working-tree grep),
+  and report `N named / M actually carried it / K found outside the list`.
   Over-inclusion is caught free by grepping before you edit; under-inclusion is invisible unless you
   deliberately search outside the list.
 
