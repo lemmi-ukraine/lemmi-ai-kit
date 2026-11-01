@@ -61,8 +61,8 @@ Evaluate each dimension and score:
 
 **Classification:**
 - Total score 0–2 → **Small** — direct implementation, no spec needed
-- Total score 3–6 → **Medium** — lightweight spec (single combined document)
-- Total score 7+ → **Large** — full spec (requirements + design + tasks)
+- Total score 3–6 → **Medium** — lightweight spec (spec + tasks + test plan)
+- Total score 7+ → **Large** — full spec (requirements + design + tasks + verification plan)
 
 See [references/size-detection.md](references/size-detection.md) for detailed examples.
 
@@ -73,7 +73,7 @@ After detection, present the classification to the user:
 ```
 Task size: {SMALL | MEDIUM | LARGE}
 Rationale: {1-2 sentences explaining the score}
-Proceeding with: {direct implementation | lightweight spec + tasks | full spec}
+Proceeding with: {direct implementation | lightweight spec + tasks + test plan | full spec}
 ```
 
 If the user disagrees, accept their override without argument.
@@ -126,7 +126,7 @@ Skip spec creation entirely. Proceed to implementation following existing projec
 
 ### Medium Tasks — Lightweight Spec
 
-Create two documents:
+Create three documents (spec, tasks, test plan); a design document is added only when the Technical Approach runs past about 60 lines:
 
 1. Create `.specs/{task-name}/spec.md`
 2. Combine key sections from the requirements and design templates:
@@ -239,7 +239,7 @@ When the user requests a change:
 
 When a requested change is technically questionable — it conflicts with existing project architecture, reverses a decision approved in an earlier stage of this spec, removes the only mitigation for an identified risk, or would add implementation code to the spec — raise the concern before applying anything:
 
-1. **State the conflict clearly**: name the specific constraint it violates (e.g., the vertical slice rule, the earlier approved decision, the risk entry in the spec).
+1. **State the conflict clearly**: name the specific constraint it violates (e.g., one of the project's architecture conventions, the earlier approved decision, the risk entry in the spec).
 2. **Propose an alternative** if one exists.
 3. **Wait for the user to respond.** They may have context the AI lacks.
 4. **After the user responds**:
@@ -249,7 +249,7 @@ When a requested change is technically questionable — it conflicts with existi
 
 ### What the AI challenges
 
-- Changes that contradict the project's vertical slice architecture rules
+- Changes that contradict the project's architecture conventions
 - Changes that reverse an earlier stage's approved decision without explanation
 - Changes that remove the only mitigation for a risk already identified in the spec
 - Changes that add implementation code to spec documents
@@ -341,8 +341,8 @@ Each phase is executed as a semi-independent unit:
 
 Every gate report is a completion event: whatever the level, Step 9 of `post-task-review` runs
 inline, as a step of the gate, before the report is written, and a step the level leaves out is
-named in the report with the gate that will run it; the full review runs as its own top-level
-step after the workflow ends.
+named in the report as left to the full review; the full review runs as its own top-level step
+after the workflow ends, and that run is the one that counts for any step a gate left out.
 
 ### Context Handoff Rules
 
@@ -433,7 +433,7 @@ Before presenting a spec for approval, verify:
 - [ ] Files-to-modify and files-NOT-to-modify are explicit
 - [ ] Risk assessment identifies at least one risk
 - [ ] Alternatives section is filled in (at least one alternative considered)
-- [ ] Design follows existing vertical slice architecture
+- [ ] Design follows the project's architecture conventions
 - [ ] No implementation code in the spec documents
 - [ ] Task dependencies form a valid DAG (no circular deps)
 

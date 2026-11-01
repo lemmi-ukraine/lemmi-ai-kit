@@ -10,9 +10,10 @@ qualifying task"), so a plan, an audit, or a stop at a gate never qualified for 
 What the text says now: the review runs at every completion event (a finished task of any
 size, a precondition stop, a gate report, a hand-off); a close with no changed files still runs
 every step; a workflow skill is never the caller, so the review is its own top-level step after
-the workflow ends, and at a phase gate only Step 9 is run inline, as a step of the gate; a stage
-report may still defer a gate, but only by naming it. The lessons run at the close of every
-task and at each of those events.
+the workflow ends, and at a phase gate only Step 9 is run inline, as a step of the gate, while the
+top-level review is the run that counts for any step a gate leaves out, and the report names that
+review, not another gate, as the one the step is left to; a stage report may still defer a gate,
+but only by naming it. The lessons run at the close of every task and at each of those events.
 
 Each place is one `_Place`: where it is, what it must say, which retired wording must be gone,
 and the text it replaced. A place asserts each sentence it gained WHOLE, so a clause cannot be
@@ -255,28 +256,59 @@ _PHASE_GATE_INLINE = "runs inline, as a step of the gate"
 _FULL_REVIEW_AFTER = (
     "the full review runs as its own top-level step after the workflow ends"
 )
+# Which run counts for a step a gate leaves out. The final phase's Full gate runs Step 0 through
+# Step 9 inline and the full review runs again after the workflow ends, so two runs can name the
+# same left-out step; the later one, the review that is its own top-level step, is the one that
+# counts. The three places end their sentence on the same words, and each says the rest in the
+# words of its neighbours (the phased reference names the Full gate, the others do not).
+_RUN_THAT_COUNTS = "is the one that counts for any step a gate left out"
+# Who runs a step a gate leaves out: the full review after the workflow, and no other gate. The two
+# gate-level sentences first named "the gate that will run it" (the phased reference added "the
+# final phase's Full gate") and then said the review after the workflow is the run that counts, so
+# one sentence named two runners for one step. They now name the full review alone.
+_LEFT_TO_FULL_REVIEW = "as left to the full review"
+_OTHER_GATE_AS_RUNNER = "the gate that will run it"
+_ONE_RUNNER = _Check(
+    "another gate named as the runner of a step a gate leaves out",
+    _OTHER_GATE_AS_RUNNER,
+)
 _PHASE_GATE_SENTENCE = (
     f"At a phase gate inside a workflow, Step 9 {_PHASE_GATE_INLINE}; "
-    f"{_FULL_REVIEW_AFTER}."
+    f"{_FULL_REVIEW_AFTER}, and that run {_RUN_THAT_COUNTS}."
 )
 _SPEC_GATE_PARAGRAPH = (
     "Every gate report is a completion event: whatever the level, Step 9 of "
     "`post-task-review` runs inline, as a step of the gate, before the report is written, "
-    "and a step the level leaves out is named in the report with the gate that will run it; "
-    f"{_FULL_REVIEW_AFTER}."
+    f"and a step the level leaves out is named in the report {_LEFT_TO_FULL_REVIEW}; "
+    f"{_FULL_REVIEW_AFTER}, and that run {_RUN_THAT_COUNTS}."
 )
 _PHASED_GATE_PARAGRAPH = (
     "Every gate report is a completion event: whatever the level, Step 9 of the "
     "`post-task-review` skill (the close self-challenge) runs inline, as a step of the gate, "
     "before the report is written, and a step the level leaves out is named in the report "
-    "with the gate that will run it, the final phase's Full gate; "
-    f"{_FULL_REVIEW_AFTER}."
+    f"{_LEFT_TO_FULL_REVIEW}; "
+    f"{_FULL_REVIEW_AFTER}, and that run, not the final Full gate's inline pass, "
+    f"{_RUN_THAT_COUNTS}."
 )
 _PHASE_GATE_PLACES = (
     "review-activation-list",
     "spec-gate-levels",
     "phased-gate-report-rule",
 )
+# The two of them that speak of the gate levels, and what each one said before the second runner
+# went: the sentence names the gate, and the phased reference adds that it is the final phase's
+# Full gate. The heading is what the place is located by.
+_GATE_LEVEL_PLACES = ("spec-gate-levels", "phased-gate-report-rule")
+_RUNNER_CLAUSE = {
+    "spec-gate-levels": f"with {_OTHER_GATE_AS_RUNNER}",
+    "phased-gate-report-rule": (
+        f"with {_OTHER_GATE_AS_RUNNER}, the final phase's Full gate"
+    ),
+}
+_GATE_HEADINGS = {
+    "spec-gate-levels": "### Quality Gate Levels",
+    "phased-gate-report-rule": "## Quality Gate Levels",
+}
 
 _SPEC_CLOSING_PAREN = (
     "(mandatory at every completion event, a Small task closed by direct implementation "
@@ -451,6 +483,30 @@ Follow these steps in order at the end of every qualifying task:
 ### Step 0: Measure This Session (gated)
 """
 
+# The three sentences that speak of a phase gate, as the files carried them before the clause on
+# which run counts: unedited excerpts, so the check on that clause is fired at text that lacks it.
+_BEFORE_COUNTS_ACTIVATION = """At a phase gate inside a workflow, Step 9 runs inline, as a step of the
+gate; the full review runs as its own top-level step after the workflow ends.
+"""
+
+_BEFORE_COUNTS_SPEC = """Every gate report is a completion event: whatever the level, Step 9 of `post-task-review` runs
+inline, as a step of the gate, before the report is written, and a step the level leaves out is
+named in the report with the gate that will run it; the full review runs as its own top-level
+step after the workflow ends.
+"""
+
+_BEFORE_COUNTS_PHASED = """Every gate report is a completion event: whatever the level, Step 9 of the `post-task-review` skill
+(the close self-challenge) runs inline, as a step of the gate, before the report is written, and a
+step the level leaves out is named in the report with the gate that will run it, the final phase's
+Full gate; the full review runs as its own top-level step after the workflow ends.
+"""
+
+_BEFORE_COUNTS: dict[str, str] = {
+    "review-activation-list": _BEFORE_COUNTS_ACTIVATION,
+    "spec-gate-levels": _BEFORE_COUNTS_SPEC,
+    "phased-gate-report-rule": _BEFORE_COUNTS_PHASED,
+}
+
 
 # --- the places ---------------------------------------------------------------------------------
 
@@ -524,6 +580,8 @@ _REVIEW_PLACES: tuple[_Place, ...] = (
             ),
         ),
         old=_OLD_SPEC_GATE_LEVELS,
+        retired=(_ONE_RUNNER,),
+        preventive=(_ONE_RUNNER.label,),
     ),
     _Place(
         name="phased-full-gate-steps",
@@ -547,6 +605,8 @@ _REVIEW_PLACES: tuple[_Place, ...] = (
             ),
         ),
         old=_OLD_PHASED_GATES,
+        retired=(_ONE_RUNNER,),
+        preventive=(_ONE_RUNNER.label,),
     ),
     _Place(
         name="flow-mapping-close",
@@ -811,16 +871,70 @@ def test_each_place_says_the_review_runs_at_every_completion_event(
 
 
 def test_the_phase_gate_rule_reads_the_same_in_its_three_places() -> None:
-    """At a phase gate Step 9 runs inline and the full review runs after the workflow. The skill
-    that owns the review, the skill that runs the gates and the reference that lists them say
-    so in the same words, so a reader of one is not told the opposite by another."""
+    """At a phase gate Step 9 runs inline and the full review runs after the workflow, and that
+    run is the one that counts for a step a gate left out. The skill that owns the review, the
+    skill that runs the gates and the reference that lists them say so in the same words, so a
+    reader of one is not told the opposite by another."""
     by_name = {place.name: place for place in _PLACES}
     assert len(_PHASE_GATE_PLACES) == 3
     for name in _PHASE_GATE_PLACES:
         place = by_name[name]
         flat = _folded(place.locate(_read(place.path))).lower()
-        for fragment in (_PHASE_GATE_INLINE, _FULL_REVIEW_AFTER):
+        for fragment in (_PHASE_GATE_INLINE, _FULL_REVIEW_AFTER, _RUN_THAT_COUNTS):
             assert fragment in flat, f"{name} ({place.path}) does not say: {fragment}"
+
+
+def test_the_clause_on_which_run_counts_is_added_to_the_three_sentences() -> None:
+    """Red before the change: the three sentences named two runners for a step a gate leaves out,
+    the final phase's Full gate and the review after the workflow, and said in none of them which
+    one counts. Fired at the text each place carried: it lacks the clause, and the sentence it
+    carried is still whole inside the text that has the clause, so the clause was added to the
+    sentence. The one thing replaced is the second runner the two gate-level sentences named
+    (`_RUNNER_CLAUSE`), which now reads `_LEFT_TO_FULL_REVIEW`; the rest of each sentence stays."""
+    by_name = {place.name: place for place in _PLACES}
+    assert sorted(_BEFORE_COUNTS) == sorted(_PHASE_GATE_PLACES)
+    for name in _PHASE_GATE_PLACES:
+        place = by_name[name]
+        before = _folded(_BEFORE_COUNTS[name])
+        now = _folded(place.locate(_read(place.path)))
+        assert _RUN_THAT_COUNTS not in before, (
+            f"{name}: the old text already says which counts"
+        )
+        assert _RUN_THAT_COUNTS in now, (
+            f"{name} ({place.path}) does not say which run counts"
+        )
+        runner = _RUNNER_CLAUSE.get(name)
+        if runner is not None:
+            assert runner in before, f"{name}: the old text does not carry {runner!r}"
+        carried = (
+            before if runner is None else before.replace(runner, _LEFT_TO_FULL_REVIEW)
+        )
+        assert carried.removesuffix(".") in now, (
+            f"{name}: the sentence the place carried is no longer whole inside it"
+        )
+
+
+def test_a_step_a_gate_leaves_out_has_one_runner() -> None:
+    """Red before the change: the two gate-level sentences named "the gate that will run it" as the
+    runner of a step a gate leaves out and, in the same sentence, the review after the workflow as
+    the run that counts: two runners for one step. Fired at the sentences as the files carried
+    them, the retired check sees the second runner; fired at the files now, it sees none, every
+    check of the place passes, and each sentence leaves the step to the full review."""
+    by_name = {place.name: place for place in _PLACES}
+    assert (
+        sorted(_RUNNER_CLAUSE) == sorted(_GATE_HEADINGS) == sorted(_GATE_LEVEL_PLACES)
+    )
+    for name in _GATE_LEVEL_PLACES:
+        place = by_name[name]
+        carried = f"{_GATE_HEADINGS[name]}\n\n{_BEFORE_COUNTS[name]}"
+        assert f"retired wording still there: {_ONE_RUNNER.label}" in _gaps(
+            place, carried
+        ), f"{name}: the check cannot see the second runner in the old sentence"
+        text = _read(place.path)
+        assert _gaps(place, text) == [], f"{name} ({place.path}): {_gaps(place, text)}"
+        assert _LEFT_TO_FULL_REVIEW in _folded(place.locate(text)), (
+            f"{name} ({place.path}) does not leave a step a gate omits to the full review"
+        )
 
 
 def test_no_file_of_the_surface_still_bounds_the_review_by_size() -> None:

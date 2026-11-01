@@ -197,6 +197,7 @@ direction = "upstream-origin"
 name = "ai-docs-lookup"
 upstream = "ai-docs-lookup"
 direction = "upstream-origin"
+note = "Local override, 2026-10-30: a fetch prompt that asks for the exact text, a note that a WebFetch answer can be a model's summary of the page (a missing item is never concluded from one, and a model's existence is checked on its own page), and a rule to quote only text the fetch returned verbatim. Re-apply on the next sync."
 
 [[skills]]
 name = "ai-improvement-tracker"
@@ -213,6 +214,7 @@ note = "This repo shipped it as `analyge-logs` (a typo) until the rename; the up
 name = "branch-diff-review"
 upstream = "branch-diff-review"
 direction = "upstream-origin"
+note = "Local override, 2026-10-30: Step 1's re-snapshot compares content hashes of the dirty set, not only counts; references/finding-verification.md gains a paragraph on giving a verifier controls and capping a fresh reader's brief. Re-apply on the next sync."
 
 [[skills]]
 name = "branch-switch"
@@ -235,7 +237,7 @@ name = "flow-mapping"
 upstream = "flow-mapping"
 direction = "upstream-origin"
 base = "48bb09fc21363af69ae31120bfdcb7c06548975c"
-note = "Carried from the last pre-migration skill revision with portable tools and synthetic fixtures; the historical source path still resolves at this base. Project-specific provenance was replaced by executable fixture evidence. Local overrides, 2026-10-30, to re-apply on the next sync: validate_register.py accepts a citation tracked relative to the project root or from the repository top; generate_flow_projections.py --certify prints a NOT CHECKED line; references/register-and-validator-pitfalls.md and its one SKILL.md pointer line."
+note = "Carried from the last pre-migration skill revision with portable tools and synthetic fixtures; the historical source path still resolves at this base. Project-specific provenance was replaced by executable fixture evidence. Local overrides, 2026-10-30, to re-apply on the next sync: validate_register.py accepts a citation tracked relative to the project root or from the repository top; generate_flow_projections.py --certify prints a NOT CHECKED line; references/register-and-validator-pitfalls.md and its one SKILL.md pointer line. Further local overrides, 2026-10-30, to re-apply on the next sync: the close runs post-task-review at every completion event of mapping work; find_absent_cross_flow_seams.py takes --registers and exits 1 while a candidate has no disposition bullet; validate_flow_map.py gains a quantifiers check; section B and the self-challenge state the universal-word rule; section D and the template name the ownership marker."
 
 [[skills]]
 name = "hypothesis-validator"
@@ -246,11 +248,13 @@ direction = "upstream-origin"
 name = "initiative-cleanup"
 upstream = "initiative-cleanup"
 direction = "upstream-origin"
+note = "Local override, 2026-10-30: scripts/audit_cleanup_targets.py refs opens every non-binary file, and evidence takes --ref (default HEAD) and a repeatable --code-suffix, answering NO VERDICT when its only hits are in uncounted file types; the gates block and Steps 4a and 5.5a pass the verified ref, Steps 4b and 7 get the suffix-free command, and the shared spec folders are taken from the spec root on disk; new references/retirement-sweep.md, pointed at from Step 4b. Re-apply on the next sync."
 
 [[skills]]
 name = "initiative-planner"
 upstream = "initiative-planner"
 direction = "upstream-origin"
+note = "Local override, 2026-10-30: the session close names every completion event and the continuation handoff's Status section; derivation 3 (the usage window) carries a project opt-out and a stale-reading rule in SKILL.md and both templates; the session register's Owns names the writer of each ledger entry when the plan bars workers from the ledgers; the plan-critic step names its Step 2.7 sequencing check. Re-apply on the next sync."
 
 [[skills]]
 name = "kit-setup"
@@ -287,18 +291,19 @@ direction = "upstream-origin"
 name = "parallel-session-safety"
 upstream = "parallel-session-safety"
 direction = "upstream-origin"
+note = "Local override, 2026-10-30: the append-only ledgers include improvement-hypotheses.md for appends, and a project or plan that bars workers from them names one writer; references/shared-index-protocol.md gains 12g to 12k (hash the dirty set, a merge dry run, editing a held file, handing a file back, the create collision), 12a and 12e are extended, and the SKILL.md pointer lists every subsection. Re-apply on the next sync. Further local overrides, 2026-11-01, to re-apply on the next sync: SKILL.md cites the new and extended subsections from section 2 (the content hash decides which candidate paths changed, 12g), section 3 (create a path believed new only if absent, 12k), section 3b (hand a file back by reverting your own lines, 12j), section 6 (hash the dirty set before and after a suite run, 12g) and section 12 (the verify-and-stage rule and its corollary name the recorded hashes, 12a); in the reference, 12b gains a sentence that a peer's staged file stops staging, not every edit (12i), and its opening line no longer counts five failure modes."
 
 [[skills]]
 name = "plan-critic"
 upstream = "plan-critic"
 direction = "upstream-origin"
-note = "Local override, 2026-10-30: Dimension 7 (quantified claims) in references/review-dimensions.md plus one SKILL.md list line. Re-apply on the next sync."
+note = "Local override, 2026-10-30: Dimension 7 (quantified claims) in references/review-dimensions.md plus one SKILL.md list line. Re-apply on the next sync. Local override, 2026-10-30: Step 2.7, a sequencing check for plans that order work across initiatives, branches or pull requests, and the sentence in the framing caveat that names it. Re-apply on the next sync."
 
 [[skills]]
 name = "post-task-review"
 upstream = "post-task-review"
 direction = "upstream-origin"
-note = "Local overrides, to re-apply on the next sync: 2026-10-29, probe_checker.py reads a bare-integer checker as its count and takes --script; 2026-10-30, references/claim-boundaries.md gains a section of four shorter cases."
+note = "Local overrides, to re-apply on the next sync: 2026-10-29, probe_checker.py reads a bare-integer checker as its count and takes --script; 2026-10-30, references/claim-boundaries.md gains a section of four shorter cases. Further local overrides, 2026-10-30, to re-apply on the next sync: the review runs at every completion event (description, activation list, and the phase-gate sentence saying which run counts); Step 0 counts untracked files with git grep --untracked; reading-gate-output.md compares blob ids in two forms; the probe item (j) text and fixture-design.md follow the probe; new references/fix-rounds.md; Step 6 and the checklist name the project's lint command; doc-impact-matrix.md is a labelled sample; Step 8's other-writer clause covers the learnings entry. Further local overrides, 2026-11-01, to re-apply on the next sync: the self-challenge's default-resolution item names the config's own default, and its probe item ends on the rule that a positive must resemble the target, with a matching paragraph in fixture-design.md; Step 7 points at the project's own code-to-docs matrix before the sample; the doc-retirement gate derives the id prefixes from the retired file and no longer pairs with a deletion-sweep rule of the project's AGENTS.md; review-checklist.md gains an untracked-sweep row and a row for the drafted changelog line (each file it names marked tracked, untracked or ignored), and reading-gate-output.md a trap row for the untracked sweep."
 
 [[skills]]
 name = "pr-comment-resolver"
@@ -373,17 +378,19 @@ note = "Carries the largest measured kit-side divergence of any carried skill: o
 name = "spec-driven-dev"
 upstream = "spec-driven-dev"
 direction = "upstream-origin"
+note = "Local override, 2026-10-30: Step 9 of post-task-review runs inline at every gate and the gate paragraph leaves a step a gate omits to the full review and says that run counts; a Medium task creates three documents (spec, tasks, test plan) and a Large one four (requirements, design, tasks, verification plan); the references, the Challenge Protocol and the checklist name the project's architecture conventions and lint command, with the Python layout, the stack items, the risk list and the actor table as labelled examples. Re-apply on the next sync."
 
 [[skills]]
 name = "stacked-pr-planner"
 upstream = "stacked-pr-planner"
 direction = "upstream-origin"
-note = "Local override, 2026-10-30: one Step 2 paragraph on a journal branch as a deletion event. Re-apply on the next sync."
+note = "Local override, 2026-10-30: one Step 2 paragraph on a journal branch as a deletion event. Re-apply on the next sync. Local override, 2026-10-30: Step 6's sweep covers the plan documents too, and a note says siblings are never ordered by ancestry. Re-apply on the next sync."
 
 [[skills]]
 name = "task-learnings"
 upstream = "task-learnings"
 direction = "upstream-origin"
+note = "Local override, 2026-10-30: the skill runs at the close of every task, whatever its kind or size, and at a stop or hand-off (description, first trigger and opening paragraph); a run that finds nothing is a valid result, and Step 5's rule that the append is never deferred stands. Re-apply on the next sync."
 
 [[skills]]
 name = "test-conventions"

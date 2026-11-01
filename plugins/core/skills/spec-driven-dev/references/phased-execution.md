@@ -130,15 +130,16 @@ single source of truth.
 
 Every gate report is a completion event: whatever the level, Step 9 of the `post-task-review` skill
 (the close self-challenge) runs inline, as a step of the gate, before the report is written, and a
-step the level leaves out is named in the report with the gate that will run it, the final phase's
-Full gate; the full review runs as its own top-level step after the workflow ends.
+step the level leaves out is named in the report as left to the full review; the full review runs as
+its own top-level step after the workflow ends, and that run, not the final Full gate's inline pass,
+is the one that counts for any step a gate left out.
 
 ### Light Gate
 
 Use for simple, low-risk phases (single layer, 2–3 tasks, no cross-feature impact).
 
 Steps:
-1. Run `uv run ruff check` on all modified files
+1. Run the project's lint command (AGENTS.md § Commands) on all modified files
 2. Check lint/type diagnostics on all modified files
 3. Quick self-review: any obvious issues, missing error handling, broken imports?
 4. Fix any issues found

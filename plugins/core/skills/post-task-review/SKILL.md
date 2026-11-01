@@ -24,7 +24,8 @@ Run this review at every completion event, whatever the task's size or kind:
 A close with no changed files still runs every step, reading the report's claims where there is no
 diff, and always Step 9. A stage report may defer a gate only as the staged-delivery note under
 Important Notes allows. At a phase gate inside a workflow, Step 9 runs inline, as a step of the
-gate; the full review runs as its own top-level step after the workflow ends.
+gate; the full review runs as its own top-level step after the workflow ends, and that run is the one
+that counts for any step a gate left out.
 
 ## Review Pipeline
 

@@ -45,6 +45,11 @@ _COMPLETION_EVENTS: tuple[str, ...] = (
     "a gate report",
     "a hand-off",
 )
+# The clause that bars a size threshold from every brief. No test pinned it: deleting it left the
+# whole suite green, so it is asserted whole, beside the events it qualifies.
+_NO_SIZE_THRESHOLD = (
+    "Every brief states this explicitly, naming the events and never a size threshold."
+)
 
 # What a place that states the usage-window switch must carry, whatever its other words.
 # Each clause is contiguous on purpose. The first ties the source of the switch to the
@@ -218,7 +223,7 @@ def test_the_roadmap_delegation_contract_names_every_completion_event() -> None:
     section = _section(
         _text(_ROADMAP), "### §5 Delegation contract", "roadmap-template.md"
     )
-    _assert_carries(where, _fold(section), _COMPLETION_EVENTS)
+    _assert_carries(where, _fold(section), (*_COMPLETION_EVENTS, _NO_SIZE_THRESHOLD))
 
 
 @pytest.mark.parametrize(
@@ -377,6 +382,32 @@ def test_the_usage_window_switch_surface_is_four_places_in_three_files() -> None
     assert sum(count for _, count in _SWITCH_STATEMENTS) == 4
     assert [path for path, _ in _SWITCH_STATEMENTS] == list(_SURFACE)
     assert [count for _, count in _SWITCH_STATEMENTS] == [2, 1, 1]
+
+
+def test_the_size_threshold_clause_is_seen_deleted_inverted_or_weakened() -> None:
+    """The clause is fired at its own section with each defect planted in turn: deleted, turned
+    into a threshold, and weakened to a permission. Each plant must change the text, and a
+    re-wrap of the same words must not read as one."""
+    raw = _section(_text(_ROADMAP), "### §5 Delegation contract", "roadmap-template.md")
+    section = _fold(raw)
+    assert _missing(section, (_NO_SIZE_THRESHOLD,)) == []
+    planted = {
+        "deleted": section.replace(
+            ", naming the events and never a size threshold", ""
+        ),
+        "inverted": section.replace(
+            "never a size threshold", "a size threshold of three files"
+        ),
+        "weakened": section.replace(
+            "Every brief states this explicitly", "A brief may state this"
+        ),
+    }
+    for defect, text in planted.items():
+        assert text != section, f"the {defect} plant changed nothing"
+        assert _missing(text, (_NO_SIZE_THRESHOLD,)) == [_NO_SIZE_THRESHOLD], defect
+    wrapped = raw.replace("explicitly, naming", "explicitly,\n    naming")
+    assert wrapped != raw, "the re-wrap plant changed nothing"
+    assert _missing(_fold(wrapped), (_NO_SIZE_THRESHOLD,)) == []
 
 
 def test_the_switch_count_sees_a_statement_that_wraps_across_lines() -> None:

@@ -82,7 +82,7 @@ remain subject to your authorization.
 
 | What you are reviewing | Start with | Result / boundary |
 |---|---|---|
-| A completed implementation | Core · [post-task-review](plugins/core/skills/post-task-review/SKILL.md) | Code and convention review, documentation impact and captured learnings |
+| Work at any completion event: a finished task of any size, a precondition stop, a gate report, a hand-off | Core · [post-task-review](plugins/core/skills/post-task-review/SKILL.md) | Code and convention review, documentation impact and captured learnings |
 | Committed work before a PR exists | Orchestration · [branch-diff-review](plugins/orchestration/skills/branch-diff-review/SKILL.md) | A durable findings document against a base ref; excludes uncommitted changes |
 | An existing PR or stack | Orchestration · [pr-review-concise](plugins/orchestration/skills/pr-review-concise/SKILL.md) | Short, actionable inline findings; posting requires authorization |
 | A change needing deeper investigation | Orchestration · [scout-review](plugins/orchestration/skills/scout-review/SKILL.md) | Parallel reviewers trace leads beyond the diff and try to disprove findings before reporting |

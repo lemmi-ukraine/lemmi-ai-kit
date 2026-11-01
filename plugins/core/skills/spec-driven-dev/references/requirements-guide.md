@@ -85,7 +85,7 @@ Use `Scenario Outline` with an `Examples` table instead of duplicating scenarios
 
 Before writing any scenario, identify all actors involved. List them in the `Actors` section of the requirements template with their role in the feature.
 
-**Common actors in this project:**
+**Common actors (examples from a realtime AI backend; the project's own actor list replaces them):**
 
 | Actor | When to include |
 |-------|----------------|
