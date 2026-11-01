@@ -40,8 +40,8 @@ Proceed?
 **Implementation verified (4a):** <per file — the symbol, the CODE path it was found on, after `git fetch`>
 **References repointed (4b):** <n> citations across <n> files → code-adjacent home / recovery command
 **Inputs preserved (4c):** <what was classified INPUT and therefore NOT swept>
-**Post-delete sweep:** `grep -rn '<basename>' --include='*.md' .` -> 0 hits outside recovery commands
-  (working-tree grep, same scope as the pre-delete sweep — `git grep` cannot see untracked files)
+**Post-delete sweep:** `grep -rIn --exclude-dir=.git '<basename>' . | grep -v '/\.ai/tmp/'` -> 0 hits outside recovery commands
+  (working-tree grep, same scope as the pre-delete sweep, files of every type — `git grep` cannot see untracked files)
 **Single-copy warnings:** <artifacts now existing in exactly one untracked place, named>
 **Left untouched:** <another session's uncommitted work, listed not swept>
 **Retired with pointers:** <spec → changelog entry / parked spec → revival trigger>

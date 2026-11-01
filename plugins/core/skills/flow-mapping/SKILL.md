@@ -42,7 +42,7 @@ uv run --no-project python -B "$FLOW_SKILL/scripts/validate_flow_map.py" --proje
 uv run --no-project python -B "$FLOW_SKILL/scripts/validate_register.py" --project-root "$PROJECT" --code-root "$CODE" tasks/BUG-register-flow-<slug>.md
 uv run --no-project python -B "$FLOW_SKILL/scripts/generate_flow_projections.py" --project-root "$PROJECT" --code-root "$CODE" docs/flows/<slug>.md --section all
 uv run --no-project python -B "$FLOW_SKILL/scripts/generate_flow_projections.py" --project-root "$PROJECT" --code-root "$CODE" docs/flows/<slug>.md --certify
-uv run --no-project python -B "$FLOW_SKILL/scripts/find_absent_cross_flow_seams.py" --project-root "$PROJECT" --list-residue
+uv run --no-project python -B "$FLOW_SKILL/scripts/find_absent_cross_flow_seams.py" --project-root "$PROJECT" --list-residue --registers tasks
 ```
 
 The default project root is the current directory; pass it explicitly when running
@@ -83,6 +83,13 @@ read status per file. Never generate "read in full" from a list of filenames.
 Map runtime profiles from their actual configuration sources, not assumptions
 about what a setting's default implies after deployment.
 
+A universal word (every, only, always, never, no) in a scenario, invariant or register
+claim covers a whole set: write its enumeration beside it or narrow the word, and
+search your text for these words before review. The validator's `quantifiers` check
+reports such a word in a row that cites a file whose Coverage note does not start
+`read in full`. The default run prints it without failing; `--check quantifiers`
+makes it block.
+
 Read [evidence and closing rules](references/evidence-and-close.md) for citation
 durability, cross-flow ownership, completeness sweeps and safe document retirement.
 Before closing an edit, read [register and validator pitfalls](references/register-and-validator-pitfalls.md).
@@ -121,11 +128,18 @@ that FAIL/UNKNOWN scenarios have a register destination.
 Run the seam detector. It certifies itself against immutable synthetic fixtures
 before scanning the project. Review every absent-link candidate, verdict
 disagreement and suppressed-link candidate; a count is not a disposition. Put each
-result in the owning register with this marker:
+result in the owning register with one of these markers:
 
 ```markdown
 - **Residue verdict:** seamed-at-row-level | real-gap-row-written | shared-entry-no-seam — <pair, full symbol and reason>
+- **Verdict ownership:** <owning document> owns the verdict — <full symbol, both documents and reason>
 ```
+
+With `--registers` the detector counts an absent-link candidate, verdict disagreement or
+blind spot as disposed only when one register bullet with either marker names its full
+symbol and both documents by file name, and exits 1 listing the rest. Ownership stated
+only in a row is not counted: write the bullet too. Suppressed-link candidates stay a
+reading obligation.
 
 The detector's disagreement predicate is deliberately narrow (FAIL versus UNKNOWN);
 it separately reports FAIL-versus-PASS blind spots. Its candidates do not establish
@@ -164,9 +178,11 @@ uv run --no-project python -B "$FLOW_SKILL/scripts/validate_register.py" --probe
 ```
 
 Then validate the real document, register and projections. Flow validation succeeds
-with exit 0 and no findings; register exit 0 can include informational `[symbols]`
-notes, which require manual resolution. Certify exit 0 permits legal subset notes.
-Nonzero exits are unmet checks; capture the whole output and preserve the code.
+with exit 0 and no blocking findings; a `[quantifiers]` line is printed without
+changing the exit code, so read it, or run `--check quantifiers` to make it block.
+Register exit 0 can include informational `[symbols]` notes, which require manual
+resolution. Certify exit 0 permits legal subset notes. Nonzero exits are unmet
+checks; capture the whole output and preserve the code.
 
 Complete the evidence/coverage self-challenge in the reference. Re-read every
 published claim against the final tree. Snapshot the relevant input set before and

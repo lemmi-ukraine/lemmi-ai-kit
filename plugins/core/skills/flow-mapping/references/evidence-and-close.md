@@ -67,6 +67,9 @@ Do not write conflicting "read this first" sequences into multiple documents.
     link from a shared entry point that warrants no cross-flow scenario.
 11. Reconcile sibling verdicts or record explicit ownership with the full symbol,
     both document names and reason. Preserve UNKNOWN where evidence is missing.
+12. A universal word (every, only, always, never, no) in a scenario, invariant or register
+    claim covers a whole set: write its enumeration beside it or narrow the word, and
+    search your text for these words before review.
 
 In concurrent work, declare path ownership before writing, check both peer overlap
 and writes outside your allocation, and snapshot the actual gate input set. If it

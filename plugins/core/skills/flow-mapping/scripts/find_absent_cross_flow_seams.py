@@ -2,12 +2,21 @@
 
 Certifies its detector on bundled fixtures before inspecting the target corpus.
 Structural candidates require source review; the sweep does not prove a bug.
+
+With --registers DIR it also checks that every candidate has a disposition: a register
+bullet marked `Residue verdict:` or `Verdict ownership:` that names the candidate's full
+symbol and both documents. A count is not a disposition.
+
+Exit codes: 0 swept (and, with --registers, every candidate disposed), 1 candidates
+without a disposition, 2 the detector failed its own probes, 3 the corpus or the
+registers cannot be read.
 """
 
 import argparse
 import importlib.util
 import io
 import pathlib
+import re
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -21,6 +30,7 @@ PROBE_CORPUS = (
     pathlib.Path(__file__).resolve().parent.parent
     / "assets/probe-project/scripts/fixtures/flow_map/seam_probe"
 )
+PROBE_REGISTERS = PROBE_CORPUS.parent / "seam_probe_registers"
 
 spec = importlib.util.spec_from_file_location(
     "vfm", pathlib.Path(__file__).with_name("validate_flow_map.py")
@@ -66,16 +76,27 @@ class Corpus:
         return sorted(self.docs)
 
 
-def resolve_corpus(raw: str | None) -> pathlib.Path:
-    """--root relative to the cwd, else relative to the repo root, else fail loudly."""
-    if raw is None:
-        return DEFAULT_CORPUS
+def resolve_dir(raw: str, flag: str, project_first: bool = False) -> pathlib.Path:
+    """`raw` relative to the cwd, else relative to the repo root, else fail loudly.
+
+    With `project_first` the repo root is tried before the cwd: a directory named for the
+    project's own files (the registers) must not be shadowed by one of the same name in
+    whatever folder the command happens to run from."""
     candidates = [pathlib.Path(raw), REPO / raw]
+    if project_first:
+        candidates.reverse()
     for candidate in candidates:
         if candidate.is_dir():
             return candidate.resolve()
     tried = " | ".join(str(c) for c in candidates)
-    raise CorpusUnreadable(f"--root is not a directory. Tried: {tried}")
+    raise CorpusUnreadable(f"{flag} is not a directory. Tried: {tried}")
+
+
+def resolve_corpus(raw: str | None) -> pathlib.Path:
+    """--root relative to the cwd, else relative to the repo root, else fail loudly."""
+    if raw is None:
+        return DEFAULT_CORPUS
+    return resolve_dir(raw, "--root")
 
 
 def load(p):
@@ -273,12 +294,155 @@ def verdict_blind_spot(corpus, a, b, sym):
     return fwd or rev
 
 
+# ---------------------------------------------------------------- DISPOSITION
+# A count is not a disposition. `--registers` turns "each candidate was triaged" from a claim
+# into a check: a candidate is disposed only when ONE register bullet carrying a disposition
+# marker names its full symbol and BOTH documents. The marker is the point: a bullet that
+# merely mentions the symbol is a note, not a decision, and a symbol named without its pair
+# says nothing about this pair.
+DISPOSITION_MARKERS = ("Residue verdict", "Verdict ownership")
+UNDISPOSED_PREFIX = "UNDISPOSED  "
+_MARKER_BULLET_RE = re.compile(
+    r"^(?P<indent>\s*)[-*]\s+\*\*(?:"
+    + "|".join(re.escape(marker) for marker in DISPOSITION_MARKERS)
+    + r"):\*\*"
+)
+_BULLET_START_RE = re.compile(r"^\s*[-*]\s")
+_HEADING_START_RE = re.compile(r"^\s*#{1,6}\s")
+
+
+@dataclass(frozen=True)
+class Candidate:
+    """One (pair, shared symbol) the sweep reports for review, with every reason it does."""
+
+    a: str
+    b: str
+    symbol: str
+    kinds: tuple[str, ...]
+
+
+def candidates(corpus: Corpus) -> list[Candidate]:
+    """Every shared symbol that is an absent-seam candidate, a FAIL-versus-UNKNOWN
+    disagreement or a FAIL-versus-PASS-only blind spot -- once per pair, with its reasons."""
+    found: list[Candidate] = []
+    slugs = corpus.slugs
+    for i, a in enumerate(slugs):
+        for b in slugs[i + 1 :]:
+            absent, shared, _rows = residue(corpus, a, b)
+            for symbol in sorted(shared):
+                kinds = tuple(
+                    kind
+                    for kind, hit in (
+                        ("absent-seam", symbol in absent),
+                        (
+                            "verdict-disagreement",
+                            verdict_disagreement(corpus, a, b, symbol),
+                        ),
+                        (
+                            "verdict-blind-spot",
+                            verdict_blind_spot(corpus, a, b, symbol),
+                        ),
+                    )
+                    if hit
+                )
+                if kinds:
+                    found.append(Candidate(a, b, symbol, kinds))
+    return found
+
+
+def _continues(line: str, indent: int) -> bool:
+    """Does `line` continue a bullet whose marker sits at `indent`?"""
+    if not line.strip() or _HEADING_START_RE.match(line):
+        return False
+    deeper = len(line) - len(line.lstrip()) > indent
+    return deeper or _BULLET_START_RE.match(line) is None
+
+
+def disposition_bullets(text: str) -> list[str]:
+    """Every register bullet that carries a disposition marker, each joined into one line.
+
+    A bullet runs over the lines after it until a blank line, a heading, or a bullet at its own
+    indent or shallower, so a bullet wrapped over several lines is read whole. A marker in a
+    paragraph that is not a bullet is not read.
+    """
+    lines = text.splitlines()
+    bullets: list[str] = []
+    cursor = 0
+    while cursor < len(lines):
+        match = _MARKER_BULLET_RE.match(lines[cursor])
+        cursor += 1
+        if match is None:
+            continue
+        indent = len(match.group("indent"))
+        body = [lines[cursor - 1]]
+        while cursor < len(lines) and _continues(lines[cursor], indent):
+            body.append(lines[cursor])
+            cursor += 1
+        bullets.append(" ".join(part.strip() for part in body))
+    return bullets
+
+
+def read_dispositions(registers_root: pathlib.Path) -> tuple[list[str], int]:
+    """(disposition bullets, register files read) for every `*.md` directly under the root.
+
+    A directory with no register file, or a file that cannot be read, is a population the
+    check cannot see, so it raises rather than report every candidate undisposed or none.
+    """
+    files = sorted(registers_root.glob("*.md"))
+    if not files:
+        raise CorpusUnreadable(
+            f"--registers holds no .md register files: {registers_root}"
+        )
+    bullets: list[str] = []
+    for path in files:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise CorpusUnreadable(
+                f"--registers file {path.name} cannot be read ({type(exc).__name__}); "
+                "a disposition in it would go unseen"
+            ) from exc
+        bullets.extend(disposition_bullets(text))
+    return bullets, len(files)
+
+
+def names_symbol(text: str, symbol: str) -> bool:
+    """The full dotted symbol, not a bare suffix, a longer symbol or a qualified one."""
+    return (
+        re.search(r"(?<![\w.])" + re.escape(symbol) + r"(?!\w|\.\w)", text) is not None
+    )
+
+
+def names_document(text: str, document: str) -> bool:
+    """The document's file name, alone or at the end of a path -- never as part of another name."""
+    return (
+        re.search(r"(?<![\w.-])" + re.escape(document) + r"(?![\w-])", text) is not None
+    )
+
+
+def is_disposed(bullets: list[str], candidate: Candidate) -> bool:
+    return any(
+        names_symbol(bullet, candidate.symbol)
+        and names_document(bullet, candidate.a)
+        and names_document(bullet, candidate.b)
+        for bullet in bullets
+    )
+
+
+def partition(
+    corpus: Corpus, bullets: list[str]
+) -> tuple[list[Candidate], list[Candidate]]:
+    """(every candidate, those no disposition bullet covers)."""
+    every = candidates(corpus)
+    return every, [c for c in every if not is_disposed(bullets, c)]
+
+
 # ---------------------------------------------------------------- PROBE
 # Every probe runs against PROBE_CORPUS -- two fixture documents under
 # scripts/fixtures/flow_map/seam_probe/ -- and NOT against the live corpus. v4 pinned each of
 # these to a live symbol, which made the known-POSITIVE a pin on a live corpus DEFECT: fixing the
 # corpus de-certified the detector (see the docstring's v5 note 1). The fixture pair carries the
-# EXPECTED table and the two invariants an edit must preserve; read probe-seam-a.md before
+# EXPECTED table and the three invariants an edit must preserve; read probe-seam-a.md before
 # touching either document.
 # The column-0 token every enumerated candidate line carries. Selecting on it is what lets a
 # caller read the list without also matching the probe banner or the block prose above it,
@@ -306,6 +470,11 @@ VD_SYM, VD_A, VD_B = (
 )
 VD_NEG_SYM, VD_NEG_A, VD_NEG_B = (
     "ProbeVerdictAgree.fail_here_pass_there",
+    "probe-seam-a.md",
+    "probe-seam-b.md",
+)
+LD_SYM, LD_A, LD_B = (
+    "ProbeLinkedSplit.linked_fail_unknown",
     "probe-seam-a.md",
     "probe-seam-b.md",
 )
@@ -405,6 +574,38 @@ def run_probes(echo: bool = True) -> bool:
     render_pos_ok = any(POS_SYM in ln for ln in rendered)
     render_neg_ok = not any(NEG_SYM in ln for ln in rendered)
 
+    # DISPOSITION probe: the fixture registers dispose of three of the corpus's four candidates,
+    # two by the ownership marker (one bullet is wrapped, so its symbol and second document sit
+    # on a continuation line) and one by the residue marker, and hold three near misses for the
+    # fourth -- one document named, no marker, the bare suffix. A matcher that accepts a near
+    # miss leaves nothing open; one that rejects a real bullet leaves a positive open. Either
+    # way this probe fails.
+    try:
+        probe_bullets, _files = read_dispositions(PROBE_REGISTERS)
+    except CorpusUnreadable as exc:
+        if echo:
+            print(f"  PROBE INCONCLUSIVE -- the fixture registers do not load: {exc}")
+            print(
+                "  A probe that cannot run is not a probe that passed. Counts below are unread."
+            )
+        return False
+    every, left_open = partition(fx, probe_bullets)
+    named = {c.symbol for c in every}
+    still_open = {c.symbol for c in left_open}
+    disp_residue_ok = POS_SYM in named and POS_SYM not in still_open
+    disp_owner_ok = VD_SYM in named and VD_SYM not in still_open
+    disp_neg_ok = VD_NEG_SYM in still_open
+
+    # CANDIDATE-KIND probe: every candidate above carries an absent seam or a blind spot besides
+    # its disagreement, so a `candidates()` that dropped the FAIL-versus-UNKNOWN reason would
+    # pass them all and stop requiring a disposition for each linked disagreement. This one is
+    # linked at row level, so the disagreement is the only reason it is reported.
+    reported = {c.symbol: c.kinds for c in every}
+    kinds_of_linked = reported.get(LD_SYM)
+    disp_kind_ok = (
+        kinds_of_linked == ("verdict-disagreement",) and LD_SYM not in still_open
+    )
+
     if echo:
         neg_kind = link_strength(fx, NEG_SYM, frozenset((NEG_A, NEG_B)))
         print(f"  known-POSITIVE {POS_SYM}")
@@ -451,21 +652,47 @@ def run_probes(echo: bool = True) -> bool:
         print(
             f"     absent from the rendered list: {render_neg_ok}   -> {'PASS' if render_neg_ok else 'FAIL (enumeration over-matching)'}"
         )
+        print(
+            f"  known-POSITIVE (disposition, residue marker) {POS_SYM}  (a Residue verdict bullet names it and both documents)"
+        )
+        print(
+            f"     disposed by the fixture registers: {disp_residue_ok}   -> {'PASS' if disp_residue_ok else 'FAIL (disposition matcher blind)'}"
+        )
+        print(
+            f"  known-POSITIVE (disposition, ownership marker) {VD_SYM}  (a wrapped Verdict ownership bullet)"
+        )
+        print(
+            f"     disposed by the fixture registers: {disp_owner_ok}   -> {'PASS' if disp_owner_ok else 'FAIL (disposition matcher blind)'}"
+        )
+        print(
+            f"  known-NEGATIVE (disposition) {VD_NEG_SYM}  (three near misses: one document, no marker, a bare suffix)"
+        )
+        print(
+            f"     still listed as undisposed: {disp_neg_ok}   -> {'PASS' if disp_neg_ok else 'FAIL (disposition matcher over-matching)'}"
+        )
+        print(
+            f"  known-POSITIVE (candidate kind, disagreement only) {LD_SYM}  (linked at row level; {LD_A} FAIL, {LD_B} UNKNOWN)"
+        )
+        print(
+            f"     reported for: {kinds_of_linked}   disposed by the fixture registers: {LD_SYM not in still_open}   -> {'PASS' if disp_kind_ok else 'FAIL (candidate list blind to a linked verdict disagreement)'}"
+        )
 
-    ok = (
-        p_ok
-        and n_ok
-        and rl_ok
-        and vd_pos_ok
-        and vd_neg_ok
-        and bs_ok
-        and render_pos_ok
-        and render_neg_ok
+    positives = (
+        p_ok,
+        rl_ok,
+        vd_pos_ok,
+        bs_ok,
+        render_pos_ok,
+        disp_residue_ok,
+        disp_owner_ok,
+        disp_kind_ok,
     )
+    negatives = (n_ok, vd_neg_ok, render_neg_ok, disp_neg_ok)
+    ok = all(positives) and all(negatives)
     if echo:
         if ok:
             print(
-                "  DETECTOR CERTIFIED on every probe (5 known positives, 3 known negatives), against"
+                f"  DETECTOR CERTIFIED on every probe ({len(positives)} known positives, {len(negatives)} known negatives), against"
             )
             print(
                 "  fixtures -- so fixing the live corpus can no longer de-certify this instrument."
@@ -702,15 +929,43 @@ def sweep(corpus: Corpus, *, list_residue: bool = False) -> None:
         "     row, in either direction. Each is a candidate needing a `Residue verdict:` marker"
     )
     print(
-        "     in the register of the document owning the FAIL. Leaving one out of a triage is a"
+        "     in the register of the document owning the FAIL (--registers DIR checks that it has one)."
     )
-    print("     claim like any other -- flow-mapping rule 5.")
+    print(
+        "     Leaving one out of a triage is a claim like any other -- flow-mapping rule 5."
+    )
     print(
         f"     count: {tot_res}   (pairs carrying at least one: "
         f"{sum(1 for x in per_pair if x[4])} of {len(per_pair)})"
     )
     for line in residue_lines(corpus):
         print(line)
+
+
+def disposition_report(
+    corpus: Corpus, bullets: list[str], files: int, registers_root: pathlib.Path
+) -> int:
+    """Print the disposition block and return how many candidates have none."""
+    every, left_open = partition(corpus, bullets)
+    print("\n" + "=" * 74)
+    print(f"DISPOSITION  every candidate against the registers in {registers_root}")
+    print(
+        "  Candidates: absent-seam candidates, FAIL-versus-UNKNOWN disagreements and FAIL-versus-"
+    )
+    print(
+        "  PASS-only blind spots, once per pair. One is disposed only when a single register bullet"
+    )
+    print(
+        "  marked `Residue verdict:` or `Verdict ownership:` names its full symbol and both"
+    )
+    print(
+        "  documents by file name. A count is not a disposition; a symbol named in prose is not one."
+    )
+    print(f"  registers read: {files} file(s), {len(bullets)} marker bullet(s)")
+    print(f"  {len(every)} candidates, {len(left_open)} without a disposition")
+    for c in left_open:
+        print(f"{UNDISPOSED_PREFIX}{c.a}  {c.b}  {c.symbol}  ({', '.join(c.kinds)})")
+    return len(left_open)
 
 
 def main(argv=None) -> int:
@@ -729,6 +984,19 @@ def main(argv=None) -> int:
             "sets, so a residue triage can be worked and audited rather than estimated."
         ),
     )
+    parser.add_argument(
+        "--registers",
+        default=None,
+        metavar="DIR",
+        help=(
+            "directory holding the risk registers (`*.md`), read from the project root "
+            "first and from the working directory second. Counts a candidate as disposed "
+            "only when a register bullet marked `Residue verdict:` or `Verdict ownership:` "
+            "names its full symbol and both documents; prints 'N candidates, M without a "
+            "disposition', lists the M, and exits 1 when M is above 0. Without it the sweep "
+            "exits 0 whatever it found."
+        ),
+    )
     parser.add_argument("--project-root", type=pathlib.Path, default=REPO)
     args = parser.parse_args(argv)
     configure(args.project_root)
@@ -739,11 +1007,21 @@ def main(argv=None) -> int:
         return 2
     try:
         corpus = build_corpus(resolve_corpus(args.root), echo=True)
+        registers_root = (
+            resolve_dir(args.registers, "--registers", project_first=True)
+            if args.registers is not None
+            else None
+        )
+        bullets, files = (
+            read_dispositions(registers_root) if registers_root is not None else ([], 0)
+        )
     except CorpusUnreadable as exc:
         print(f"\n{exc}")
         return 3
     sweep(corpus, list_residue=args.list_residue)
-    return 0
+    if registers_root is None:
+        return 0
+    return 1 if disposition_report(corpus, bullets, files, registers_root) else 0
 
 
 if __name__ == "__main__":

@@ -37,7 +37,13 @@ CHECKS = (
     "tone",
     "legends",
     "crossflow",
+    "quantifiers",
 )
+
+# A check named here is printed by the default run but fails it only when `--check` selects it.
+# `quantifiers` weighs the words of a row against the words of a Coverage note, and a map whose
+# notes are worded differently is not malformed, so the check reports first and blocks on request.
+REPORT_ONLY_CHECKS = frozenset({"quantifiers"})
 
 REQUIRED_SECTIONS = (
     "Provenance",
@@ -153,6 +159,11 @@ UNCERTAINTY_PATTERNS = (
     ("I think", re.compile(r"\bI\s+think\b", re.IGNORECASE)),
 )
 SHOULD_RE = re.compile(r"\bshould\b", re.IGNORECASE)
+# A universal word covers a whole set. Not a word inside a hyphenated name (`no-op`,
+# `shared-entry-no-seam`), a dotted name (`policy.never`) or a longer word.
+UNIVERSAL_WORD_RE = re.compile(
+    r"(?<![\w.-])(every|only|always|never|no)(?![\w-]|\.\w)", re.IGNORECASE
+)
 
 MERMAID_QUALIFIED_RE = re.compile(r"\b[A-Z][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*\b")
 MERMAID_PASCAL_RE = re.compile(r"\b[A-Z][a-z0-9_]+(?:[A-Z][A-Za-z0-9_]*)+\b")
@@ -266,6 +277,12 @@ PROBE_CASES: tuple[ProbeCase, ...] = (
         "crossflow",
         "probe-crossflow-wrong-id-no-backpointer.md",
         1,
+    ),
+    ProbeCase(
+        "quantifiers",
+        "quantifiers",
+        "probe-quantifiers.md",
+        3,
     ),
     # KNOWN LIMIT, deliberately NOT a probe pair (tasks/TECH-flow-map-validator-cross-doc-
     # resolve.md): a wrong-but-existing id whose SIBLING carries a doc-level back-pointer (some
@@ -575,6 +592,26 @@ def tone_text(line: str) -> str:
     return INLINE_CODE_RE.sub(replace, line)
 
 
+def universal_words(cells: Iterable[str]) -> list[str]:
+    """Universal words (every, only, always, never, no) in prose cells, lower-cased.
+
+    Skips what is a name rather than a claim: backticked identifiers, as `tone_text` does,
+    file paths, and hyphenated names.
+    """
+    found: list[str] = []
+    for cell in cells:
+        prose = FILE_REF_RE.sub(" ", tone_text(cell))
+        found.extend(
+            match.group(1).lower() for match in UNIVERSAL_WORD_RE.finditer(prose)
+        )
+    return found
+
+
+def reads_in_full(note: str) -> bool:
+    """Does a Coverage note open by claiming the file was read in full?"""
+    return normalize_symbol(note).lstrip("*_ ").casefold().startswith("read in full")
+
+
 def mermaid_blocks(lines: Sequence[str]) -> list[MermaidBlock]:
     blocks: list[MermaidBlock] = []
     start: int | None = None
@@ -841,6 +878,7 @@ def validate(
                 f"scenario {sid} has {occurrences} expansions; expected at most one",
             )
 
+    expansion_claims: list[tuple[str, TableRow, dict[str, str]]] = []
     for position, (sid, heading_index) in enumerate(expansion_headings):
         next_expansion = (
             expansion_headings[position + 1][1]
@@ -896,6 +934,7 @@ def validate(
                 f"expansion {sid} table is empty",
             )
         for expansion_row, values in row_dicts(expansion_table):
+            expansion_claims.append((sid, expansion_row, values))
             symbols = parse_symbol_list(values.get("symbol", ""))
             for symbol in symbols:
                 if EXTERNAL_RE.fullmatch(symbol):
@@ -1630,6 +1669,55 @@ def validate(
                 f"cited file '{file_name}' is missing from Coverage (scenarios: {', '.join(sorted(refs)) or '_none_'})",
             )
 
+    # A universal word covers a whole set. When the row that says it cites a file whose Coverage
+    # note does not open with "read in full", the set was not read through, so the word claims
+    # more than the author saw. The note is the only read-status the document records.
+    partly_read = {
+        file_name
+        for file_name, (_row, values) in coverage_rows.items()
+        if not reads_in_full(values.get("coverage note", ""))
+    }
+    claim_rows: list[tuple[str, TableRow, dict[str, str], set[str]]] = [
+        (f"scenario {sid}", row, values, scenario_symbols.get(sid, set()))
+        for sid, (row, values) in scenario_rows.items()
+    ]
+    claim_rows += [
+        (
+            f"expansion {sid}",
+            row,
+            values,
+            set(parse_symbol_list(values.get("symbol", ""))),
+        )
+        for sid, row, values in expansion_claims
+    ]
+    claim_rows += [
+        (f"invariant {iid}", row, values, {normalize_symbol(values.get("symbol", ""))})
+        for iid, (row, values) in invariant_rows.items()
+    ]
+    for label, row, values, row_symbols in claim_rows:
+        words = universal_words(values.values())
+        if not words:
+            continue
+        cited = {
+            file_name
+            for symbol in row_symbols
+            for indexed, file_name in index_file_by_symbol.items()
+            if symbol_related(symbol, indexed)
+        }
+        for cell in values.values():
+            cited |= extract_file_refs(cell)
+        unread = sorted(cited & partly_read)
+        if unread:
+            quoted = ", ".join(f"'{word}'" for word in sorted(set(words)))
+            add(
+                findings,
+                "quantifiers",
+                row.line,
+                f"{label} uses the universal word {quoted} but cites {', '.join(unread)}, "
+                "whose Coverage note does not start 'read in full': narrow the word, or read "
+                "the file through and record that in the note",
+            )
+
     unknown_scenarios = {
         sid
         for sid, (_, values) in scenario_rows.items()
@@ -1704,6 +1792,8 @@ def validate(
 def render_findings(
     path: Path, findings: Sequence[Finding], selected: str | None
 ) -> int:
+    """Print the findings of the selected check (of every check when none is selected) and
+    return how many of them fail the run: a report-only check fails it only when selected."""
     visible = [
         finding for finding in findings if selected is None or finding.check == selected
     ]
@@ -1713,7 +1803,11 @@ def render_findings(
         except ValueError:
             display = str(path)
         print(f"[{finding.check}] {display}:{finding.line}: {finding.message}")
-    return len(visible)
+    return sum(
+        1
+        for finding in visible
+        if finding.check not in REPORT_ONLY_CHECKS or finding.check == selected
+    )
 
 
 def _run_probes(project: Path) -> int:
@@ -1777,7 +1871,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("document", nargs="?", type=Path)
     parser.add_argument("--project-root", type=Path, default=REPO_ROOT)
     parser.add_argument("--code-root", type=Path)
-    parser.add_argument("--check", choices=CHECKS)
+    parser.add_argument(
+        "--check",
+        choices=CHECKS,
+        help=(
+            "print only this check's findings. A report-only check ("
+            + ", ".join(sorted(REPORT_ONLY_CHECKS))
+            + ") is printed by the default run without failing it, and fails the run "
+            "when selected here"
+        ),
+    )
     parser.add_argument(
         "--probe-stamps",
         action="store_true",
