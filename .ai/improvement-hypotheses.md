@@ -15,6 +15,24 @@
 
 ---
 
+## 2026-11-01
+
+### [SKILL-MODIFIED] A review's reader sweep names a file the task created and has not added
+- **Category:** Coverage
+- **Hypothesis:** By running `git ls-files --others --exclude-standard` and `git grep --untracked` in Step 0 and telling a brief's file-set sweep to count untracked files, we expect the dependents lists of the next reviews and dispatches to include the task's new files that are not yet added, because plain `git grep` and `git diff HEAD` read tracked files only.
+- **Signal:** In the next 3 reviews of tasks that add a file a test or a doc reads, or by 2026-12-27, whichever comes first: confirm if each review's dependents list names the new file and says which form of the sweep ran; refute if one omits the file or names no form; inconclusive with fewer than 3 such reviews.
+- **Risk:** Step 0 lists more files (a peer's new files, unignored scratch) that must be sorted by owner, and `git grep --untracked` still skips ignored files.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-01 — Count untracked files in every sweep, give verifiers controls, make the cleanup audit and the seam check refuse a guess, and keep the spec text project-neutral
+
+### [SKILL-MODIFIED] A verifier given a planted false claim rejects it
+- **Category:** Quality
+- **Hypothesis:** By telling the dispatcher to give each verifier and each fresh reader one to three controls (real claims with one fact changed), we expect their returns to report a verdict on every control and to reject it, because a pass never shown a false claim cannot be told from one that confirms every claim.
+- **Signal:** In the next 5 verifier or fresh-reader returns under this text, or by 2026-12-27, whichever comes first: confirm if at least 4 report a verdict on every control and none confirms one; refute if one confirms a planted claim; inconclusive under 3 returns.
+- **Risk:** It relies on a dispatcher electing to plant the controls, each costs one more claim per pass, and a control's verdict applied to the artifact would edit a claim it never held, which is why the key stays out of it.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-01 — Count untracked files in every sweep, give verifiers controls, make the cleanup audit and the seam check refuse a guess, and keep the spec text project-neutral
+
 ## 2026-10-30
 
 ### [SKILL-MODIFIED] A continuation hand-off written under the planner passes the hand-off lint

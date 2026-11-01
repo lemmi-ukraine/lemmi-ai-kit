@@ -115,6 +115,26 @@ to its home above and removed here.
 - **Verify-at**: tests/test_completion_trigger_wording.py
 - **Scope**: durable
 
+### [2026-11-01] Folding line breaks does not make a wording test re-wrap-proof: the locators and needle helpers around the fold are code nobody tests
+- **Context**: Verifying four packages of prose edits whose new wording tests all folded line breaks before searching.
+- **Finding**: Three of the four packages still failed a verifier's or a sweep's re-wrap of unchanged prose, through the code that cuts a place out of the file and not through the search: a list-item locator that took the first physical line, planted-case builders that matched exact whitespace, and a printed command re-wrapped with a backslash. A sweep that re-wrapped every prose line the rounds added found four variants still red after the first fix commit. The helpers were untested too: a fix round's own sweep of further `all`/`any` flips in needle helpers found most of them surviving until a planted case held only some of the needles. The fold itself is copied, not shared: 27 test files now hold `re.sub(r"\s+", " ", ...)` against 10 at the base, and no shared test module exists.
+- **Impact**: Write the fold and the slicers (section, list item, table row, continuation join, planted-case builder) once in a shared test module, in a first commit before the packages that need them start, because file-disjoint packages cannot create one; give that module one self-test file that flips each operator on planted text. Until then give each private helper a planted case that fails when its operator flips, and sweep re-wrap robustness by breaking every added line at every space, not by trying the one re-wrap you thought of.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: test
+- **Verify-at**: tests/test_content_proof_wording.py
+- **Scope**: durable
+
+### [2026-11-01] A SKILL.md near its line cap is a budget the next pass draws on, so a first build spends pointer lines and leaves the detail in a reference
+- **Context**: Adding review, orchestration, cleanup and spec text to skills that already sat close to the audit's cap.
+- **Finding**: `audit-skills` fails a SKILL.md at more than 500 lines counted as `text.count("\n") + 1`, so a `wc -l` of 499 is the last passing size. The first build of the review skill went from 489 to 497, mostly a four-line limits bullet that repeated a row the same build had put in a reference; a fix round replaced the bullet with one pointer line and got 3 lines back (494). `initiative-cleanup` stands at 499, so every later edit there replaces lines. `parallel-session-safety` stands at 498 and its section 12 pointer must list every `### 12x.` subsection id, which a test enforces, so each new subsection costs a SKILL.md edit as well as a reference edit.
+- **Impact**: Treat the cap as a budget shared with the passes still to come: state each skill's spare lines (`git show HEAD:<path> | wc -l` against 499) in the plan, put the detail where a reference row already holds it and leave one pointer line, and add no line-count pin to a test, because it would block the passes the headroom is kept for.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: tests/test_shared_index_protocol.py
+- **Scope**: durable
+
 ## Convention Clarifications
 
 ### [2026-10-30] A skill's step list restated outside the skill goes stale when the skill grows
@@ -125,6 +145,16 @@ to its home above and removed here.
 - **Home**: agents-rule
 - **Enforce-via**: test
 - **Verify-at**: AGENTS.md
+- **Scope**: durable
+
+### [2026-11-01] A default that encodes one project's stack decides the verdict for every other project, so it needs a switch or a NO VERDICT answer
+- **Context**: Fixing the initiative-cleanup audit script and adding a check to the flow-mapping validator, both of which ship to every consumer.
+- **Finding**: Four defaults each read one stack's facts as everyone's. `evidence` searched HEAD, so a symbol present only on the ref the roadmap had verified read ABSENT, and an unresolvable ref read ABSENT too, and so did a symbol git could not read as a pattern (`byte[]`), because the wrapper swallowed git's failure and printed nothing, while a dotted symbol matched a different word. `evidence` counted code by a suffix allowlist (`.py`, `.ts`, `.sql` and a few more), so a C# deliverable scored DOC-ONLY. `refs` opened only documentation, code and JSON suffixes, so a C# comment citing a spec folder was never listed. And the first build of the `quantifiers` check failed the default run, which turned maps that passed at the base red on that check alone: the kit's conformant fixture and every old test stayed green, so only a read-only run over a real consumer's maps showed the cost.
+- **Impact**: Give a default that classifies, searches or blocks a way out before it ships: a ref the caller names and that must resolve, a symbol searched as fixed text, exit 2 when the search could not run (never ABSENT), NO VERDICT for a file type the script does not count with a flag that counts it, every non-binary file for a reference sweep, and report-only for a new check until the maintainers rule on blocking (`--check <name>` selects it and then it fails the run). Measure a new default-run check over a real consumer's files, not only the kit's fixtures.
+- **Category**: convention
+- **Home**: agents-rule
+- **Enforce-via**: test
+- **Verify-at**: plugins/orchestration/skills/initiative-cleanup/scripts/audit_cleanup_targets.py
 - **Scope**: durable
 
 ## External Service Quirks
