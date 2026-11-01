@@ -10,6 +10,7 @@ invisible to anyone working from it.
 - [ ] Ran BEFORE steps 1–6 (ideally before the change itself)
 - [ ] Produced a LIST of affected callers/callees/tests — not an opinion
 - [ ] Every item in that list either reviewed or explicitly excluded with a reason
+- [ ] Every sweep for readers of a symbol, a claim or an old name counted untracked files (`git grep -n --untracked`, with `git ls-files --others --exclude-standard` for new files) and says which form ran next to its count
 
 ## Steps 1–6: Code Review
 
@@ -54,7 +55,7 @@ invisible to anyone working from it.
 
 ### Step 6: Linting
 - [ ] `read_lints` run on ALL modified files
-- [ ] `ruff check --fix` run on all changed Python files
+- [ ] The project's lint command (AGENTS.md § Commands) run on all changed files
 - [ ] All remaining issues resolved
 
 ## Step 7: Documentation Impact
@@ -77,7 +78,8 @@ invisible to anyone working from it.
 - [ ] Rules updated if convention gaps found
 - [ ] AI-infrastructure files modified: changelog entry appended to `.ai/ai-changelog.md`
 - [ ] Changelog entry written: hypothesis evaluated, and appended to `.ai/improvement-hypotheses.md` if warranted (appends only; a Status or marker edit stays with the validator's run)
-- [ ] Brief names another writer for these two entries: both drafted in the return, that writer named, each listed as not done
+- [ ] A drafted changelog line marks each file it names as tracked, untracked or ignored (`git ls-files --error-unmatch <path>` exits 0 only for a tracked file, `git check-ignore -q <path>` exits 0 for an ignored one) and gives the tracked part of each count ("6 files, 4 tracked")
+- [ ] Brief names another writer for these entries: the learnings entry, the changelog entry and the hypothesis drafted in the return, that writer named, each listed as not done, none appended
 - [ ] Results reported (count + summary)
 
 ## Step 9: Close Self-Challenge (MANDATORY — runs LAST)

@@ -1,5 +1,8 @@
 # Documentation Impact Matrix
 
+> **A sample.** The paths and docs below are one backend's layout. Where the project keeps its own
+> code-to-docs matrix, the project's own matrix replaces this one; copy the shape, not the paths.
+
 ## Code Path to Documentation Mapping
 
 Use this matrix to determine which documentation files to check when code in a given path changes.

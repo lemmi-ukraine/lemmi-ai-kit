@@ -42,8 +42,9 @@ For every symbol the diff adds, removes, renames or changes the signature of, en
 dependents and **write the list down**:
 
 ```bash
-git diff --name-only HEAD          # the changed files
-git grep -n "<symbol>" -- <source-roots>   # every reader, per changed symbol
+git diff --name-only HEAD                                   # the changed files
+git ls-files --others --exclude-standard -- <source-roots>  # new files not yet added
+git grep -n --untracked "<symbol>" -- <source-roots>        # every reader, per changed symbol
 ```
 
 Then, for each dependent, record one of: *checked and unaffected* · *checked and updated* ·
@@ -62,13 +63,14 @@ is a floor:
 
 - A caller list derived by grep or by a generated index is typically a **subset** — dynamic
   dispatch, reflection, string-keyed lookup and config-driven wiring are invisible to it.
+- Plain `git grep` and `git diff HEAD` see tracked files only: [how to count untracked files](references/reading-gate-output.md), § 7.
 - Any authored (hand-maintained) dependency record is a claim about the tree, and can be stale in
   both directions at once.
 - So an impact answer is a **floor, not a complete set**. That is fine — but only if it is said at
   the point of use, not in a caveat elsewhere.
 
 If the project ships a diff-driven impact tool, run it here and paste its output. If it does not,
-the two commands above are the minimum.
+the three commands above are the minimum.
 
 ### Steps 1–6: Code Review and Convention Compliance
 
@@ -127,7 +129,7 @@ the two commands above are the minimum.
    (the stereo/mono batcher pair: the sibling left unfixed was the default). **"Production doesn't
    run that implementation" is a traffic claim, not a safety argument** — dismiss a sibling by
    MECHANISM, in terms of its own code path, because a traffic-share dismissal expires the next
-   time someone flips an env var. Resolve the default from the `Field(default=…)` AND every
+   time someone flips an env var. Resolve the default from the config's own default AND every
    compose/cloudbuild pin, which disagree here: `STT__PIPELINE_MODE` defaults to `mono` in both
    `config.py` and `docker-compose.yaml` while only the cloudbuilds set stereo. The inverse shape
    is the same finding: **a bound/guard present in one implementation and absent in its sibling is
@@ -145,10 +147,12 @@ the two commands above are the minimum.
    number (including your own) search the whole artifact set, not the document you happen to have
    open — and read the staged-but-uncommitted diff, which is where the last session's findings sit
    unindexed. (j) **Before acting on a checker you wrote during this task, certify it with the seam** —
-   `python "${CLAUDE_SKILL_DIR}/scripts/probe_checker.py" --cmd '<check with {file}>'
-   --positive <must-match> --negative <must-not-match>` (exit 1 = blind or over-matching; paste its
-   stamp beside the number). An in-session verifier gets less scrutiny than the artifacts it judges,
-   yet its verdicts drive the edits. Five of one session's "blocker" findings were its own parsing
+   `python "${CLAUDE_SKILL_DIR}/scripts/probe_checker.py" --cmd '<check with {file}>' --positive <must-match>
+   --negative <must-not-match>` (exit 1 = blind or over-matching; paste its stamp beside the number). `--cmd`
+   runs in cmd.exe on Windows, where single quotes are ordinary characters and `|`, `&`, `<`, `>`, `^` and
+   parentheses are shell syntax: write the check as a Python script that takes the file path;
+   `--script <checker.py>` replaces `--cmd`. An in-session verifier gets less scrutiny than the artifacts
+   it judges, yet its verdicts drive the edits. Five of one session's "blocker" findings were its own parsing
    bugs (quote-stripping, a leading `-` parsed as a grep option, an unanchored whole-file substring
    check); the failure is symmetric, since a silently-broken checker's clean pass would bless a
    defect. A zero or a wall of findings from an unprobed checker is unproven either way. **This
@@ -166,6 +170,7 @@ the two commands above are the minimum.
    commit that fixes the defect is what breaks the fixture; **shared provenance**, where inverting
    the match took a live count 16 → 51; a marker-gated linter's silent zero for files it never
    opened; and a text-matching tool that must normalise CRLF before comparing.
+   A positive must resemble the target too: plant the defect on a line shaped like its real lines.
    (k) **Reading your own side of a contract cannot establish what the other side populates.**
    Two claims about a resume-resolution contract were refuted this way: the producing side was never
    opened, and the consuming side's code was consistent with several possible producer behaviours.
@@ -188,8 +193,8 @@ the two commands above are the minimum.
    pass's own correction** (2026-08-19). So: re-run the review over the diff the fixes produced, not
    over the original artifact, and **re-derive every figure a fix touched** rather than carrying the
    pre-fix number forward. A correction carries more authority than the claim it replaces, which is
-   what makes an unreviewed fix round expensive.
-6. **Run Linting and Diagnostics** — `ruff check --fix` on all modified files, `read_lints` on all modified files.
+   what makes an unreviewed fix round expensive: [how to review one](references/fix-rounds.md).
+6. **Run Linting and Diagnostics** — the project's lint command (AGENTS.md § Commands) and `read_lints`, on all modified files.
    **Before quoting any gate result, check you are reading the question you actually asked** —
    [references/reading-gate-output.md](references/reading-gate-output.md) carries five measured cases
    where the command ran, exited as designed, printed a true statement, and answered the wrong
@@ -210,8 +215,8 @@ List all files that were created, modified, or deleted during this task.
 
 #### 7b. Consult the Documentation Impact Matrix
 
-For each modified file, check [references/doc-impact-matrix.md](references/doc-impact-matrix.md) to
-determine which documentation files might be affected.
+For each modified file, check the project's own code-to-docs matrix, else the sample in
+[references/doc-impact-matrix.md](references/doc-impact-matrix.md), to determine which docs might be affected.
 
 #### 7c. Read and Evaluate Affected Docs
 
@@ -287,13 +292,13 @@ Invoke the `task-learnings` skill to:
 1. Review the entire task for discoveries, surprises, and corrections
 2. Include findings from the review itself (steps 1–7) — if the review caught issues, those are learnings too
 3. Classify findings as project-level or task-specific
-4. Append project-level findings to `.ai/learnings.md`
+4. Append project-level findings to `.ai/learnings.md`. If the brief names another writer for the
+   learnings entry, the changelog entry or the hypothesis, draft each in your return, name that
+   writer, list each as not done, and append none, whether or not infrastructure files changed.
 5. Update project rules if any convention gaps were found
 6. **If any AI infrastructure files were modified** during steps 1–7 (convention updates,
-   skill modifications, rule additions), read the `ai-changelog` skill and
-   append the appropriate changelog entry to `.ai/ai-changelog.md`. If the brief names another
-   writer, draft the changelog entry and the hypothesis in your return and name that writer;
-   append neither.
+   skill modifications, rule additions), read the `ai-changelog` skill and append the
+   appropriate changelog entry to `.ai/ai-changelog.md` (unless item 4's other-writer rule applies).
 7. **After writing a changelog entry**, read the `ai-improvement-tracker` skill
    and evaluate whether the change warrants a testable improvement hypothesis
 
@@ -351,7 +356,7 @@ Present the review results using this structure:
 {List of fixes implemented with reasoning}
 
 ### 6. Linting Results
-{Summary of ruff and diagnostic results}
+{Summary of lint and diagnostic results}
 
 ### 7. Documentation Impact
 - **Docs checked**: {list}
@@ -474,11 +479,11 @@ Present the review results using this structure:
   clone of HEAD?"
 - **Doc-retirement gate** (step 7): before deleting any doc, enumerate its EXECUTABLE artifacts
   separately from its knowledge — grep it for fenced code blocks and "Reproduce" / "How to find" /
-  query sections, and relocate each VERBATIM next to the step that needs it, not into a summary.
-  A relocation pass naturally captures claims and obligations and systematically misses
-  queries/repro steps; "the checklist survived" and "the means of executing it survived" are two
-  separate gates. Pair with the AGENTS.md deletion-sweep rule (partition targets by `git ls-files`
-  first — the untracked half is unrecoverable).
+  query sections, and relocate each VERBATIM next to the step that needs it, not into a summary. A
+  relocation pass naturally captures claims and obligations and systematically misses queries/repro
+  steps; "the checklist survived" and "the means of executing it survived" are two separate gates.
+  Partition targets by `git ls-files` first — the untracked half is unrecoverable. Derive the id
+  prefixes from the retired file; grep the destination for them and write what each id means there.
 
 See [references/review-checklist.md](references/review-checklist.md) for a quick-reference checklist.
 

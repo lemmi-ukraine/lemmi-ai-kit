@@ -43,6 +43,12 @@ control and no resembling negative one.**
 > instruments. This one had been corrupting the retrospective's evidence base for an unknown number
 > of runs while reporting success.
 
+**A positive must resemble the target too:** plant the defect on a line shaped like its real lines,
+ids included; a filter that drops typical lines only lowers counts, so no negative catches it. A
+`grep -v` tail over task-id prefixes such as `BUG-` or `TECH-` hides nearly every line of a log
+whose lines all carry one, and only a positive written like those lines loses its match and shows
+it.
+
 ## 2. The probe certifies the half you pointed it at — usually the wrong half
 
 The split that makes code probeable is the same split that decides what gets probed. The **pure**
@@ -177,16 +183,21 @@ refuses your fixtures.
 
 ## 8. The probe's counting unit is OUTPUT LINES, and a mismatch accuses the innocent party
 
-`probe_checker.py` counts your checker's **output lines**. Two very common checker shapes therefore
-probe as `UNUSABLE / OVER-MATCHING` while being perfectly correct:
+`probe_checker.py` counts your checker's **output lines**, with one exception: when the whole output
+is ONE bare integer (what `grep -c PATTERN {file}` prints), it reads that integer as the count. A
+`grep -c` checker therefore probes correctly with no flag: a clean file prints `0` and reads as 0.
+Output that is more than that one number is counted by lines, so two shapes of correct checker
+probe as `UNUSABLE / OVER-MATCHING`:
 
-- **`grep -c PATTERN {file}`** prints one count line always, so positive and negative both yield 1.
-  Measured three times independently (`positive=1 negative=1`, `positive=3 negative=2`).
 - **A checker that prints an unconditional summary** (`TOTAL: n`, a per-file header) adds a line to
-  every run, including the clean one.
+  every run, including the clean one, so the clean fixture reads 1, not 0.
+- **A checker that prints its count beside other lines** (a header, then the number) is no longer
+  one bare integer, so its lines are counted and the clean fixture reads 2, not 0.
 
-The fix is one flag — **`--count-mode grep-c`** parses a bare integer on stdout instead of counting
-lines — or make the checker print nothing when it finds nothing.
+The fix is **`--count-mode grep-c`**, which sums the bare integers on stdout instead of counting
+lines. It suits the second shape. It does not suit the first: no line is a bare integer, so the
+positive reads 0 and the verdict flips to BLIND. There, make the checker print nothing when it
+finds nothing. `--count-mode lines` forces the line reading back.
 
 **The trap is that the FAIL is a true statement about the wrong quantity, and it points at the
 innocent party**: it accuses the *pattern* of over-matching when the defect is the *counting unit*.
