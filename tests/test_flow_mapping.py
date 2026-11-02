@@ -886,6 +886,10 @@ def joined_continuations(path: Path) -> str:
     return re.sub(r"\\\r?\n[ \t]*", " ", path.read_text(encoding="utf-8"))
 
 
+# How a label must be written for the detector to count it: a label in another form is not counted.
+_LABEL_FORM = "exactly as written (bold, the colon inside the bold, capitalised)"
+
+
 def test_the_skill_passes_the_registers_flag_and_names_both_markers(
     installation: tuple[Path, Path],
 ) -> None:
@@ -906,6 +910,9 @@ def test_the_skill_passes_the_registers_flag_and_names_both_markers(
         "the template's register note does not show the form the detector counts"
     )
     assert "- **Verdict ownership:**" in register_note
+    assert _LABEL_FORM in register_note, (
+        f"the template's register note does not say the label is counted {_LABEL_FORM!r}"
+    )
 
 
 # Every way a list item can open. The detector reads some of them, the template's register

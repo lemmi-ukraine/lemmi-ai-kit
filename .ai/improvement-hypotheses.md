@@ -25,10 +25,10 @@
 - **Status:** PENDING
 - **Changelog ref:** 2026-11-01 — Count untracked files in every sweep, give verifiers controls, make the cleanup audit and the seam check refuse a guess, and keep the spec text project-neutral
 
-### [SKILL-MODIFIED] A verifier given a planted false claim rejects it
+### [SKILL-MODIFIED] A return that confirmed a planted control is not used as verified
 - **Category:** Quality
-- **Hypothesis:** By telling the dispatcher to give each verifier and each fresh reader one to three controls (real claims with one fact changed), we expect their returns to report a verdict on every control and to reject it, because a pass never shown a false claim cannot be told from one that confirms every claim.
-- **Signal:** In the next 5 verifier or fresh-reader returns under this text, or by 2026-12-27, whichever comes first: confirm if at least 4 report a verdict on every control and none confirms one; refute if one confirms a planted claim; inconclusive under 3 returns.
+- **Hypothesis:** By telling the dispatcher to give each verifier and each fresh reader one to three controls (real claims with one fact changed) and to trust a return's confirmations only if it rejected every control, we expect no return that confirmed a control, or gave no verdict on one, to be used as verified, because a pass never shown a false claim cannot be told from one that confirms every claim, and the rule makes such a return unverified instead of merged.
+- **Signal:** In the next 5 verifier or fresh-reader returns whose brief carried at least one control, or by 2026-12-27, whichever comes first: confirm if each such return either rejected every control it was given or was treated as unverified, its confirmations re-run before anything they covered was merged; refute if a return that confirmed a control, or gave no verdict on one, was used as verified; inconclusive under 3 such returns.
 - **Risk:** It relies on a dispatcher electing to plant the controls, each costs one more claim per pass, and a control's verdict applied to the artifact would edit a claim it never held, which is why the key stays out of it.
 - **Status:** PENDING
 - **Changelog ref:** 2026-11-01 — Count untracked files in every sweep, give verifiers controls, make the cleanup audit and the seam check refuse a guess, and keep the spec text project-neutral

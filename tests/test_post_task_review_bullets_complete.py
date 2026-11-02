@@ -11,8 +11,9 @@ Step 9 bullet after Step 8, in the same words in both files, and the README row 
 completion events the skill names. The documentation item of the task completion checklist points
 at the project's own code-to-docs matrix first and at the skill's sample only when there is none,
 since the reference it used to name outright is now a labelled sample of one backend's layout. Only
-projects seeded after this change get the bullets and the item; a project that already ran the kit
-setup keeps its old section until a refresh.
+projects seeded after this change get the bullets and the item: both sit outside the blocks
+`kit-setup refresh` rewrites, so a project seeded before keeps its old section until someone edits it
+by hand.
 
 THE SURFACE, in numbers the tests assert: 2 AGENTS.md files with 6 bullets each in the section, the
 2 new bullets read whole, the 1 documentation item read whole in each, and 1 README row among the 1

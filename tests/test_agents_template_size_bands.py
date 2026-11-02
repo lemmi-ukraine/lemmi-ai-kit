@@ -9,12 +9,16 @@ other, and the agent's first read of the size rule contradicted the skill it poi
 What the text says now: each size bullet names its score band, in the same words in both files. The
 bands are not hand-copied into the test: they are read from the skill's classification lines, so a
 change to the skill's bands fails here until the two files follow. Only projects seeded after this
-change get the bands; a project that already ran the kit setup keeps its old bullets until a refresh.
+change get the bands: the bullets sit outside the blocks `kit-setup refresh` rewrites, so a project
+seeded before keeps its old bullets until someone edits them by hand.
 
 The Medium bullet also said a Medium task creates one document (`spec.md`), where the skill creates
 three (spec, tasks, test plan) and adds a design document only when the Technical Approach runs past
 about 60 lines. It now repeats the skill's words for both, read from the skill's Medium block the way
-the bands are, and the one-document sentence is gone from both files.
+the bands are, and the one-document sentence is gone from both files. The plan-critic bullet of the
+Plan self-review section still sent a Medium task's review to `spec.md` alone, where the skill
+reviews the three documents together; it now names them in the skill's words too, the same in both
+files.
 
 A bullet is read whole, however it is wrapped: the lines after its first, indented or in column 0,
 belong to it, and it is found by its folded start, so a line end anywhere in it, inside its lead
@@ -23,9 +27,10 @@ bullet at every space to show it). The skill's three classification lines and it
 are read the same way (`test_the_skill_bands_are_read_however_its_lines_are_wrapped`,
 `test_the_skills_documents_are_read_however_its_sentence_is_wrapped`).
 
-THE SURFACE, in numbers the tests assert: 2 files, 3 size bullets in each, 3 bands and 2 document
-phrases in the skill, and 9 checks per file (3 bands named, 3 old file counts gone, 2 document
-phrases named, 1 old one-document sentence gone).
+THE SURFACE, in numbers the tests assert: 2 files, 3 size bullets and 1 plan-critic bullet in each,
+3 bands and 2 document phrases in the skill, and 11 checks per file (3 bands named, 3 old file counts
+gone, 2 document phrases named, 1 old one-document sentence gone, and on the plan-critic bullet the
+three documents named and the one-document review gone).
 """
 
 import re
@@ -78,6 +83,17 @@ _OLD_BULLETS = (
 # sentence no bullet may carry again. The control that fires at `_OLD_BULLETS` shows the excerpt
 # holds it, so a retyped copy here cannot make the check blind.
 _OLD_ONE_DOCUMENT = ("create a lightweight spec in `.specs/{task-name}/spec.md`",)
+
+# The plan-critic bullet of the Plan self-review section, and the review scope it gave a Medium task:
+# the one document no plan-critic bullet may send that review to again.
+_PLAN_SECTION = "### Plan self-review"
+_PLAN_LEAD = "- Invoke the `plan-critic` skill after writing:"
+_OLD_PLAN_BULLET = (
+    "- Invoke the `plan-critic` skill after writing: `spec.md` (medium tasks), `design.md` "
+    "(large tasks), `tasks.md` (large tasks, completeness-only), `test-cases.md` / "
+    "`test-plan.md` (Dimension 6 plus the citation check), or any bug-fix/task plan.\n"
+)
+_OLD_MEDIUM_REVIEW = ("`spec.md` (medium tasks)",)
 
 
 def _read(relative: str) -> str:
@@ -220,18 +236,54 @@ def _gaps(
     return _band_gaps(agents_text, bands) + _document_gaps(agents_text, documents)
 
 
+def _plan_bullet(agents_text: str) -> str:
+    """The plan-critic bullet of the Plan self-review section, read whole and folded. None or two
+    fail loudly, with the count named."""
+    items = _bullets(_section(agents_text, _PLAN_SECTION))
+    found = [item for item in items if item.startswith(_PLAN_LEAD)]
+    if len(found) != 1:
+        raise AssertionError(
+            f"expected one bullet starting {_PLAN_LEAD!r}, found {len(found)}"
+        )
+    return found[0]
+
+
+def _plan_gaps(agents_text: str, documents: tuple[str, str]) -> list[str]:
+    """What the plan-critic bullet lacks or still carries about a Medium task's review; an empty
+    list is a pass. The documents are the skill's own words, looked for whatever their case."""
+    bullet = _plan_bullet(agents_text)
+    gaps = (
+        []
+        if documents[0].lower() in bullet.lower()
+        else [
+            f"plan-critic: the documents '{documents[0]}' are not named in '{bullet}'"
+        ]
+    )
+    gaps += [
+        f"retired one-document review still there: {old}"
+        for old in _OLD_MEDIUM_REVIEW
+        if old in bullet
+    ]
+    return gaps
+
+
 def test_the_surface_is_stated_in_numbers() -> None:
     assert len(_FILES) == 2 and len(set(_FILES)) == 2
     assert len(_OLD_COUNTS) == 3
     assert len(_OLD_ONE_DOCUMENT) == 1
+    assert len(_OLD_MEDIUM_REVIEW) == 1
     documents = _skill_documents(_read(_SKILL))
-    assert (
-        len(_SIZES) + len(_OLD_COUNTS) + len(documents) + len(_OLD_ONE_DOCUMENT) == 9
-    ), (
-        "a file is checked 9 ways: 3 bands, 3 old counts, 2 document phrases, 1 old sentence"
+    size_checks = (
+        len(_SIZES) + len(_OLD_COUNTS) + len(documents) + len(_OLD_ONE_DOCUMENT)
+    )
+    plan_checks = 1 + len(_OLD_MEDIUM_REVIEW)
+    assert size_checks + plan_checks == 11, (
+        "a file is checked 11 ways: 3 bands, 3 old counts, 2 document phrases, 1 old sentence, "
+        "and on the plan-critic bullet the documents named and the old review gone"
     )
     for path in _FILES:
         assert len(_size_bullets(_section(_read(path), _SECTION))) == 3, path
+        assert _plan_bullet(_read(path)).startswith(_PLAN_LEAD), path
     assert len(_skill_bands(_read(_SKILL))) == 3
 
 
@@ -249,6 +301,55 @@ def test_the_medium_bullet_names_the_skills_three_documents_and_not_one(
 ) -> None:
     gaps = _document_gaps(_read(path), _skill_documents(_read(_SKILL)))
     assert not gaps, f"{path}: {gaps}"
+
+
+@pytest.mark.parametrize("path", _FILES)
+def test_the_plan_critic_bullet_reviews_the_three_medium_documents_and_not_one(
+    path: str,
+) -> None:
+    gaps = _plan_gaps(_read(path), _skill_documents(_read(_SKILL)))
+    assert not gaps, f"{path}: {gaps}"
+
+
+def test_the_two_files_say_the_same_plan_critic_bullet() -> None:
+    kit = _plan_bullet(_read(_KIT))
+    template = _plan_bullet(_read(_TEMPLATE))
+    assert kit == template, f"the files disagree: {kit!r} versus {template!r}"
+
+
+def test_every_plan_critic_check_fails_on_the_bullet_it_replaced() -> None:
+    """Fired at the old plan-critic bullet, the three documents are reported missing and the
+    one-document review is reported present: two gaps, one per check. The excerpt is shown to carry
+    the old review, so a retyped one in `_OLD_MEDIUM_REVIEW` cannot make that check blind."""
+    old = f"{_PLAN_SECTION} (plan-critic)\n{_OLD_PLAN_BULLET}"
+    gaps = _plan_gaps(old, _skill_documents(_read(_SKILL)))
+    absent = [g for g in gaps if "are not named in" in g]
+    retired = [g for g in gaps if g.startswith("retired one-document review")]
+    assert len(absent) == 1 and len(retired) == 1 and len(gaps) == 2, gaps
+    for old_review in _OLD_MEDIUM_REVIEW:
+        assert old_review in _plain(old), f"the excerpt lacks {old_review!r}"
+    with pytest.raises(AssertionError, match="found 0"):
+        _plan_bullet(f"{_PLAN_SECTION} (plan-critic)\n- Resolve all findings.\n")
+
+
+@pytest.mark.parametrize("path", _FILES)
+def test_the_plan_critic_bullet_is_read_whole_however_it_is_re_wrapped(
+    path: str,
+) -> None:
+    """The bullet is taken from what the file says and broken at every space, in column 0 and
+    indented: the section reads the same bullet each time, and it still passes."""
+    documents = _skill_documents(_read(_SKILL))
+    whole = _plan_bullet(_read(path))
+    text = f"{_PLAN_SECTION} (plan-critic)\n{whole}\n"
+    variants = _rewrapped(text, whole)
+    assert len(variants) >= 4, f"{path}: the bullet gave {len(variants)} re-wraps"
+    for variant in variants:
+        assert _plan_bullet(variant) == whole, (
+            f"{path}: a re-wrap of {whole!r} reads as a different bullet"
+        )
+        assert _plan_gaps(variant, documents) == [], (
+            f"{path}: a re-wrap of {whole!r} breaks it"
+        )
 
 
 def test_the_bands_are_the_ones_the_skill_states() -> None:

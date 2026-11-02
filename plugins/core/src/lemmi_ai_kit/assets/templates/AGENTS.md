@@ -125,7 +125,7 @@ Uses: post-task-review (workflow), task-learnings (task), commit-message (task)
 ### Plan self-review (plan-critic)
 Uses: plan-critic (review) — **universal, not limited to spec-driven-dev**
 - **Before presenting ANY plan, spec, or design document to the user**, run the plan-critic self-review. This applies to bug-fix plans, feature specs, refactoring plans, and any other structured plan.
-- Invoke the `plan-critic` skill after writing: `spec.md` (medium tasks), `design.md` (large tasks), `tasks.md` (large tasks, completeness-only), `test-cases.md` / `test-plan.md` (Dimension 6 plus the citation check), or any bug-fix/task plan.
+- Invoke the `plan-critic` skill after writing: a medium task's three documents (spec, tasks, test plan), together in one full review, `design.md` (large tasks), `tasks.md` (large tasks, completeness-only), `test-cases.md` / `test-plan.md` (Dimension 6 plus the citation check), or any bug-fix/task plan.
 - Resolve all Blocker and Major findings silently before presenting. Minor findings are fixed without mention.
 - If any Blockers or Questions cannot be resolved without user input, surface them prominently at the top of the presented document — do not suppress them.
 

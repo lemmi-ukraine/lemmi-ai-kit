@@ -30,7 +30,7 @@ breaks each line at every space to show it, and
 guide's layout label, which the layout check reads as a section.
 
 THE SURFACE, in numbers the tests assert: 5 files (the skill and its four references), 19 places in
-them, 33 checks, 13 places whose line is re-wrapped, and one sweep of all 5 files for 9 retired
+them, 34 checks, 13 places whose line is re-wrapped, and one sweep of all 5 files for 9 retired
 phrases. A second surface, asserted disjoint from the first: the 2 design templates (the seeded copy
 and the kit's own), with 1 place in each, 2 checks per place, both places re-wrapped, the same
 sweep, and the two copies equal on the line that names the conventions. Each check is fired at the
@@ -388,6 +388,12 @@ _PLACES: tuple[_Place, ...] = (
                 ),
             ),
             _Check(
+                "the intro says what to write where the project states no conventions",
+                _says(
+                    "Where the project states none, name the structure the design follows."
+                ),
+            ),
+            _Check(
                 "the Python layout is a labelled example",
                 _says(
                     "Example, for a Python backend laid out as vertical slices "
@@ -714,7 +720,7 @@ def test_the_surface_is_stated_in_numbers() -> None:
     names = [p.name for p in _EVERY_PLACE]
     assert len(set(names)) == len(names), "two places share a name"
     checks = [c for p in _PLACES for c in p.checks]
-    assert len(checks) == 33, f"{len(checks)} checks, not the 33 stated"
+    assert len(checks) == 34, f"{len(checks)} checks, not the 34 stated"
     assert len(_RETIRED) == 9, f"{len(_RETIRED)} retired phrases, not the 9 stated"
     assert set(_OLD_BY_FILE) <= set(_FILES), (
         "an old excerpt belongs to a file outside the scan"

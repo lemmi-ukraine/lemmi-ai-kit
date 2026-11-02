@@ -465,6 +465,13 @@ _SWEEP = "grep -rIn --exclude-dir=.git '<basename>' ."
 _UNTRACKED_SWEEP = (
     "git grep --untracked --no-exclude-standard -I -n '<basename>' -- ':!.ai/tmp'"
 )
+_GATE_EXIT_TWO = "exit 2 = a git failure (the ref or git grep), never ABSENT"
+_HELP_SENTENCES = (
+    "The symbol is searched as a fixed string, never as a pattern.",
+    "Exit codes: 0 = gate passed, 1 = gate failed, 2 = usage error, or a search that could not "
+    "run (a ref that does not resolve, a `git grep` that failed): never read a 2 as ABSENT or as "
+    "a pass.",
+)
 
 
 def _skill_files() -> list[Path]:
@@ -615,6 +622,46 @@ def test_step_4a_says_what_the_ref_and_the_code_suffix_do() -> None:
         "is NO VERDICT until `--code-suffix .cs` names it",
     ):
         assert phrase in four_a, f"Step 4a does not say {phrase!r}"
+
+
+def test_the_gates_comment_on_evidence_names_exit_two() -> None:
+    """Step 5.5a's comment on the evidence gate said what an exit of 1 means and left out 2, the one
+    code the script says must never be read as ABSENT or as a pass."""
+    commands = _evidence_commands(_skill_section("### 5.5a"))
+    assert len(commands) == 1, (
+        f"Step 5.5a runs {len(commands)} evidence commands, not 1"
+    )
+    assert _GATE_EXIT_TWO in _fold(commands[0]), (
+        f"Step 5.5a's evidence comment does not say {_GATE_EXIT_TWO!r}: {commands[0]}"
+    )
+
+
+def _help_text() -> str:
+    """The script's --help output, whitespace folded: its module docstring, printed as written."""
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            str(_SKILL / "scripts" / "audit_cleanup_targets.py"),
+            "--help",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+        timeout=_TIMEOUT_SECONDS,
+    )
+    assert result.returncode == 0, _both(result)
+    return " ".join(result.stdout.split())
+
+
+def test_the_help_says_the_symbol_is_a_fixed_string_and_what_exit_two_means() -> None:
+    """The help text is what an adopter reads before running the gates: it says the symbol is text,
+    not a pattern, and that an exit of 2 is a search that could not run, never ABSENT or a pass."""
+    help_text = _help_text()
+    for sentence in _HELP_SENTENCES:
+        assert sentence in help_text, f"--help does not say {sentence!r}"
 
 
 def test_the_text_scan_sees_planted_text(tmp_path: Path) -> None:

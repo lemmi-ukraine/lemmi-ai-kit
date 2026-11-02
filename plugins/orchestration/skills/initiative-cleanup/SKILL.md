@@ -412,7 +412,7 @@ for brief in <every scaffolding file proposed for archive>; do
   python "$S" extraction --target "$brief"            # exit 1 = NOT SPENT, it stays
 done
 for sym in <every 4a symbol>; do
-  python "$S" evidence --symbol "$sym" --ref origin/dev  # exit 1 = DOC-ONLY, NO VERDICT, ABSENT, or SHARED
+  python "$S" evidence --symbol "$sym" --ref origin/dev  # exit 1 = DOC-ONLY, NO VERDICT, ABSENT, or SHARED; exit 2 = a git failure (the ref or git grep), never ABSENT
 done
 ```
 
