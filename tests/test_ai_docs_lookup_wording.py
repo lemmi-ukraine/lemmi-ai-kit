@@ -200,6 +200,38 @@ def test_the_step_two_call_names_the_table_realtime_guide_url() -> None:
 # --- the file agrees ---------------------------------------------------------------------
 
 
+def test_step_zero_reads_the_pin_wherever_the_project_pins_it() -> None:
+    clause = ("wherever the project pins it",)
+    # The check is fired at a Step 0 as it stood before the sentence, with the same words in
+    # Step 1 beside it (outside the step, so they must not count), and at the sentence
+    # wrapped over a line break, before the real file is read.
+    old = "\n".join(
+        [
+            "### Step 0: Read the pinned source first",
+            "```bash",
+            'grep -n "version" pyproject.toml',
+            "```",
+            "Name the bump as the trigger wherever the",
+            "claim is recorded.",
+            "### Step 1: Identify",
+            "Say wherever the project pins it.",
+        ]
+    )
+    with pytest.raises(AssertionError, match="does not carry"):
+        _assert_carries(
+            "planted old", _fold(_section(old, "### Step 0", "planted")), clause
+        )
+    new = old.replace(
+        "claim is recorded.",
+        "claim is recorded. The pin is read wherever the\nproject pins it.",
+    )
+    assert new != old, "the planted change found nothing to change"
+    _assert_carries(
+        "planted new", _fold(_section(new, "### Step 0", "planted")), clause
+    )
+    _assert_carries("ai-docs-lookup SKILL.md, Step 0", _fold(_step(0)), clause)
+
+
 def test_step_one_checks_a_model_on_its_own_page() -> None:
     bullet = _bullet(_step(1), "- **Model facts**", "ai-docs-lookup SKILL.md, Step 1")
     _assert_carries(

@@ -102,6 +102,7 @@ grep -n "version\|==" pyproject.toml | grep -i <package>     # what is pinned?
 grep -rn "<symbol>" <venv>/lib/*/site-packages/<package>/    # does the PIN have it?
 ```
 
+The pin is read wherever the project pins it; the two greps are the Python example.
 The installed source is both **authoritative for this repo** and cheaper than a fetch. Use `main`
 only when the package is not installed, or when the question really is about the current API.
 

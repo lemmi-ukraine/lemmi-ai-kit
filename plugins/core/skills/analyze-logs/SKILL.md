@@ -34,10 +34,10 @@ ultrathink
 6. **Never quote a raw `grep -c` as a frequency.** One job failure writes the same error string into several fields of each entry (`error_message`, `message`, `stack_trace`) *and* across more than one entry (the job-execution wrapper plus the feature-level handler). A `grep -c` returning 6 and an earlier review's "exactly 3 times" both traced to a **single** job — neither was an incident count, and both had already been quoted as frequency evidence in a task doc. Extract the correlating id first and count DISTINCT ids:
 
    ```bash
-   grep -B4 -A12 "<error string>" <file> | grep -E '"(job_id|session_id)"' | sort -u
+   grep -B4 -A12 "<error string>" <file> | grep -E '"(<id field>)"' | sort -u
    ```
 
-   State the ids next to the count so the next reader can tell an incident count from a hit count.
+   Take `<id field>` from the Correlation id row of the Step 1a field map; join several names with `|`; for an id inside the message text (`request_id=`), drop the double quotes from the pattern. State the ids next to the count so the next reader can tell an incident count from a hit count.
 7. **Never collapse buckets a source document deliberately separated.** Merging two categories that
    an upstream doc kept apart inflated one finding **5×**. Before writing any aggregate, check
    whether the source defined its own buckets — if it did, report in those buckets and state
@@ -310,11 +310,12 @@ For each reported issue, challenge:
 
 For each issue with severity MEDIUM or above, create a task file in `tasks/`.
 
-**Prefix rules** (from project conventions):
+**Prefix rules** (the project's own task conventions define them; its AGENTS.md names them):
 - `BUG-` — confirmed bugs with clear reproduction path
 - `PROD-` — production/runtime issues (performance, resource leaks, flaky behavior)
 - `TECH-` — design issues that need refactoring
-- `FEATURE-` — missing functionality that caused the error
+- Exception, here and in Step 4b: missing functionality that caused the error gets a task file only where
+  the project's task conventions say to. Some projects reserve the new-work prefix for product work.
 
 See [references/task-file-template.md](references/task-file-template.md) for the template.
 
