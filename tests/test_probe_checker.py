@@ -7,14 +7,14 @@ probe a checker was `--cmd`, which runs in the platform shell: on Windows that i
 single quote is an ordinary character and `|`, `^` and parentheses are syntax, so a check whose
 pattern held any of them never started and the probe said UNUSABLE for a checker that works.
 
-Each test runs the script as a process, the way a session does. The checkers are Python files built
-under `tmp_path`, so the tests mean the same thing on every OS. The signature test pins the names
-that other repositories load this file by.
+Each behaviour test runs the script as a process, the way a session does. The checkers are Python
+files built under `tmp_path`, so the tests mean the same thing on every OS. The tests at the end
+read the file instead: the names other repositories load it by, and its one shell call.
 """
 
+import ast
 import importlib.util
 import inspect
-import re
 import subprocess
 import sys
 from collections.abc import Callable
@@ -32,7 +32,8 @@ _SCRIPT = (
     / "probe_checker.py"
 )
 
-# A needle the platform shell would mangle: a quote, a caret, parentheses and a pipe.
+# A needle a shell would mangle on a command line: a quote, a caret, parentheses and a pipe.
+# The checkers carry it inside their own file, so no test here hands it to a shell.
 _NEEDLE = "'^(L[12]|x) NEEDLE"
 
 
@@ -111,13 +112,15 @@ def test_a_bare_integer_checker_that_never_matches_is_still_reported_blind(
     assert "BLIND" in result.stdout
 
 
-def test_script_runs_a_checker_whose_pattern_the_platform_shell_would_mangle(
-    tmp_path: Path,
-) -> None:
+def test_script_runs_the_checker_with_no_shell(tmp_path: Path) -> None:
+    """The checker sits in a folder named `$HOME%PATH%`: sh expands the first and cmd.exe the
+    second, inside double quotes too, so the checker is found only if no shell reads its path."""
     positive, negative = _fixtures(tmp_path)
+    folder = tmp_path / "$HOME%PATH%"
+    folder.mkdir()
     result = _run(
         "--script",
-        str(_counts_the_needle(tmp_path)),
+        str(_counts_the_needle(folder)),
         "--positive",
         str(positive),
         "--negative",
@@ -199,7 +202,27 @@ def test_the_names_other_repositories_load_this_file_by_keep_their_signatures() 
     assert isinstance(module.STAMP, str)
 
 
+def _shell_true_calls(source: str) -> list[int]:
+    """The line of every call that passes `shell=True`, however the call is laid out."""
+    return [
+        node.lineno
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Call)
+        for keyword in node.keywords
+        if keyword.arg == "shell"
+        and isinstance(keyword.value, ast.Constant)
+        and keyword.value.value is True
+    ]
+
+
 def test_the_file_keeps_exactly_one_shell_call() -> None:
     """The content-safety pin allows this file one shell site and cannot count a second."""
-    source = _SCRIPT.read_text(encoding="utf-8")
-    assert len(re.findall(r"shell\s*=\s*True\s*,", source)) == 1
+    assert len(_shell_true_calls(_SCRIPT.read_text(encoding="utf-8"))) == 1
+
+
+def test_the_shell_call_count_sees_a_second_call_written_on_one_line() -> None:
+    """The count above, fired at a planted call with no trailing comma after `True`."""
+    planted = (
+        _SCRIPT.read_text(encoding="utf-8") + "\nsubprocess.run('x', shell=True)\n"
+    )
+    assert len(_shell_true_calls(planted)) == 2
