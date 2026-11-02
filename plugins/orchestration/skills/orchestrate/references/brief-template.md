@@ -90,8 +90,8 @@ a done check (the return note at the named return path exists) and a live-peer c
 
 ## Rules a dispatch brief carries
 
-Each rule was added after a session stopped, or ran twice, without it. Where a rule binds the
-delegate, the brief states it, and the delegate obeys it before its first write.
+Each rule was added after a session stopped, or ran twice, without it. They are for whoever writes
+the brief: apply each one to the brief you are about to send.
 
 - **A paste line is printed by a command, never typed.** A commit id, branch or date typed into the
   line can be left unfilled. The session that writes the brief runs a command that prints the line

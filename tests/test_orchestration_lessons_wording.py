@@ -5,7 +5,7 @@ belonged to another process, a peer's transcript printed to find out whether it 
 copied what an operator had pasted into the reader's own transcript, and a background gate whose
 completion notice read exit 0 because the last command of the chain was an `echo`. They are
 references only: no SKILL.md gains a line, and the one pointer that names the new subsection
-re-wraps lines that were already there.
+gains a phrase on a line that was already there.
 
 THE SURFACE, in numbers the tests assert: 4 claims and 11 phrases over two references. A claim holds
 when every one of its phrases is in its reference (lower-cased, whitespace collapsed). Each phrase is
