@@ -34,7 +34,8 @@ serialization — concurrency is otherwise re-derived per session and collapses 
 uncertainty, which is invisible unless the plan carries both numbers. Derived from:
 1. {disjoint-file-set constraint}
 2. {the chokepoint}
-3. {the usage window — or "not applied: project opt-out" when the project says it is not a gate; the cap is then the minimum of the other two}
+3. {the usage window — or "not applied: project opt-out" when the project's AGENTS.md or its override documents say it is not a gate; the cap is then the minimum of the other two}
+   {when opted out, the project still states its own cap on simultaneous agents and counts every live session on the account toward it; the kit sets no number and no default cap}
 
 ## 2. The session tree
 

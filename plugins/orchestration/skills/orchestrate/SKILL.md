@@ -271,10 +271,11 @@ Three rules, enforced at this step because dispatch is where the choice exists:
   documents say the usage window is not a gate**, report the reading and its age, if one exists,
   and never defer, shrink or skip verification on a wave because of it. The kit ships no usage
   guard, so never presume a reading exists; a project that opts out accepts the risk the gate
-  protects against (waves killed at the limit, duplicate dispatch after a re-run). A wave that dies
-  at the wall costs re-dispatch AND duplicate-dispatch races: every resume message must state who
-  else is on the item ("two workers ran this assignment" was found by the worker, not the
-  orchestrator).
+  protects against (waves killed at the limit, duplicate dispatch after a re-run). Such a project
+  still states its own cap on simultaneous agents and counts every live session on the account
+  toward it; the kit sets no number and no default cap. A wave that dies at the wall costs
+  re-dispatch AND duplicate-dispatch races: every resume message must state who else is on the
+  item ("two workers ran this assignment" was found by the worker, not the orchestrator).
 - **Epic implementation slices leave the session by default** — the plan-time rule, now owned by
   `initiative-planner` (step 3 assigns each slice a session; step 4 derives what may run at once).
   What still binds you at run time: the orchestrator thread keeps plan, briefs, verification and

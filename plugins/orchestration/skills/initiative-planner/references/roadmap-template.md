@@ -85,6 +85,8 @@ override documents say the usage window is not a gate, the row reads "usage wind
 (project opt-out)" and its consequence is the rule: report the reading and its age, if one exists, and
 never defer, shrink or skip verification on a wave because of it. The project accepts the risk the
 gate protects against: waves killed at the limit, and duplicate dispatch after a re-run.
+It still states its own cap on simultaneous agents and counts every live session on the
+account toward it; the kit sets no number and no default cap.
 
 ### §3 Operator critical path
 **External blockers no session can resolve.** A dependency between two deliverables is not one —

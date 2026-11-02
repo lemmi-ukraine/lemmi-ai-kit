@@ -19,13 +19,30 @@ from and carry the caveat that a reading may not exist. A count per file
 (`test_the_usage_window_switch_is_stated_only_in_the_pinned_places`) fails when a fifth place
 appears without its own pin.
 
+An opted-out project still states its own cap on simultaneous agents and counts every live
+session on the account toward it; the kit sets no number and no default cap. That sentence is
+in the two templates only. `_CAP_STATEMENTS` pins how often each of the three scanned files says
+it (0 in the planner SKILL.md, once in each template), as `_SWITCH_STATEMENTS` does for the
+switch, and each template has its own test from one table, `_CAP_PLACES`, which the surface test
+counts. The cap clauses (`_OPT_OUT_CAP_CLAUSES`) are never part of `_SWITCH_CLAUSES`, which the
+planner SKILL.md must carry too. The no-number check is a tripwire for a default, not a proof
+that none is there: it reads digits and the count words of `_NUMBER` in the one sentence or
+placeholder that carries the cap, so a vague quantity ("a handful") passes and the pronoun "one"
+is read as a count. Derivation 3's placeholder in the execution-plan template names where the
+opt-out is read, as the other places do; its old condition is replaced, not extended, and a
+planted fixture that still holds the old condition is flagged
+(`test_the_placeholder_check_flags_the_old_condition_and_passes_the_new`). The cap checks are
+fired at planted text in `test_the_cap_checks_see_planted_text_and_fail_loudly`, and
+`test_the_cap_surface_is_two_templates_of_the_three_scanned_files` states their surface in
+numbers.
+
 The helpers are functions over a string, so `test_the_slicers_see_planted_text_and_fail_loudly`
 can fire them at planted text before their silence on the real files is trusted, and
 `test_the_scan_surface_is_three_distinct_files` states the surface in numbers.
 """
 
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 import pytest
@@ -74,9 +91,56 @@ _OPT_OUT_DISPLAY = "not applied: project opt-out"
 _MINIMUM_OF_OTHER_TWO = "minimum of the other two"
 _USAGE_FLOOR_ROW = "| A wave would start below the usage floor"
 
+# Derivation 3's placeholder names where the opt-out is read, as the other places do. It keeps
+# the pronoun ("say it is not a gate"): repeating _SWITCH_CONDITION whole would raise the count
+# pinned in _SWITCH_STATEMENTS. The condition it replaced named no place, so the old text is
+# checked absent, not merely the new text present.
+_PLACEHOLDER_CONDITION = (
+    "when the project's AGENTS.md or its override documents say it is not a gate"
+)
+_PLACEHOLDER_OLD_CONDITION = "when the project says it is not a gate"
+_PLACEHOLDER_CLAUSES: tuple[str, ...] = (
+    "the usage window",
+    _OPT_OUT_DISPLAY,
+    _PLACEHOLDER_CONDITION,
+    _MINIMUM_OF_OTHER_TWO,
+)
+
+# What the two templates (and no other place) say an opted-out project still does. The three
+# clauses are contiguous and share one sentence or one placeholder. They are NOT part of
+# _SWITCH_CLAUSES: the planner SKILL.md carries the switch and must carry every switch clause,
+# and says none of these (_CAP_STATEMENTS pins that at 0).
+_OPT_OUT_CAP_CLAUSES: tuple[str, ...] = (
+    "still states its own cap on simultaneous agents",
+    "counts every live session on the account toward it",
+    "the kit sets no number and no default cap",
+)
+_CAP_MARKER = _OPT_OUT_CAP_CLAUSES[0]
+# Where the cap is stated, by file, as _SWITCH_STATEMENTS does for the switch: each clause of the
+# sentence appears this many times in the file. The planner SKILL.md is scanned and pinned at 0,
+# so a cap sentence added there needs its own test and its own row before this passes.
+_CAP_STATEMENTS: tuple[tuple[Path, int], ...] = (
+    (_SKILL, 0),
+    (_ROADMAP, 1),  # §2 Constraints in force
+    (_EXECUTION_PLAN, 1),  # §1 Headline numbers, under derivation 3
+)
+# The kit names no number: the project supplies its own cap. A number in the cap sentence is a
+# default the kit would be setting, so the check reads digits and these count words. It is a
+# tripwire, not a proof: a vague quantity ("a handful") passes, and the pronoun "one" is read
+# as a count, which is the safe direction for a guard on a default.
+_COUNT_WORDS = (
+    "zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|"
+    "fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|"
+    "eighty|ninety|hundred|thousand|dozen|couple|pair|single"
+)
+_NUMBER = re.compile(rf"\d+|\b(?:{_COUNT_WORDS})\b", re.IGNORECASE)
+# The period of these ends no sentence, so a number after one stays in the sentence it sits in.
+_ABBREVIATION = re.compile(r"\b(?:e\.g|i\.e|cf|vs)\.", re.IGNORECASE)
+
 _HEADING = re.compile(r"^(#{1,6})\s+\S")
 _ANY_HEADING = re.compile(r"^#{1,6}\s")
 _SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
+_PLACEHOLDER = re.compile(r"\{[^{}]*\}")
 
 
 def _text(path: Path) -> str:
@@ -205,6 +269,83 @@ def _derivation_three(skill_text: str) -> str:
     return step[start:]
 
 
+def _placeholder_problems(item: str) -> list[str]:
+    """What derivation 3's placeholder lacks, and the old condition if it still carries it."""
+    folded = _fold(item)
+    problems = [
+        f"does not carry: {clause!r}"
+        for clause in _missing(folded, _PLACEHOLDER_CLAUSES)
+    ]
+    if _PLACEHOLDER_OLD_CONDITION in folded:
+        problems.append(
+            f"still carries {_PLACEHOLDER_OLD_CONDITION!r}, which names no place"
+        )
+    return problems
+
+
+def _only_unit(units: Iterable[str], where: str, kind: str) -> str:
+    """The one unit that carries the cap marker; none or several fail with the count named."""
+    found = [unit for unit in units if _CAP_MARKER in unit]
+    if len(found) != 1:
+        raise AssertionError(
+            f"{where}: expected one {kind} naming {_CAP_MARKER!r}, found {len(found)}"
+        )
+    return found[0]
+
+
+def _cap_sentences(text: str) -> list[str]:
+    """The sentences of `text`, folded, with its headings dropped: a digit in a heading is not
+    part of the sentence below it. The period of an abbreviation ends no sentence."""
+    prose = "\n".join(line for line in text.split("\n") if not _ANY_HEADING.match(line))
+    unabbreviated = _ABBREVIATION.sub(lambda m: m.group(0).rstrip("."), _fold(prose))
+    return _SENTENCE_BOUNDARY.split(unabbreviated)
+
+
+def _cap_sentence(text: str, where: str) -> str:
+    """The one sentence of `text` that says an opted-out project states its own cap."""
+    return _only_unit(_cap_sentences(text), where, "sentence")
+
+
+def _cap_placeholder(text: str, where: str) -> str:
+    """The one `{...}` placeholder of `text` that says an opted-out project states its cap."""
+    return _only_unit(_PLACEHOLDER.findall(_fold(text)), where, "placeholder")
+
+
+def _cap_problems(unit: str) -> list[str]:
+    """The cap clauses a sentence or placeholder lacks, and every number it names."""
+    return [
+        f"does not carry: {clause!r}" for clause in _missing(unit, _OPT_OUT_CAP_CLAUSES)
+    ] + [f"names a number: {match.group(0)!r}" for match in _NUMBER.finditer(unit)]
+
+
+def _overlapping(first: Iterable[str], second: Iterable[str]) -> list[tuple[str, str]]:
+    """The pairs, one from each list, where one clause contains the other."""
+    seconds = tuple(second)
+    return [(a, b) for a in first for b in seconds if a in b or b in a]
+
+
+def _roadmap_cap_unit(text: str) -> str:
+    where = "roadmap-template.md, '§2 Constraints in force'"
+    section = _section(text, "### §2 Constraints in force", "roadmap-template.md")
+    return _cap_sentence(section, where)
+
+
+def _execution_plan_cap_unit(text: str) -> str:
+    where = "execution-plan-template.md, '1. Headline numbers' skeleton"
+    block = _raw_block(text, "## 1. Headline numbers", "execution-plan-template.md")
+    return _cap_placeholder(block, where)
+
+
+# The templates that carry the cap sentence, each with the reader that finds its one sentence or
+# placeholder. The cap tests read this table and nothing else, so a template cannot be tested
+# without a row here or have a row without a test, and the surface test counts the rows.
+_CAP_PLACES: tuple[tuple[Path, Callable[[str], str]], ...] = (
+    (_ROADMAP, _roadmap_cap_unit),
+    (_EXECUTION_PLAN, _execution_plan_cap_unit),
+)
+_CAP_SURFACE: tuple[Path, ...] = tuple(path for path, _ in _CAP_PLACES)
+
+
 # --- the review fires at every completion event ------------------------------------------
 
 
@@ -298,16 +439,30 @@ def test_the_execution_plan_usage_window_placeholder_shows_the_opt_out() -> None
     item = _list_item(
         _text(_EXECUTION_PLAN), "3. {", "execution-plan-template.md, derivation list"
     )
-    _assert_carries(
-        "execution-plan-template.md, derivation-3 placeholder",
-        _fold(item),
-        (
-            "the usage window",
-            _OPT_OUT_DISPLAY,
-            "when the project says it is not a gate",
-            _MINIMUM_OF_OTHER_TWO,
-        ),
+    problems = _placeholder_problems(item)
+    assert not problems, (
+        f"execution-plan-template.md, derivation-3 placeholder: {problems}"
     )
+
+
+def test_the_placeholder_check_flags_the_old_condition_and_passes_the_new() -> None:
+    """Fired at planted placeholders: the one that holds the old condition is flagged twice,
+    for the new condition it lacks and for the old one it keeps, and the one that holds the new
+    condition passes. The new condition does not contain the old one, so neither can hide in
+    the other."""
+    old = (
+        '3. {the usage window - or "not applied: project opt-out" '
+        "when the project says it is not a gate; "
+        "the cap is then the minimum of the other two}"
+    )
+    new = old.replace(_PLACEHOLDER_OLD_CONDITION, _PLACEHOLDER_CONDITION, 1)
+    assert new != old, "the planted replacement changed nothing"
+    assert _PLACEHOLDER_OLD_CONDITION not in _PLACEHOLDER_CONDITION
+    assert _placeholder_problems(new) == []
+    assert _placeholder_problems(old) == [
+        f"does not carry: {_PLACEHOLDER_CONDITION!r}",
+        f"still carries {_PLACEHOLDER_OLD_CONDITION!r}, which names no place",
+    ]
 
 
 def test_the_execution_plan_usage_floor_row_carries_the_project_switch() -> None:
@@ -342,6 +497,38 @@ def test_the_usage_window_switch_is_stated_only_in_the_pinned_places(
     assert found == pinned, (
         f"{path.name} states {_SWITCH_CONDITION!r} {found} times and {pinned} places are "
         "pinned in this file: give the new place its own test, then update _SWITCH_STATEMENTS"
+    )
+
+
+# --- an opted-out project still states its own cap on simultaneous agents -----------------
+
+
+@pytest.mark.parametrize(
+    ("path", "unit_of"),
+    _CAP_PLACES,
+    ids=["roadmap-template", "execution-plan-template"],
+)
+def test_a_template_tells_an_opted_out_project_to_state_its_own_cap(
+    path: Path, unit_of: Callable[[str], str]
+) -> None:
+    problems = _cap_problems(unit_of(_text(path)))
+    assert not problems, f"{path.name}, opt-out cap: {problems}"
+
+
+@pytest.mark.parametrize(
+    ("path", "pinned"),
+    _CAP_STATEMENTS,
+    ids=["skill", "roadmap-template", "execution-plan-template"],
+)
+def test_the_cap_sentence_is_stated_only_in_the_pinned_places(
+    path: Path, pinned: int
+) -> None:
+    folded = _fold(_text(path))
+    found = {clause: folded.count(clause) for clause in _OPT_OUT_CAP_CLAUSES}
+    assert found == dict.fromkeys(_OPT_OUT_CAP_CLAUSES, pinned), (
+        f"{path.name} carries the cap clauses {found} times and {pinned} of each are pinned "
+        "in this file: give the new place its own row in _CAP_PLACES and its own count in "
+        "_CAP_STATEMENTS"
     )
 
 
@@ -478,3 +665,81 @@ def test_the_slicers_see_planted_text_and_fail_loudly() -> None:
     with pytest.raises(AssertionError, match="expected one sentence"):
         _continuation_sentence("nothing relevant here.", "planted")
     assert _missing("alpha beta", ("alpha", "gamma")) == ["gamma"]
+
+
+def test_the_cap_checks_see_planted_text_and_fail_loudly() -> None:
+    sentence = (
+        "The project still states its own cap on simultaneous agents and counts every live "
+        "session on the account toward it; the kit sets no number and no default cap."
+    )
+    wrapped = sentence.replace("every live", "every\nlive").replace(
+        "the kit sets", "the\nkit sets"
+    )
+    section = f"## Alpha\nAn earlier sentence. {wrapped} A later one.\n"
+    assert _cap_sentence(section, "planted") == sentence
+    assert _cap_problems(sentence) == []
+    with pytest.raises(AssertionError, match="found 0"):
+        _cap_sentence("## Alpha\nNothing about caps here.\n", "planted")
+    with pytest.raises(AssertionError, match="found 2"):
+        _cap_sentence(f"{sentence} {sentence}", "planted")
+
+    placeholder = (
+        "{when opted out, the project still states its own cap on simultaneous agents and "
+        "counts every live session on the account toward it; the kit sets no number and no "
+        "default cap}"
+    )
+    block = f"3. {{the usage window}}\n   {placeholder}\n"
+    assert _cap_placeholder(block, "planted") == placeholder
+    assert _cap_problems(placeholder) == []
+    with pytest.raises(AssertionError, match="found 0"):
+        _cap_placeholder("3. {the usage window}\n", "planted")
+    with pytest.raises(AssertionError, match="found 2"):
+        _cap_placeholder(f"{placeholder}\n{placeholder}\n", "planted")
+
+    without_tail = sentence.replace("; the kit sets no number and no default cap", "")
+    assert _cap_problems(without_tail) == [
+        f"does not carry: {_OPT_OUT_CAP_CLAUSES[2]!r}"
+    ]
+    # Each default is planted at the end of the sentence and read back through the slicer, as
+    # the real file is. The last one sits after an abbreviation: its period ends no sentence.
+    for planted, found in (
+        ("a default cap of two agents", "two"),
+        ("6 at once", "6"),
+        ("Twelve is typical", "Twelve"),
+        ("cap twenty", "twenty"),
+        ("a dozen agents", "dozen"),
+        ("e.g. 20 agents", "20"),
+    ):
+        with_default = f"{sentence[:-1]} ({planted}). A later one."
+        problems = _cap_problems(_cap_sentence(with_default, "planted"))
+        assert problems == [f"names a number: {found!r}"], planted
+    # A digit in the heading above the sentence is not a number the sentence names.
+    heading_first = f"## Section 2\n{sentence} A later one.\n"
+    assert _cap_problems(_cap_sentence(heading_first, "planted")) == []
+
+
+def test_the_cap_surface_is_two_templates_of_the_three_scanned_files() -> None:
+    """Three files are counted, the same three the other checks scan, and the two with a count
+    above zero are the two the cap tests read: the planner SKILL.md is counted at 0 and is not one
+    of them. The numbers are asserted, so a third place cannot join silently. What no check in this
+    file can see, here or for the switch table, is the whole cap test being renamed out of
+    collection: that diff is for review."""
+    assert [path for path, _ in _CAP_STATEMENTS] == list(_SURFACE)
+    assert [count for _, count in _CAP_STATEMENTS] == [0, 1, 1]
+    assert [path for path, count in _CAP_STATEMENTS if count] == list(_CAP_SURFACE)
+    assert len(_CAP_SURFACE) == 2
+    assert len({path.resolve() for path in _CAP_SURFACE}) == 2
+    assert _SKILL not in _CAP_SURFACE
+
+
+def test_the_cap_clauses_are_template_only() -> None:
+    """No cap clause may be, or sit inside, a switch clause: the planner SKILL.md must carry
+    every switch clause, and `_CAP_STATEMENTS` holds it to no cap clause. Fired at a planted
+    overlap first."""
+    assert _overlapping(("alpha beta",), ("beta", "gamma")) == [("alpha beta", "beta")]
+    assert _overlapping(("alpha",), ("gamma",)) == []
+    assert (len(_OPT_OUT_CAP_CLAUSES), len(_SWITCH_CLAUSES)) == (3, 2), (
+        "the overlap check compares 3 cap clauses with 2 switch clauses: a clause added to "
+        "either tuple changes that surface, so state the new numbers here"
+    )
+    assert _overlapping(_OPT_OUT_CAP_CLAUSES, _SWITCH_CLAUSES) == []
