@@ -31,7 +31,9 @@ that counts for any step a gate left out.
 
 The review consists of 10 steps, executed in order. Step 0 establishes the blast radius. Steps 1–6
 cover code review and convention compliance. Steps 7–8 are documentation and learnings extensions.
-Step 9 is the close self-challenge, and it runs last.
+Step 9 is the close self-challenge, and it runs last. Run `python -B "${CLAUDE_SKILL_DIR}/scripts/review_core.py" --base <ref> --plan <file-list>`
+first: it prints Step 0's lists, the diff stat, line endings, lint scope and Step 7b's matrix lookups, each ending with what it did not check
+(exit 2 means a check could not run, never a pass). It reads nothing for you: every UNKNOWN it prints is still yours to open.
 
 ### Step 0: Dependency & Blast Radius (produces a LIST, not an opinion)
 

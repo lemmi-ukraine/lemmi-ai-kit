@@ -17,6 +17,14 @@
 
 ## 2026-11-02
 
+### [INFRA-MODIFIED] A completion review starts from a printed list of its mechanical checks
+- **Category:** Coverage
+- **Hypothesis:** By giving the post-task review a script that prints the changed files (untracked ones included), the raw diff stat against the plan, Step 0's dependents with the count of files searched, line endings, lint scope and the matrix lookups, we expect the next completion reviews to carry a dependents list with every reader marked and a comparison of the changed files against the plan even when the session is near its context line, because those lists no longer have to be recalled and retyped from commands with known blind spots.
+- **Signal:** In the next 5 completion reviews, or by 2026-12-28, whichever comes first: confirm if at least 4 of 5 review reports carry the script's summary line or an equivalent list, name each dependent as checked or UNKNOWN, and state the diff-against-plan result; refute if 2 of the 5 skip Step 0's list or the plan comparison with the script available, or if one reads a zero or a capped list from the script as complete; inconclusive with fewer than 5 reviews.
+- **Risk:** The script names symbols only from definition lines of code files, finds readers by name and not by call, and caps its lists, so a review may read its output as the whole blast radius; a session short of context may run it and skip the judgment steps, which is the shrinkage this change is meant to prevent, now with a tool's authority behind it.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-02 — Give the post-task review a script that prints its mechanical checks
+
 ### [INFRA-MODIFIED] A kickoff's paste line is printed, filled and obeyed before the first write
 - **Category:** Quality
 - **Hypothesis:** By putting six rules in a section of the brief template (a printed paste line, a stop on any `<...>` placeholder, the return note as the first write, a standing decision over a session default, preconditions as commands with expected results, and a stated meaning for a plain affirmative), we expect the next dispatch briefs written from it to ship no paste line with an unfilled placeholder and no kickoff that says "any other reply is a no" without saying what "yes" permits, because the template now names each rule and its reason.
