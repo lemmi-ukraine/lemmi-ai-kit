@@ -181,10 +181,10 @@ precondition block against the owning layer and its base — the expected base a
 ancestry, because a chain someone else rewrote is still internally consistent and passes every other
 check. **A moved base means stop and report, never rebase unilaterally.**
 
-**Switching to the owning branch is an operator action.** `/lemmi-ai-kit-core:branch-switch` carries
-`disable-model-invocation: true` — a session may not invoke it. Ask the operator to run
-`/lemmi-ai-kit-core:branch-switch <owning-branch>` and wait. The workflow doc's bare `git checkout` form assumes a
-clean single-writer tree; this checkout is shared.
+**Switching to the owning branch on a shared checkout is an operator action.** A session may use
+`/lemmi-ai-kit-core:branch-switch` after its pre-switch backup, and on a shared checkout only with the operator's
+word. Ask the operator to run `/lemmi-ai-kit-core:branch-switch <owning-branch>` and wait. The workflow doc's bare
+`git checkout` form assumes a clean single-writer tree; this checkout is shared.
 
 A fix that touches code owned by *two* layers is a signal the topology is wrong — that is a re-plan
 trigger, not a reason to jump to the top. Hand back to `stacked-pr-planner`.

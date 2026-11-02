@@ -41,7 +41,7 @@ Mechanical rows are automated by the `audit-skills` subcommand of the support CL
 ## Invocation Model
 
 - [ ] Only OUTWARD/DESTRUCTIVE timing-critical skills have `disable-model-invocation: true`
-      (in this pack: commit-message + branch-switch); repo-internal writers and workflows stay
+      (kit example: commit-message); repo-internal writers and workflows stay
       model-invocable — the AGENTS.md "don't auto-invoke" rule governs behavior, not the flag
 - [ ] Background knowledge skills have `user-invocable: false`
 - [ ] Internal pipeline skills have `user-invocable: false` only (NOT both flags — combining them makes the skill unreachable)

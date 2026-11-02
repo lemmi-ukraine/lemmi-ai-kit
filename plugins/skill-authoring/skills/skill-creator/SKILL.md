@@ -165,7 +165,7 @@ user-invocable: {true|false}           # false → hidden from / menu (Claude ca
                                        # via Skill tool — this is correct for pipeline skills)
 when_to_use: {trigger context}         # Trigger phrases / example requests; appended to the
                                        # description in the skill listing and truncated after it
-                                       # (trigger lists degrade gracefully). Project policy (D1):
+                                       # (trigger lists degrade gracefully). Kit recommendation:
                                        # NEW skills put trigger phrases here; existing skills
                                        # migrate when a task touches them
 allowed-tools: {tool list}             # PRE-APPROVAL: listed tools run without permission
@@ -195,12 +195,12 @@ hooks: {...}                           # Hooks scoped to skill lifecycle events
   the description from context. Use for side-effect skills only.
 - **Never combine both flags** — this makes the skill unreachable by anyone.
 
-**Invocation model decision tree (project policy 2026-06-21 — AGENTS.md governs auto-invocation behavior):**
+**Invocation model decision tree (kit recommendation — AGENTS.md governs auto-invocation behavior):**
 ```
 Is the action OUTWARD or DESTRUCTIVE and timing-critical?
-(commit, push, deploy, branch mutation, external sends)
+(commit, push, deploy, branch mutation without a backup gate, external sends)
   YES → disable-model-invocation: true
-        (fleet: only commit-message + branch-switch. Side effect: the description
+        (kit example: commit-message. Side effect: the description
         leaves context — also right for RARE user-only utilities.)
   NO ↓
 

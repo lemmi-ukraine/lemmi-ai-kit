@@ -12,7 +12,7 @@ Single-concern, predictable, no state management beyond the current execution.
 - No dependencies on other skills during execution
 - Produces a concrete artifact (commit, file, report)
 - `disable-model-invocation: true` ONLY if the action is outward/destructive and timing-critical
-  (project fleet: commit-message, branch-switch); repo-internal writers stay model-invocable —
+  (kit example: commit-message); repo-internal writers stay model-invocable —
   the AGENTS.md "don't auto-invoke" rule governs behavior, not the flag
 
 **Examples in this project:**
@@ -86,7 +86,7 @@ Manages state, approval gates, and phase transitions.
 - Invokes other skills at defined stages
 - Manages user approval gates (STOP points)
 - Maintains state across phases (via files on disk — also required for compaction survival)
-- Model-invocable by project policy (2026-06-21) — do NOT set `disable-model-invocation: true`
+- Model-invocable by kit recommendation — do NOT set `disable-model-invocation: true`
   on workflows; the AGENTS.md "don't auto-invoke side-effect skills" rule governs behavior
 - Longest SKILL.md files (but should still use references/; load-bearing rules in the first
   ~5k tokens — compaction truncates re-attached skills there)

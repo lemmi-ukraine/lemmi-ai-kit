@@ -94,7 +94,7 @@ Evaluate the description against the formula: `[WHAT] + [WHEN] + [keywords]`
 | Trigger phrases | Includes 2+ specific phrases users would say (in quotes) | Project convention |
 | Specificity | Not vague ("helps with projects" = FAIL) | Agent Skills spec |
 | Negative triggers | Clarifies what NOT to trigger on (for broad skills) | Best practice |
-| Name neutrality | The NAME carries no model/tool/vendor qualifier unless the skill cannot function without it — the name is routing metadata read BEFORE the body, so a qualifier silently scopes the skill to matching sessions (`fable-orchestrate`: zero invocations in 47 sessions while model-agnostic in content; renamed `orchestrate` → immediate re-registration) | Project convention (2026-08-02) |
+| Name neutrality | The NAME carries no model/tool/vendor qualifier unless the skill cannot function without it — the name is routing metadata read BEFORE the body, so a qualifier silently scopes the skill to matching sessions (`fable-orchestrate`: zero invocations in 47 sessions while model-agnostic in content; renamed `orchestrate` → immediate re-registration) | Kit convention |
 
 Rate: GOOD / NEEDS IMPROVEMENT / POOR
 
@@ -103,11 +103,11 @@ Rate: GOOD / NEEDS IMPROVEMENT / POOR
 Determine the correct invocation model and check if the skill implements it:
 
 ```
-Decision tree (project policy 2026-06-21 — validate against the FLEET, not only theory):
+Decision tree (kit recommendation — validate against the FLEET, not only theory):
 1. Is the action OUTWARD/DESTRUCTIVE and timing-critical?
-   (commit, push, deploy, branch mutation, external sends)
+   (commit, push, deploy, branch mutation without a backup gate, external sends)
    → disable-model-invocation: true
-   (fleet: only commit-message + branch-switch. The flag also removes the description
+   (kit example: commit-message. The flag also removes the description
    from context and blocks subagent preloading + scheduled-task prompts, v2.1.196+.)
 
 2. Repo-internal writes (learnings, changelog, reports) or orchestration?
@@ -190,7 +190,7 @@ Check if the skill leverages relevant Claude Code features:
 | `model` field | Skill needs specific model | Would a model override improve quality? |
 | `hooks` field | Skill has lifecycle events | Could hooks automate pre/post actions? |
 | `ultrathink` keyword | Skill involves complex reasoning | Would extended thinking improve output? |
-| `when_to_use` field | Trigger phrases crowd the description | Project policy (D1): new skills put trigger phrases here (1,536-char combined listing cap) |
+| `when_to_use` field | Trigger phrases crowd the description | Kit recommendation: new skills put trigger phrases here (1,536-char combined listing cap) |
 | `paths` field | Reference skill scoped to a subsystem | Would glob-scoped auto-loading cut noise? |
 | `disallowed-tools` field | A tool must never run while the skill is active | Is a hard restriction warranted (vs prose)? |
 | `effort` field | Reasoning depth mismatched to the task | Would an effort override improve quality/cost? |

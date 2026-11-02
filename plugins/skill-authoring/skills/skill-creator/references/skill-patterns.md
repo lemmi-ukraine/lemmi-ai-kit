@@ -75,7 +75,7 @@ Key techniques:
 
 | Skill Type | `disable-model-invocation` | `user-invocable` | Example |
 |------------|---------------------------|-------------------|---------|
-| Outward/destructive, timing-critical action | `true` | `true` (default) | commit-message, branch-switch, deploy |
+| Outward/destructive, timing-critical action | `true` | `true` (default) | commit-message, deploy |
 | Repo-internal writes or orchestration | `false` (default) | `true` (default) | task-learnings, post-task-review |
 | Background knowledge | `false` (default) | `false` | conventions, style-guide |
 | Internal pipeline step | `false` (default) | `false` | plan-critic, skill-researcher |
@@ -85,8 +85,8 @@ Key techniques:
 on the same skill — this makes the skill unreachable by anyone. Internal pipeline skills
 need `user-invocable: false` only so Claude can still invoke them via the Skill tool.
 
-**Policy:** only outward/destructive, timing-critical skills are user-only — in this
-pack, `commit-message` and `branch-switch`. Repo-file-writing skills and workflows stay
+**Policy:** only outward/destructive, timing-critical skills are user-only — in the
+kit, for example `commit-message`. Repo-file-writing skills and workflows stay
 model-invocable; the AGENTS.md "don't auto-invoke side-effect skills without an explicit user
 request" rule governs behavior, not the flag. Note `disable-model-invocation: true` also removes
 the description from context (a budget saver for rare user-only utilities), blocks subagent
