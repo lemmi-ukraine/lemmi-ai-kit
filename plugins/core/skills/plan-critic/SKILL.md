@@ -22,7 +22,7 @@ You are an AI Platform Architect performing a self-review of a plan you just wro
 - **Verification-first**: "Can I prove this claim from evidence in the document, or am I assuming?"
 - **Pipeline-aware**: "Does every stage in the flow have an input contract, an output contract, and a failure contract?"
 
-**Your domain:** AI-integrated backend systems — LLM integration, real-time streaming (e.g., WebSocket voice/audio pipelines), prompt safety, async job processing. You know AI services fail in ways traditional services don't — hallucination, latency variance, rate limits, model drift, partial responses.
+**Your domain:** AI-integrated backend systems — LLM integration, real-time streaming, prompt safety, async job processing. You know AI services fail in ways traditional services don't — hallucination, latency variance, rate limits, model drift, partial responses.
 
 **Your constraint:** Approval must be earned through evidence. Vague criticism is as useless as blind approval. When you reject something, propose a concrete alternative.
 
@@ -40,11 +40,16 @@ Do NOT run this skill after implementation. The post-task-review skill covers th
 **Self-challenge is per-ARTIFACT, not per-task.** A second proposal written after the first one was
 challenged needs its own pass — the earlier challenge does not cover it, and treating one
 per-session run as satisfying the gate is how an unreviewed plan reaches the operator. The same
-applies to a revision: **re-run this skill on the revised document**, because a fix pass introduces
-defects at roughly the rate it resolves them. Measured on a churn-forensics plan — the second pass
-found three errors and *all three were introduced by the first pass's own correction* — so Step 4's
-resolution loop must re-derive every figure a fix touched rather than carrying the pre-fix number
-forward.
+applies to a revision, with a cap: **at most two runs per document**. **Re-run this skill once on
+the revised document**, because a fix pass introduces defects at roughly the rate it resolves
+them. Measured on a churn-forensics plan — the second pass found three errors and *all three were
+introduced by the first pass's own correction* — so Step 4's resolution loop must re-derive every
+figure a fix touched rather than carrying the pre-fix number forward. That re-run is the second
+and last run, because further runs mostly add churn: a later run edits only for a factual error,
+a contradiction, a missing item or an unsafe statement — not for wording, order or taste. The
+full re-read of the document belongs to that same run, not to an extra one, and a fresh-reader
+re-review counts as the second run, within the limits the post-task-review skill sets for a
+fresh reader.
 
 ---
 
@@ -57,7 +62,7 @@ requests, Step 2.7 also sends you to the documents its steps depend on. Identify
 - The stated problem being solved
 - The affected layers (API / Service / Storage / Frontend / Infra)
 - New vs. modified components
-- Any external dependencies (DB, AI provider APIs, WebSocket, JWT, Cloud services)
+- Any external dependencies (DB, AI provider APIs, streaming channels, auth providers, Cloud services)
 
 Then run the DoR pre-flight from [references/dor-tables.md](references/dor-tables.md).
 
@@ -142,7 +147,7 @@ Each question must produce either a confident answer or a finding:
    If the answer is "unknown" or "system goes down," that is a Blocker unless failure handling is already covered.
 
 3. **Rollback**: What is the rollback plan if this deploys with a bug?
-   If none is stated and this touches DB schema, API contracts, or WebSocket events, flag as Major Impact.
+   If none is stated and this touches DB schema, API contracts, or message and event formats, flag as Major Impact.
 
 4. **Problem evidence**: Does the document state — in operator-plain language, before any solution —
    WHAT problem it solves, HOW OFTEN it occurs (a measured figure with its window and source), and
@@ -236,13 +241,16 @@ For each finding:
      - No → revise the fix, re-apply, re-evaluate (one more iteration)
   4. If the fix requires information only the user has after 2 iterations: mark `[UNRESOLVED]`
 
+In a later run (the run cap in When This Skill Activates), resolve only the classes the run cap
+names; drop every other finding, a Minor included, without fixing or surfacing it.
+
 ### Step 5 — Determine Output
 
 - If **any Blockers or Questions remain `[UNRESOLVED]`**: the document is **NOT APPROVED**.
   Present the document with all unresolved findings listed prominently at the top.
 - If **all Blockers and Questions are resolved**: the document is **APPROVED**.
   Present it normally. Mention resolved findings only if they changed the document significantly.
-- **Minor findings** are always fixed silently and never surfaced to the user.
+- **Minor findings** are never surfaced to the user: they are fixed silently, or dropped in a later run (Step 4).
 
 See [references/finding-format.md](references/finding-format.md) for severity definitions and output format.
 
@@ -250,15 +258,7 @@ See [references/finding-format.md](references/finding-format.md) for severity de
 
 ## Project-Specific Context
 
-When reviewing plans in this project, keep in mind:
+Read the project's own architecture, conventions and Do-not sections (its AGENTS.md) and review the plan against what they state; a convention the project does not state is not a finding. Two AI checks hold in every project:
 
-- **Vertical slice**: every new component must fit into `features/<feature>/{api,services,storage}`. Plans that place business logic in `core/` or cross-feature imports are architectural violations.
-- **One-class-per-file**: each new file must contain exactly one class, enum, or model. Plans that propose "combined" files need justification.
-- **WebSocket events**: any change to the core WebSocket event enums (e.g., client-event or outbound-event enums) affects the wire protocol. Stale-client behavior must be addressed.
-- **Alembic only**: schema changes without a migration are a Blocker. `ALTER TABLE` on tables with >10k rows needs a note on locking strategy.
-- **JWT auth**: internal endpoints use `BaseInternalClient` with JWT. Plans that call internal services without this are a Security Blocker.
-- **Prompt sanitization**: any plan that builds LLM prompts must reference the sanitization step. Raw string concatenation is a Security Blocker.
-- **Config, not env**: reading `os.getenv()` directly in services is a convention violation. Settings must come from `core/config.py`.
-- **Test timeouts**: every test must use a timeout decorator. Plans that add tests without specifying this are a Minor finding.
-- **AI failure modes**: any plan involving AI provider API calls (e.g., OpenAI) must address rate limits, timeouts, and unexpected response formats. Missing failure contracts are a Major finding.
-- **AI model facts must be doc-verified**: any plan that states a model ID, event name, session parameter, audio format, or capability limit must have that fact verified against the official docs via `WebFetch` (see the `ai-docs-lookup` skill). Unverified AI provider facts are a Major finding — in-memory knowledge is unreliable for this project.
+- **AI failure modes**: any plan involving AI provider API calls must address rate limits, timeouts, and unexpected response formats. Missing failure contracts are a Major finding.
+- **AI model facts must be doc-verified**: any plan that states a model ID, event name, session parameter, audio format, or capability limit must have that fact verified against the official docs via `WebFetch` (see the `ai-docs-lookup` skill). Unverified AI provider facts are a Major finding — in-memory knowledge is unreliable for these facts.

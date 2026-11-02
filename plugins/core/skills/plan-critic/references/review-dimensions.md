@@ -7,13 +7,13 @@ Applies when the plan introduces: new endpoints, new auth flows, new service int
 **Auth & Access**
 - Is authentication explicitly stated — not just inherited by assumption?
 - Are authorization boundaries defined per operation (not just at the entry point)?
-- Are new service-to-service calls using JWT auth via `BaseInternalClient`?
+- Is authentication between services stated for every new service-to-service call, in the form the project's conventions require?
 - Are internal endpoints excluded from public OpenAPI docs?
 
 **Input & Data**
 - Where does untrusted input enter the system? Is it validated before use?
 - Is sensitive data masked in logs, error responses, and API payloads?
-- Are secrets read from `core/config.py` — not hardcoded or read via `os.getenv()` in services?
+- Are secrets loaded through the project's own configuration mechanism — not hardcoded, and not read ad hoc inside business logic?
 
 **Surface Area**
 - Are new public endpoints accompanied by a threat model or at least a note on rate limiting?
@@ -47,7 +47,7 @@ Applies when the plan introduces: new endpoints, new auth flows, new service int
 - Does the feature degrade gracefully, or does it fail completely?
 
 **Concurrency & Data Integrity**
-- Are there race conditions in the proposed flow (e.g., concurrent WebSocket events, parallel task creation)?
+- Are there race conditions in the proposed flow (e.g., concurrent events or messages, parallel task creation)?
 - Is idempotency required and designed for where operations may be retried?
 - Are DB transactions scoped correctly — not too broad (locking hot rows), not too narrow (partial writes)?
 
@@ -62,21 +62,21 @@ Applies when the plan introduces: new endpoints, new auth flows, new service int
 ## Dimension 4 — Impact & Affected Areas
 
 **Breaking Changes**
-- Does this modify an existing API contract (request shape, response shape, HTTP status, WebSocket event type)?
+- Does this modify an existing API contract (request shape, response shape, HTTP status, message or event type)?
 - Are there consumers of changed interfaces outside the stated scope? (frontend, other backend features, internal clients)
-- Does this change the wire format of any WebSocket event? Stale-client behavior must be defined.
+- Does this change the wire format of any message or event its consumers parse? Stale-client behavior must be defined.
 
 **Database & Data Layer**
-- Does this add, modify, or remove schema elements? Is there an Alembic migration?
+- Does this add, modify, or remove schema elements? Is there a migration?
 - Is the migration reversible? Will it lock tables under production load (e.g., `ALTER TABLE` on a large table)?
-- Are queries going through repositories — not called directly from services?
+- If the project's conventions require it, are queries going through repositories — not called directly from services?
 
 **Deployment & Rollout**
 - Does this require infrastructure changes not captured in the plan (env vars, secrets, Docker, cloud deployment config)?
 - Is there a rollback path? (migration downgrade, feature flag, old endpoint preserved?)
 
 **Performance**
-- Does this add latency or query overhead to existing hot paths (e.g., WebSocket message handlers, real-time streams)?
+- Does this add latency or query overhead to existing hot paths (e.g., message handlers, real-time streams)?
 - Are performance assumptions backed by evidence?
 
 > Challenge trigger: "What existing behavior changes — even unintentionally?"
@@ -92,8 +92,7 @@ Applies when the plan introduces: new endpoints, new auth flows, new service int
 
 **Testing Strategy**
 - Are unit, integration, and edge case tests included?
-- Do all tests use timeout decorators (`fast_test`, `integration_test`, `websocket_test`)?
-- Are external services mocked via DI overrides — not patched directly?
+- Do all tests carry the timeout guard the project's testing conventions require?
 
 **Scope Hygiene**
 - Is out-of-scope explicitly stated?

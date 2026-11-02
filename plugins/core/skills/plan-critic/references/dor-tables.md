@@ -20,7 +20,7 @@ Apply when reviewing `requirements.md` or `spec.md`:
 
 ## Design/Plan DoR Table
 
-Apply when reviewing `design.md`, `spec.md` (combined), or a Cursor plan:
+Apply when reviewing `design.md`, `spec.md` (combined), or any implementation plan:
 
 | Verification question | If "No" or "Unknown" | Severity |
 |-----------------------|---------------------|----------|

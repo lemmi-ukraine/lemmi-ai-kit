@@ -9,6 +9,8 @@
 | Minor | Suboptimal but not dangerous — technical debt risk | Fix silently in the document |
 | Question | Missing clarity that may reveal a deeper problem | Surface to the user; cannot proceed until answered |
 
+In a later run only the classes named by the run cap (Step 4) are acted on; every other finding is dropped.
+
 ## Finding Format
 
 For each issue found, record it internally during review (not shown to user unless unresolved):
