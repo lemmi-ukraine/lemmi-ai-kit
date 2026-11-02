@@ -13,16 +13,18 @@ which is what this document is for.
 
 ## Level names
 
-Use the names the project already uses. Where the project ships a language pack with its own
-test-type decision table, **that table is authoritative** — read it for the project's level names,
-its base-class rules, and any required timeout or marker decorators, then use those names in the
-plan verbatim so the plan and the suite agree.
+The project's own testing conventions come first: use the level names the project already uses,
+with its base-class rules and any required timeout or marker decorators, verbatim, so the plan
+and the suite agree. Where the project ships a language pack with its own test-type decision
+table, read it as well, but it applies only where it matches the code under test: one written
+for another language never overrides the project's own conventions.
 
-Route to it **by role, not by name**: "the language pack's testing conventions reference". A core
-skill that hardcodes a specific pack skill's name breaks in projects using a different pack or
+Route to the pack **by role, not by name**: "the language pack's testing conventions reference". A
+core skill that hardcodes a specific pack skill's name breaks in projects using a different pack or
 none, and this repo enforces that with a boundary test.
 
-Where the project provides no such table, these generic levels are a safe default:
+Where neither the project's conventions nor a matching table names the levels, these generic
+levels are a safe default:
 
 | Level | Proves | Cannot prove |
 |---|---|---|

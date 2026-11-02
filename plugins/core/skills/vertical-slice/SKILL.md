@@ -4,10 +4,10 @@ user-invocable: false
 metadata:
   type: reference
 description: |
-  Enforce vertical slice architecture for Python backend features.
-  Covers feature directory scaffolding, layer separation (API/Service/Storage),
-  one-class-per-file convention, prompt-as-view pattern, enum placement, import rules,
-  and anti-patterns. Use when: creating new backend features, adding files to existing
+  Enforce vertical slice architecture for Python backend features. Covers feature directory
+  scaffolding, layer separation (API/Service/Storage), one-class-per-file convention,
+  prompt-as-view pattern, enum placement, import rules, and anti-patterns. Use when, in a Python
+  repository laid out by feature: creating new backend features, adding files to existing
   features, reviewing feature structure, or troubleshooting circular imports between features.
 ---
 

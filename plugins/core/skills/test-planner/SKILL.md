@@ -133,12 +133,13 @@ Two rules:
    name the levels you excluded and why — one clause is enough. Silence reads as "nobody
    considered it" to the next reader.
 
-**Where the project ships a language pack with its own test-type decision table, that table is
-authoritative — defer to it rather than inventing a competing taxonomy.** Read the pack's
-testing conventions reference for the project's own level names, its base-class rules, and its
-required timeout decorators, and use those names in the plan. Do not hardcode any pack skill's
-name here; route by role, so the plan stays correct in a project with a different language pack
-or none at all.
+**The project's own testing conventions come first.** Use its level names, its base-class rules
+and its required timeout decorators in the plan, so the plan and the suite agree. Where the
+project ships a language pack with its own test-type decision table, read the pack's testing
+conventions reference as well, but it applies only where it matches the code under test: one
+written for another language never overrides the project's own conventions. Do not
+hardcode any pack skill's name here; route by role, so the plan stays correct in a project with a
+different language pack or none at all.
 
 Level names, the default-downward decision tree, and the exclusion phrasing:
 [references/level-assignment.md](references/level-assignment.md)

@@ -159,8 +159,10 @@ substitute for this pass.
   pinned on both sides? That is duplication, not thoroughness — the same assertion maintained in
   several places with no authoritative failure. Major.
 - Are upward level moves justified in writing, and are excluded levels named?
-- Where the project ships a language pack with its own test-type table, does the plan use that
-  table's level names — or has it invented a competing taxonomy? Major.
+- Does the plan let the project's own testing conventions come first for its level names? A
+  language pack's testing conventions reference applies only where it matches the code under test,
+  so a plan is not wrong for skipping one written for another language; it is wrong when it
+  invents level names that the conventions, or a matching table, already define. Major.
 
 **Verification method**
 - Does every NFR have a method (`automated` / `observability` / `manual` / `accepted-unverified`)?

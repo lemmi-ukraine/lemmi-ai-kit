@@ -3,7 +3,7 @@ name: test-conventions
 description: >
   Testing conventions for the Python backend. Integration-first philosophy,
   DI-based mocking, timeout decorators, base class rules, factory usage,
-  and banned patterns. Use when writing, reviewing, or scaffolding test files.
+  and banned patterns. Use when writing, reviewing, or scaffolding Python test files.
 user-invocable: false
 metadata:
   type: reference

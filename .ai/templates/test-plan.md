@@ -27,9 +27,10 @@
 
 ## Test Levels
 
-<!-- Use the project's own level names. Where a language pack ships a test-type decision table,
-     that table is authoritative — read the pack's testing conventions reference and use its
-     names verbatim, so the plan and the suite agree. -->
+<!-- The project's own testing conventions come first: use its level names verbatim, so the plan
+     and the suite agree. Where a language pack ships a test-type decision table, read the pack's
+     testing conventions reference too; it applies only where it matches the code under test: one
+     written for another language never overrides the project's own conventions. -->
 
 | Level | What it proves here | Case count | Harness / base class | Ownership |
 |-------|--------------------|-----------|----------------------|-----------|
