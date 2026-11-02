@@ -135,6 +135,26 @@ to its home above and removed here.
 - **Verify-at**: tests/test_shared_index_protocol.py
 - **Scope**: durable
 
+### [2026-11-02] An emptied parametrize table collects no case, so a size check inside the parametrized test never runs
+- **Context**: Fixing the plan-critic package's wording tests, whose planted forms and change rows are parametrized tables.
+- **Finding**: With a table emptied, pytest reports the parametrized test as one skip (an empty parameter set) and the suite stays green. On the earlier test file, dropping a planted form, dropping a change row, dropping a kept row and emptying the kept table each passed (the last as 60 passed, 1 skipped), and a count written inside the parametrized test could not see any of them, because it runs once per row. A separate test that asserts each table's stated size failed on all four. Two neighbouring blind spots remain: renaming the whole parametrized test away, and a duplicated row key that keeps every size.
+- **Impact**: Give every parametrized table a stated size asserted by a test of its own, never by the parametrized test; read an unexpected skip in a wording-test run as a possibly empty table; assert unique row keys where rows are keyed.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_plan_critic_neutrality.py::test_the_planted_forms_and_the_rows_keep_their_stated_number
+- **Scope**: durable
+
+### [2026-11-02] A replay of real commands with no false denial says nothing about whether the tests would notice a rule change
+- **Context**: Verifying the shell-prefix hook, whose table (446 shapes when the mutants were run, 468 after the fix rounds) and a replay of about 75,000 recorded commands both passed.
+- **Finding**: The replay checked verdicts: every denial was a true positive of its stated rule, and the old and the new hook agreed on every recorded command. A verifier's own 293 mutants of the hook and its launcher then left 48 survivors: 9 on plausible shapes (a backslash before `cd`, a heredoc body that names `cd`, a backtick inside a PowerShell command name, a launcher entry that is not a command hook, among others), 15 on odd shapes only, and 24 with no verdict difference on any input tried. A fix round gave each plausible survivor its own row or assertion, and the next round's 20 mutants all died.
+- **Impact**: Treat a replay as evidence about behaviour and a mutation run as evidence about the tests; a guard needs both before its table is called coverage. Generate mutants per rule branch, keep a planted kill and a planted no-op as controls, and give each survivor on a plausible shape a row that fails without its branch.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_gate_shell_prefix.py::test_the_hook_decides_each_shape
+- **Scope**: durable
+
 ## Convention Clarifications
 
 ### [2026-10-30] A skill's step list restated outside the skill goes stale when the skill grows

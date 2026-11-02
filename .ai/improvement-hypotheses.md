@@ -17,6 +17,30 @@
 
 ## 2026-11-02
 
+### [SKILL-MODIFIED] Plan reviews cite no one stack's rules and stop at the second run
+- **Category:** Quality
+- **Hypothesis:** By replacing eight project-specific rules with a read of the project's own conventions and capping a document at two runs, we expect plan reviews in a repository whose AGENTS.md states none of those rules to raise no finding that cites one and to end at the second run, because the skill no longer carries the rules and its per-artifact paragraph makes the re-run the second and last.
+- **Signal:** Over the next five plan-critic runs in such a repository, or by 2026-12-28, whichever comes first, read each run's findings and its document's run count in the transcript: confirm if none cites a feature layout, a file rule, a migration tool, an auth client, a config module, a prompt step or a test decorator, and no document gets a third run; refute if one does either; inconclusive with fewer than five runs.
+- **Risk:** A project that relied on the old bullets without stating them stops getting those checks, and the cap relies on the session electing to stop, so it can also end a review before a real defect is found; neither shows unless transcripts are read.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-02 — Make plan-critic read the project's own conventions and stop at two runs, have an opted-out project state its own agent cap, and add an opt-in shell-prefix hook with registrations that fail open
+
+### [SKILL-MODIFIED] Plans for an opted-out project name the project's own agent cap
+- **Category:** Coverage
+- **Hypothesis:** By adding a placeholder under the execution-plan template's derivation 3 and a sentence to the roadmap template's constraints section that say an opted-out project still states its own cap on simultaneous agents, we expect the plans written for such a project to name that cap instead of showing "not applied: project opt-out" alone, because a planner fills the slots its template hands it and before this change no slot asked for a cap.
+- **Signal:** In the next 3 `execution-plan.md` or `roadmap.md` files the planner writes under `.specs/` for a project that opts out, or by 2026-12-28, whichever comes first: confirm if each names the project's own cap in derivation 3 or the constraints row (a number from its AGENTS.md, or an explicit "none stated"); refute if one shows only "not applied: project opt-out" or the placeholder left unfilled; inconclusive with fewer than 3 such files.
+- **Risk:** It relies on a planner electing to fill the placeholder; a project that states no cap leaves only "none stated" to read; the planner SKILL.md does not carry the cap sentence, so a plan written without the templates is not covered.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-02 — Make plan-critic read the project's own conventions and stop at two runs, have an opted-out project state its own agent cap, and add an opt-in shell-prefix hook with registrations that fail open
+
+### [INFRA-MODIFIED] A project that switches the shell-prefix hook on retries a denied call in a working form, with no false denial
+- **Category:** Consistency
+- **Hypothesis:** By refusing, in a project that sets `enabled` in `.ai/shell-prefix-hook.json`, a shell call that moves the persistent working directory, shadows `cd` or starts with an assignment, each with a message that names remedies that work, we expect that project's sessions to retry a denied call in one of the named forms rather than in a disguise, and no ordinary command to be denied, because each denial names a form to retry with and the switch file is read on every call.
+- **Signal:** Over the next 20 session transcripts of the first project that switches the hook on, or by 2026-12-28, whichever comes first: count the hook's denials and read each; confirm if none is a false positive and no session retries a denied shape in a disguise more than once; refute if one denial is a false positive or one session retries a disguise twice or more; inconclusive if no project has switched the hook on by then or fewer than 5 sessions ran with it on.
+- **Risk:** The hook is off by default, so the window may close with no project switched on; a session can route around it through a wrapper the docstring lists as a limit (a path to `env`, `command export`), which a denial count reads as compliance; and while off it still starts a process per shell call for every Core user.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-02 — Make plan-critic read the project's own conventions and stop at two runs, have an opted-out project state its own agent cap, and add an opt-in shell-prefix hook with registrations that fail open
+
 ### [INFRA-MODIFIED] A completion review starts from a printed list of its mechanical checks
 - **Category:** Coverage
 - **Hypothesis:** By giving the post-task review a script that prints the changed files (untracked ones included), the raw diff stat against the plan, Step 0's dependents with the count of files searched, line endings, lint scope and the matrix lookups, we expect the next completion reviews to carry a dependents list with every reader marked and a comparison of the changed files against the plan even when the session is near its context line, because those lists no longer have to be recalled and retyped from commands with known blind spots.
