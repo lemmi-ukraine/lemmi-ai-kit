@@ -87,3 +87,31 @@ A line that disagrees with what the delegate finds, or that holds a placeholder,
 delegate writes nothing and says so in one sentence. The delegate's first step, before any write, is
 a done check (the return note at the named return path exists) and a live-peer check, as `SKILL.md`
 § 2b says: copy both into the brief's preconditions.
+
+## Rules a dispatch brief carries
+
+Each rule was added after a session stopped, or ran twice, without it. Where a rule binds the
+delegate, the brief states it, and the delegate obeys it before its first write.
+
+- **A paste line is printed by a command, never typed.** A commit id, branch or date typed into the
+  line can be left unfilled. The session that writes the brief runs a command that prints the line
+  and gives the operator that output. The line carries no substitution of its own: a `$(...)` in a
+  pasted line has arrived unexpanded.
+- **Stop on ANY `<...>` placeholder.** A delegate told to stop on two named spellings walks past the
+  third. A `<...>` in a command template means "fill it from the command that names it", and one the
+  delegate cannot fill is a stop: nothing is written, and its one-sentence report names the
+  placeholder.
+- **The return note is the first write.** The note and the session's scratch folder come before any
+  other file, each made by an operation that fails if it exists (the create collision,
+  [12k](../../parallel-session-safety/references/shared-index-protocol.md)). One that exists means
+  another run holds this page: the delegate stops and reads it, and a second run of the same brief
+  finds the first run's note instead of repeating its work.
+- **A project's standing decision beats a session default.** A session starts with defaults it did
+  not choose, such as an injected reference that says to fan work out to sub-agents. Where the
+  project has ruled otherwise, the brief states the ruling and the default it overrides: a loaded
+  reference describes an action and does not authorize it.
+- **Preconditions are commands with expected results**, as `SKILL.md` § 2b says. The expected result
+  is a literal the delegate compares, and a surprise is a stop to re-derive, never a judgment call.
+- **A kickoff that says "any other reply is a no" says what a plain affirmative means.** "Yes" is the
+  likeliest reply. The brief lists what it permits (commits by explicit pathspec, say) and what stays
+  the operator's (push, tag, release), so the delegate neither does everything nor stalls.

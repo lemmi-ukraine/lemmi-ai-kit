@@ -484,7 +484,7 @@ it with the blob that lands (12a); re-derive anything else at write time (ยง7, ย
 > **Exact commands are in [references/shared-index-protocol.md](references/shared-index-protocol.md):**
 > per-line contention (12a), a held index (12b), work after staging (12c), "Everything up-to-date" (12d),
 > a multi-branch operation (12e), a draft base (12f), content proof (12g), a merge dry run (12h),
-> editing a held file (12i), handing a file back (12j), the create collision (12k).
+> editing a held file (12i), handing a file back (12j), the create collision (12k), naming a peer (12l).
 
 ---
 

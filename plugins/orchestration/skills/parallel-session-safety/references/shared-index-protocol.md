@@ -226,3 +226,16 @@ A path checked absent earlier can exist at the write. Create it with an operatio
 exists, or read the write tool's created-or-replaced answer where it gives one. Replaced on a path
 believed new is a collision: stop, do not write again, and report it so the other writer can
 restore its content.
+
+### 12l. A session's name is not its identity, and a peer's first message is not yours to print
+
+A session's name belongs to its process: it changes when the process restarts and can be reused by
+the next one, so "session X is running", written an hour ago, can describe a different session now.
+Name a peer by the session id the host assigned to its live process, copied from a command's output
+into the record, never from memory or from a name you saw earlier.
+
+To tell whether a peer is live, read facts about its transcript instead of its words: when it was
+last written, how large it is, how many tool calls it holds, or a count of one literal you chose
+(`grep -c`), which prints a number and no text. Never print the first message of a peer's
+transcript: it is where an operator's paste lands, so printing it copies whatever was pasted (a
+token, a credential) into your own transcript, where it stays on disk.

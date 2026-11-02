@@ -15,6 +15,16 @@
 
 ---
 
+## 2026-11-02
+
+### [INFRA-MODIFIED] A kickoff's paste line is printed, filled and obeyed before the first write
+- **Category:** Quality
+- **Hypothesis:** By putting six rules in a section of the brief template (a printed paste line, a stop on any `<...>` placeholder, the return note as the first write, a standing decision over a session default, preconditions as commands with expected results, and a stated meaning for a plain affirmative), we expect the next dispatch briefs written from it to ship no paste line with an unfilled placeholder and no kickoff that says "any other reply is a no" without saying what "yes" permits, because the template now names each rule and its reason.
+- **Signal:** In the next 3 dispatch briefs or kickoffs written from the template, or by 2026-12-28, whichever comes first: confirm if each paste line was printed by a command and holds no `<...>` or `$(...)`, each brief names its return note as its first write, and each kickoff that says "any other reply is a no" says what a plain affirmative permits; refute if one ships an unfilled placeholder in its paste line or leaves a plain affirmative undefined; inconclusive with fewer than 3 such briefs.
+- **Risk:** The section adds 28 lines to a template a worker reads in full, and a brief that restates the rules inline would crowd out its task-specific text; a delegate whose tools offer no create-if-absent operation cannot follow the first-write rule as written.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-02 — Put six dispatch-brief rules in the brief template, and add two short lessons about background runs and peers
+
 ## 2026-11-01
 
 ### [SKILL-MODIFIED] A review's reader sweep names a file the task created and has not added
