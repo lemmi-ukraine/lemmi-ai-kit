@@ -155,6 +155,35 @@ to its home above and removed here.
 - **Verify-at**: tests/test_gate_shell_prefix.py::test_the_hook_decides_each_shape
 - **Scope**: durable
 
+### [2026-11-02] A brief's counts and quoted phrases can be wrong while its rows are right, so a probe at the start commit decides each test's premise
+- **Context**: Four portability packages, each built from a brief that quoted the old text it rewrites and counted its places.
+- **Finding**: In three packages a brief's facts did not reproduce: "seven phrases in four files" was six occurrences of four shapes in three files; a phrase said to appear twice read "the full" at one site and "the whole" at the other; and one file a row rewrote never held the row's quoted phrase, so its test could not go red on that phrase. A probe that counted each old string by occurrence and by file at the start commit, before any test was written, caught all three.
+- **Impact**: Before writing a wording test, probe every old string the row names at the start commit, by file and by occurrence, and record the counts; where a quoted phrase is absent from a file the row rewrites, pin that file's own old clause instead, or its guard is green on the old text.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: prose
+- **Verify-at**: tests/test_planner_pack_scope.py
+- **Scope**: durable
+
+### [2026-11-02] A guard that asserts a bare phrase passes any sentence that says it, so the subject goes into the pattern and the check is fired at look-alikes
+- **Context**: Verifying the wording tests of the test-guidance and skill-authoring packages.
+- **Finding**: A guard that required "come first" passed a look-alike first sentence ("Tests come first.") planted in four files; asserted with its subject, "project's own testing conventions come first", the same look-alikes failed. A probe for a false claim that read one "sentence" of folded markdown flagged a true sentence appended after a bullet with no full stop, until the claim was written as a pattern that holds the skill's name.
+- **Impact**: Assert a required phrase together with its subject, and a banned claim as a pattern that holds the name it is about; fire each check at look-alikes of its phrase and at a true sentence beside it before a green run is trusted.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_planner_pack_scope.py::test_a_look_alike_of_a_new_phrase_does_not_stand_in_for_it
+- **Scope**: durable
+
+### [2026-11-02] A mutation harness that reads only exit codes counts a test that never ran as a killed mutant
+- **Context**: Running mutants of the log-analysis package's tests from a Python driver on Windows.
+- **Finding**: A bare `bash` started from a Python subprocess resolved to the WSL launcher stub on the PATH, not Git Bash, so no test ran and the launcher still exited 1, which a classifier reading exit codes counts as a kill. The harness's own controls (an unmutated copy must pass, a known mutant must fail) exposed it before any verdict was used.
+- **Impact**: Classify each mutant from pytest's own summary line, never from the exit code alone; run the controls before the mutants; start a shell from a subprocess by its full path.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: prose
+- **Scope**: durable
+
 ## Convention Clarifications
 
 ### [2026-10-30] A skill's step list restated outside the skill goes stale when the skill grows

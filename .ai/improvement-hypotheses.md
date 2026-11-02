@@ -17,6 +17,38 @@
 
 ## 2026-11-02
 
+### [SKILL-MODIFIED] Skill creation and review cite no decision an adopter cannot read and name only commit-message as user-only
+- **Category:** Quality
+- **Hypothesis:** By rewording six opaque or dated policy citations as the kit's own recommendation and naming commit-message as the one kit skill a model may not invoke, we expect skill-creator and skill-reviewer runs in an adopter repository to cite no decision label or dated project policy and to call no kit skill but commit-message user-only, because the shipped text now states only what the kit can show.
+- **Signal:** Over the next 5 skill-creator or skill-reviewer runs in a consumer repository, or by 2026-12-28, whichever comes first, read each run's output in the transcript: confirm if none cites a decision label or a dated project policy and none says a session may not invoke branch-switch; refute if one does either; inconclusive with fewer than 5 runs.
+- **Risk:** The two skills run rarely in a consumer, so the window may close empty; the example names commit-message alone, so it goes stale if another kit skill takes the flag.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-02 — Make fifteen shipped skills read as written in any consumer: the project's own conventions and names, labelled one-repository examples, and no false claim about which skill a model may not invoke
+
+### [SKILL-MODIFIED] A plan in a repository the language pack does not cover uses its own level names with no finding for skipping the pack
+- **Category:** Quality
+- **Hypothesis:** By putting the project's own testing conventions before a pack's table and scoping two Python-only descriptions to Python, we expect plans written in a repository the pack does not cover to use that repository's own level names with no plan-critic finding for ignoring the pack, and the two skills to stop loading on non-Python test and backend-feature work, because the old texts called the table authoritative everywhere and the two Use-when clauses matched any test or backend feature.
+- **Signal:** Over the next 3 test plans that plan-critic reviews in a non-Python repository, or by 2026-12-28, whichever comes first: confirm if none gets a finding for not using a pack's level names and neither Python convention skill loads in those sessions; refute if one plan gets such a finding or one of the two skills loads on non-Python work; inconclusive with fewer than 3 such plans.
+- **Risk:** The host decides loading from the description, which only a transcript shows; a repository that states no testing conventions now falls back to the generic levels, which can read as a weaker plan.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-02 — Make fifteen shipped skills read as written in any consumer: the project's own conventions and names, labelled one-repository examples, and no false claim about which skill a model may not invoke
+
+### [SKILL-MODIFIED] Log analysis in a repository with its own task prefixes and id names files no task under a reserved prefix and counts distinct ids
+- **Category:** Coverage
+- **Hypothesis:** By making the task prefix, the correlation field, the pin location and the brief sources project-supplied, we expect an analyze-logs run in a repository that reserves the new-work prefix and spells its ids differently to file no task under the reserved prefix and to count distinct ids with a grep that matches lines, because the skills no longer name one project's prefix or ids.
+- **Signal:** Over the next 3 analyze-logs runs in a repository whose AGENTS.md names its own task prefixes or id fields, or by 2026-12-28, whichever comes first: confirm if no task file uses a prefix the project does not name and every distinct-id count comes from a grep that matched lines; refute if one does either; inconclusive with fewer than 3 runs.
+- **Risk:** A project that names neither prefixes nor a correlation id row gets no default, so a run may file nothing where it filed something before; renaming the Step 1a row the grep points at leaves every test green.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-02 — Make fifteen shipped skills read as written in any consumer: the project's own conventions and names, labelled one-repository examples, and no false claim about which skill a model may not invoke
+
+### [SKILL-MODIFIED] Adopters in another stack stop copying one repository's idiom, source root or CI job from the planners and reviews
+- **Category:** Consistency
+- **Hypothesis:** By labelling the stack-specific samples as one repository's examples, taking `<source-roots>` in the chokepoint search and swapping the learnings example for a language-neutral one, we expect adopters in another stack to stop copying a try/except routing layer, a `backend/` root or a lint, typecheck and pytest CI job into their own learnings entries, plans and reviews, because the text no longer reads as their project's rule.
+- **Signal:** By 2026-12-28 (calendar backstop), sample the learnings entries, planner tables and review outputs both consumers wrote after this change: confirm if none carries the try/except routing idiom, a `backend/` pathspec or a three-gate CI job that the consumer's own stack lacks; refute if one does; inconclusive if fewer than 5 such artifacts exist by then.
+- **Risk:** learnings-format Examples 2 to 4 and several worked examples still name one repository's stack, so a copy can still come from there, and a sample of 5 says little.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-02 — Make fifteen shipped skills read as written in any consumer: the project's own conventions and names, labelled one-repository examples, and no false claim about which skill a model may not invoke
+
 ### [SKILL-MODIFIED] Plan reviews cite no one stack's rules and stop at the second run
 - **Category:** Quality
 - **Hypothesis:** By replacing eight project-specific rules with a read of the project's own conventions and capping a document at two runs, we expect plan reviews in a repository whose AGENTS.md states none of those rules to raise no finding that cites one and to end at the second run, because the skill no longer carries the rules and its per-artifact paragraph makes the re-run the second and last.
