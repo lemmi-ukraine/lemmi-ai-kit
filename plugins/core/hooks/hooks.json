@@ -6,7 +6,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run --no-project --python \">=3.11\" python -B \"${CLAUDE_PLUGIN_ROOT}/hooks/gate_learnings_drain.py\"",
+            "command": "uv run --no-project --python \">=3.11\" python -B -P -c \"import os,runpy,sys;p=sys.argv[1];sys.argv=[p];os.path.isfile(p) and runpy.run_path(p,run_name='__main__')\" \"${CLAUDE_PLUGIN_ROOT}/hooks/gate_learnings_drain.py\"; exit $LASTEXITCODE",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --python \">=3.11\" python -B -P -c \"import os,runpy,sys;p=sys.argv[1];sys.argv=[p];os.path.isfile(p) and runpy.run_path(p,run_name='__main__')\" \"${CLAUDE_PLUGIN_ROOT}/hooks/gate_shell_prefix.py\"; exit $LASTEXITCODE",
             "timeout": 10
           }
         ]

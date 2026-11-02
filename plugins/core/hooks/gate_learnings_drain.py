@@ -48,7 +48,9 @@ HONEST LIMITS — read these before trusting the guard
    script that reads the file and writes some OTHER file is denied, because the write is not
    tied to the file. The Edit/Write arms are exact because they see the content; the shell
    arm is a speed bump.
-3. **Hook config snapshots at session start**, so registering this engages next session.
+3. **Hook config snapshots at session start**, so registering this engages next session; the
+   plugin documentation says `/reload-plugins` loads a change into a session that is already open,
+   which was not tried here.
 4. It fails **open** on any malformed payload. A guard that crashes must not block unrelated
    work.
 
