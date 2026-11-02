@@ -279,7 +279,7 @@ several workstreams must edit. It reshapes the schedule more than any other inpu
 git log --format= --name-only <base>..<tip> | sort | uniq -c | sort -rn | head
 
 # Planned work: does one file host the symbols two workstreams both need?
-git grep -n "<symbolA>\|<symbolB>" -- backend/
+git grep -n "<symbolA>\|<symbolB>" -- <source-roots>
 ```
 
 In the 2026-08-15 plan, one 608-line prompt builder hosted **both** stage builders that two separate

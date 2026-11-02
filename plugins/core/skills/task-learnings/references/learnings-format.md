@@ -146,14 +146,14 @@ them when reading; never add NEW entries under a non-canonical section.
 ### Example 1: Convention Clarification (with routing fields)
 
 ```markdown
-### [2026-02-15] Feature exception conversion must happen in routes, not services
-- **Context**: New feature implementation — service was raising HTTPException directly
-- **Finding**: Feature-specific exceptions (e.g., `SessionNotFoundError`) must be caught in API routes and converted to shared exceptions (`NotFoundError`). Services should raise feature-specific exceptions only.
-- **Impact**: When writing service code, always raise feature-specific exceptions. In routes, wrap service calls with try/except that converts to shared exceptions.
+### [2026-02-15] Stored timestamps are UTC instants; the user's zone applies only when rendering
+- **Context**: Reminder scheduling feature — reminders fired an hour late after a daylight-saving change
+- **Finding**: The scheduler stored each reminder as a local time plus the offset in force on the day it was saved, then compared it against the current time. When daylight saving began, the saved offset was out of date, so every comparison was off by an hour. The written convention said to store times "consistently" and never named a zone.
+- **Impact**: Store and compare instants in UTC, and convert to the user's zone only when displaying. Reject a timestamp that arrives without an offset instead of guessing one.
 - **Category**: convention
-- **Home**: the installed language-conventions skill
-- **Enforce-via**: prose
-- **Verify-at**: backend/app/features/orders/api/routes.py
+- **Home**: agents-rule
+- **Enforce-via**: test
+- **Verify-at**: Reminders.due
 - **Scope**: durable
 ```
 

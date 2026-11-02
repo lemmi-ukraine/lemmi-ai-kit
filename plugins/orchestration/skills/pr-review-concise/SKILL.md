@@ -237,6 +237,7 @@ review that posts no inline comments and states its coverage is a complete revie
 ## Step 7 — Known false positives in this codebase
 
 Do not flag these. Each has cost a real round-trip.
+The gate commands and paths in this table are one repository's examples.
 
 | # | Pattern | Why it is not a defect |
 |---|---|---|

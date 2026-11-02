@@ -32,7 +32,8 @@ base advanced from one OID to another mid-review, which is what makes three-dot 
 
 ### 2. Gates — with exit codes AND scope
 
-The most valuable line in the source report was an admission:
+The most valuable line in the source report was an admission (the gate commands below are one
+repository's examples):
 
 ```markdown
 **Gates run:** `.venv/Scripts/ruff.exe check backend` → exit 0, "All checks passed!" ·

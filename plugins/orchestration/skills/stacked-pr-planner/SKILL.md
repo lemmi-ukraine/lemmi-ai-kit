@@ -97,7 +97,7 @@ feel too small to matter; those are the ones that historically land by accident.
 
 | Class | Contents |
 |---|---|
-| `MIGRATION` | Alembic migrations, destructive data operations, anything with a deploy hazard |
+| `MIGRATION` | Schema migrations (Alembic, EF Core), destructive data operations, anything with a deploy hazard |
 | `BACKEND` | Production runtime code and the tests that gate it |
 | `TOOLING` | Scripts, CI, dev-only utilities |
 | `DOCS` | Prose — split by lane below |
@@ -131,7 +131,7 @@ and binding vetoes exist; this repo has no CODEOWNERS and no announcement channe
 see a merged journal PR in time to veto it. Call it what it is: **review skipped, risk accepted,
 because a board row cannot be meaningfully rejected.** Merging is an outward action — the operator
 does it, not a session (`parallel-session-safety` §10). Lane J is also not free: with no `paths:`
-filter on the CI workflow, a docs-only PR still runs the full lint + typecheck + pytest job, which is
+filter on the CI workflow, a docs-only PR still runs the full CI job, which is
 a second reason to batch.
 
 **The load-bearing rule that follows:**
@@ -179,7 +179,7 @@ siblings hang off trunk.
 > every sibling** get the full run; **every non-bottom stacked layer gets none.** Put the
 > tested-critical work at the bottom or in a sibling, or name the covering run in the PR body
 > (`gh pr checks <n>`). This is a planning input, not a detail — and it is also why a Lane J docs PR
-> is not free: with no `paths:` filter, it runs the whole lint + typecheck + pytest job.
+> is not free: with no `paths:` filter, it runs the full CI job.
 
 Standalone-*reviewable* is the bar, not standalone-*shippable*. Google's guidance explicitly counts
 "a CL they've already reviewed" as available context, so a layer may depend on a reviewed layer below
@@ -290,6 +290,7 @@ author chose. The four counters, written for portability — **no `grep -P`**, w
 lookbehind/lookahead dies where `LANG` is unset ("-P supports only unibyte and UTF-8 locales"):
 
 ```bash
+# One project's layout, as in the table above: replace these paths from the project's AGENTS.md.
 F=$(git diff --name-only <base>...<layer>)
 MIGRATION=$(printf '%s\n' "$F" | grep -cE '^backend/app/storage/migrations/')
 BACKEND=$(printf   '%s\n' "$F" | grep -E '^backend/' | grep -vcE '^backend/app/storage/migrations/')
