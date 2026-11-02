@@ -307,6 +307,30 @@ def test_given_symbols_print_the_surface_beside_a_zero(tasked: _Run) -> None:
     assert f"  none found over {in_scope} files in scope" in lines
 
 
+def test_roots_limit_both_the_search_and_the_scan_surface_it_prints(
+    tasked: _Run,
+) -> None:
+    run = _run(tasked.repo, "--roots", "docs", "--symbol", "alpha")
+    in_docs = _git(
+        tasked.repo, "ls-files", "-c", "-o", "--exclude-standard", "--", "docs"
+    )
+    lines = _section(run, 3)
+    assert (
+        "scan: git grep -n --untracked -I -F; derived names over 0 code files, "
+        f"given names over {len(in_docs.splitlines())} files (roots: docs)"
+    ) in lines
+    assert (
+        "alpha (signature changed): 1 hits in 1 files; 1 outside the changed set"
+        in lines
+    )
+    assert any(
+        re.fullmatch(r"\s+UNKNOWN\s+docs/guide\.md\s+1 hit\(s\)", x) for x in lines
+    )
+    assert not any("src/" in x for x in lines), (
+        "readers outside the roots are not searched"
+    )
+
+
 def test_an_added_name_prints_counts_only_and_a_given_one_lists_its_readers(
     tasked: _Run,
 ) -> None:
