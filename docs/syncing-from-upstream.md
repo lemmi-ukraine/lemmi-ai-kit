@@ -235,9 +235,11 @@ They are **correct** diffs:
   falls back to the current directory.
 - **Upstream's `.cursor/` and `.kiro/` thin references** are out of scope for a Claude
   Code plus Codex plugin.
-- **No hooks.** Upstream enforces some rules with a `PreToolUse` hook; this kit ships
-  none, so a rule whose enforcement is a hook arrives as a suggestion. Port the rule
-  knowing that, or leave it.
+- **Only the kit's own hooks.** Upstream enforces some rules with a `PreToolUse` hook; the
+  kit ships just the hooks registered in `plugins/core/hooks/hooks.json` (a gate on
+  learnings drains, and a shell-prefix gate that does nothing until a project switches it
+  on), so a rule whose enforcement is any other hook arrives as a suggestion. Port the
+  rule knowing that, or leave it.
 
 ## 6. Known outstanding debt
 

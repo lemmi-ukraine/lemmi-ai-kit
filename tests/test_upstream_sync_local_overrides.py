@@ -64,7 +64,13 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "the 5.5a gates comment names exit 2",
         "the Related line names only the learnings routing",
     ),
-    "initiative-planner": ("project opt-out",),
+    "initiative-planner": (
+        "project opt-out",
+        "states its own cap on simultaneous agents",
+        "counts every live session on the account toward it",
+        "no default cap",
+        "derivation 3 names where the project opt-out is read",
+    ),
     "parallel-session-safety": (
         "12g to 12k",
         "section 2 (the content hash decides which candidate paths changed, 12g)",
@@ -75,7 +81,16 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "12b gains a sentence that a peer's staged file stops staging, not every edit (12i)",
         "its opening line no longer counts five failure modes",
     ),
-    "plan-critic": ("Step 2.7",),
+    "plan-critic": (
+        "Step 2.7",
+        "Project-Specific Context section is one instruction",
+        "examples that named one stack are neutral",
+        "layering line holds only where the project requires it",
+        "the DI-overrides line is gone",
+        "applies to any implementation plan",
+        "a two-run cap",
+        "severity table in finding-format.md",
+    ),
     "post-task-review": (
         "references/fix-rounds.md",
         "names the config's own default",

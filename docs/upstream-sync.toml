@@ -254,7 +254,7 @@ note = "Local override, 2026-10-30: scripts/audit_cleanup_targets.py refs opens 
 name = "initiative-planner"
 upstream = "initiative-planner"
 direction = "upstream-origin"
-note = "Local override, 2026-10-30: the session close names every completion event and the continuation handoff's Status section; derivation 3 (the usage window) carries a project opt-out and a stale-reading rule in SKILL.md and both templates; the session register's Owns names the writer of each ledger entry when the plan bars workers from the ledgers; the plan-critic step names its Step 2.7 sequencing check. Re-apply on the next sync."
+note = "Local override, 2026-10-30: the session close names every completion event and the continuation handoff's Status section; derivation 3 (the usage window) carries a project opt-out and a stale-reading rule in SKILL.md and both templates; the session register's Owns names the writer of each ledger entry when the plan bars workers from the ledgers; the plan-critic step names its Step 2.7 sequencing check. Re-apply on the next sync. Local override, 2026-11-02: both templates say an opted-out project still states its own cap on simultaneous agents and counts every live session on the account toward it, the kit setting no number and no default cap, and the execution-plan template's derivation 3 names where the project opt-out is read. Re-apply on the next sync."
 
 [[skills]]
 name = "kit-setup"
@@ -297,7 +297,7 @@ note = "Local override, 2026-10-30: the append-only ledgers include improvement-
 name = "plan-critic"
 upstream = "plan-critic"
 direction = "upstream-origin"
-note = "Local override, 2026-10-30: Dimension 7 (quantified claims) in references/review-dimensions.md plus one SKILL.md list line. Re-apply on the next sync. Local override, 2026-10-30: Step 2.7, a sequencing check for plans that order work across initiatives, branches or pull requests, and the sentence in the framing caveat that names it. Re-apply on the next sync."
+note = "Local override, 2026-10-30: Dimension 7 (quantified claims) in references/review-dimensions.md plus one SKILL.md list line. Re-apply on the next sync. Local override, 2026-10-30: Step 2.7, a sequencing check for plans that order work across initiatives, branches or pull requests, and the sentence in the framing caveat that names it. Re-apply on the next sync. Local override, 2026-11-02: the Project-Specific Context section is one instruction to read the project's own conventions plus the two AI-failure bullets; the persona and the step and dimension examples that named one stack are neutral; the repository-layering line holds only where the project requires it and the DI-overrides line is gone; the Design/Plan checklist applies to any implementation plan; the per-artifact paragraph holds a two-run cap (a fresh-reader re-review counts as the second run, within post-task-review's limits) and Step 4 and the severity table in finding-format.md drop every other finding in a later run. Re-apply on the next sync."
 
 [[skills]]
 name = "post-task-review"
