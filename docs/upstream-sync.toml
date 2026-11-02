@@ -197,7 +197,7 @@ direction = "upstream-origin"
 name = "ai-docs-lookup"
 upstream = "ai-docs-lookup"
 direction = "upstream-origin"
-note = "Local override, 2026-10-30: a fetch prompt that asks for the exact text, a note that a WebFetch answer can be a model's summary of the page (a missing item is never concluded from one, and a model's existence is checked on its own page), and a rule to quote only text the fetch returned verbatim. Re-apply on the next sync."
+note = "Local override, 2026-10-30: a fetch prompt that asks for the exact text, a note that a WebFetch answer can be a model's summary of the page (a missing item is never concluded from one, and a model's existence is checked on its own page), and a rule to quote only text the fetch returned verbatim. Re-apply on the next sync. Local override, 2026-11-02: Step 0 says the pin is read wherever the project pins it, with its pyproject.toml and virtual-environment greps named as the Python example. Re-apply on the next sync."
 
 [[skills]]
 name = "ai-improvement-tracker"
@@ -208,13 +208,13 @@ direction = "upstream-origin"
 name = "analyze-logs"
 upstream = "analyze-logs"
 direction = "upstream-origin"
-note = "This repo shipped it as `analyge-logs` (a typo) until the rename; the upstream spelling is the correct one. A name-keyed check would have reported it as an upstream-only skill for six weeks. Local override, 2026-10-30: references/analysis-examples.md gains Example 4 (an absence found by a join). Re-apply on the next sync."
+note = "This repo shipped it as `analyge-logs` (a typo) until the rename; the upstream spelling is the correct one. A name-keyed check would have reported it as an upstream-only skill for six weeks. Local override, 2026-10-30: references/analysis-examples.md gains Example 4 (an absence found by a join). Re-apply on the next sync. Local override, 2026-11-02: Step 5 and the task-file template take the task prefixes from the project's own task conventions, missing functionality is a stated exception (Step 5 and Step 4b) that gets a task file only where those conventions say to, and ground rule 6's distinct-id grep names its field by a placeholder read from the Step 1a Correlation id row, with the quotes dropped for an id in message text. Re-apply on the next sync."
 
 [[skills]]
 name = "branch-diff-review"
 upstream = "branch-diff-review"
 direction = "upstream-origin"
-note = "Local override, 2026-10-30: Step 1's re-snapshot compares content hashes of the dirty set, not only counts; references/finding-verification.md gains a paragraph on giving a verifier controls and capping a fresh reader's brief. Re-apply on the next sync."
+note = "Local override, 2026-10-30: Step 1's re-snapshot compares content hashes of the dirty set, not only counts; references/finding-verification.md gains a paragraph on giving a verifier controls and capping a fresh reader's brief. Re-apply on the next sync. Local override, 2026-11-02: references/findings-report-format.md labels its Gates example as one repository's. Re-apply on the next sync."
 
 [[skills]]
 name = "branch-switch"
@@ -254,7 +254,7 @@ note = "Local override, 2026-10-30: scripts/audit_cleanup_targets.py refs opens 
 name = "initiative-planner"
 upstream = "initiative-planner"
 direction = "upstream-origin"
-note = "Local override, 2026-10-30: the session close names every completion event and the continuation handoff's Status section; derivation 3 (the usage window) carries a project opt-out and a stale-reading rule in SKILL.md and both templates; the session register's Owns names the writer of each ledger entry when the plan bars workers from the ledgers; the plan-critic step names its Step 2.7 sequencing check. Re-apply on the next sync. Local override, 2026-11-02: both templates say an opted-out project still states its own cap on simultaneous agents and counts every live session on the account toward it, the kit setting no number and no default cap, and the execution-plan template's derivation 3 names where the project opt-out is read. Re-apply on the next sync."
+note = "Local override, 2026-10-30: the session close names every completion event and the continuation handoff's Status section; derivation 3 (the usage window) carries a project opt-out and a stale-reading rule in SKILL.md and both templates; the session register's Owns names the writer of each ledger entry when the plan bars workers from the ledgers; the plan-critic step names its Step 2.7 sequencing check. Re-apply on the next sync. Local override, 2026-11-02: both templates say an opted-out project still states its own cap on simultaneous agents and counts every live session on the account toward it, the kit setting no number and no default cap, and the execution-plan template's derivation 3 names where the project opt-out is read. Re-apply on the next sync. Local override, 2026-11-02: Step 4's chokepoint search takes <source-roots>. Re-apply on the next sync."
 
 [[skills]]
 name = "kit-setup"
@@ -297,7 +297,7 @@ note = "Local override, 2026-10-30: the append-only ledgers include improvement-
 name = "plan-critic"
 upstream = "plan-critic"
 direction = "upstream-origin"
-note = "Local override, 2026-10-30: Dimension 7 (quantified claims) in references/review-dimensions.md plus one SKILL.md list line. Re-apply on the next sync. Local override, 2026-10-30: Step 2.7, a sequencing check for plans that order work across initiatives, branches or pull requests, and the sentence in the framing caveat that names it. Re-apply on the next sync. Local override, 2026-11-02: the Project-Specific Context section is one instruction to read the project's own conventions plus the two AI-failure bullets; the persona and the step and dimension examples that named one stack are neutral; the repository-layering line holds only where the project requires it and the DI-overrides line is gone; the Design/Plan checklist applies to any implementation plan; the per-artifact paragraph holds a two-run cap (a fresh-reader re-review counts as the second run, within post-task-review's limits) and Step 4 and the severity table in finding-format.md drop every other finding in a later run. Re-apply on the next sync."
+note = "Local override, 2026-10-30: Dimension 7 (quantified claims) in references/review-dimensions.md plus one SKILL.md list line. Re-apply on the next sync. Local override, 2026-10-30: Step 2.7, a sequencing check for plans that order work across initiatives, branches or pull requests, and the sentence in the framing caveat that names it. Re-apply on the next sync. Local override, 2026-11-02: the Project-Specific Context section is one instruction to read the project's own conventions plus the two AI-failure bullets; the persona and the step and dimension examples that named one stack are neutral; the repository-layering line holds only where the project requires it and the DI-overrides line is gone; the Design/Plan checklist applies to any implementation plan; the per-artifact paragraph holds a two-run cap (a fresh-reader re-review counts as the second run, within post-task-review's limits) and Step 4 and the severity table in finding-format.md drop every other finding in a later run. Re-apply on the next sync. Local override, 2026-11-02: Dimension 6's level-assignment question asks whether the plan lets the project's own testing conventions come first and treats a language pack's testing conventions reference as applying only where it matches the code under test, so a plan is not wrong for skipping one written for another language. Re-apply on the next sync."
 
 [[skills]]
 name = "post-task-review"
@@ -309,16 +309,19 @@ note = "Local overrides, to re-apply on the next sync: 2026-10-29, probe_checker
 name = "pr-comment-resolver"
 upstream = "pr-comment-resolver"
 direction = "upstream-origin"
+note = "Local override, 2026-11-02: the paragraph on switching to the owning branch says a session may use branch-switch after its pre-switch backup, and on a shared checkout only with the operator's word, instead of calling it a skill a session may not invoke. Re-apply on the next sync."
 
 [[skills]]
 name = "pr-review-concise"
 upstream = "pr-review-concise"
 direction = "upstream-origin"
+note = "Local override, 2026-11-02: Step 7 labels its gate examples as one repository's. Re-apply on the next sync."
 
 [[skills]]
 name = "product-brief"
 upstream = "product-brief"
 direction = "upstream-origin"
+note = "Local override, 2026-11-02: Phase 1 step 1 reads the architecture and flow documents named in AGENTS.md in place of the onboarding docs. Re-apply on the next sync."
 
 [[skills]]
 name = "python-conventions"
@@ -362,6 +365,7 @@ direction = "upstream-origin"
 name = "skill-creator"
 upstream = "skill-creator"
 direction = "upstream-origin"
+note = "Local override, 2026-11-02: the policy citations read as the kit's own recommendation instead of one repository's decision, SKILL.md and references/skill-patterns.md name commit-message as the only user-only example, and the flag-worthy list names branch mutation only without a backup gate. Re-apply on the next sync."
 
 [[skills]]
 name = "skill-researcher"
@@ -372,7 +376,7 @@ direction = "upstream-origin"
 name = "skill-reviewer"
 upstream = "skill-reviewer"
 direction = "upstream-origin"
-note = "Carries the largest measured kit-side divergence of any carried skill: of an apparent 2,275-word deficit, only +195 was real upstream advance and the other 91% is this repo's own generalization work. Not `divergent-both` — the three-way merge did carry cleanly. Recorded so the next maintainer does not read the raw gap as a backlog."
+note = "Carries the largest measured kit-side divergence of any carried skill: of an apparent 2,275-word deficit, only +195 was real upstream advance and the other 91% is this repo's own generalization work. Not `divergent-both` — the three-way merge did carry cleanly. Recorded so the next maintainer does not read the raw gap as a backlog. Local override, 2026-11-02: the policy and convention citations in SKILL.md and references/skill-taxonomy.md read as the kit's own recommendation or convention instead of one repository's decision, SKILL.md, references/skill-taxonomy.md and references/review-checklist.md name commit-message as the only user-only example, and the flag-worthy list names branch mutation only without a backup gate. Re-apply on the next sync."
 
 [[skills]]
 name = "spec-driven-dev"
@@ -384,19 +388,19 @@ note = "Local override, 2026-10-30: Step 9 of post-task-review runs inline at ev
 name = "stacked-pr-planner"
 upstream = "stacked-pr-planner"
 direction = "upstream-origin"
-note = "Local override, 2026-10-30: one Step 2 paragraph on a journal branch as a deletion event. Re-apply on the next sync. Local override, 2026-10-30: Step 6's sweep covers the plan documents too, and a note says siblings are never ordered by ancestry. Re-apply on the next sync."
+note = "Local override, 2026-10-30: one Step 2 paragraph on a journal branch as a deletion event. Re-apply on the next sync. Local override, 2026-10-30: Step 6's sweep covers the plan documents too, and a note says siblings are never ordered by ancestry. Re-apply on the next sync. Local override, 2026-11-02: the migration class names Alembic and EF Core, the two CI notes say the full CI job, and the Step 6 sample classifier carries one label line. Re-apply on the next sync."
 
 [[skills]]
 name = "task-learnings"
 upstream = "task-learnings"
 direction = "upstream-origin"
-note = "Local override, 2026-10-30: the skill runs at the close of every task, whatever its kind or size, and at a stop or hand-off (description, first trigger and opening paragraph); a run that finds nothing is a valid result, and Step 5's rule that the append is never deferred stands. Re-apply on the next sync."
+note = "Local override, 2026-10-30: the skill runs at the close of every task, whatever its kind or size, and at a stop or hand-off (description, first trigger and opening paragraph); a run that finds nothing is a valid result, and Step 5's rule that the append is never deferred stands. Re-apply on the next sync. Local override, 2026-11-02: the first good-entry example in references/learnings-format.md is a language-neutral entry. Re-apply on the next sync."
 
 [[skills]]
 name = "test-conventions"
 upstream = "lemmi-test-conventions"
 direction = "upstream-origin"
-note = "Renamed on extraction to drop the org prefix. The upstream directory keeps the old name."
+note = "Renamed on extraction to drop the org prefix. The upstream directory keeps the old name. Local override, 2026-11-02: the description's Use-when sentence says Python test files. Re-apply on the next sync."
 
 [[skills]]
 name = "test-planner"
@@ -408,7 +412,7 @@ note = "Authored in this repo 2026-08-23, never extracted. No upstream counterpa
 name = "vertical-slice"
 upstream = "lemmi-vertical-slice"
 direction = "upstream-origin"
-note = "Renamed on extraction to drop the org prefix. The upstream directory keeps the old name."
+note = "Renamed on extraction to drop the org prefix. The upstream directory keeps the old name. Local override, 2026-11-02: the description's Use-when clause is scoped to a Python repository laid out by feature. Re-apply on the next sync."
 
 # --------------------------------------------------------------------------------------
 # Upstream skills deliberately not shipped.

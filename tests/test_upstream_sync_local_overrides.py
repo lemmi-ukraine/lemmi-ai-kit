@@ -1,10 +1,11 @@
 """A skill edited here whose upstream is its origin carries a `Local override` note in the sync record.
 
 The next refresh from upstream rewrites a skill unless its row says what was changed on this side,
-and a note that has been replaced loses the overrides it listed. Of the skills edited here, 11
-descend from upstream, so each of those rows needs a note, and the 4 rows that already carried one
-keep it as the start of the longer note. The other 2 are authored here (`kit-origin`), which is why
-they need no override note: upstream's later edits to them are contributions to review.
+and a note that has been replaced loses the overrides it listed. Of the skills edited here, 19
+descend from upstream, so each of those rows needs a note, and 4 of the rows that already carried
+one are held to keep it whole as the start of the longer note. The other 3 are authored here
+(`kit-origin`), which is why they need no override note: upstream's later edits to them are
+contributions to review.
 
 The record is parsed, never searched as text, and the sets below are checked against it, not against
 each other: an edited skill with no row, a row that is not upstream's, or a skill in both sets fails.
@@ -23,8 +24,8 @@ the check is report-only by default, so a re-apply from the note could bring bac
 and it named neither the registers folder of the documented command nor the new probe fixtures. Both
 notes as they read then are kept as excerpts as well, and the check reports the phrases each lacked.
 
-THE SURFACE, in numbers the tests assert: 11 edited upstream-origin rows, 4 earlier notes kept whole,
-2 kit-origin rows left alone, no name in both sets, 1 retired wording, 2 incomplete notes reported
+THE SURFACE, in numbers the tests assert: 19 edited upstream-origin rows, 4 earlier notes kept whole,
+3 kit-origin rows left alone, no name in both sets, 1 retired wording, 2 incomplete notes reported
 as they read, 7 missing phrases each, and 2 later incomplete notes reported as they read, 5 missing
 phrases each.
 """
@@ -43,8 +44,20 @@ _REAPPLY = "re-apply on the next sync"
 
 # Each edited skill, and the phrases its note must carry: the edits it records, in the note's words.
 _EDITED: dict[str, tuple[str, ...]] = {
-    "ai-docs-lookup": ("a model's summary of the page",),
-    "branch-diff-review": ("content hashes of the dirty set",),
+    "ai-docs-lookup": (
+        "a model's summary of the page",
+        "the pin is read wherever the project pins it",
+    ),
+    "analyze-logs": (
+        "the task prefixes from the project's own task conventions",
+        "a stated exception (Step 5 and Step 4b)",
+        "a placeholder read from the Step 1a Correlation id row",
+        "the quotes dropped for an id in message text",
+    ),
+    "branch-diff-review": (
+        "content hashes of the dirty set",
+        "labels its Gates example as one repository's",
+    ),
     "flow-mapping": (
         "--registers",
         "report-only in the default run",
@@ -70,6 +83,7 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "counts every live session on the account toward it",
         "no default cap",
         "derivation 3 names where the project opt-out is read",
+        "chokepoint search takes <source-roots>",
     ),
     "parallel-session-safety": (
         "12g to 12k",
@@ -90,6 +104,7 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "applies to any implementation plan",
         "a two-run cap",
         "severity table in finding-format.md",
+        "the plan lets the project's own testing conventions come first",
     ),
     "post-task-review": (
         "references/fix-rounds.md",
@@ -101,12 +116,34 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "a row for the drafted changelog line",
         "reading-gate-output.md a trap row for the untracked sweep",
     ),
+    "pr-comment-resolver": (
+        "a session may use branch-switch after its pre-switch backup",
+    ),
+    "pr-review-concise": ("Step 7 labels its gate examples as one repository's",),
+    "product-brief": ("the architecture and flow documents named in AGENTS.md",),
+    "skill-creator": (
+        "the kit's own recommendation instead of one repository's decision",
+        "name commit-message as the only user-only example",
+        "branch mutation only without a backup gate",
+    ),
+    "skill-reviewer": (
+        "the kit's own recommendation or convention instead of one repository's decision",
+        "name commit-message as the only user-only example",
+        "branch mutation only without a backup gate",
+    ),
     "spec-driven-dev": (
         "three documents (spec, tasks, test plan)",
         "a Large one four (requirements, design, tasks, verification plan)",
     ),
-    "stacked-pr-planner": ("never ordered by ancestry",),
-    "task-learnings": ("close of every task",),
+    "stacked-pr-planner": (
+        "never ordered by ancestry",
+        "names Alembic and EF Core",
+        "the full CI job",
+        "one label line",
+    ),
+    "task-learnings": ("close of every task", "a language-neutral entry"),
+    "test-conventions": ("the description's Use-when sentence says Python test files",),
+    "vertical-slice": ("scoped to a Python repository laid out by feature",),
 }
 # Wording a note must not carry: it described an edit more broadly than the edit went (every step
 # of the skill passed the ref and ran the suffix-free sweep, where each got one of the two).
@@ -114,7 +151,7 @@ _RETIRED_WORDING: dict[str, tuple[str, ...]] = {
     "initiative-cleanup": ("pass the ref and run a suffix-free sweep",),
 }
 # Skills edited here that this repository authored: no override note is owed.
-_AUTHORED_HERE: tuple[str, ...] = ("agent-delegate", "orchestrate")
+_AUTHORED_HERE: tuple[str, ...] = ("agent-delegate", "orchestrate", "test-planner")
 
 # The notes four rows carried before: each stays, whole, as the start of the note that replaces it.
 _KEPT: dict[str, str] = {
@@ -229,9 +266,9 @@ def _problems(
 
 
 def test_the_surface_is_stated_in_numbers() -> None:
-    assert len(_EDITED) == 11, f"{len(_EDITED)} edited skills, not the 11 stated"
+    assert len(_EDITED) == 19, f"{len(_EDITED)} edited skills, not the 19 stated"
     assert len(_KEPT) == 4 and set(_KEPT) <= set(_EDITED)
-    assert len(_AUTHORED_HERE) == 2
+    assert len(_AUTHORED_HERE) == 3
     assert len(_RETIRED_WORDING) == 1 and set(_RETIRED_WORDING) <= set(_EDITED)
     assert len(_OLD_NOTES) == 2 and set(_OLD_NOTES) <= set(_EDITED)
     assert len(_LATE_NOTES) == 2 and set(_LATE_NOTES) <= set(_EDITED)
