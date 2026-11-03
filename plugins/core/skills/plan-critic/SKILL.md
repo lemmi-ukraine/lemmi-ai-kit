@@ -244,6 +244,9 @@ For each finding:
 In a later run (the run cap in When This Skill Activates), resolve only the classes the run cap
 names; drop every other finding, a Minor included, without fixing or surfacing it.
 
+After the last fix pass, diff the document against its version before the first fix pass: every
+changed line must be a fix you made on purpose, and any other change is reverted.
+
 ### Step 5 — Determine Output
 
 - If **any Blockers or Questions remain `[UNRESOLVED]`**: the document is **NOT APPROVED**.

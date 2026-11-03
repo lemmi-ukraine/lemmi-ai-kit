@@ -19,7 +19,8 @@ For each issue found, record it internally during review (not shown to user unle
 [SEVERITY] Category — Title
 Problem: {specific issue and realistic failure or cost}
 Reasoning: {grounded in concrete logic, not preference}
-Resolution: {what was changed in the document to fix this, OR "UNRESOLVED — requires user input"}
+Resolution: {the fix as exact replacement text: the line or paragraph as it must read once the
+  fix is applied, not a description of a change, OR "UNRESOLVED — requires user input"}
 Alternative: {if rejecting an approach, what is proposed instead and with what trade-offs}
 ```
 
@@ -31,8 +32,9 @@ Problem: The generation flow calls the AI provider without retry logic. The prov
   at ~10 req/min sustained. At peak load with 5 concurrent users this threshold is reachable.
 Reasoning: An existing flow already handles this with 3-retry exponential backoff in
   retry_with_backoff(). This flow lacks parity and will fail silently under production load.
-Resolution: Added retry_with_backoff(max=3, backoff_base=2) to the service layer section
-  of the design. Updated the corresponding task's acceptance criteria.
+Resolution: Design, service layer section, the line now reads: "Every provider call in the
+  generation flow goes through retry_with_backoff(max=3, backoff_base=2)." Task acceptance
+  criteria, new line: "A 429 from the provider is retried up to 3 times with exponential backoff."
 ```
 
 **Bad finding** (vague, preference-based — do not produce findings like this):
