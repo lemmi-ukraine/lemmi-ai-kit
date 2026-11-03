@@ -12,6 +12,12 @@ the later-run paragraph: diff the document against its version before the first 
 revert every changed line that is not a fix made on purpose. Neither clause restates the run cap,
 which keeps one home in "When This Skill Activates".
 
+That paragraph named a version to diff against and never said where it comes from. For a tracked
+document git holds it; for an untracked one, which is any spec a project keeps out of version
+control, nothing does, and the rule could not run as written. The paragraph now ends with one
+sentence that closes the gap: copy the document before the first fix pass and diff against the
+copy, a tracked document using git instead when git holds that version.
+
 What each test asserts:
 
 * `test_the_fix_field_asks_for_exact_replacement_text` reads the finding format's "Finding
@@ -22,6 +28,11 @@ What each test asserts:
 * `test_step_four_holds_the_diff_check_after_the_later_run_paragraph` cuts Step 4 by its
   heading and reads its paragraphs: the diff check is one paragraph of its own, after the one
   that starts "In a later run".
+* `test_the_diff_check_says_where_the_earlier_version_comes_from` reads the one paragraph of
+  Step 4 that starts "After the last fix pass" and nothing else: the copy is made before the
+  first fix pass, the diff is against the copy, and a tracked document may use git instead when
+  git holds that version. The same words in a neighbouring paragraph, in Step 5 or as a
+  paragraph of their own do not count.
 * `test_the_run_cap_is_unchanged_and_stated_once` is NOT red on the old text: it holds each of
   the cap's two phrases to one place, so it guards the edits above and shows no change.
 * The instrument tests fire every check at planted text. Each reads a small literal document, so
@@ -38,7 +49,12 @@ rule; a planted re-wrap is asserted to differ from its source, so it is never th
 under another name. The helpers the tables go through are fired too: the verdict helper must
 enforce each of its three rules, the disjointness check must see a planted overlap, and the
 heading, field and later-run matches must pass over a decoy that holds the heading, the label
-or the lead only after other words.
+or the lead only after other words. The sentence about the earlier version has a table of its
+own: it dropped, hollowed one part at a time (the timing, the diff against the copy, the git
+stand-in, its condition), moved into the later-run paragraph, into Step 5 or into a paragraph
+of its own, the paragraph it belongs to missing, repeated or run on to the later-run paragraph
+(where its lead stands after other words, and must not be found there), and a re-wrap, a
+rewording and a split into three sentences, which change no rule and pass.
 """
 
 import re
@@ -70,6 +86,15 @@ _DIFF_PARTS = (
     "diff the document against its version before the first fix pass",
     "every changed line must be a fix you made on purpose",
     "any other change is reverted",
+)
+# The diff check also says where the earlier version comes from: without it the rule cannot
+# run on a document git does not track. Held lower-cased, because the first part opens its
+# sentence.
+_SOURCE_PARTS = (
+    "copy the document before the first fix pass",
+    "diff against the copy",
+    "a tracked document may use git instead",
+    "when git holds that version",
 )
 # The run cap has one home, in "When This Skill Activates". These are its two phrases, and the
 # words by which a new clause would be restating it.
@@ -239,6 +264,22 @@ def _diff_check_problems(skill: str, where: str) -> list[str]:
     return problems + [f"the diff check {issue}" for issue in _restated_cap(paragraph)]
 
 
+def _source_problems(skill: str, where: str) -> list[str]:
+    """What is wrong with the sentence that says where the diff check's earlier version comes
+    from: the paragraph of Step 4 that starts with the diff check's lead is not found exactly
+    once, or a part of the sentence is missing from it.
+
+    Only that paragraph is read, so the same words in a neighbouring paragraph, in another
+    section or as a paragraph of their own are not counted. The parts are held lower-cased, so
+    the case of the sentence's first word decides nothing.
+    """
+    folded = [_fold(p) for p in _paragraphs(_section(skill, "### Step 4", where))]
+    own = [text for text in folded if text.startswith(_DIFF_LEAD)]
+    if len(own) != 1:
+        return [f"{len(own)} paragraphs of Step 4 start {_DIFF_LEAD!r}, expected 1"]
+    return _missing_parts("the diff check", own[0].lower(), _SOURCE_PARTS)
+
+
 def _run_cap_problems(skill: str, where: str) -> list[str]:
     """Each of the cap's two phrases must stand once in the file, and in its own section."""
     whole = _fold(skill)
@@ -283,6 +324,12 @@ def test_step_four_holds_the_diff_check_after_the_later_run_paragraph() -> None:
     assert not problems, f"{where}, Step 4: " + "; ".join(problems)
 
 
+def test_the_diff_check_says_where_the_earlier_version_comes_from() -> None:
+    where = "plan-critic SKILL.md"
+    problems = _source_problems(_text(_SKILL), where)
+    assert not problems, f"{where}, Step 4: " + "; ".join(problems)
+
+
 def test_the_run_cap_is_unchanged_and_stated_once() -> None:
     where = "plan-critic SKILL.md"
     problems = _run_cap_problems(_text(_SKILL), where)
@@ -322,10 +369,18 @@ _LATER_RUN = (
     "In a later run (the run cap in When This Skill Activates), resolve only the classes the\n"
     "run cap names; drop every other finding, a Minor included, without fixing or surfacing it."
 )
-_DIFF = (
+# The diff check as it stood before it said where the earlier version comes from, then the
+# sentence that does, then the paragraph as it ships: the sentence joins the paragraph on a
+# line of its own, with no blank line between.
+_DIFF_OLD = (
     "After the last fix pass, diff the document against its version before the first fix pass:\n"
     "every changed line must be a fix you made on purpose, and any other change is reverted."
 )
+_SOURCE = (
+    "Copy the document before the first fix pass and diff against the copy; a tracked document may use\n"
+    "git instead when git holds that version."
+)
+_DIFF = _DIFF_OLD + "\n" + _SOURCE
 
 
 class _Plant(NamedTuple):
@@ -612,6 +667,116 @@ _DIFF_PLANTS: tuple[_Plant, ...] = (
     ),
 )
 
+_S_COPY, _S_DIFF, _S_GIT, _S_WHEN = _SOURCE_PARTS
+# The shipped paragraph on one line, so a planted edit's anchor can never straddle a line break.
+_SOURCE_LINE = _fold(_DIFF)
+
+_SOURCE_PLANTS: tuple[_Plant, ...] = (
+    _Plant("shipped-shape", _skill_fixture(after_later_run=_DIFF)),
+    _Plant("re-wrapped-narrow", _skill_fixture(after_later_run=_re_wrapped(_DIFF, 30))),
+    _Plant("re-wrapped-to-one-line", _skill_fixture(after_later_run=_SOURCE_LINE)),
+    _Plant(
+        "reworded-and-present",
+        _skill_fixture(
+            after_later_run=_swap(
+                _SOURCE_LINE,
+                "and diff against the copy",
+                "and then diff against the copy",
+            )
+        ),
+    ),
+    _Plant(
+        "split-into-three-sentences",
+        _skill_fixture(
+            after_later_run=_swap(
+                _SOURCE_LINE,
+                " and diff against the copy; a tracked document",
+                ". Diff against the copy. A tracked document",
+            )
+        ),
+    ),
+    _Plant("old-paragraph", _skill_fixture(after_later_run=_DIFF_OLD), _SOURCE_PARTS),
+    _Plant(
+        "timing-dropped",
+        _skill_fixture(
+            after_later_run=_swap(
+                _SOURCE_LINE, " before the first fix pass and diff", " and diff"
+            )
+        ),
+        (_S_COPY,),
+    ),
+    _Plant(
+        "copy-made-after-the-first-fix-pass",
+        _skill_fixture(
+            after_later_run=_swap(
+                _SOURCE_LINE,
+                "Copy the document before the first fix pass",
+                "Copy the document after the first fix pass",
+            )
+        ),
+        (_S_COPY,),
+    ),
+    _Plant(
+        "diff-against-the-copy-dropped",
+        _skill_fixture(
+            after_later_run=_swap(_SOURCE_LINE, " and diff against the copy;", ";")
+        ),
+        (_S_DIFF,),
+    ),
+    _Plant(
+        "git-alternative-dropped",
+        _skill_fixture(
+            after_later_run=_swap(
+                _SOURCE_LINE,
+                "; a tracked document may use git instead when git holds that version",
+                "",
+            )
+        ),
+        (_S_GIT, _S_WHEN),
+    ),
+    _Plant(
+        "git-condition-dropped",
+        _skill_fixture(
+            after_later_run=_swap(_SOURCE_LINE, " when git holds that version", "")
+        ),
+        (_S_WHEN,),
+    ),
+    _Plant(
+        "in-the-later-run-paragraph",
+        _skill_fixture(
+            later_run=_LATER_RUN + "\n" + _SOURCE, after_later_run=_DIFF_OLD
+        ),
+        _SOURCE_PARTS,
+    ),
+    _Plant(
+        "as-a-paragraph-of-its-own",
+        _skill_fixture(after_later_run=_DIFF_OLD + "\n\n" + _SOURCE),
+        _SOURCE_PARTS,
+    ),
+    _Plant(
+        "in-step-five",
+        _skill_fixture(after_later_run=_DIFF_OLD, step_five=_SOURCE),
+        _SOURCE_PARTS,
+    ),
+    _Plant(
+        "diff-paragraph-absent",
+        _skill_fixture(after_later_run=_SOURCE),
+        (f"0 paragraphs of Step 4 start {_DIFF_LEAD!r}",),
+    ),
+    _Plant(
+        "diff-paragraph-repeated",
+        _skill_fixture(after_later_run=_DIFF + "\n\n" + _DIFF),
+        (f"2 paragraphs of Step 4 start {_DIFF_LEAD!r}",),
+    ),
+    # The whole paragraph, sentence included, run on to the later-run paragraph: its lead stands
+    # after other words there, so only a match that reads from the start of a paragraph flags it.
+    _Plant(
+        "merged-into-the-later-run-paragraph",
+        _skill_fixture(later_run=_LATER_RUN + "\n" + _DIFF),
+        (f"0 paragraphs of Step 4 start {_DIFF_LEAD!r}",),
+    ),
+)
+
 _CAP_RUNS = _CAP_PHRASES[0]
 _CAP_CLASSES = _CAP_PHRASES[1]
 _CAP_CLASSES_IN_TEXT = (
@@ -707,6 +872,7 @@ _EXAMPLE_PLANTS: tuple[_Plant, ...] = (
 _PLANT_COUNTS = {
     "fix field": 11,
     "diff check": 16,
+    "version source": 17,
     "run cap": 6,
     "good example": 5,
     "cap words": 8,
@@ -742,6 +908,18 @@ def test_the_diff_check_check_tells_the_old_shape_from_a_near_miss(
     plant: _Plant,
 ) -> None:
     _assert_verdict(plant, _diff_check_problems(plant.text, "planted"))
+
+
+@pytest.mark.parametrize("plant", _SOURCE_PLANTS, ids=[p.label for p in _SOURCE_PLANTS])
+def test_the_source_check_tells_a_stated_source_from_a_missing_one(
+    plant: _Plant,
+) -> None:
+    _assert_verdict(plant, _source_problems(plant.text, "planted"))
+
+
+def test_the_source_check_fails_loudly_when_step_four_is_missing() -> None:
+    with pytest.raises(AssertionError, match="no heading"):
+        _source_problems("# Plan Critic\n\n## Review Process\n", "planted")
 
 
 @pytest.mark.parametrize("plant", _CAP_PLANTS, ids=[p.label for p in _CAP_PLANTS])
@@ -811,6 +989,7 @@ def test_the_planted_tables_keep_their_stated_size() -> None:
     sizes = {
         "fix field": len(_FIX_PLANTS),
         "diff check": len(_DIFF_PLANTS),
+        "version source": len(_SOURCE_PLANTS),
         "run cap": len(_CAP_PLANTS),
         "good example": len(_EXAMPLE_PLANTS),
         "cap words": len(_CAP_WORD_PLANTS),
@@ -820,6 +999,7 @@ def test_the_planted_tables_keep_their_stated_size() -> None:
     tables = (
         ("fix field", _FIX_PLANTS),
         ("diff check", _DIFF_PLANTS),
+        ("version source", _SOURCE_PLANTS),
         ("run cap", _CAP_PLANTS),
         ("good example", _EXAMPLE_PLANTS),
         ("cap words", _CAP_WORD_PLANTS),

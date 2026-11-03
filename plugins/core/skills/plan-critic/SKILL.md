@@ -246,6 +246,8 @@ names; drop every other finding, a Minor included, without fixing or surfacing i
 
 After the last fix pass, diff the document against its version before the first fix pass: every
 changed line must be a fix you made on purpose, and any other change is reverted.
+Copy the document before the first fix pass and diff against the copy; a tracked document may use
+git instead when git holds that version.
 
 ### Step 5 — Determine Output
 
