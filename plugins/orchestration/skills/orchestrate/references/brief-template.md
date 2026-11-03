@@ -4,6 +4,8 @@ Use this shape for every worker dispatch — native subagent or external CLI. Fi
 a section you can't fill crisply is a sign the subtask isn't ready to delegate.
 
 ```markdown
+**Operator-only blocker:** <the one thing only the operator can clear, or the words "no operator-only blocker">
+
 ## Standing rules (read this FILE — only two harness limits are restated below)
 Read `<absolute path to the installed agent-delegate skill's assets/worker-preamble.md>` in full before your first
 shell call: evidence discipline, working-tree discipline, how to return a result,
@@ -16,6 +18,8 @@ and the size, stop and close rules.
 
 ## Goal (one concern)
 <single outcome this worker owns>
+**Problem:** <what is wrong or missing today>
+**Value:** <what is better, for whom, once this is done; a volume target such as "N items processed" is not value>
 
 ## Context (so you don't re-explore the repo)
 - Files: <paths the work touches, with one-line roles> — a STARTING SET, not a boundary
