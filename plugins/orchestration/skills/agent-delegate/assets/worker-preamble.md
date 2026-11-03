@@ -20,10 +20,11 @@ inline has no measured benefit to trade against it.
 ## 0 · Host rules (project-specific — kept in the project's host-rules file)
 
 > The project's own host rules — shell and path rules, forbidden directories, interpreter names,
-> redirection requirements — live in the project's host-rules file, by convention
-> `.claude/preambles/spawned-session-host-rules.md`, not in this file: an edit to an installed
-> plugin copy does not survive an update. Point every brief at that file beside this preamble, and
-> never edit this copy. Keep that file to constraints a worker can *violate*, not general advice.
+> redirection requirements — live in the project's own host-rules file, if it keeps one, not in
+> this file: an edit to an installed plugin copy does not survive an update. Point every brief at
+> that file as well as at this preamble, and never edit this copy. Keep that file to constraints a
+> worker can *violate*, not general advice. A worker reads the host-rules file its brief names; a
+> brief that names none means there are no host rules.
 
 **Shell hooks (a kit default).** A leading `NAME=value` assignment before a command can be denied
 by a shell hook. Put the value inline in the command, write multi-step logic to a script file, or

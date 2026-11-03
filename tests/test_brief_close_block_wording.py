@@ -20,7 +20,7 @@ filled in at launch ends with a marker block that one of its preconditions searc
 regular expression that does not match its own text, a brief never tells an agent to run a
 user-only skill, and a brief that lists acceptance criteria names who ticks the boxes. Section 2a
 of `SKILL.md` no longer names one project's host-rules file; it says the project's own, if it
-keeps one.
+keeps one. No other file under `plugins/` or `tests/` holds that path whole either.
 
 Four wordings are retired and must stay gone: no precondition is called "the first" one (the
 paste-line comparison and the marker search are two of several), the user-only rule gives
@@ -36,8 +36,8 @@ section of the template (`## Rules a dispatch brief carries`); 4 retired wording
 from its own place; 3 lists of preamble topics, each pinned by its last words; 2 whole files (the
 contract and the template) scanned for the launch placeholder and for a count of the review's
 steps. Read
-beside them, by name and not by count: the whole of `SKILL.md` for the old host-rules path, and
-the one sentence of section 2a that replaced it. A claim holds when every phrase is in its step
+beside them, by name and not by count: every file under `plugins/` and `tests/` for the old
+host-rules path, and the one sentence of section 2a that replaced it. A claim holds when every phrase is in its step
 or section (lower-cased, whitespace collapsed), and each phrase is fired at a planted removal,
 so a phrase the check could not see go is not in the table. The two scans that are green on the
 text that came before (no placeholder written whole, no step count) are fired at planted texts
@@ -456,6 +456,29 @@ def _names_old_path(text: str) -> bool:
     return _OLD_HOST_RULES_PATH in text
 
 
+# The roots read whole for the old host-rules path: what the kit ships and what tests it.
+_OLD_PATH_ROOTS = ("plugins", "tests")
+
+
+def _files_naming_old_path(root: Path) -> tuple[list[Path], list[str]]:
+    """Every file under the roots of `_OLD_PATH_ROOTS` in `root`, and the paths (relative to
+    `root`) of those that hold the old host-rules path whole. Bytecode is skipped: compiling a
+    test joins the fragments the path is built from into one string."""
+    needle = _OLD_HOST_RULES_PATH.encode()
+    scanned = sorted(
+        path
+        for name in _OLD_PATH_ROOTS
+        for path in (root / name).rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    )
+    named = [
+        path.relative_to(root).as_posix()
+        for path in scanned
+        if needle in path.read_bytes()
+    ]
+    return scanned, named
+
+
 def _own_check_line(expression: str) -> str:
     """The text of a file that holds only the line that searches for `expression`."""
     return f"grep -E '{expression}' brief.md\n"
@@ -847,6 +870,45 @@ def test_section_2a_names_no_projects_host_rules_file() -> None:
     section = " ".join(_section(skill, _LAUNCH_HEADING).split())
     assert "host-rules file" in section, "section 2a does not name the host-rules file"
     assert _SENTENCE_2A in section, f"section 2a lost the sentence {_SENTENCE_2A!r}"
+
+
+def test_no_file_under_plugins_or_tests_names_the_old_host_rules_path() -> None:
+    """The path is one project's, so no shipped file and no test holds it whole. The surface is
+    checked by name: the worker preamble, the contract, the template and the two tests that pin
+    their wording are all in it."""
+    scanned, named = _files_naming_old_path(_REPO_ROOT)
+    assert not named, f"{len(named)} of {len(scanned)} files hold the old path: {named}"
+    relative = {path.relative_to(_REPO_ROOT).as_posix() for path in scanned}
+    expected = {
+        "plugins/orchestration/skills/agent-delegate/assets/worker-preamble.md",
+        "plugins/orchestration/skills/orchestrate/SKILL.md",
+        "plugins/orchestration/skills/orchestrate/references/brief-template.md",
+        "tests/test_brief_close_block_wording.py",
+        "tests/test_worker_preamble_wording.py",
+    }
+    assert expected <= relative, f"the scan missed {sorted(expected - relative)}"
+
+
+def test_the_tree_scan_sees_a_planted_path_and_skips_near_misses(
+    tmp_path: Path,
+) -> None:
+    """Fired at a planted tree: a file under each root that holds the old path, spelled apart
+    from the constant the scan looks for, is found; a near-miss (the two halves of the path far
+    apart), a file outside the two roots and a compiled file under `__pycache__` are not."""
+    planted = {
+        "plugins/pack/preamble.md": _PLANTED_OLD_SENTENCE,
+        "tests/test_planted.py": f'TEXT = "{_PLANTED_OLD_SENTENCE}"\n',
+        "plugins/pack/near.md": "a folder of preambles, and a file named host-rules.md",
+        "docs/record.md": _PLANTED_OLD_SENTENCE,
+        "tests/__pycache__/test_planted.pyc": _PLANTED_OLD_SENTENCE,
+    }
+    for relative, text in planted.items():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    scanned, named = _files_naming_old_path(tmp_path)
+    assert named == ["plugins/pack/preamble.md", "tests/test_planted.py"], named
+    assert len(scanned) == 3, [path.name for path in scanned]
 
 
 def test_no_step_count_of_the_review_appears() -> None:

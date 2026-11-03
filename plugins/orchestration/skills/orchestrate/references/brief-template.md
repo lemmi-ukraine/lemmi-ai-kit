@@ -10,6 +10,8 @@ a section you can't fill crisply is a sign the subtask isn't ready to delegate.
 Read `<absolute path to the installed agent-delegate skill's assets/worker-preamble.md>` in full before your first
 shell call: evidence discipline, working-tree discipline, how to return a result,
 and the size, stop and close rules.
+Read the project's host-rules file too, if it keeps one: `<host-rules file, or "none">`. A brief
+that names none means the project has none.
 - Shell hook: a leading `NAME=value` assignment before a command can be denied. Put the value inline,
   write multi-step logic to a script file, or use the interpreter's UTF-8 mode flag instead of an
   environment variable.

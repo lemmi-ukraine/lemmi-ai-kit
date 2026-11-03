@@ -5,22 +5,25 @@ harness may refuse a sub-agent's write of a report file. The preamble and the br
 said "write your report file EARLY and INCREMENTALLY" with no word about either, so a worker
 that obeyed met a denial on its first command or on its last write, with no way out.
 
-What the text says now, in the eight places of the three files it lists:
+What the text says now, in the nine places of the three files it lists:
 
 * the preamble's host rules, outside the blockquote that points at the project's host-rules
   file, give the shell-hook limit and its substitutes: put the value inline, write multi-step
   logic to a script file, or use the interpreter's UTF-8 mode flag instead of an environment
   variable; the paragraph says it is a kit default;
-* the preamble's section 0 sends the project's own host rules to the project's host-rules file,
-  by convention `.claude/preambles/spawned-session-host-rules.md`, because an edit to an
-  installed plugin copy does not survive an update: every brief points at that file beside the
-  preamble, nobody edits this copy, and no sentence of it tells an adopter to replace a block;
+* the preamble's section 0 sends the project's own host rules to the project's own host-rules
+  file, if it keeps one, because an edit to an installed plugin copy does not survive an update:
+  every brief points at that file as well as at the preamble, a worker reads the file its brief
+  names (a brief that names none means there are none), nobody edits this copy, no sentence of
+  it tells an adopter to replace a block, and none names a path for the file or puts it beside
+  the preamble;
 * the preamble's section on the report file says the advice holds only if the worker is allowed
   to write, and its section on returning a result says that a refused write makes the final
   message the report;
 * the brief contract (items 8 and 9) and the brief template carry the same two harness limits
   as lines the orchestrator pastes, and the template carries one budget line: how many sessions
-  the work needs and the split, written before phase 1;
+  the work needs and the split, written before phase 1, and one line that points the worker at
+  the project's host-rules file, if it keeps one (a brief that names none means it has none);
 * the template's rule of thumb that standing rules are pointed at, not pasted, names the two
   harness limits as its one exception.
 
@@ -154,7 +157,7 @@ def _without_quote_marks(locate: Callable[[str], str]) -> Callable[[str], str]:
     return lambda text: re.sub(r"(?m)^[ \t]*>[ \t]?", "", locate(text))
 
 
-def _outside_the_adopters_block(heading: str) -> Callable[[str], str]:
+def _outside_the_host_rules_pointer(heading: str) -> Callable[[str], str]:
     return lambda text: _without_blockquotes(_section(text, heading))
 
 
@@ -225,18 +228,38 @@ _PREAMBLE_SHELL_PARAGRAPH = (
 _MIDDLE_DOT = chr(0x00B7)
 _EM_DASH = chr(0x2014)
 _SECTION_0 = f"## 0 {_MIDDLE_DOT}"
-_HOST_RULES_PATH = ".claude/preambles/spawned-session-host-rules.md"
 _SECTION_0_HEADING = (
     f"{_SECTION_0} Host rules (project-specific {_EM_DASH} "
     "kept in the project's host-rules file)"
 )
+_OWN_FILE = "live in the project's own host-rules file, if it keeps one"
+_AS_WELL_AS = "point every brief at that file as well as at this preamble"
+_WORKER_READS = "A worker reads the host-rules file its brief names"
+_NONE_NAMED = "a brief that names none means there are no host rules"
 _HOST_RULES_POINTER = (
     f"The project's own host rules {_EM_DASH} shell and path rules, forbidden directories, "
-    f"interpreter names, redirection requirements {_EM_DASH} live in the project's "
-    f"host-rules file, by convention `{_HOST_RULES_PATH}`, not in this file: an edit to an "
-    "installed plugin copy does not survive an update. Point every brief at that file beside "
-    "this preamble, and never edit this copy. Keep that file to constraints a worker can "
-    "*violate*, not general advice."
+    f"interpreter names, redirection requirements {_EM_DASH} {_OWN_FILE}, not in this file: "
+    "an edit to an installed plugin copy does not survive an update. Point every brief at "
+    "that file as well as at this preamble, and never edit this copy. Keep that file to "
+    f"constraints a worker can *violate*, not general advice. {_WORKER_READS}; {_NONE_NAMED}."
+)
+# One project's path, which the pointer once gave as the kit's convention. It is built from
+# fragments, so that no test holds it whole: the close-block test scans every file under
+# `plugins/` and `tests/` for it.
+_OLD_HOST_RULES_PATH = ".claude/" + "preambles/" + "spawned-session-" + "host-rules.md"
+# Section 0's pointer as it stood before a brief named the file: one project's path, and a file
+# put "beside" the installed preamble, which the next update replaces.
+_OLD_POINTER_SECTION_0 = f"""{_SECTION_0_HEADING}
+
+> The project's own host rules {_EM_DASH} shell and path rules, forbidden directories, interpreter names,
+> redirection requirements {_EM_DASH} live in the project's host-rules file, by convention
+> `{_OLD_HOST_RULES_PATH}`, not in this file: an edit to an installed
+> plugin copy does not survive an update. Point every brief at that file beside this preamble, and
+> never edit this copy. Keep that file to constraints a worker can *violate*, not general advice.
+"""
+_TEMPLATE_HOST_RULES_LINE = (
+    "Read the project's host-rules file too, if it keeps one: `<host-rules file, or "
+    '"none">`. A brief that names none means the project has none.'
 )
 _PREAMBLE_REPORT_PARAGRAPH = (
     "Write the deliverable as you go, not at the end — but only if you are allowed to "
@@ -478,7 +501,7 @@ _PLACES: tuple[_Place, ...] = (
     _Place(
         name="preamble-section-0",
         path=_PREAMBLE,
-        locate=_outside_the_adopters_block("## 0 ·"),
+        locate=_outside_the_host_rules_pointer("## 0 ·"),
         required=(
             _Check("a leading NAME=value can be denied by a shell hook", _SHELL_HOOK),
             _Check("substitute: put the value inline", _INLINE),
@@ -500,20 +523,8 @@ _PLACES: tuple[_Place, ...] = (
                 _SECTION_0_HEADING,
             ),
             _Check(
-                "the project's own host rules live in its host-rules file",
-                "live in the project's host-rules file",
-            ),
-            _Check(
-                "by convention, at the conventional path",
-                f"by convention `{_HOST_RULES_PATH}`",
-            ),
-            _Check(
                 "an edit to an installed plugin copy does not survive an update",
                 "an edit to an installed plugin copy does not survive an update",
-            ),
-            _Check(
-                "every brief points at that file beside this preamble",
-                "point every brief at that file beside this preamble",
             ),
             _Check("this copy is never edited", "never edit this copy"),
             _Check("the pointer, whole", _HOST_RULES_POINTER),
@@ -531,6 +542,33 @@ _PLACES: tuple[_Place, ...] = (
             _Check(
                 "the file holds constraints a worker can violate, not general advice",
                 "constraints a worker can *violate*, not general advice",
+            ),
+        ),
+    ),
+    _Place(
+        name="preamble-section-0-the-brief-names-the-file",
+        path=_PREAMBLE,
+        locate=_unquoted_section_of(_SECTION_0),
+        required=(
+            _Check("the project's own host-rules file, if it keeps one", _OWN_FILE),
+            _Check(
+                "every brief points at that file as well as at this preamble",
+                _AS_WELL_AS,
+            ),
+            _Check("a worker reads the host-rules file its brief names", _WORKER_READS),
+            _Check(
+                "a brief that names none means there are no host rules", _NONE_NAMED
+            ),
+        ),
+        old=_OLD_POINTER_SECTION_0,
+        retired=(
+            _Check(
+                "one project's path, given as the kit's convention",
+                _OLD_HOST_RULES_PATH,
+            ),
+            _Check("the path is called the convention", "by convention"),
+            _Check(
+                "the file is put beside the installed preamble", "beside this preamble"
             ),
         ),
     ),
@@ -689,6 +727,16 @@ _PLACES: tuple[_Place, ...] = (
             _Check("the report-file line, whole", _TEMPLATE_REPORT_LINE),
             _Check("the budget line, whole", _TEMPLATE_BUDGET_LINE),
             _Check("the report paragraph, whole", _TEMPLATE_REPORT_PARAGRAPH),
+            _Check(
+                "the brief points at the project's host-rules file, if it keeps one",
+                "Read the project's host-rules file too, if it keeps one",
+            ),
+            _Check("the file is named, or none", '`<host-rules file, or "none">`'),
+            _Check(
+                "a brief that names none means the project has none",
+                "A brief that names none means the project has none",
+            ),
+            _Check("the host-rules line, whole", _TEMPLATE_HOST_RULES_LINE),
         ),
         retired=(
             _Check(
@@ -717,8 +765,8 @@ _PLACES: tuple[_Place, ...] = (
 
 
 def test_the_scan_surface_is_stated_in_numbers() -> None:
-    """Eight places in three files, each file present and non-empty."""
-    assert len(_PLACES) == 8, f"{len(_PLACES)} places, not the 8 stated"
+    """Nine places in three files, each file present and non-empty."""
+    assert len(_PLACES) == 9, f"{len(_PLACES)} places, not the 9 stated"
     paths = {place.path for place in _PLACES}
     assert len(paths) == 3, f"{len(paths)} distinct files, not 3: {sorted(paths)}"
     names = [place.name for place in _PLACES]
@@ -747,13 +795,15 @@ def test_every_check_of_a_place_fails_on_the_text_it_replaced(place: _Place) -> 
     )
 
 
-def test_the_shell_hook_line_is_outside_the_block_an_adopter_replaces() -> None:
-    """An adopter replaces the blockquote of section 0. A limit written inside it goes with it,
-    so the line must be found in the section with its blockquote lines removed, and the
-    blockquote must still be there to replace."""
+def test_the_shell_hook_line_is_outside_the_blockquote_that_points_at_the_host_rules_file() -> (
+    None
+):
+    """The blockquote of section 0 points at the project's host-rules file, and the shell-hook
+    limit is a kit default, not a project's rule: the line must be found in the section with its
+    blockquote lines removed, and the blockquote must still be there."""
     section = _section(_read(_PREAMBLE), "## 0 ·")
     quoted = [line for line in section.split("\n") if line.startswith(">")]
-    assert quoted, "section 0 has no block to replace any more"
+    assert quoted, "section 0 has no blockquote that points at the host-rules file"
     assert "NAME=value" not in "\n".join(quoted), (
         "the shell-hook limit sits inside the block"
     )
