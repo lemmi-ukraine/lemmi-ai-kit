@@ -108,8 +108,49 @@ CONTENT_TOOLS = {
     "NotebookRead",
 }
 SHELL_TOOLS = {"Bash", "PowerShell"}
+# The .NET commands that count as a build or a test run, with the restore, publish and format runs
+# around them, beside the tools TEST_BUILD_RE already listed. This list builds the .NET half of
+# the pattern, and extractor-output-schema.md names the same commands where it says what
+# buildTestLoops holds, so a command is added here and in that sentence together. What else the
+# program does (run, new, tool, pack, clean, --info) is no build or test run and stays out.
+DOTNET_BUILD_TEST_COMMANDS = (
+    "dotnet build",
+    "dotnet test",
+    "dotnet restore",
+    "dotnet publish",
+    "dotnet msbuild",
+    "msbuild",
+    "nuget restore",
+    "dotnet format",
+)
+
+
+def _command_pattern(command):
+    """The pattern for one command as it is typed, never as a word inside another name.
+
+    The program may carry ".exe", its words are apart by blanks on ONE line (a newline ends a
+    command), and no word character, dot or hyphen sits before it, nor one of those, a slash or
+    a backslash after it. So "msbuild.log", "nuget.config", "tools/msbuild/bin" and
+    "dotnet build-server" are no runs, while "MSBuild.exe", "nuget.exe restore" and
+    "/usr/share/dotnet/dotnet test" are.
+    """
+    program, *words = command.split()
+    return (
+        r"(?<![\w.-])"
+        + re.escape(program)
+        + r"(?:\.exe)?"
+        + "".join(r"[ \t]+" + re.escape(word) for word in words)
+        + r"(?![\w.\\/-])"
+    )
+
+
 TEST_BUILD_RE = re.compile(
-    r"(pytest|docker compose.*test|ruff|basedpyright|mypy|alembic|npm test|uv run)",
+    "|".join(
+        [
+            r"(pytest|docker compose.*test|ruff|basedpyright|mypy|alembic|npm test|uv run)",
+            *map(_command_pattern, DOTNET_BUILD_TEST_COMMANDS),
+        ]
+    ),
     re.I,
 )
 

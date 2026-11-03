@@ -192,7 +192,7 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
   "behavior": {
     "reReads": [ { "file": "~/…/learnings.md", "count": 7 } ],   // file read >=3x
     "repeatedCommands": [ { "cmd": "git diff --staged", "count": 2 } ],   // identical cmd >=2x
-    "buildTestLoops": [ … ],     // subset of repeatedCommands matching test/build
+    "buildTestLoops": [ … ],     // subset of repeatedCommands matching test/build (see below)
     "staleReadEdits": 3          // == errorsByCategory["edit-stale-read"]
   },
   "skillInvocations": [ { "skill": "plan-critic", "blocked": true }, … ],
@@ -214,6 +214,17 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
   "compactions": 1               // v4 — context-compaction boundaries ({"type":"system","subtype":"compact_boundary"}) — a friction signal
 }
 ```
+
+`behavior.buildTestLoops` is the part of `repeatedCommands` (identical text, at least twice) that
+`TEST_BUILD_RE` matches anywhere in the first 120 characters of the command, in any case: the tools
+the pattern already listed (`pytest`, `ruff`, `uv run` and the rest of its alternatives) and these
+.NET commands, which are the list the pattern's .NET half is built from: `dotnet build`,
+`dotnet test`, `dotnet restore`, `dotnet publish`, `dotnet msbuild`, `msbuild`, `nuget restore`,
+`dotnet format`. A .NET command counts as typed: the program may carry `.exe`, its words are apart
+by blanks on one line, and it stands alone as a command word (no name, dot or hyphen fused to it,
+no slash or backslash after it), so `msbuild.log`, `run-msbuild`, `tools/msbuild/bin` and
+`dotnet build-server` do not count, and neither do `dotnet run`, `dotnet new` or `dotnet --info`.
+When the pattern changes, change this paragraph with it; a test holds the two together.
 
 ## Redaction & privacy
 

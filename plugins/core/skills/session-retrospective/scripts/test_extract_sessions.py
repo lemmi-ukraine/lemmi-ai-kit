@@ -3929,3 +3929,246 @@ def test_the_docstring_and_the_schema_reference_describe_the_sub_agent_file_patt
     assert "journal.jsonl" in flat
     doc = " ".join(inspect.getdoc(ex.walk_subagents).split())
     assert ex.SUBAGENT_GLOB in doc and "journal.jsonl" in doc
+
+
+# --- .NET commands in the build-and-test loop detector ----------------------------------------
+# buildTestLoops is the part of repeatedCommands that TEST_BUILD_RE matches. The pattern knew the
+# Python and JavaScript tools and no .NET command, so a .NET session showed none of its
+# build-and-test loops. Each case below runs one command twice through process_session, the real
+# detector. The positives are the listed commands in the shapes they are typed: with arguments,
+# chained after another command, with ".exe", in any case, with extra blanks, by path. The near
+# misses repeat just the same, so that each one is SEEN as a repeat and is left out by the
+# pattern alone: a near miss that never repeated would pass without testing anything.
+_DOTNET_RUNS = {
+    "dotnet-build": "dotnet build",
+    "dotnet-test": "dotnet test --no-build --filter Category=Unit",
+    "dotnet-restore": "dotnet restore",
+    "dotnet-publish": "dotnet publish -c Release -o out",
+    "dotnet-msbuild": "dotnet msbuild App.sln -t:Rebuild",
+    "msbuild": "msbuild App.sln /m",
+    "nuget-restore": "nuget restore App.sln",
+    "dotnet-format": "dotnet format --verify-no-changes",
+    "chained": "cd src && dotnet build --no-restore && dotnet test",
+    "exe-and-case": "MSBuild.exe App.sln /p:Configuration=Release",
+    "exe-with-a-verb": "nuget.exe restore App.sln",
+    "extra-blanks": "dotnet  build",
+    "tab-between-the-words": "dotnet\tbuild",
+    "by-path": "/usr/share/dotnet/dotnet test",
+}
+_DOTNET_NEAR_MISSES = {
+    "dotnet-info": "dotnet --info",
+    "dotnet-new": "dotnet new console",
+    "dotnet-run": "dotnet run",
+    "build-server": "dotnet build-server shutdown",
+    "another-nuget-verb": "nuget sources list",
+    "file-named-like-msbuild": "cat msbuild.log",
+    "folder-named-like-msbuild": "ls tools/msbuild/bin",
+    "file-named-like-nuget": "cat nuget.config",
+    "file-named-like-a-verb": "cat dotnet-build.log",
+    "script-named-after-the-program": "./scripts/run-msbuild App.sln",
+    "name-ending-in-the-program": "my_msbuild App.sln",
+    "extension-named-like-the-program": "cat foo.msbuild",
+    "name-starting-with-the-program": "msbuildx App.sln",
+    "windows-folder-named-like-msbuild": r"dir tools\msbuild\bin",
+    "verb-on-the-next-line": "export PATH=$PATH:/opt/dotnet\ntest -d src",
+    "not-dotnet-at-all": "git status",
+}
+# what the pattern matched before the .NET commands were added: it must keep every one
+_COMMANDS_THE_PATTERN_ALWAYS_KNEW = {
+    "pytest": "pytest -q",
+    "uv-run": "uv run pytest",
+    "npm-test": "npm test",
+    "ruff": "ruff check .",
+    "mypy": "mypy src",
+    "basedpyright": "basedpyright",
+    "alembic": "alembic upgrade head",
+    "compose-test": "docker compose run --rm api test",
+}
+
+
+def _behavior_of_a_command_run_twice(tmp_path, command, tool="Bash"):
+    """The behavior block of a session in which `tool` runs `command` two times."""
+    rows = [{"type": "user", "message": {"content": "get it building"}}]
+    for n in (1, 2):
+        rows += [_tool_call(f"x{n}", tool, command), _tool_result(f"x{n}", "ok")]
+    return _process(tmp_path, rows, name="loops")["behavior"]
+
+
+@pytest.mark.parametrize("name", sorted(_DOTNET_RUNS))
+def test_a_repeated_dotnet_build_or_test_command_is_a_loop(name, tmp_path):
+    command = _DOTNET_RUNS[name]
+    behavior = _behavior_of_a_command_run_twice(tmp_path, command)
+    assert behavior["buildTestLoops"] == [{"cmd": command, "count": 2}]
+
+
+@pytest.mark.parametrize("name", sorted(_DOTNET_NEAR_MISSES))
+def test_a_repeated_command_that_only_looks_like_a_dotnet_run_is_not_a_loop(
+    name, tmp_path
+):
+    command = _DOTNET_NEAR_MISSES[name]
+    behavior = _behavior_of_a_command_run_twice(tmp_path, command)
+    assert behavior["repeatedCommands"] == [{"cmd": command, "count": 2}], "not seen"
+    assert behavior["buildTestLoops"] == []
+
+
+@pytest.mark.parametrize("name", sorted(_COMMANDS_THE_PATTERN_ALWAYS_KNEW))
+def test_a_command_the_pattern_matched_before_is_still_a_loop(name, tmp_path):
+    command = _COMMANDS_THE_PATTERN_ALWAYS_KNEW[name]
+    behavior = _behavior_of_a_command_run_twice(tmp_path, command)
+    assert behavior["buildTestLoops"] == [{"cmd": command, "count": 2}]
+
+
+def test_the_powershell_tool_runs_dotnet_loops_too(tmp_path):
+    behavior = _behavior_of_a_command_run_twice(tmp_path, "dotnet test", "PowerShell")
+    assert behavior["buildTestLoops"] == [{"cmd": "dotnet test", "count": 2}]
+
+
+def _dotnet_build_ending_at(length):
+    """`cd <filler> && dotnet build`, made `length` characters long."""
+    filler = "x" * (length - len("cd  && dotnet build"))
+    return f"cd {filler} && dotnet build"
+
+
+def _characters_of_a_command_the_detector_reads(tmp_path):
+    """The stored text of a very long command is as long as what the detector reads of it."""
+    folder = tmp_path / "long"
+    folder.mkdir()
+    command = _dotnet_build_ending_at(500)
+    behavior = _behavior_of_a_command_run_twice(folder, command)
+    kept = behavior["repeatedCommands"][0]["cmd"]
+    assert len(kept) < len(command), "the command was kept whole"
+    return len(kept)
+
+
+@pytest.mark.parametrize(
+    ("past_the_limit", "is_a_loop"),
+    [(0, True), (1, False)],
+    ids=["ends-at-the-limit", "one-past-the-limit"],
+)
+def test_a_dotnet_command_counts_only_inside_the_characters_the_detector_reads(
+    past_the_limit, is_a_loop, tmp_path
+):
+    limit = _characters_of_a_command_the_detector_reads(tmp_path)
+    command = _dotnet_build_ending_at(limit + past_the_limit)
+    behavior = _behavior_of_a_command_run_twice(tmp_path, command)
+    assert len(behavior["repeatedCommands"]) == 1, "not seen"
+    assert bool(behavior["buildTestLoops"]) is is_a_loop
+
+
+def test_the_listed_dotnet_commands_are_the_ones_the_tests_state():
+    """The surface in numbers: eight commands, none twice, each led by one of three programs."""
+    commands = ex.DOTNET_BUILD_TEST_COMMANDS
+    assert len(commands) == 8 and len(set(commands)) == 8
+    programs = {command.split()[0] for command in commands}
+    assert programs == {"dotnet", "msbuild", "nuget"}
+
+
+@pytest.mark.parametrize("tail", ["", " App.sln"], ids=["bare", "with-an-argument"])
+def test_the_pattern_matches_every_listed_dotnet_command(tail):
+    assert ex.TEST_BUILD_RE.search("dotnet test"), "the pattern knows no .NET command"
+    commands = ex.DOTNET_BUILD_TEST_COMMANDS
+    missed = [c for c in commands if not ex.TEST_BUILD_RE.search(c + tail)]
+    assert missed == []
+
+
+def _commands_left_out(text, commands):
+    """The commands that `text` does not name as a code span of their own."""
+    return [command for command in commands if f"`{command}`" not in text]
+
+
+def _dotnet_words_beyond_the_list(pattern):
+    """What .NET the pattern holds once the listed commands' own patterns are taken out of it."""
+    for command in ex.DOTNET_BUILD_TEST_COMMANDS:
+        pattern = pattern.replace(ex._command_pattern(command), "")
+    return [word for word in ("dotnet", "msbuild", "nuget") if word in pattern.lower()]
+
+
+def _top_level_alternatives(pattern):
+    """`pattern` cut at the `|` that stand outside every group, so a group keeps its own."""
+    parts, depth, start, escaped = [], 0, 0, False
+    for i, char in enumerate(pattern):
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        elif char == "|" and depth == 0:
+            parts.append(pattern[start:i])
+            start = i + 1
+    return [*parts, pattern[start:]]
+
+
+def _alternatives_beyond_the_list(pattern):
+    """The alternatives after the first, the group of the tools the pattern always knew, that are
+    not the pattern of a listed command: whatever was written into the pattern by hand."""
+    listed = [ex._command_pattern(command) for command in ex.DOTNET_BUILD_TEST_COMMANDS]
+    return [part for part in _top_level_alternatives(pattern)[1:] if part not in listed]
+
+
+def test_the_checks_on_the_list_flag_a_planted_miss_and_pass_a_near_miss():
+    """Each check is fired at a known positive before its clean result means anything. A text
+    that names one command of two, the old sentence, and a longer command are all flagged; a
+    pattern with a command written into it by hand is flagged, for each program the list holds
+    and for a runner that is none of them, at the end of the pattern and in the middle of it;
+    the pattern as it is is not."""
+    pair = ("dotnet build", "dotnet test")
+    assert _commands_left_out("`dotnet build` and `dotnet test`", pair) == []
+    assert _commands_left_out("`dotnet build` only", pair) == ["dotnet test"]
+    assert _commands_left_out("`dotnet build-server`, `dotnet test`", pair) == [pair[0]]
+    old_sentence = "subset of repeatedCommands matching test/build"
+    assert _commands_left_out(old_sentence, pair) == list(pair)
+    pattern = ex.TEST_BUILD_RE.pattern
+    planted = pattern + "|dotnet ef|msbuild /t:x|nuget pack"
+    assert _dotnet_words_beyond_the_list(planted) == ["dotnet", "msbuild", "nuget"]
+    assert _dotnet_words_beyond_the_list(pattern) == []
+    runner = r"vstest\.console"
+    first = ex._command_pattern(ex.DOTNET_BUILD_TEST_COMMANDS[0])
+    at_the_end = pattern + "|" + runner
+    in_the_middle = pattern.replace("|" + first, "|" + runner + "|" + first, 1)
+    assert in_the_middle != pattern, "the plant did not land"
+    assert _alternatives_beyond_the_list(at_the_end) == [runner]
+    assert _alternatives_beyond_the_list(in_the_middle) == [runner]
+    assert _alternatives_beyond_the_list(pattern) == []
+
+
+def test_the_pattern_holds_no_dotnet_command_the_list_leaves_out():
+    """The reference is held to the list, so a command written into the pattern by hand would
+    reach neither the reference nor this test: it has to come through the list. The pattern is
+    the group of the old tools and one alternative for each listed command, and holds no .NET
+    word beside those."""
+    pattern = ex.TEST_BUILD_RE.pattern
+    assert "dotnet" in pattern.lower(), "the pattern names no .NET command"
+    assert _dotnet_words_beyond_the_list(pattern) == []
+    commands = ex.DOTNET_BUILD_TEST_COMMANDS
+    parts = _top_level_alternatives(pattern)
+    assert len(parts) == 1 + len(commands), "the pattern was cut wrong"
+    assert _alternatives_beyond_the_list(pattern) == []
+
+
+def test_the_docstring_of_the_command_pattern_says_a_backslash_ends_a_program():
+    doc = " ".join(inspect.getdoc(ex._command_pattern).split())
+    assert "a slash or a backslash after it" in doc
+
+
+def test_the_schema_reference_names_each_dotnet_command_the_loop_detector_matches(
+    tmp_path,
+):
+    """Where the reference says what buildTestLoops holds, it names the pattern, every .NET
+    command in the list the pattern is built from, how much of a command is read, and that a
+    backslash ends a program as a slash does. The list and the number are read from the
+    extractor."""
+    flat = " ".join(_SCHEMA_REFERENCE.read_text(encoding="utf-8").split())
+    first, last = "### `sessions[]`", "## Redaction & privacy"
+    assert flat.count(first) == 1, "the sessions[] heading is gone"
+    assert flat.count(last) == 1, "the heading after sessions[] is gone"
+    section = flat.split(first)[1].split(last)[0]
+    assert "`TEST_BUILD_RE`" in section, "the reference does not name the pattern"
+    assert ".NET commands" in section, "the reference does not say .NET commands"
+    assert _commands_left_out(section, ex.DOTNET_BUILD_TEST_COMMANDS) == []
+    limit = _characters_of_a_command_the_detector_reads(tmp_path)
+    window = f"first {limit} characters of the command"
+    assert window in section, "the reference does not give the reading limit"
+    assert "slash or backslash" in section, "the reference leaves out the backslash"
