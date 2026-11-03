@@ -69,6 +69,14 @@ invisible to anyone working from it.
 - [ ] New feature has README.md if applicable
 - [ ] Results reported (updated / no change needed)
 
+### 7c-extra: checks 4 and 5
+
+Checks 4 and 5 of the prompt cross-reference sweep (SKILL.md, step 7c-extra, run when prompt files
+were modified). Checks 1 to 3 are in SKILL.md and cover a feature removed or added.
+
+4. When a rule is added or strengthened, re-read its own exceptions and every example that speaks its phrasing: sharpening a rule can turn a tolerated exception into a contradiction, and examples outweigh instructions.
+5. A pointer from one prompt part to another must contain the rule it names, not only resolve to a heading.
+
 ## Step 8: Learnings Extraction
 
 - [ ] Task reviewed for discoveries and surprises

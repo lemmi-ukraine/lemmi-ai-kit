@@ -268,6 +268,7 @@ When a behavioral feature is removed from or added to a prompt template:
    old behavior — treat every mention as load-bearing.
 3. Check newly written sample phrases against the prompt's Prohibited Language and Variety
    sections to avoid introducing contradictions.
+4. Also when a rule is added or strengthened: re-read its exceptions and examples; a pointer between prompt parts must contain the rule it names ([checks 4 and 5](references/review-checklist.md#7c-extra-checks-4-and-5))
 
 #### 7d. Update Documentation
 
