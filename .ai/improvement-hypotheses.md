@@ -17,6 +17,38 @@
 
 ## 2026-11-03
 
+### [SKILL-MODIFIED] A delegated session sizes its work, stops at its stop line and closes with the review and the lessons, and opens no session unasked
+- **Category:** Consistency
+- **Hypothesis:** By pointing every delegated worker at section 5 of the worker preamble and pasting one five-step Close block in every brief, we expect the next 10 delegated sessions whose brief carries them to run the completion review through the Skill tool, to end with a summary that says the session may be closed and to open no session of their own, because the rules sit in the one file a worker is told to read, and the Close block now names the review skill and the lessons step that the older four-step copies left implicit.
+- **Signal:** Over the next 10 delegated sessions whose brief carries the Close block, or by 2026-12-28, whichever comes first, read each session's transcript and return note: confirm if at least 9 of the 10 ran the completion review through the Skill tool, ended by saying the session may be closed and opened no session; refute if fewer than 5 did, or if a session that reached its stop line carried on through a compaction notice; inconclusive in between, or with fewer than 10 such sessions (both thresholds are uncalibrated).
+- **Risk:** A worker run by an external agent CLI has no Skill tool, so steps 2 and 3 of the Close block cannot run as written there; the 5 MB and 250 tool-call stop lines are uncalibrated and from one source; "sessions are the operator's to open" exempts sub-agents only.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Give delegated sessions size, stop and close rules and one five-step Close block, ask plan-critic for each fix as replacement text, keep the cleanup sweep off the hand-offs ignore file, and give the stacked-PR document its shared-checkout recipes
+
+### [SKILL-MODIFIED] A plan-critic run leaves no change that none of its fixes made on purpose
+- **Category:** Quality
+- **Hypothesis:** By asking for each fix as exact replacement text and diffing the document after the last fix pass, we expect the next documents that plan-critic fixes to carry no edit that a fix pass made by accident, because every changed line is held against a fix the critic meant to make, and replacement text can be checked line by line where a described change could not.
+- **Signal:** Over the next 5 plan-critic runs that fix a document, or by 2026-12-28, whichever comes first, diff each document against its version before the first fix pass and read the run's findings: confirm if every changed line is one a Resolution field quotes and no Resolution field describes a change instead of quoting one; refute if a run leaves a changed line that no finding names, or a Resolution field that describes a change; inconclusive with fewer than 5 such runs.
+- **Risk:** The diff check names no source for the pre-fix-pass copy, so a run that kept none cannot do it; whether a critic follows the clause is unmeasured; the run cap is a separate rule and unchanged.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Give delegated sessions size, stop and close rules and one five-step Close block, ask plan-critic for each fix as replacement text, keep the cleanup sweep off the hand-offs ignore file, and give the stacked-PR document its shared-checkout recipes
+
+### [SKILL-MODIFIED] An agent delivering from a shared checkout creates its refs with a create-only guard and cites a delivery proof
+- **Category:** Coverage
+- **Hypothesis:** By putting the shared-checkout recipes, each with the sentence that names its trap, in the document the stacked-PR planner and the comment resolver point at, we expect an agent that delivers branches from a checkout another session writes to create its refs with a create-only guard and to cite a delivery proof instead of switching the checkout, because the recipe now sits where it reads.
+- **Signal:** By 2026-12-28 (calendar backstop), read the transcripts of up to 3 sessions, in projects seeded or refreshed after this change, that stacked or delivered branches from a checkout another session was writing: confirm if each created its refs without moving the checkout's HEAD or index (a create-only `update-ref`, or `git replay`) and cited a delivery proof; refute if one switched the checkout to deliver, or created a ref with no guard; inconclusive if no such session ran in the window.
+- **Risk:** A project seeded before this change keeps its old copy until kit-setup refreshes it; the recipes were run on one host (Windows PowerShell 5.1, git 2.55), so another host or git version may differ; the CI-build count and the pair-check statistic are the source project's own measurements and were not verified here.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Give delegated sessions size, stop and close rules and one five-step Close block, ask plan-critic for each fix as replacement text, keep the cleanup sweep off the hand-offs ignore file, and give the stacked-PR document its shared-checkout recipes
+
+### [SKILL-MODIFIED] A GitHub token is redacted wherever it sits in a session digest, and the leak gate looks for the same shape
+- **Category:** Quality
+- **Hypothesis:** By matching a GitHub token by its shape in both the redaction list and the leak gate, we expect the digests of the next retrospectives to carry no GitHub token and the gate to flag none, because a token after a command-line flag or in an Authorization header, which the KEY/TOKEN pattern never matched, now becomes `[REDACTED_GITHUB_TOKEN]` before the digest is written.
+- **Signal:** Over the next five retrospective runs, or by 2026-12-28, whichever comes first, read each run's digests and its `--check-file` result: confirm if no digest holds a GitHub token shape (grep `gh[pousr]_` and `github_pat_` followed by 36 or more letters and digits, with a planted control) and at least one digest holds a `[REDACTED_GITHUB_TOKEN]` mark; refute if a token shape survives in a digest or the gate flags text that was redacted; inconclusive if no digest meets a token in the window, which leaves no mark to count.
+- **Risk:** A token prefix GitHub adds later passes until a pattern for it is added; an identifier of 36 or more letters and digits after one of the prefixes, with no `_`, `-` or `.`, is masked as a token.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Redact a GitHub token by shape in the session extractor, and make pointer and lint-gate lines say what the reference holds and name the project's own command
+
 ### [SKILL-MODIFIED] A drain that removes nothing no longer silences the cadence nudges, and the audit lands a promotion in a home the project names
 - **Category:** Observability
 - **Hypothesis:** By marking each `CONSOLIDATION` entry with its Drained count and letting the drain audit take the project's own homes with `--surface`, we expect the next drain in each consumer to write a Drained line that the cadence nudges then date the last drain by, and to report no `[LOSS?]` row for a promotion that landed in a home named with `--surface`, because Phase 7a writes the line (0 included), every reader skips an entry whose count is 0, and both scans read a plain added glob in the tree's case alike.

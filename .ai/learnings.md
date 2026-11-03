@@ -214,6 +214,56 @@ to its home above and removed here.
 - **Verify-at**: tests/test_drain_audit.py::test_a_surface_the_two_scans_would_read_differently_exits_two
 - **Scope**: durable
 
+### [2026-11-03] Two patches that each fit a skill's line cap can break it together
+- **Context**: Two changes to one SKILL.md were planned against the same baseline: a wording patch that adds 1 line and a later request that adds 2.
+- **Finding**: `post-task-review/SKILL.md` was 497 lines by `wc -l`. The audit counts newlines plus one and fails above 500, so 499 is the most `wc -l` may show. One patch took the file to 498 and the other to 499 alone; applied together they reach 500 and `audit-skills --fail-on major` fails, with each patch green on its own.
+- **Impact**: Before a second patch lands on a file with under three lines of headroom, apply every pending patch to one export in landing order and read the combined file's line count; give the later patch the headroom that is left.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: lint
+- **Verify-at**: MAX_SKILL_LINES
+- **Scope**: durable
+
+### [2026-11-03] A count that stays equal does not show that a line was left alone
+- **Context**: A review note said a wording patch had left a bullet untouched, because `grep -c '@fast_test'` read 2 before and after.
+- **Finding**: The patch had edited the bullet. The edited line still names the decorator, so the count could not move. The diff of the line shows the edit; the count of a token cannot see an edit that keeps the token.
+- **Impact**: To say a line is unchanged, read its diff or compare its text before and after; use a count only to say how many lines hold a token.
+- **Category**: pitfall
+- **Home**: skill:post-task-review
+- **Enforce-via**: prose
+- **Verify-at**: plugins/core/skills/post-task-review/references/claim-boundaries.md
+- **Scope**: durable
+
+### [2026-11-03] A recipe that passes in the case it was measured can still miss the case it exists for
+- **Context**: The kit's stacked-PR document was extended from a consumer's longer copy, and each of its recipes was run on one host before it shipped.
+- **Finding**: A base re-read check passed after the remote had moved, because it read the local ref and never fetched, so it could not see the failure it exists to catch; a tar comment copied from one observation held for `-C` with a forward-slash drive path and not for `-f`, where `C:` read as a host. The runs corrected four statements of the copied text: the tar comment, the reflog's attribution, the base re-read and the delivery recipe's write set.
+- **Impact**: Before a recipe line ships, run it against the failure it names (move the remote, then run the check) and run every flag its sentence names; a pass in the measured case is no evidence for the other.
+- **Category**: pitfall
+- **Home**: skill:post-task-review
+- **Enforce-via**: prose
+- **Verify-at**: plugins/core/src/lemmi_ai_kit/assets/ai/git-stacked-pr-workflow.md
+- **Scope**: durable
+
+### [2026-11-03] A planted variant that the unchanged code also reads proves nothing, so each plant is asserted to need the step it tests
+- **Context**: Wording tests for the delegated-session rules, plan-critic's fix pass and the stacked-PR document plant re-wrapped or wrapped variants to show that a reader survives a re-wrap.
+- **Finding**: A review found the same gap in three test files. A re-wrap helper replaced by an identity function left every re-wrap case green, because nothing asserted that the plant differed from the text; a citation plant that broke next to the section sign was read by the bare pattern's own `\s*`, so removing the fold under test changed no verdict; and a helper that read one physical line missed a bold lead that wraps until a plant wrapped one. Each was closed by an assertion that the plant differs from the original, and by a control that the bare reader cannot read it.
+- **Impact**: For each planted variant, assert in the test that it differs from the original and that the reader without the step under test (no fold, no wrap handling) cannot read it, so that a mutant which removes the step turns a node red.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_stacked_pr_workflow_asset.py::test_a_citation_name_wrapped_across_lines_resolves_to_its_heading
+- **Scope**: durable
+
+### [2026-11-03] A list in one file that names the sections of another can be pinned only where both exist, so the seam is checked at integration
+- **Context**: One package added section 5 to the worker preamble while another made the three lists of the preamble's topics (two in the brief template, one in the orchestrate brief contract) end with "size, stop and close"; each package's clone held only its own half.
+- **Finding**: Each package passed its own tests, and the second one's fixer wrote that a pin on the preamble's headings was impossible in its clone, which held sections 0 to 4. Derived from the assembled preamble's six headings, the check showed that the three lists name sections 1, 2, 4 and 5 and none names section 0 (host rules) or 3 (write the report file early), a gap the lists had before either package; a renamed section 5 was flagged in all three lists and a dropped clause in the one list it left.
+- **Impact**: Where two packages edit the two ends of a seam, name the seam in both briefs and run a check derived from the assembled headings at integration, fired at a planted rename and a dropped clause; report a gap that predates the packages as a finding, not as a regression.
+- **Category**: pitfall
+- **Home**: skill:orchestrate
+- **Enforce-via**: prose
+- **Verify-at**: plugins/orchestration/skills/orchestrate/references/brief-template.md
+- **Scope**: durable
+
 ## Convention Clarifications
 
 ### [2026-10-30] A skill's step list restated outside the skill goes stale when the skill grows
