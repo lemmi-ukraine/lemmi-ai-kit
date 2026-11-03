@@ -17,6 +17,30 @@
 
 ## 2026-11-03
 
+### [SKILL-MODIFIED] Dispatched prompts stop quoting a superseded decision, and a bare proceed is not read as consent to bypass a closed gate
+- **Category:** Quality
+- **Hypothesis:** By adding the amendment sweep and the operator-first report rules to the dispatch gates, we expect fewer dispatched prompts that still quote a superseded decision, and fewer bare proceed replies taken as consent to bypass a closed gate, in the next two multi-session initiatives, because each check is a command or a comparison and the stop report names the owner of the action.
+- **Signal:** Over the next 2 multi-session initiatives that use the dispatch gates, or by 2026-12-28, whichever comes first, read each initiative's dispatch files and operator reports: confirm if no dispatched prompt quotes a decision its register has since superseded and every stop report opens with the answer or the operator-only action; refute if a prompt still quotes a superseded decision after its sweep was due, or a bare proceed is taken as consent to bypass a closed gate; inconclusive with fewer than 2 initiatives.
+- **Risk:** A sweep is a step a session must remember to run; the rule that a bare proceed after a stop is unresolved has one stated exception (a spec's approval stop) and the reader decides whether a stop is one; two initiatives are few.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Add instrument lessons to post-task-review, add a style column to test planning, add an amendment sweep to the dispatch gates and test commands that open with an assignment
+
+### [SKILL-MODIFIED] A plan in a two-form project places its scenarios in the form already used there
+- **Category:** Quality
+- **Hypothesis:** By asking for a census of tests by form and a Style column, and for the critic to check each acceptance scenario's owner in the project's own form, we expect a plan in a project with two test forms to place its scenarios in the form already used there, because the counts are taken before the cases are written.
+- **Signal:** Over the next 3 plans written for a project with two test forms, or by 2026-12-28, whichever comes first, read each plan's census and Style column: confirm if every plan carries a census and no scenario is placed in a form the census shows the area does not use; refute if a two-form plan passes review with no census; inconclusive with fewer than 3 such plans.
+- **Risk:** The census is taken from a feature and two sibling areas, which can mislead in a young project; a project with one test form never meets the rule.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Add instrument lessons to post-task-review, add a style column to test planning, add an amendment sweep to the dispatch gates and test commands that open with an assignment
+
+### [SKILL-MODIFIED] No new shipped line opens a command with an assignment
+- **Category:** Consistency
+- **Hypothesis:** By adding the assignment-led test with an allowlist of the six lines that existed, we expect no new shipped line to open a command with an assignment before 2026-12-28 and the allowlist to only shrink, because the shipped hook's own judge decides the rule and any new line fails by file and line.
+- **Signal:** By 2026-12-28, read the allowlist in tests/test_assignment_led_commands.py and the history of shipped text: confirm if no entry was added and no shipped line opens with an assignment while the suite is green; refute if a new such line ships with the suite green or an entry is added without a fix; inconclusive if the test was removed.
+- **Risk:** The test judges a command the way the hook does and nothing else: a command that is not in a fenced shell block or an inline code span is not seen.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Add instrument lessons to post-task-review, add a style column to test planning, add an amendment sweep to the dispatch gates and test commands that open with an assignment
+
 ### [SKILL-MODIFIED] A drain meets one backup instruction, and its landing audit lands nothing through a ledger
 - **Category:** Knowledge Retention
 - **Hypothesis:** By making the drain audit refuse the changelog and hypotheses ledgers by file name and print its scan surface, and by making the consolidation critic and the safety rule describe the backup as the committed restore point, we expect the next two drains to commit no second backup of the buffer and to report no entry as landed whose only hit is in a ledger, because the three texts a drain loads now say what the drain procedure says, and the ledgers that quote drained entries are refused by name.

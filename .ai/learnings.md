@@ -324,6 +324,26 @@ to its home above and removed here.
 - **Verify-at**: tests/test_brief_close_block_wording.py
 - **Scope**: durable
 
+### [2026-11-03] A line-based census of inline code undercounts in hard-wrapped markdown, so a count is taken per paragraph and checked against a second instrument
+- **Context**: Building the test that finds shipped commands which open with an assignment.
+- **Finding**: A census that scanned line by line missed a real occurrence whose inline code span wrapped across two lines; scanning per paragraph found it, and the two instruments disagreed until the second one was written.
+- **Impact**: Count inline code per paragraph, not per line, in wrapped markdown, and let two independent instruments agree before a count decides that a scan is complete.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_assignment_led_commands.py
+- **Scope**: durable
+
+### [2026-11-03] A count written into a heading outlives the sections it counted
+- **Context**: Adding two sections to the dispatch-gates reference.
+- **Finding**: The reference's title said six while the file held eight sections, so a test that rejects any digit or number word in the title is cheaper than keeping the count true.
+- **Impact**: Do not write a count of sections into a title; let a test reject a digit or a number word there.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_amendment_sweep_wording.py
+- **Scope**: durable
+
 ## Convention Clarifications
 
 ### [2026-10-30] A skill's step list restated outside the skill goes stale when the skill grows
