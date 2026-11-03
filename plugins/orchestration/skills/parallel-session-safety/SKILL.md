@@ -460,10 +460,10 @@ Five rules follow.
   losses in the same window: a truncating in-place write on a full disk permanently destroyed 20
   lines of *another* session's uncommitted edit, and a deliverable vanished when a merge moved HEAD
   while its backup was three edits stale. So for any shared `.ai/` data file you are about to drain,
-  rewrite, or bulk-edit: **snapshot it to a durable path first, verify the copy with `cmp`, and
-  confirm the snapshot location is not itself ignored** (`git check-ignore -v <path>` — a backup
-  directory that is gitignored cannot be committed alongside the change without `git add -f`, and an
-  uncommitted backup is not a backup). Then re-read the file immediately before each edit.
+  rewrite, or bulk-edit: **commit it as it stands first, in its own commit** — that commit, the
+  restore point, is the backup. An uncommitted backup is not a backup, so work that exists only
+  uncommitted has none, whatever copies sit beside it. A local byte copy of the committed file
+  (verify it with `cmp`) is a convenience. Then re-read the file immediately before each edit.
 - **Never `git checkout -b` raw in a contended tree.** A bare `checkout -b` inherits whatever HEAD
   currently is, which another session may have just moved — four commits landed on another session's
   branch this way. Use `/lemmi-ai-kit-core:branch-switch` (it writes the pre-switch backup) and assert
