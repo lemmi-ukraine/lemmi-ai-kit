@@ -55,7 +55,8 @@ written at all.
    including "nothing".
 2. Then the completion review: run `lemmi-ai-kit-core:post-task-review` through the Skill tool,
    whatever the size of the task (a hand-written review does not replace it), if you have not
-   already run it. Both run BEFORE the handoff.
+   already run it. Both run BEFORE the handoff. A worker without the Skill tool reads the skill's
+   steps and says so in its closing message.
 3. Lessons: run `lemmi-ai-kit-core:task-learnings`. If your brief bars the learnings buffer, put
    the lesson drafts in your handoff and say so in your closing message.
 4. Save everything into the handoff (the report file or return note your brief names).

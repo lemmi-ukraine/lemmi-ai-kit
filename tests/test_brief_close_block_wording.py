@@ -10,6 +10,11 @@ where the drafts go when the brief bars the learnings buffer), the handoff, and 
 tells the reader the session may be closed. The review's step list is not counted anywhere: a
 count goes stale where the skill that owns the list changes it.
 
+The completion review's step ends with one sentence for a worker whose harness has no Skill tool,
+as the external CLI workers a brief can be sent to have none: it reads the skill's steps and says
+so in its closing message. The sentence comes last, after "Both run BEFORE the handoff.", so the
+older words of the step stay one run of text, which the worker-preamble test pins.
+
 The template's list of rules a brief carries gains three, at the end of the section: a brief
 filled in at launch ends with a marker block that one of its preconditions searches for with a
 regular expression that does not match its own text, a brief never tells an agent to run a
@@ -26,7 +31,7 @@ thumb and in item 8 of the contract) end with the size, stop and close rules; th
 three lists and not the preamble.
 
 THE SURFACE, in numbers the tests assert: 2 Close blocks (the contract's blockquote and the
-template's last section) of 5 steps each, judged by 19 phrases; 3 claims and 21 phrases in one
+template's last section) of 5 steps each, judged by 20 phrases; 3 claims and 21 phrases in one
 section of the template (`## Rules a dispatch brief carries`); 4 retired wordings, each absent
 from its own place; 3 lists of preamble topics, each pinned by its last words; 2 whole files (the
 contract and the template) scanned for the launch placeholder and for a count of the review's
@@ -43,9 +48,16 @@ that trails the item it belongs to, and, placed before the real line, a decoy th
 the text looked for or only starts like it. A claim's phrases leave no word of its sentence
 outside them and do not overlap: a word outside every phrase can be deleted with every test
 still green, and two phrases that share words cannot be told apart by the planted removal.
+
+The sentence for a worker without the Skill tool is fired at three kinds of planted change: one
+word of it changed in either copy, or the sentence missing from one copy, is the one step reported;
+the sentence placed in another step is found there and not in step 2, and placed after the block it
+is found in no step; and each block re-wrapped at 3 widths, the narrowest splitting the sentence
+over lines, reads as it did.
 """
 
 import re
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -76,6 +88,15 @@ _WHOLE_FILE_SCANS = (_TEMPLATE, _SKILL)
 _SAVE_STEP_NAMES = "the report file or return note your brief names"
 # The new topic of the worker preamble, which the three lists of its topics now end with.
 _SIZE_STOP_CLOSE = "size, stop and close"
+# What step 2 of both blocks tells a worker whose harness has no Skill tool: an external CLI worker
+# has none, so "run it through the Skill tool" cannot be done as written there. It is the last
+# sentence of the step; the phrase of the table is the sentence lower-cased, without its full stop.
+_NO_SKILL_TOOL = "A worker without the Skill tool reads the skill's steps and says so in its closing message."
+_NO_SKILL_TOOL_PHRASE = _NO_SKILL_TOOL.lower().rstrip(".")
+# The widths a Close block is re-wrapped at: the narrowest splits the sentence over lines, the
+# widest leaves a step shorter than it on one line (a longer step still wraps), and the middle
+# one is near the width the files use.
+_REWRAP_WIDTHS = (40, 90, 200)
 
 # Written whole, the placeholder would match the check that looks for it, and the old path is
 # one project's: both are built from fragments, so no shipped file or test holds them as one.
@@ -105,7 +126,8 @@ _STEP_ROWS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "2: the completion review is run through the skill, before the handoff",
+        "2: the completion review is run through the skill, before the handoff, and a worker "
+        "without the Skill tool reads the skill's steps and says so",
         (
             "then the completion review",
             "`lemmi-ai-kit-core:post-task-review` through the skill tool",
@@ -113,6 +135,7 @@ _STEP_ROWS: tuple[tuple[str, tuple[str, ...]], ...] = (
             "a hand-written review does not replace it",
             "if you have not already run it",
             "both run before the handoff",
+            _NO_SKILL_TOOL_PHRASE,
         ),
     ),
     (
@@ -329,6 +352,12 @@ def _disagreements(left: list[str], right: list[str]) -> list[int]:
     ]
 
 
+def _steps_with_the_no_skill_tool_sentence(steps: list[str]) -> list[int]:
+    """The 1-based numbers of the folded steps that hold the sentence for a worker without the
+    Skill tool."""
+    return [number for number, step in enumerate(steps, 1) if _NO_SKILL_TOOL in step]
+
+
 def _bullets(section: str) -> list[str]:
     """The bullets of a section, each as one line of folded whitespace."""
     bullets: list[str] = []
@@ -373,6 +402,50 @@ def _planted_contract(cited: int, with_return_note: bool = True) -> str:
         "   the handoff content as text (item 8).\n"
         "10. **Another item.**\n"
     )
+
+
+def _planted_template(step_two: str, step_three: str, after: str) -> str:
+    """A cut-down template: a fenced skeleton whose Close section holds three steps, and the
+    text `after` the closing fence."""
+    return (
+        "```markdown\n"
+        f"{_TEMPLATE_CLOSE_HEADING}\n"
+        "1. one\n"
+        f"2. {step_two}\n"
+        f"3. {step_three}\n"
+        "```\n\n"
+        f"{after}\n"
+    )
+
+
+def _rewrapped(place: str, width: int) -> str:
+    """The file that holds the Close block of `place`, with every step of that block re-wrapped at
+    `width` columns (breaking at spaces only, as an editor does) and nothing else changed."""
+    text = _read(_SKILL if place == _SKILL_PLACE else _TEMPLATE)
+    lines = text.split("\n")
+    if place == _SKILL_PLACE:
+        start = next(
+            index for index, line in enumerate(lines) if _SKILL_CLOSE_LEAD in line
+        )
+        old_count = len(_skill_close_block(text)) - 1
+        prefix = "   > "
+    else:
+        start = lines.index(_TEMPLATE_CLOSE_HEADING)
+        old_count = len(_template_close_block(text))
+        prefix = ""
+    wrapped = [
+        prefix + piece
+        for step in _close_steps(place)
+        for piece in textwrap.wrap(
+            step,
+            width=width,
+            subsequent_indent="   ",
+            break_long_words=False,
+            break_on_hyphens=False,
+        )
+    ]
+    lines[start + 1 : start + 1 + old_count] = wrapped
+    return "\n".join(lines)
 
 
 def _holds_placeholder(text: str) -> bool:
@@ -481,13 +554,14 @@ def _topic_list_places() -> dict[str, str]:
 def test_the_surface_is_stated_in_numbers() -> None:
     step_phrases = [phrase for _, phrases in _STEP_ROWS for phrase in phrases]
     rule_phrases = [phrase for _, phrases in _RULE_ROWS for phrase in phrases]
-    assert (len(_STEP_ROWS), len(step_phrases)) == (5, 19)
+    assert (len(_STEP_ROWS), len(step_phrases)) == (5, 20)
     assert (len(_RULE_ROWS), len(rule_phrases)) == (3, 21)
     assert len(_RETIRED_KEYS) == 4 and set(_retired_wordings()) == set(_RETIRED_KEYS)
     assert len(_TOPIC_LIST_ENDS) == 3
     assert set(_topic_list_places()) == set(_TOPIC_LIST_ENDS)
     assert len(_NEW_RULE_LEADS) == len(_RULE_ROWS)
     assert len(_PLACES) == 2
+    assert len(_REWRAP_WIDTHS) == 3 and len(set(_REWRAP_WIDTHS)) == 3
     assert len(_WHOLE_FILE_SCANS) == 2 and len(set(_WHOLE_FILE_SCANS)) == 2
     for path in _WHOLE_FILE_SCANS:
         assert path.is_file(), path
@@ -532,6 +606,92 @@ def test_the_comparison_sees_a_changed_word_and_ignores_wrapping() -> None:
     assert changed != steps, "the planted change changed nothing"
     assert _disagreements(steps, changed) == [1]
     assert _disagreements(steps, steps[:-1]) == [len(steps)]
+
+
+def test_the_agreement_check_sees_a_changed_or_missing_no_skill_tool_sentence() -> None:
+    """Fired at the sentence for a worker without the Skill tool, planted on the folded steps of
+    the real blocks so that it holds wherever a file wraps its lines: one word of it changed in
+    either copy, or the sentence missing from either copy, is step 2 reported and no other step."""
+    skill = _close_steps(_SKILL_PLACE)
+    template = _close_steps(_TEMPLATE_PLACE)
+    for place, steps in ((_SKILL_PLACE, skill), (_TEMPLATE_PLACE, template)):
+        assert _NO_SKILL_TOOL in steps[1], (
+            f"{place}: step 2 does not hold the sentence for a worker without the Skill tool"
+        )
+    assert _disagreements(skill, template) == []
+    skimmed = _NO_SKILL_TOOL.replace("reads", "skims")
+    assert skimmed != _NO_SKILL_TOOL
+    for steps, other in ((skill, template), (template, skill)):
+        changed = [step.replace(_NO_SKILL_TOOL, skimmed) for step in steps]
+        missing = [step.replace(f" {_NO_SKILL_TOOL}", "") for step in steps]
+        for planted in (changed, missing):
+            assert planted != steps, "the planted change changed nothing"
+            assert _disagreements(planted, other) == [2]
+            assert _disagreements(other, planted) == [2]
+
+
+@pytest.mark.parametrize("place", _PLACES)
+def test_a_rewrapped_close_block_still_reads_the_same_and_agrees(place: str) -> None:
+    """Each block, re-wrapped at three widths, keeps the same folded steps, every phrase of every
+    step (the sentence for a worker without the Skill tool among them) and its agreement with the
+    other block. The planted wrap is real: the narrowest and the widest wrap are different texts,
+    whatever width the file itself is written at, and the narrowest splits the sentence over
+    lines."""
+    cut = _skill_close_block if place == _SKILL_PLACE else _template_close_block
+    other = _close_steps(_TEMPLATE_PLACE if place == _SKILL_PLACE else _SKILL_PLACE)
+    expected = _close_steps(place)
+    texts = {width: _rewrapped(place, width) for width in _REWRAP_WIDTHS}
+    for width, text in texts.items():
+        steps = _steps(cut(text))
+        assert steps == expected, f"{place} re-wrapped at {width} reads differently"
+        for step, (claim, phrases) in zip(steps, _STEP_ROWS, strict=True):
+            missing = _missing(_words(step), phrases)
+            assert not missing, (
+                f"{place} at {width} does not state {claim!r}: {missing}"
+            )
+        assert _disagreements(steps, other) == [], f"{place} at {width} disagrees"
+    narrowest, widest = min(_REWRAP_WIDTHS), max(_REWRAP_WIDTHS)
+    assert texts[narrowest] != texts[widest], (
+        f"the wrap at {narrowest} and the wrap at {widest} are the same text"
+    )
+    assert all(_NO_SKILL_TOOL not in line for line in cut(texts[narrowest])), (
+        "the narrowest wrap kept the sentence on one line"
+    )
+
+
+def test_only_step_two_of_the_block_counts_for_the_no_skill_tool_sentence() -> None:
+    """Fired at planted documents, in the contract's blockquote and in the template's last
+    section: the sentence at the end of step 2 is found in step 2 and in no other step, the same
+    sentence in step 3 is found in step 3 and not in step 2, and in the text after the block it is
+    found in no step at all. The pin reads the block, cut by its own lead or heading, and not the
+    whole file; a cut that ran on past the block would put the text after it into the last step."""
+    contract = _planted_contract(cited=4)
+    in_two = contract.replace(
+        "2. Then the completion review: two.",
+        f"2. Then the completion review: two. {_NO_SKILL_TOOL}",
+    )
+    in_three = contract.replace(
+        "3. Lessons: three.", f"3. Lessons: three. {_NO_SKILL_TOOL}"
+    )
+    after_block = contract.replace(
+        "   Step 4 writes a file", f"   {_NO_SKILL_TOOL}\n\n   Step 4 writes a file"
+    )
+    for planted in (in_two, in_three, after_block):
+        assert planted != contract, "the planted placement changed nothing"
+    template_in_two = _planted_template(f"two. {_NO_SKILL_TOOL}", "three", "")
+    template_in_three = _planted_template("two", f"three. {_NO_SKILL_TOOL}", "")
+    template_after_block = _planted_template("two", "three", _NO_SKILL_TOOL)
+    cases: tuple[tuple[str, list[str], list[int]], ...] = (
+        ("contract, in step 2", _skill_close_block(in_two), [2]),
+        ("contract, in step 3", _skill_close_block(in_three), [3]),
+        ("contract, after the block", _skill_close_block(after_block), []),
+        ("template, in step 2", _template_close_block(template_in_two), [2]),
+        ("template, in step 3", _template_close_block(template_in_three), [3]),
+        ("template, after the block", _template_close_block(template_after_block), []),
+    )
+    for name, block, expected in cases:
+        found = _steps_with_the_no_skill_tool_sentence(_steps(block))
+        assert found == expected, f"{name}: in step(s) {found}, not {expected}"
 
 
 def test_the_paragraph_after_the_block_cites_the_save_step() -> None:
