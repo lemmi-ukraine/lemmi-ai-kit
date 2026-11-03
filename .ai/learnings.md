@@ -284,6 +284,16 @@ to its home above and removed here.
 - **Verify-at**: tests/test_review_core.py::test_the_skill_points_at_the_script_in_at_most_three_added_lines
 - **Scope**: durable
 
+### [2026-11-03] A `git archive` export proves a new test red then green, not the suite
+- **Context**: Two patches were checked on fresh `git archive` exports of the tip: the new tests, then the existing tests that name the changed files, pristine against patched, with the main checkout's venv.
+- **Finding**: 7 of 103 and 23 of 869 of the existing tests failed on both sides because an export has no git, so the comparison could say only that nothing new failed among the tests that can run. A clone of the tip with its own `uv sync --dev` venv ran the whole suite with no failure (2552 passed and 29 skipped in 2.5 minutes).
+- **Impact**: Use an export for the red-then-green of a new test; run the gates in a clone with its own venv. The whole suite is cheap enough to run there.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
 ## Convention Clarifications
 
 ### [2026-10-30] A skill's step list restated outside the skill goes stale when the skill grows

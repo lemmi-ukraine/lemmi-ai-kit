@@ -17,6 +17,14 @@
 
 ## 2026-11-03
 
+### [RULE-ADDED] A session with splittable pieces hands them to sub-agents that never write in the shared tree
+- **Category:** Speed
+- **Hypothesis:** By stating in AGENTS.md that crisp pieces go to sub-agents with their own context, working only in an export and delivering patches, we expect the next sessions in this repository that find nothing they can build themselves to hand pieces to sub-agents instead of ending at "waiting on the operator", and no worker to write in the shared tree, because the rule names the safe shape and says who commits.
+- **Signal:** Over the next five sessions that read this rule, or by 2026-12-28, whichever comes first, read each session's return note and the tree's `git status` before and after its workers ran: confirm if at least three sessions that had splittable pieces used sub-agents and no worker's path appears in the tree's status; refute if a worker wrote in the tree, or a session with splittable pieces stopped at "waiting on the operator" without trying; inconclusive if fewer than three sessions had splittable pieces.
+- **Risk:** Two of the three workers in the session that prompted the rule died to usage-limit and access errors mid-wave; a rule that encourages waves can multiply that on a limited window, and its own guards (read the usage window first; save a checkpoint at each milestone) depend on a usage feed that was stale and on workers that remember to write the checkpoint.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Sub-agents with their own context work only in a copy of the tree, and only the main session commits what they deliver
+
 ### [SKILL-MODIFIED] A drain's recovery point is a commit that is never removed, so the landing audit's input is cited by commit id
 - **Category:** Knowledge Retention
 - **Hypothesis:** By having the operator commit the learnings buffer in its own commit before a drain's first removal, and by keeping the byte copy and the gate record local and ignored, we expect the changelog entries of the next two drains to cite that commit's id as the landing audit's input and none to cite a snapshot file path, because a commit is not removed before the merge the way a committed snapshot file was, so no citation of it breaks.
