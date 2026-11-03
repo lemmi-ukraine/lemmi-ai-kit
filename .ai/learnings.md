@@ -294,6 +294,36 @@ to its home above and removed here.
 - **Verify-at**: AGENTS.md
 - **Scope**: durable
 
+### [2026-11-03] A sentence that restates another file's rule, list or promise goes stale when that file changes, and no test notices
+- **Context**: Eleven small polish rows of one pass, five of which corrected a sentence that described what another file or mechanism does.
+- **Finding**: The safety skill's backup rule restated the drain's old snapshot routine after the drain changed; six callers of plan-critic kept "resolve all findings" through two changes of the critic's rules; initiative-planner said the critic does not run a check that the critic's Step 3 had started to ask; two adopter docs promised that no `.ai/` file is updated after kit-managed files were added; and the schema reference's redaction lists missed a token class the extractor's table had gained. Reviews found all five; no test did, because nothing tied a restatement to its source.
+- **Impact**: Point at the source instead of restating it. Where a restatement must stay, pin it with a test that derives its expectation from the source (the redaction lists are now held to the extractor's table), and sweep the callers of a changed rule by heading as well as by name.
+- **Category**: pitfall
+- **Home**: skill:post-task-review
+- **Enforce-via**: prose
+- **Verify-at**: plugins/core/skills/post-task-review/references/review-checklist.md
+- **Scope**: durable
+
+### [2026-11-03] A guard is shown to work only by a planted fixture for each behaviour it relies on
+- **Context**: The verifiers of the same pass mutated the helpers of each new wording test.
+- **Finding**: A re-wrap check failed on the day the shipped text was already wrapped like its plant, because it asserted that the re-wrap changed something; a lead match could be loosened from `startswith` to `in` with every test still green; a table-shape guard passed a fourth column until a mutation round; a section cutter's heading scope had no fixture, so a mutant that returned the whole text stayed green. Each guard passed while a behaviour it relied on went untested.
+- **Impact**: For each behaviour a guard depends on (scope, order, a count, a lead match), plant a fixture that only that behaviour rejects, and assert the property the guard needs (every line fits, two wraps differ) rather than "something changed"; a mutant that survives names the fixture that is missing.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: prose
+- **Verify-at**: plugins/python/skills/test-conventions/SKILL.md
+- **Scope**: durable
+
+### [2026-11-03] A rule pasted into every brief must work for every kind of worker the brief goes to
+- **Context**: The Close block of the brief contract is pasted into every brief, and its step 2 told the worker to run the completion review through the Skill tool.
+- **Finding**: A worker run by an external agent CLI has no Skill tool, so the step could not be done as written there, and nothing in the block said what such a worker does until one sentence was added to step 2; step 3 still names the skill the same way.
+- **Impact**: Beside a rule that every brief carries, list the kinds of worker the brief goes to (a native sub-agent, each external CLI) and ask of each whether it can follow the rule as written; put the fallback in the rule itself.
+- **Category**: pitfall
+- **Home**: skill:orchestrate
+- **Enforce-via**: test
+- **Verify-at**: tests/test_brief_close_block_wording.py
+- **Scope**: durable
+
 ## Convention Clarifications
 
 ### [2026-10-30] A skill's step list restated outside the skill goes stale when the skill grows

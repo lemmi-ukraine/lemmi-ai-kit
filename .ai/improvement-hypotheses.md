@@ -17,6 +17,30 @@
 
 ## 2026-11-03
 
+### [SKILL-MODIFIED] A drain meets one backup instruction, and its landing audit lands nothing through a ledger
+- **Category:** Knowledge Retention
+- **Hypothesis:** By making the drain audit refuse the changelog and hypotheses ledgers by file name and print its scan surface, and by making the consolidation critic and the safety rule describe the backup as the committed restore point, we expect the next two drains to commit no second backup of the buffer and to report no entry as landed whose only hit is in a ledger, because the three texts a drain loads now say what the drain procedure says, and the ledgers that quote drained entries are refused by name.
+- **Signal:** Over the next 2 drains in a project that runs the consolidator, or by 2026-12-28, whichever comes first, read each drain's commits and its audit output: confirm if neither drain commits a byte copy or a snapshot file beside its restore-point commit, and each audit prints its scan surface line with no landing whose only hit is a ledger; refute if a drain commits such a file, or an audit lands an entry through a ledger; inconclusive with fewer than 2 drains.
+- **Risk:** The reference's landing-audit paragraph still calls the byte copies pre-drain snapshots and does not name the ledgers, so a session that reads only it may describe the refusal wrongly; a refusal by file name also refuses a real home that happens to share a ledger's name; two drains are few.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Align the drain audit, the consolidation critic and the safety rule with the restore-point drain, read .NET commands as build-and-test loops, point plan-critic's callers at its run cap, and fix the smaller claims the last review found
+
+### [SKILL-MODIFIED] A document reviewed through spec-driven-dev or initiative-planner gets no third plan-critic run
+- **Category:** Speed
+- **Hypothesis:** By having the six callers of plan-critic say that the review runs within its own run cap, instead of telling the reader to resolve all findings (or Blockers and Majors) before continuing, we expect no document reviewed through spec-driven-dev or initiative-planner to get a third critic run, because the cap now has one home and no caller contradicts it.
+- **Signal:** Over the next 5 documents reviewed by plan-critic from either skill, or by 2026-12-28, whichever comes first, count the critic runs per document in each session's transcript: confirm if none has more than two runs and every second run edits only for a factual error, a contradiction, a missing item or an unsafe statement; refute if any document gets a third run; inconclusive with fewer than 5 such documents.
+- **Risk:** The seeded AGENTS.md template and the kit's own AGENTS.md still restate the old rule, so a session that reads them first may loop anyway; whether a second run's edit is one of the four kinds is the reader's call.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Align the drain audit, the consolidation critic and the safety rule with the restore-point drain, read .NET commands as build-and-test loops, point plan-critic's callers at its run cap, and fix the smaller claims the last review found
+
+### [SKILL-MODIFIED] A .NET project's retrospective digest lists its build-and-test loops
+- **Category:** Quality
+- **Hypothesis:** By building the loop detector's pattern from eight .NET commands beside the old tools, we expect the next retrospective digest over a .NET project to list its repeated build and test commands under buildTestLoops, because the pattern no longer sees only the tools of Python and JavaScript projects.
+- **Signal:** At the next session-retrospective run over a .NET project, or by 2026-12-28, whichever comes first: confirm if a session that repeated a dotnet or msbuild command lists it under buildTestLoops; refute if a repeated `dotnet build` or `dotnet test` is absent from it; inconclusive if no session in the window repeated one.
+- **Risk:** The detector reads only the first 120 characters of a command, so a .NET command after a long `cd` is missed; a quoted program path before the verb, and `dotnet watch`, `ef`, `pack` and `clean`, are not covered; the only evidence so far is a planted digest.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Align the drain audit, the consolidation critic and the safety rule with the restore-point drain, read .NET commands as build-and-test loops, point plan-critic's callers at its run cap, and fix the smaller claims the last review found
+
 ### [RULE-ADDED] A session with splittable pieces hands them to sub-agents that never write in the shared tree
 - **Category:** Speed
 - **Hypothesis:** By stating in AGENTS.md that crisp pieces go to sub-agents with their own context, working only in an export and delivering patches, we expect the next sessions in this repository that find nothing they can build themselves to hand pieces to sub-agents instead of ending at "waiting on the operator", and no worker to write in the shared tree, because the rule names the safe shape and says who commits.
