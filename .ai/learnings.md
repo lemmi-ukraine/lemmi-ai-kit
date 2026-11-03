@@ -264,6 +264,26 @@ to its home above and removed here.
 - **Verify-at**: plugins/orchestration/skills/orchestrate/references/brief-template.md
 - **Scope**: durable
 
+### [2026-11-03] A text pin on a sentence inside a blockquote must drop the quote marks first, or a wrap hides the sentence
+- **Context**: The worker preamble's section 0 became one blockquote, and its wording test had to find the retired instruction "replace this block" wherever it sits in the file.
+- **Finding**: Folding whitespace leaves a ">" between the words of a sentence that a blockquote wraps over two rows, so a pin written on the folded text never sees it. The same sentence planted wrapped over two quoted rows was missed by the plain fold and found only after the quote marks were dropped; the scan of the whole file now reads the text that way.
+- **Impact**: When a pin reads text inside a blockquote, drop the leading quote marks before folding, and plant the phrase wrapped over two quoted rows to see that the plain fold misses it and the dropped-marks read does not.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_worker_preamble_wording.py::test_no_instruction_to_replace_a_block_is_left_anywhere_in_the_preamble
+- **Scope**: durable
+
+### [2026-11-03] A test that pins a skill file's line count blocks the next legitimate edit, so the pin names the audit's cap
+- **Context**: Adding one pointer line to post-task-review's SKILL.md, which stood a line or two under the audit's cap.
+- **Finding**: tests/test_review_core.py held `assert len(lines) <= 498`, a bound set at the file's length of an earlier pass plus three lines. Against the 499-line file it was the one test of its file that went red (1 failed, 20 passed). The audit's real cap is 499 by `wc -l`; the bound moved to 499 with a message that says where the number comes from, and the file now has no room left.
+- **Impact**: Before sizing an addition to a skill file, search the tests for a bound on its length (`len(lines) <=`) as well as the audit's cap, and write such a bound as the cap with its source, not as the length the file had that day.
+- **Category**: pitfall
+- **Home**: comment:tests/test_review_core.py:test_the_skill_points_at_the_script_in_at_most_three_added_lines
+- **Enforce-via**: test
+- **Verify-at**: tests/test_review_core.py::test_the_skill_points_at_the_script_in_at_most_three_added_lines
+- **Scope**: durable
+
 ## Convention Clarifications
 
 ### [2026-10-30] A skill's step list restated outside the skill goes stale when the skill grows

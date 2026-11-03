@@ -17,6 +17,30 @@
 
 ## 2026-11-03
 
+### [SKILL-MODIFIED] A drain's recovery point is a commit that is never removed, so the landing audit's input is cited by commit id
+- **Category:** Knowledge Retention
+- **Hypothesis:** By having the operator commit the learnings buffer in its own commit before a drain's first removal, and by keeping the byte copy and the gate record local and ignored, we expect the changelog entries of the next two drains to cite that commit's id as the landing audit's input and none to cite a snapshot file path, because a commit is not removed before the merge the way a committed snapshot file was, so no citation of it breaks.
+- **Signal:** Over the next 2 drains in a project that runs this skill, or by 2026-12-28, whichever comes first, read each drain's changelog entry and the audit command it cites: confirm if both cite a restore-point commit id and neither cites a snapshot file path or commits the byte copy or the gate record; refute if either cites a path, cites no commit, or commits the copy or the record; inconclusive with fewer than 2 drains in the window.
+- **Risk:** The consolidation critic's Inputs row and printed audit lines, and the audit script's closing line, still name the snapshot file, so a session that reads them may cite a path anyway; kit-setup seeds neither ignore entry, so a project without them may commit the copy or the record; the eight citations rewritten after a committed snapshot was removed are one observation.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Delete the PR-review skill's bare-decorator bullet, commit the learnings buffer as a drain's restore point, give the brief template a blocker line and a problem and value line, send the preamble's host rules to the project's own file, and add a SQL hand-off trap and two prompt-sweep checks
+
+### [SKILL-MODIFIED] A brief written from the template names what only the operator can clear and what the work is for
+- **Category:** Quality
+- **Hypothesis:** By opening the brief template with an operator-only blocker line and giving the goal a Problem line and a Value line that says a volume target is not value, we expect the next 10 briefs written from the template to begin with the blocker line and to state a value that names who is better off, not a count of items processed, because the first line and the two goal lines are the places a brief is filled in, and the template says what each must hold.
+- **Signal:** Over the next 10 briefs written from the template, or by 2026-12-28, whichever comes first, read each brief's first line and its Goal: confirm if at least 9 of the 10 begin with the blocker line and hold a Value line that names an outcome for someone and no bare volume target; refute if fewer than 5 do; inconclusive in between, or with fewer than 10 such briefs (both thresholds are uncalibrated).
+- **Risk:** A brief written from memory skips the template; whether a value line names an outcome is the reader's call, so two readers may differ; a writer may fill the blocker line with "no operator-only blocker" by habit.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Delete the PR-review skill's bare-decorator bullet, commit the learnings buffer as a drain's restore point, give the brief template a blocker line and a problem and value line, send the preamble's host rules to the project's own file, and add a SQL hand-off trap and two prompt-sweep checks
+
+### [SKILL-MODIFIED] The worker preamble no longer invites an edit that an update overwrites
+- **Category:** Consistency
+- **Hypothesis:** By sending the project's own host rules to the project's host-rules file and telling every brief to point at it beside the preamble, we expect no installed copy of the worker preamble to differ from the shipped one at the next update review of a project that dispatches workers with it, because section 0 no longer tells an adopter to replace a block of the installed copy, which the next update overwrites.
+- **Signal:** By 2026-12-28 (calendar backstop), at the next update review of each project that dispatches workers with the preamble, compare its installed assets/worker-preamble.md with the shipped file and read its host-rules file: confirm if no installed copy differs and each project keeps its host rules in its own file; refute if an installed copy holds project rules, or a brief points a worker at the preamble alone for them; inconclusive if no project is reviewed in the window.
+- **Risk:** A project that already replaced the block keeps its edit until an update overwrites it, which is the loss the change avoids; the file's conventional path is a convention and is not enforced; the comparison needs read access to an adopter's installed copy.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Delete the PR-review skill's bare-decorator bullet, commit the learnings buffer as a drain's restore point, give the brief template a blocker line and a problem and value line, send the preamble's host rules to the project's own file, and add a SQL hand-off trap and two prompt-sweep checks
+
 ### [SKILL-MODIFIED] A delegated session sizes its work, stops at its stop line and closes with the review and the lessons, and opens no session unasked
 - **Category:** Consistency
 - **Hypothesis:** By pointing every delegated worker at section 5 of the worker preamble and pasting one five-step Close block in every brief, we expect the next 10 delegated sessions whose brief carries them to run the completion review through the Skill tool, to end with a summary that says the session may be closed and to open no session of their own, because the rules sit in the one file a worker is told to read, and the Close block now names the review skill and the lessons step that the older four-step copies left implicit.
