@@ -1,0 +1,951 @@
+"""The Close block is one text in two places, and a dispatch brief carries three more rules.
+
+A brief pastes the Close block verbatim, and two files hold it: the brief contract of
+`orchestrate/SKILL.md` (item 9, a blockquote) and the delegation template in
+`orchestrate/references/brief-template.md` (the last section of the fenced skeleton). The two
+copies had drifted apart and neither named the review skill, the lessons step or the handoff's
+name. Each now holds five steps in the same words, in this order: the self-challenge, the
+completion review (run through the Skill tool, whatever the size of the task), the lessons (and
+where the drafts go when the brief bars the learnings buffer), the handoff, and the summary that
+tells the reader the session may be closed. The review's step list is not counted anywhere: a
+count goes stale where the skill that owns the list changes it.
+
+The template's list of rules a brief carries gains three, at the end of the section: a brief
+filled in at launch ends with a marker block that one of its preconditions searches for with a
+regular expression that does not match its own text, a brief never tells an agent to run a
+user-only skill, and a brief that lists acceptance criteria names who ticks the boxes. Section 2a
+of `SKILL.md` no longer names one project's host-rules file; it says the project's own, if it
+keeps one.
+
+Four wordings are retired and must stay gone: no precondition is called "the first" one (the
+paste-line comparison and the marker search are two of several), the user-only rule gives
+`commit-message` as an example and not as the one such skill, and the step that saves into the
+handoff names "the report file or return note your brief names", since a brief may name either.
+The three lists of the worker preamble's topics (in the skeleton of the template, in its rule of
+thumb and in item 8 of the contract) end with the size, stop and close rules; the tests read the
+three lists and not the preamble.
+
+THE SURFACE, in numbers the tests assert: 2 Close blocks (the contract's blockquote and the
+template's last section) of 5 steps each, judged by 19 phrases; 3 claims and 21 phrases in one
+section of the template (`## Rules a dispatch brief carries`); 4 retired wordings, each absent
+from its own place; 3 lists of preamble topics, each pinned by its last words; 2 whole files (the
+contract and the template) scanned for the launch placeholder and for a count of the review's
+steps. Read
+beside them, by name and not by count: the whole of `SKILL.md` for the old host-rules path, and
+the one sentence of section 2a that replaced it. A claim holds when every phrase is in its step
+or section (lower-cased, whitespace collapsed), and each phrase is fired at a planted removal,
+so a phrase the check could not see go is not in the table. The two scans that are green on the
+text that came before (no placeholder written whole, no step count) are fired at planted texts
+instead, and so is the old-path scan, which has no other proof once the old path is gone. So is
+every helper that cuts a section, an item or a block out of a file: it is fired at a planted
+document that holds a second section, a heading inside a fence, a heading twice, a paragraph
+that trails the item it belongs to, and, placed before the real line, a decoy that only contains
+the text looked for or only starts like it. A claim's phrases leave no word of its sentence
+outside them and do not overlap: a word outside every phrase can be deleted with every test
+still green, and two phrases that share words cannot be told apart by the planted removal.
+"""
+
+import re
+from pathlib import Path
+
+import pytest
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_ORCHESTRATE = _REPO_ROOT / "plugins" / "orchestration" / "skills" / "orchestrate"
+_SKILL = _ORCHESTRATE / "SKILL.md"
+_TEMPLATE = _ORCHESTRATE / "references" / "brief-template.md"
+
+_EM = chr(0x2014)
+_EN = chr(0x2013)
+_SKILL_CLOSE_LEAD = f"**Close {_EM} run in this order, do not wait to be asked.**"
+_TEMPLATE_CLOSE_HEADING = "## Close (run in this order, do not wait to be asked)"
+_CONTRACT_ITEM = "9. **The close block"
+_RULES_HEADING = "## Rules a dispatch brief carries"
+_LAUNCH_HEADING = "### 2a."
+_PASTE_HEADING = "## Paste line"
+_STANDING_HEADING = "## Standing rules"
+_ITEM_8 = "8. **Point the worker at the preamble FILE"
+_RULE_OF_THUMB = "- **Inline the TASK-SPECIFIC source of truth"
+_SKILL_PLACE = "SKILL.md item 9"
+_TEMPLATE_PLACE = "brief-template.md Close section"
+_PLACES = (_SKILL_PLACE, _TEMPLATE_PLACE)
+# The files read whole, for a placeholder written out and for a count of the review's steps.
+_WHOLE_FILE_SCANS = (_TEMPLATE, _SKILL)
+# What the step that saves into the handoff says it is named by: a brief names a report file or
+# a return note, whichever it asks for.
+_SAVE_STEP_NAMES = "the report file or return note your brief names"
+# The new topic of the worker preamble, which the three lists of its topics now end with.
+_SIZE_STOP_CLOSE = "size, stop and close"
+
+# Written whole, the placeholder would match the check that looks for it, and the old path is
+# one project's: both are built from fragments, so no shipped file or test holds them as one.
+_PLACEHOLDER = "ADDENDUM-" + "PENDING"
+_BRACKET_FORM = "ADDENDUM-PEN[D]ING"
+_OLD_HOST_RULES_PATH = ".claude/" + "preambles/" + "spawned-session-" + "host-rules.md"
+# A second spelling of the same path, split at other places: the planted positive of the scan is
+# built from it, so a typo made in only one of the two spellings is seen and not shared.
+_PLANTED_OLD_SENTENCE = (
+    "Use it to inject `.claude/pre" + "ambles/spawned-session-host-" + "rules.md`."
+)
+
+_HEADING = re.compile(r"^(#{1,6})\s")
+_STEP_START = re.compile(r"^\s*(\d+)\.\s")
+_STEP_COUNT = re.compile(
+    r"\bsteps?\s+0\s*(?:to|through|-|" + _EN + r")\s*(?:step\s+)?9\b", re.IGNORECASE
+)
+
+# (step, the phrases that must all be in that step; lower-cased, whitespace collapsed)
+_STEP_ROWS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "1: the self-challenge",
+        (
+            "self-challenge: is it detailed enough?",
+            "have you missed something?",
+            'say what it changed, including "nothing"',
+        ),
+    ),
+    (
+        "2: the completion review is run through the skill, before the handoff",
+        (
+            "then the completion review",
+            "`lemmi-ai-kit-core:post-task-review` through the skill tool",
+            "whatever the size of the task",
+            "a hand-written review does not replace it",
+            "if you have not already run it",
+            "both run before the handoff",
+        ),
+    ),
+    (
+        "3: the lessons, and where the drafts go when the learnings buffer is barred",
+        (
+            "lessons: run `lemmi-ai-kit-core:task-learnings`",
+            "if your brief bars the learnings buffer",
+            "put the lesson drafts in your handoff",
+            "say so in your closing message",
+        ),
+    ),
+    (
+        "4: everything is saved into the handoff, which the brief names",
+        (
+            "save everything into the handoff",
+            f"({_SAVE_STEP_NAMES})",
+        ),
+    ),
+    (
+        "5: a plain summary that says the session may be closed",
+        (
+            "then write a short summary for whoever reads it next",
+            "bullets, at most 10 lines, plain language, no internal ids",
+            "the review's step list and the lessons result in it",
+            "say in plain words that the session may be closed",
+        ),
+    ),
+)
+
+# (claim, the phrases that must all be in the section; lower-cased, whitespace collapsed)
+_RULE_ROWS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "m: a brief filled in at launch ends with a marker block, one of its preconditions searches",
+        (
+            "a brief filled in at launch ends with a marker block",
+            "one of its preconditions searches for the marker",
+            "the placeholder line is one word",
+            "`addendum-` followed by `pending`",
+            "written without brackets",
+            "the precondition searches for it as a regular expression with",
+            "one character in a class, `addendum-pen[d]ing`",
+            "which does not match its own text",
+            "a match means the launch addendum is missing",
+            "the delegate stops and says so",
+            "certify the check before the brief ships",
+            "it prints true for a file holding the placeholder, and false for a file without it "
+            "and for a file holding only the check line",
+        ),
+    ),
+    (
+        "u: a brief never tells an agent to run a user-only skill",
+        (
+            "a brief never tells an agent to run a user-only skill",
+            "for example `commit-message`:",
+            "when the operator asks for a commit",
+            "the agent writes the message from the change itself",
+            "and says the skill is the operator's to run",
+        ),
+    ),
+    (
+        "a: a brief that lists acceptance criteria names who ticks the boxes and the status line",
+        (
+            "a brief that lists acceptance criteria names who ticks the boxes",
+            "who writes the status line",
+            "a worker that is not named edits no task file",
+            "the worker preamble says how it returns the criteria",
+        ),
+    ),
+)
+
+# The three new rules open their bullets with these leads, and they are the last three bullets.
+_NEW_RULE_LEADS = (
+    "- **A brief filled in at launch ends with a marker block, and one of its preconditions "
+    "searches for the marker.**",
+    "- **A brief never tells an agent to run a user-only skill.**",
+    "- **A brief that lists acceptance criteria names who ticks the boxes and who writes the "
+    "Status line.**",
+)
+
+_SENTENCE_2A = (
+    "Use it to inject the project's own host-rules file, if it keeps one "
+    f"{_EM} spawned sessions do **not** inherit `AGENTS.md`."
+)
+
+
+def _read(path: Path) -> str:
+    """The file as text with LF line ends, so a checkout that stores CRLF reads the same."""
+    return path.read_text(encoding="utf-8").replace("\r\n", "\n")
+
+
+def _words(text: str) -> str:
+    return " ".join(text.split()).lower()
+
+
+def _missing(text: str, phrases: tuple[str, ...]) -> list[str]:
+    return [phrase for phrase in phrases if phrase not in text]
+
+
+def _fenced(lines: list[str]) -> list[bool]:
+    """For each line, whether it is a fence line or sits in a fenced block, so that a `#` line
+    in a code block is never read as a heading."""
+    flags: list[bool] = []
+    inside = False
+    for line in lines:
+        if line.lstrip().startswith("```"):
+            inside = not inside
+            flags.append(True)
+        else:
+            flags.append(inside)
+    return flags
+
+
+def _section(text: str, heading: str) -> str:
+    """The one heading line that starts with `heading` and the lines under it, up to the next
+    heading of the same or a higher level. Fails loudly when no line, or more than one, starts
+    with `heading`."""
+    lines = text.split("\n")
+    fenced = _fenced(lines)
+    starts = [
+        index
+        for index, line in enumerate(lines)
+        if not fenced[index] and _HEADING.match(line) and line.startswith(heading)
+    ]
+    assert len(starts) == 1, f"{heading!r} starts {len(starts)} headings, not 1"
+    opening = _HEADING.match(lines[starts[0]])
+    assert opening is not None
+    level = len(opening[1])
+    body = [lines[starts[0]]]
+    for index in range(starts[0] + 1, len(lines)):
+        found = None if fenced[index] else _HEADING.match(lines[index])
+        if found is not None and len(found[1]) <= level:
+            break
+        body.append(lines[index])
+    return "\n".join(body)
+
+
+def _top_level_item(text: str, lead: str) -> str:
+    """The one list item that starts a line with `lead` and every line after it up to the next
+    top-level numbered item or heading. Fails loudly when no line, or more than one, starts
+    with `lead`."""
+    lines = text.split("\n")
+    starts = [index for index, line in enumerate(lines) if line.startswith(lead)]
+    assert len(starts) == 1, f"{lead!r} starts {len(starts)} lines, not 1"
+    item = [lines[starts[0]]]
+    for line in lines[starts[0] + 1 :]:
+        if re.match(r"\d+\. ", line) or _HEADING.match(line):
+            break
+        item.append(line)
+    return "\n".join(item)
+
+
+def _skill_close_block(text: str) -> list[str]:
+    """The blockquote of the brief contract that holds the Close lead, markers removed. Fails
+    loudly when the lead is not on exactly one line."""
+    lines = text.split("\n")
+    starts = [index for index, line in enumerate(lines) if _SKILL_CLOSE_LEAD in line]
+    assert len(starts) == 1, (
+        f"the Close lead is on {len(starts)} lines of SKILL.md, not 1"
+    )
+    block: list[str] = []
+    for line in lines[starts[0] :]:
+        if not line.lstrip().startswith(">"):
+            break
+        block.append(re.sub(r"^\s*>\s?", "", line))
+    return block
+
+
+def _template_close_block(text: str) -> list[str]:
+    """The lines under the template's Close heading, up to the closing fence of the skeleton
+    or the next heading. Fails loudly when the heading is not on exactly one line."""
+    lines = text.split("\n")
+    starts = [
+        index for index, line in enumerate(lines) if line == _TEMPLATE_CLOSE_HEADING
+    ]
+    assert len(starts) == 1, (
+        f"the Close heading is on {len(starts)} lines of the template, not 1"
+    )
+    block: list[str] = []
+    for line in lines[starts[0] + 1 :]:
+        if line.startswith("```") or line.startswith("## "):
+            break
+        block.append(line)
+    return block
+
+
+def _steps(block: list[str]) -> list[str]:
+    """The numbered steps of a block, each as one line of folded whitespace."""
+    steps: list[str] = []
+    for line in block:
+        if _STEP_START.match(line):
+            steps.append(line.strip())
+        elif steps and line.strip():
+            steps[-1] = f"{steps[-1]} {line.strip()}"
+    return [" ".join(step.split()) for step in steps]
+
+
+def _close_steps(place: str) -> list[str]:
+    if place == _SKILL_PLACE:
+        return _steps(_skill_close_block(_read(_SKILL)))
+    return _steps(_template_close_block(_read(_TEMPLATE)))
+
+
+def _disagreements(left: list[str], right: list[str]) -> list[int]:
+    """The 1-based numbers of the steps whose folded text differs, or that one side lacks."""
+    longest = max(len(left), len(right))
+    left_padded = left + [""] * (longest - len(left))
+    right_padded = right + [""] * (longest - len(right))
+    return [
+        number
+        for number, (one, other) in enumerate(
+            zip(left_padded, right_padded, strict=True), 1
+        )
+        if one != other
+    ]
+
+
+def _bullets(section: str) -> list[str]:
+    """The bullets of a section, each as one line of folded whitespace."""
+    bullets: list[str] = []
+    for line in section.split("\n"):
+        if line.startswith("- "):
+            bullets.append(line)
+        elif bullets and line.strip():
+            bullets[-1] = f"{bullets[-1]} {line.strip()}"
+    return [" ".join(bullet.split()) for bullet in bullets]
+
+
+def _cited_step_problems(text: str) -> list[str]:
+    """Why the paragraph that says which step writes a file does not cite the step that saves
+    into the handoff; empty when it does."""
+    steps = _steps(_skill_close_block(text))
+    saved = [number for number, step in enumerate(steps, 1) if _SAVE_STEP_NAMES in step]
+    if not saved:
+        return ["no step of the Close block names the return note"]
+    item = " ".join(_top_level_item(text, _CONTRACT_ITEM).split())
+    cited = [
+        int(number) for number in re.findall(r"\bStep (\d+) writes a file\b", item)
+    ]
+    if cited != saved:
+        return [
+            f"the paragraph cites step {cited} as the one that writes a file; it is {saved}"
+        ]
+    return []
+
+
+def _planted_contract(cited: int, with_return_note: bool = True) -> str:
+    saves = "Save everything into the handoff"
+    saves += f" ({_SAVE_STEP_NAMES})." if with_return_note else "."
+    return (
+        f"9. **The close block {_EM} paste it verbatim into every brief.** A paragraph.\n\n"
+        f"   > **Close {_EM} run in this order, do not wait to be asked.**\n"
+        "   > 1. Self-challenge: one.\n"
+        "   > 2. Then the completion review: two.\n"
+        "   > 3. Lessons: three.\n"
+        f"   > 4. {saves}\n"
+        "   > 5. Then write a short summary: five.\n\n"
+        f"   Step {cited} writes a file: a sub-agent whose harness refuses the write returns\n"
+        "   the handoff content as text (item 8).\n"
+        "10. **Another item.**\n"
+    )
+
+
+def _holds_placeholder(text: str) -> bool:
+    return _PLACEHOLDER in text
+
+
+def _names_old_path(text: str) -> bool:
+    return _OLD_HOST_RULES_PATH in text
+
+
+def _own_check_line(expression: str) -> str:
+    """The text of a file that holds only the line that searches for `expression`."""
+    return f"grep -E '{expression}' brief.md\n"
+
+
+def _marker_check(check: re.Pattern[str], path: Path) -> bool:
+    """What the precondition of a launch brief that searches for the marker prints: whether the
+    file matches."""
+    return check.search(path.read_text(encoding="utf-8")) is not None
+
+
+def _shipped_check(template: str) -> re.Pattern[str]:
+    """The regular expression the rules section of `template` gives, read from the section
+    itself, so the check that is certified is the one the template ships and not a copy typed
+    here. Fails loudly when the section gives it zero times or more than once."""
+    section = _section(template, _RULES_HEADING)
+    found = re.findall(f"`({re.escape(_BRACKET_FORM)})`", section)
+    assert len(found) == 1, (
+        f"the rules section gives the marker check {len(found)} times, not 1"
+    )
+    return re.compile(found[0])
+
+
+def _skeleton(text: str) -> str:
+    """The lines between the first pair of code fences: the brief template is that block, and
+    the headings in it are headings only once the fences are gone. Fails loudly when the text
+    holds no complete fenced block."""
+    inside: list[str] = []
+    opened = False
+    for line in text.split("\n"):
+        if line.lstrip().startswith("```"):
+            if opened:
+                return "\n".join(inside)
+            opened = True
+        elif opened:
+            inside.append(line)
+    raise AssertionError("the text holds no complete fenced block")
+
+
+def _bullet_starting(text: str, lead: str) -> str:
+    """The one bullet of `text` that starts with `lead`, as one line of folded whitespace. Fails
+    loudly when no bullet, or more than one, starts with `lead`."""
+    found = [bullet for bullet in _bullets(text) if bullet.startswith(lead)]
+    assert len(found) == 1, f"{lead!r} starts {len(found)} bullets, not 1"
+    return found[0]
+
+
+# The wordings that are retired: each is looked for in its own place only (the key names it).
+_RETIRED_KEYS = (
+    "first precondition: the whole template",
+    "is the one: the user-only rule",
+    "return note only: step 4 of SKILL.md item 9",
+    "return note only: step 4 of the template's Close section",
+)
+
+# The three lists of the worker preamble's topics, and the words each one ends with.
+_TOPIC_LIST_ENDS = {
+    "template skeleton": "how to return a result, and the size, stop and close rules.",
+    "template rule of thumb": "how to return, size, stop and close)",
+    "contract item 8": "how to return a result, and the size, stop and close rules)",
+}
+
+
+def _retired_wordings() -> dict[str, tuple[str, str]]:
+    """For each key of `_RETIRED_KEYS`: the folded text of its place, and the wording that must
+    not be in it."""
+    template = _read(_TEMPLATE)
+    rules = _section(template, _RULES_HEADING)
+    return {
+        _RETIRED_KEYS[0]: (_words(template), "first precondition"),
+        _RETIRED_KEYS[1]: (
+            _words(_bullet_starting(rules, _NEW_RULE_LEADS[1])),
+            "is the one",
+        ),
+        _RETIRED_KEYS[2]: (
+            _words(_close_steps(_SKILL_PLACE)[3]),
+            "(the return note your brief names)",
+        ),
+        _RETIRED_KEYS[3]: (
+            _words(_close_steps(_TEMPLATE_PLACE)[3]),
+            "(the return note your brief names)",
+        ),
+    }
+
+
+def _topic_list_places() -> dict[str, str]:
+    """For each key of `_TOPIC_LIST_ENDS`: the folded text of the place that holds the list."""
+    template = _read(_TEMPLATE)
+    return {
+        "template skeleton": _words(_section(_skeleton(template), _STANDING_HEADING)),
+        "template rule of thumb": _words(_bullet_starting(template, _RULE_OF_THUMB)),
+        "contract item 8": _words(_top_level_item(_read(_SKILL), _ITEM_8)),
+    }
+
+
+def test_the_surface_is_stated_in_numbers() -> None:
+    step_phrases = [phrase for _, phrases in _STEP_ROWS for phrase in phrases]
+    rule_phrases = [phrase for _, phrases in _RULE_ROWS for phrase in phrases]
+    assert (len(_STEP_ROWS), len(step_phrases)) == (5, 19)
+    assert (len(_RULE_ROWS), len(rule_phrases)) == (3, 21)
+    assert len(_RETIRED_KEYS) == 4 and set(_retired_wordings()) == set(_RETIRED_KEYS)
+    assert len(_TOPIC_LIST_ENDS) == 3
+    assert set(_topic_list_places()) == set(_TOPIC_LIST_ENDS)
+    assert len(_NEW_RULE_LEADS) == len(_RULE_ROWS)
+    assert len(_PLACES) == 2
+    assert len(_WHOLE_FILE_SCANS) == 2 and len(set(_WHOLE_FILE_SCANS)) == 2
+    for path in _WHOLE_FILE_SCANS:
+        assert path.is_file(), path
+
+
+@pytest.mark.parametrize("place", _PLACES)
+def test_each_close_block_holds_the_five_steps_in_order(place: str) -> None:
+    steps = _close_steps(place)
+    assert len(steps) == len(_STEP_ROWS), (
+        f"{place} holds {len(steps)} steps, not 5: {steps}"
+    )
+    for number, (step, (claim, phrases)) in enumerate(
+        zip(steps, _STEP_ROWS, strict=True), 1
+    ):
+        assert step.startswith(f"{number}. "), (
+            f"{place}: step {number} is numbered wrongly"
+        )
+        missing = _missing(_words(step), phrases)
+        assert not missing, f"{place} does not state {claim!r}: missing {missing}"
+
+
+def test_the_two_close_blocks_agree_step_by_step() -> None:
+    skill = _close_steps(_SKILL_PLACE)
+    template = _close_steps(_TEMPLATE_PLACE)
+    differing = _disagreements(skill, template)
+    assert not differing, (
+        f"the two copies of the Close block differ at step(s) {differing}: "
+        f"SKILL.md {[skill[n - 1] for n in differing if n <= len(skill)]} "
+        f"against the template {[template[n - 1] for n in differing if n <= len(template)]}"
+    )
+
+
+def test_the_comparison_sees_a_changed_word_and_ignores_wrapping() -> None:
+    """The comparison is fired at the real contract block: re-indented and re-wrapped it still
+    agrees, one changed word is the one step reported, and a missing step is reported."""
+    block = _skill_close_block(_read(_SKILL))
+    steps = _steps(block)
+    assert steps, "the contract's Close block holds no step"
+    rewrapped = _steps([line.strip() for line in block])
+    assert rewrapped == steps and _disagreements(steps, rewrapped) == []
+    changed = _steps([line.replace("Self-challenge", "Self-check") for line in block])
+    assert changed != steps, "the planted change changed nothing"
+    assert _disagreements(steps, changed) == [1]
+    assert _disagreements(steps, steps[:-1]) == [len(steps)]
+
+
+def test_the_paragraph_after_the_block_cites_the_save_step() -> None:
+    """Renumbering the Close block moves the step that writes the handoff; the sentence that
+    says which step writes a file must follow it."""
+    problems = _cited_step_problems(_read(_SKILL))
+    assert not problems, problems
+
+
+def test_the_save_step_check_sees_a_stale_number() -> None:
+    assert _cited_step_problems(_planted_contract(cited=4)) == []
+    stale = _cited_step_problems(_planted_contract(cited=3))
+    assert len(stale) == 1 and "cites step [3]" in stale[0], stale
+    unnamed = _cited_step_problems(_planted_contract(cited=4, with_return_note=False))
+    assert unnamed == ["no step of the Close block names the return note"]
+
+
+@pytest.mark.parametrize(
+    ("claim", "phrases"), _RULE_ROWS, ids=[row[0] for row in _RULE_ROWS]
+)
+def test_the_rules_section_states_the_claim(
+    claim: str, phrases: tuple[str, ...]
+) -> None:
+    section = _words(_section(_read(_TEMPLATE), _RULES_HEADING))
+    missing = _missing(section, phrases)
+    assert not missing, f"the section does not state {claim!r}: missing {missing}"
+
+
+def test_the_new_rules_are_the_last_three_bullets_in_order() -> None:
+    bullets = _bullets(_section(_read(_TEMPLATE), _RULES_HEADING))
+    assert len(bullets) >= len(_NEW_RULE_LEADS), bullets
+    tail = bullets[-len(_NEW_RULE_LEADS) :]
+    for lead, bullet in zip(_NEW_RULE_LEADS, tail, strict=True):
+        assert bullet.startswith(lead), (
+            f"expected a bullet that opens {lead!r}, found {bullet!r}"
+        )
+
+
+def test_every_phrase_is_reported_when_it_goes() -> None:
+    """Planted removal: each phrase cut out of the real text in turn is the one gap reported,
+    and an empty text lacks every phrase of a row. A phrase the check cannot see go would let
+    the text lose its rule and stay green."""
+    section = _words(_section(_read(_TEMPLATE), _RULES_HEADING))
+    rows: list[tuple[str, str, tuple[str, ...]]] = [
+        ("rules section", section, phrases) for _, phrases in _RULE_ROWS
+    ]
+    for place in _PLACES:
+        steps = _close_steps(place)
+        assert len(steps) == len(_STEP_ROWS), f"{place} holds {len(steps)} steps, not 5"
+        rows += [
+            (place, _words(step), phrases)
+            for step, (_, phrases) in zip(steps, _STEP_ROWS, strict=True)
+        ]
+    for where, text, phrases in rows:
+        assert not _missing(text, phrases), (
+            f"{where}: a claim does not hold at the start"
+        )
+        for phrase in phrases:
+            assert _missing(text.replace(phrase, ""), phrases) == [phrase], (
+                where,
+                phrase,
+            )
+        assert _missing("", phrases) == list(phrases), where
+
+
+def test_the_launch_marker_is_given_in_bracket_form_and_never_written_whole() -> None:
+    """The placeholder written whole in a shipped file would match the check that looks for it,
+    in the brief a delegate copies from. The rules section gives the bracket form and describes
+    the placeholder in two code spans."""
+    for path in _WHOLE_FILE_SCANS:
+        assert not _holds_placeholder(_read(path)), (
+            f"{path.name} writes the placeholder whole"
+        )
+    assert _BRACKET_FORM in _section(_read(_TEMPLATE), _RULES_HEADING)
+
+
+def test_the_placeholder_scan_sees_a_planted_placeholder() -> None:
+    assert _holds_placeholder(f"## Addendum\n{_PLACEHOLDER}\n")
+    assert _holds_placeholder(f"x {_PLACEHOLDER} y")
+    shipped_shape = (
+        "The placeholder line is one word, `ADDENDUM-` followed by `PENDING`, written "
+        f"without brackets, and the check is `{_BRACKET_FORM}`."
+    )
+    assert not _holds_placeholder(shipped_shape)
+
+
+def _certify(template: str, folder: Path) -> tuple[bool, bool, bool, bool]:
+    """The certification the rule asks for, run on the regular expression `template` ships.
+    Four answers, in this order: for a planted file holding the placeholder, for a file without
+    it, for a file holding only the check line, and, for the expression written without its
+    character class, for a file holding only its own check line. Each check line is written from
+    the expression it is run with. Fails loudly when `template` does not give the check once in
+    its rules section."""
+
+    def printed(expression: re.Pattern[str], name: str, text: str) -> bool:
+        path = folder / name
+        path.write_text(text, encoding="utf-8")
+        return _marker_check(expression, path)
+
+    check = _shipped_check(template)
+    unbracketed = re.compile(_PLACEHOLDER)
+    return (
+        printed(check, "holding.md", f"# A brief\n\n{_PLACEHOLDER}\n"),
+        printed(check, "without.md", "# A brief\n\nThe addendum was filled in.\n"),
+        printed(check, "only-the-check.md", _own_check_line(check.pattern)),
+        printed(
+            unbracketed, "unbracketed-own-line.md", _own_check_line(unbracketed.pattern)
+        ),
+    )
+
+
+def test_the_marker_check_prints_true_only_for_a_file_holding_the_placeholder(
+    tmp_path: Path,
+) -> None:
+    """The certification the rule asks for, run on the regular expression the template ships:
+    True for a planted file holding the placeholder, False for a file without it and False for a
+    file holding only the check line. The unbracketed expression is then run on a file holding
+    only its own check line: it finds itself there, so the character class is shown to be what
+    prevents that."""
+    holding, without, only_the_check, unbracketed_own_line = _certify(
+        _read(_TEMPLATE), tmp_path
+    )
+    assert holding is True
+    assert without is False
+    assert only_the_check is False
+    assert unbracketed_own_line is True
+
+
+def test_the_certification_reads_the_check_from_the_template_it_is_given(
+    tmp_path: Path,
+) -> None:
+    """Fired at planted templates: one that gives the check in its rules section is certified,
+    one that gives it nowhere and one that gives it only outside the rules section are refused.
+    A certification run on a copy of the check typed in the test would pass on all three, and
+    one that read the whole file would pass on the third."""
+    gives = f"{_RULES_HEADING}\n\n- the check is `{_BRACKET_FORM}`\n"
+    assert _certify(gives, tmp_path) == (True, False, False, True)
+    nowhere = f"{_RULES_HEADING}\n\n- no check is given\n"
+    elsewhere = (
+        f"## Paste line\n\n- the check is `{_BRACKET_FORM}`\n\n"
+        f"{_RULES_HEADING}\n\n- no check is given here\n"
+    )
+    for planted in (nowhere, elsewhere):
+        with pytest.raises(AssertionError, match="0 times"):
+            _certify(planted, tmp_path)
+
+
+def test_section_2a_names_no_projects_host_rules_file() -> None:
+    skill = _read(_SKILL)
+    assert not _names_old_path(skill), (
+        "SKILL.md still names one project's host-rules path"
+    )
+    section = " ".join(_section(skill, _LAUNCH_HEADING).split())
+    assert "host-rules file" in section, "section 2a does not name the host-rules file"
+    assert _SENTENCE_2A in section, f"section 2a lost the sentence {_SENTENCE_2A!r}"
+
+
+def test_no_step_count_of_the_review_appears() -> None:
+    """The review skill owns its step list, and a count written here goes stale. Preventive: the
+    text that came before held none, so the scan is fired at planted shapes below."""
+    for path in _WHOLE_FILE_SCANS:
+        found = [match[0] for match in _STEP_COUNT.finditer(_read(path))]
+        assert not found, f"{path.name} counts the review's steps: {found}"
+
+
+def test_the_step_count_scan_sees_planted_shapes() -> None:
+    flagged = (
+        "Run it through the Skill tool, Steps 0 to 9, whatever the size of the task",
+        "Step 0 through Step 9",
+        "steps 0-9",
+        f"Steps 0{_EN}9",
+        "Steps 0 through 9",
+    )
+    clean = (
+        "with the review's step list and the lessons result in it",
+        "Step 3 writes a file",
+        "Steps 3 to 9",
+        "step 0 of the review",
+        "Step 10",
+        "Steps 0 to 90",
+    )
+    for text in flagged:
+        assert _STEP_COUNT.search(text), f"the scan missed {text!r}"
+    for text in clean:
+        assert _STEP_COUNT.search(text) is None, f"the scan flagged {text!r}"
+
+
+def test_a_missing_heading_fails_loudly() -> None:
+    with pytest.raises(AssertionError):
+        _skill_close_block("no lead here\n")
+    with pytest.raises(AssertionError):
+        _template_close_block("no heading here\n")
+    with pytest.raises(AssertionError):
+        _section("no heading here\n", _RULES_HEADING)
+    with pytest.raises(AssertionError):
+        _top_level_item("no item here\n", _CONTRACT_ITEM)
+
+
+def test_the_old_path_scan_sees_a_planted_path_and_near_misses() -> None:
+    """The scan is fired at a sentence that names the old path, spelled apart from the constant it
+    looks for, and at near-misses: the sentence that took its place, and the two halves of the
+    path far apart."""
+    assert _names_old_path(_PLANTED_OLD_SENTENCE)
+    assert _names_old_path(f"a line\n{_PLANTED_OLD_SENTENCE} More.\nand another")
+    assert not _names_old_path(_SENTENCE_2A)
+    assert not _names_old_path("a folder of preambles, and a file named host-rules.md")
+
+
+def test_a_section_is_cut_by_level_and_fence_and_a_duplicate_fails_loudly() -> None:
+    """The cut is fired at one planted document: a section ends at the next heading of its own
+    level and not at a deeper one, a heading written inside a fence neither starts nor ends a
+    section, and a heading that starts two sections is an error and not a pick of the first."""
+    document = "\n".join(
+        [
+            "# Title",
+            "",
+            "## Rules",
+            "- kept one",
+            "```text",
+            "## Rules",
+            "# a fenced line",
+            "```",
+            "### Deeper",
+            "- kept two",
+            "",
+            "## Next",
+            "- left out",
+            "",
+        ]
+    )
+    section = _section(document, "## Rules")
+    for kept in ("- kept one", "# a fenced line", "### Deeper", "- kept two"):
+        assert kept in section, kept
+    for left_out in ("## Next", "- left out"):
+        assert left_out not in section, left_out
+    moved = f"### 2a. Launch\nthe body\n### 2b. Peer\n{_SENTENCE_2A}\n"
+    assert _SENTENCE_2A not in _section(moved, _LAUNCH_HEADING)
+    with pytest.raises(AssertionError):
+        _section(f"{document}\n## Rules\n- again\n", "## Rules")
+    with pytest.raises(AssertionError):
+        _section("```text\n## Rules\n```\n", "## Rules")
+
+
+def test_an_item_ends_at_the_next_item_or_heading_and_a_duplicate_fails() -> None:
+    """The item is fired at planted lists: it holds the paragraph that trails its block, it ends
+    at the next numbered item, it ends at a heading when no item follows, and a lead on two lines
+    is an error."""
+    lead = "9. **The close block"
+    followed_by_item = (
+        "8. **Eight.** before\n"
+        f"{lead}** a lead\n"
+        "\n"
+        "   > quoted\n"
+        "\n"
+        "   Step 4 writes a file: the paragraph that trails the block.\n"
+        "10. **Ten.** belongs to the next item\n"
+    )
+    item = _top_level_item(followed_by_item, lead)
+    for kept in ("> quoted", "Step 4 writes a file"):
+        assert kept in item, kept
+    for left_out in ("8. **Eight.**", "10. **Ten.**"):
+        assert left_out not in item, left_out
+    followed_by_heading = (
+        f"{lead}** a lead\n   the body\n## A heading\n   after the heading\n"
+    )
+    item = _top_level_item(followed_by_heading, lead)
+    assert "the body" in item
+    for left_out in ("A heading", "after the heading"):
+        assert left_out not in item, left_out
+    with pytest.raises(AssertionError):
+        _top_level_item(f"{followed_by_item}{lead}** again\n", lead)
+
+
+def test_the_close_blocks_end_where_they_end_and_a_duplicate_fails_loudly() -> None:
+    """The contract's block ends at the first line that is not quoted, and the template's block at
+    its closing fence or at the next heading; a lead, or a heading, on two lines is an error."""
+    contract = _planted_contract(cited=4)
+    block = _skill_close_block(contract)
+    assert len(_steps(block)) == 5
+    assert "Step 4 writes a file" not in "\n".join(block)
+    with pytest.raises(AssertionError):
+        _skill_close_block(f"{contract}\n{contract}")
+    fenced = f"```markdown\n{_TEMPLATE_CLOSE_HEADING}\n1. one\n2. two\n```\n\nRules of thumb:\n"
+    assert _steps(_template_close_block(fenced)) == ["1. one", "2. two"]
+    headed = f"{_TEMPLATE_CLOSE_HEADING}\n1. one\n\n## Paste line\n2. not a step of the block\n"
+    assert _steps(_template_close_block(headed)) == ["1. one"]
+    with pytest.raises(AssertionError):
+        _template_close_block(f"{fenced}\n{fenced}")
+
+
+def test_the_shipped_check_is_read_once_from_the_rules_section() -> None:
+    once = f"{_RULES_HEADING}\n\n- the check is `{_BRACKET_FORM}`\n"
+    assert _shipped_check(once).pattern == _BRACKET_FORM
+    twice = f"{_RULES_HEADING}\n\n- `{_BRACKET_FORM}` and again `{_BRACKET_FORM}`\n"
+    none = f"{_RULES_HEADING}\n\n- no check is given\n"
+    outside = (
+        f"## Paste line\n\n- `{_BRACKET_FORM}`\n\n{_RULES_HEADING}\n\n- no check\n"
+    )
+    for text in (twice, none, outside):
+        with pytest.raises(AssertionError):
+            _shipped_check(text)
+
+
+def test_a_heading_that_only_contains_the_text_is_not_the_section_heading() -> None:
+    """Placed before the real heading: a heading that holds the text in its middle is not a
+    second start, and nor is a heading that begins with the first words of the real one (the
+    shipped rules heading is not a prefix match for `## Rules of the road`)."""
+    real = f"{_RULES_HEADING}\n\n- the rule\n"
+    containing = f"### About the {_RULES_HEADING} below\n- a decoy\n\n"
+    starting_alike = (
+        "## Rules of the road\n- another decoy, `" + _BRACKET_FORM + "`\n\n"
+    )
+    for decoy in (containing, starting_alike):
+        section = _section(f"{decoy}{real}", _RULES_HEADING)
+        assert section == _section(real, _RULES_HEADING), decoy
+        assert "decoy" not in section, decoy
+        assert _shipped_check(f"{decoy}{real}- `{_BRACKET_FORM}`\n").pattern == (
+            _BRACKET_FORM
+        ), decoy
+
+
+def test_a_line_that_only_contains_the_lead_is_not_the_item() -> None:
+    """Placed before the real item: a paragraph that quotes the lead in passing and an item of
+    another list that has the same number are not a second start, and the paragraph that cites
+    the save step is still read from the real item."""
+    item = _planted_contract(cited=4)
+    quoting = f"A paragraph that quotes {_CONTRACT_ITEM}** in passing.\n\n"
+    another_list = "9. **The ninth item of another list.**\n\n"
+    for decoy in (quoting, another_list):
+        assert _top_level_item(f"{decoy}{item}", _CONTRACT_ITEM) == _top_level_item(
+            item, _CONTRACT_ITEM
+        ), decoy
+        assert _cited_step_problems(f"{decoy}{item}") == [], decoy
+
+
+def test_a_heading_that_only_starts_like_the_close_heading_is_not_it() -> None:
+    """Placed before the real heading: a longer heading that begins with the same words is not
+    a second start, and its lines are not steps of the block."""
+    real = f"{_TEMPLATE_CLOSE_HEADING}\n1. one\n2. two\n"
+    longer = (
+        f"{_TEMPLATE_CLOSE_HEADING}, second version\n1. not a step of the block\n\n"
+    )
+    assert _steps(_template_close_block(f"{longer}{real}")) == ["1. one", "2. two"]
+
+
+def test_a_wrapped_line_that_starts_with_a_decimal_number_is_not_a_step() -> None:
+    """A step that wraps onto a line starting `2.5 hours` is one step: a step starts at a
+    number, a dot and a space."""
+    block = [
+        "1. one",
+        "2. two, which runs for",
+        "   2.5 hours before it stops",
+        "3. three",
+    ]
+    assert _steps(block) == [
+        "1. one",
+        "2. two, which runs for 2.5 hours before it stops",
+        "3. three",
+    ]
+
+
+def test_the_paste_line_lead_in_calls_the_compare_one_of_the_preconditions() -> None:
+    """The paste line is compared by the delegate's preconditions and one of them does it: no
+    precondition is the first one, which is a rank the brief does not give them."""
+    section = _words(_section(_read(_TEMPLATE), _PASTE_HEADING))
+    assert (
+        "so that one of the delegate's preconditions can compare each with what it finds"
+        in section
+    ), "the paste line's lead-in does not say that one of the preconditions compares"
+
+
+@pytest.mark.parametrize("key", _RETIRED_KEYS)
+def test_a_retired_wording_is_gone_from_its_place(key: str) -> None:
+    text, wording = _retired_wordings()[key]
+    assert wording not in text, f"{key}: still says {wording!r}"
+
+
+@pytest.mark.parametrize("key", sorted(_TOPIC_LIST_ENDS))
+def test_a_list_of_the_preambles_topics_ends_with_the_size_stop_and_close_rules(
+    key: str,
+) -> None:
+    """The worker preamble gained a section on size, stop and close, so each list of its topics
+    names it last. Only the lists are read: the preamble is not."""
+    place = _topic_list_places()[key]
+    assert _SIZE_STOP_CLOSE in place, (
+        f"{key}: the list does not name {_SIZE_STOP_CLOSE!r}"
+    )
+    assert _TOPIC_LIST_ENDS[key] in place, (
+        f"{key}: the list does not end with {_TOPIC_LIST_ENDS[key]!r}"
+    )
+
+
+def test_a_bullet_is_cut_at_the_next_bullet_and_a_duplicate_lead_fails() -> None:
+    text = "- **A lead.** one\n  wrapped on\n\n- **Another lead.** two\n"
+    assert _bullet_starting(text, "- **A lead.**") == "- **A lead.** one wrapped on"
+    assert _bullet_starting(text, "- **Another lead.**") == "- **Another lead.** two"
+    with pytest.raises(AssertionError):
+        _bullet_starting(f"{text}- **A lead.** again\n", "- **A lead.**")
+    with pytest.raises(AssertionError):
+        _bullet_starting(text, "- **A lead that is missing")
+
+
+def test_the_skeleton_is_the_first_fenced_block_and_nothing_else() -> None:
+    """Fired at a planted document: the headings inside the first block are headings of the
+    skeleton, and what stands outside it or in a second block is not."""
+    text = (
+        "# Title\n\n```markdown\n## Standing rules\nthe list\n\n## Goal\nthe goal\n```\n\n"
+        "## Standing rules\noutside the block\n\n```text\n## Standing rules\nsecond block\n```\n"
+    )
+    section = _section(_skeleton(text), _STANDING_HEADING)
+    assert "the list" in section
+    for left_out in ("the goal", "outside the block", "second block"):
+        assert left_out not in section, left_out
+    with pytest.raises(AssertionError):
+        _skeleton("no fence here\n")
+    with pytest.raises(AssertionError):
+        _skeleton("```markdown\nnever closed\n")

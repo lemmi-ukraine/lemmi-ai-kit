@@ -6,7 +6,8 @@ a section you can't fill crisply is a sign the subtask isn't ready to delegate.
 ```markdown
 ## Standing rules (read this FILE — only two harness limits are restated below)
 Read `<absolute path to the installed agent-delegate skill's assets/worker-preamble.md>` in full before your first
-shell call: evidence discipline, working-tree discipline, and how to return a result.
+shell call: evidence discipline, working-tree discipline, how to return a result,
+and the size, stop and close rules.
 - Shell hook: a leading `NAME=value` assignment before a command can be denied. Put the value inline,
   write multi-step logic to a script file, or use the interpreter's UTF-8 mode flag instead of an
   environment variable.
@@ -48,9 +49,15 @@ written at all.
 ## Close (run in this order, do not wait to be asked)
 1. Self-challenge: is it detailed enough? Have you missed something? Say what it changed,
    including "nothing".
-2. Then the task-completion review, if not already run. Both run BEFORE the handoff.
-3. Save everything into the handoff.
-4. Then a short human-facing summary: bullets, ≤10 lines, plain language, no internal ids.
+2. Then the completion review: run `lemmi-ai-kit-core:post-task-review` through the Skill tool,
+   whatever the size of the task (a hand-written review does not replace it), if you have not
+   already run it. Both run BEFORE the handoff.
+3. Lessons: run `lemmi-ai-kit-core:task-learnings`. If your brief bars the learnings buffer, put
+   the lesson drafts in your handoff and say so in your closing message.
+4. Save everything into the handoff (the report file or return note your brief names).
+5. Then write a short summary for whoever reads it next: bullets, at most 10 lines, plain
+   language, no internal ids, with the review's step list and the lessons result in it, and say
+   in plain words that the session may be closed.
 ```
 
 Rules of thumb:
@@ -61,7 +68,7 @@ Rules of thumb:
 - **Inline the TASK-SPECIFIC source of truth; POINT at the standing rules.** These pull in opposite
   directions and the split is deliberate. Paste the convention or spec text that governs *this*
   change — it is small, task-scoped, and a stale reference is the real risk. But give the **standing**
-  rules (evidence discipline, tree discipline, how to return) as a path to
+  rules (evidence discipline, tree discipline, how to return, size, stop and close) as a path to
   `../../agent-delegate/assets/worker-preamble.md`: that content is identical across every dispatch,
   and restating it inline was measured to change nothing (violated at 32/32 when restated vs 25/27
   when not, with the only clean transcripts being the ones pointed at a file). Inlining it also
@@ -76,7 +83,7 @@ Rules of thumb:
 ## Paste line
 
 A peer session the user drives starts from one pasted line, and the brief is the file it points at.
-The line carries the items below, so that the delegate's first precondition can compare each with
+The line carries the items below, so that one of the delegate's preconditions can compare each with
 what it finds:
 
 - the state: not started, running in a named window, or done;
@@ -115,3 +122,16 @@ the brief: apply each one to the brief you are about to send.
 - **A kickoff that says "any other reply is a no" says what a plain affirmative means.** "Yes" is the
   likeliest reply. The brief lists what it permits (commits by explicit pathspec, say) and what stays
   the operator's (push, tag, release), so the delegate neither does everything nor stalls.
+- **A brief filled in at launch ends with a marker block, and one of its preconditions searches for
+  the marker.** The placeholder line is one word, `ADDENDUM-` followed by `PENDING`, written
+  without brackets. The precondition searches for it as a regular expression with one character
+  in a class, `ADDENDUM-PEN[D]ING`, which does not match its own text. A match means the launch
+  addendum is missing: the delegate stops and says so. Certify the check before the brief ships:
+  it prints True for a file holding the placeholder, and False for a file without it and for a
+  file holding only the check line.
+- **A brief never tells an agent to run a user-only skill.** For example `commit-message`: when the
+  operator asks for a commit, the agent writes the message from the change itself and says the
+  skill is the operator's to run.
+- **A brief that lists acceptance criteria names who ticks the boxes and who writes the Status
+  line.** A worker that is not named edits no task file; the worker preamble says how it returns
+  the criteria.

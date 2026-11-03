@@ -147,12 +147,12 @@ Every delegation gets a written brief. A good brief has exactly:
 
    - *Point, don't paste.* Give the worker the path to
      [`../agent-delegate/assets/worker-preamble.md`](../agent-delegate/assets/worker-preamble.md)
-     (evidence discipline, working-tree discipline, how to return a result). Across 59 sub-agent
-     transcripts, prompts that restated the rules verbatim were violated at **32/32 (100%)** versus
-     **25/27 (93%)** for prompts that did not — restating inline has **no measurable effect**. The
-     only transcripts with zero violations were pointed at a rules *file*. One condition in a small
-     corpus, so: current best practice with a named test (re-measure the violation rate), not a law.
-     It costs one line either way.
+     (evidence discipline, working-tree discipline, how to return a result, and the size, stop and
+     close rules). Across 59 sub-agent transcripts, prompts that restated the rules verbatim were
+     violated at **32/32 (100%)** versus **25/27 (93%)** for prompts that did not — restating inline
+     has **no measurable effect**. The only transcripts with zero violations were pointed at a rules
+     *file*. One condition in a small corpus, so: current best practice with a named test
+     (re-measure the violation rate), not a law. It costs one line either way.
    - *Write the report file EARLY and INCREMENTALLY — if the worker may write.* State this in the
      brief. **22% of one measured sub-agent corpus was killed mid-run by the usage window and
      returned nothing at all** — and a worker that dies returns exactly what a worker that found
@@ -187,13 +187,17 @@ Every delegation gets a written brief. A good brief has exactly:
    > **Close — run in this order, do not wait to be asked.**
    > 1. Self-challenge: is it detailed enough? Have you missed something? Say what it changed,
    >    including "nothing".
-   > 2. Then the task-completion review, if you have not already run it. Both run BEFORE the
-   >    handoff.
-   > 3. Save everything into the handoff.
-   > 4. Then write a short summary for whoever reads it next: bullets, ≤10 lines, plain language,
-   >    no internal ids.
+   > 2. Then the completion review: run `lemmi-ai-kit-core:post-task-review` through the Skill tool,
+   >    whatever the size of the task (a hand-written review does not replace it), if you have not
+   >    already run it. Both run BEFORE the handoff.
+   > 3. Lessons: run `lemmi-ai-kit-core:task-learnings`. If your brief bars the learnings
+   >    buffer, put the lesson drafts in your handoff and say so in your closing message.
+   > 4. Save everything into the handoff (the report file or return note your brief names).
+   > 5. Then write a short summary for whoever reads it next: bullets, at most 10 lines, plain
+   >    language, no internal ids, with the review's step list and the lessons result in it, and say
+   >    in plain words that the session may be closed.
 
-   Step 3 writes a file: a sub-agent whose harness refuses the write returns the handoff content as
+   Step 4 writes a file: a sub-agent whose harness refuses the write returns the handoff content as
    text (item 8).
 
    Plus three operator-interface rules, which apply to **every turn addressed to a human**, not just
@@ -384,8 +388,8 @@ run-time facts, all verified on CLI **2.1.224**, 2026-08-15:
   `/abs/path` that way, so `--append-system-prompt-file /abs/…` silently loads the wrong file.
 - **`--append-system-prompt-file` exists but is absent from `--help`'s flag list.** Confirmed by
   differential probe: it returns `Error: Append system prompt file not found` where an invented flag
-  returns `error: unknown option`. Use it to inject
-  `.claude/preambles/spawned-session-host-rules.md` — spawned sessions do **not** inherit `AGENTS.md`.
+  returns `error: unknown option`. Use it to inject the project's own host-rules file, if it keeps
+  one — spawned sessions do **not** inherit `AGENTS.md`.
 - **`--effort` is a real flag** with a validated enum (`low·medium·high·xhigh·max`). The `Agent`
   tool has no effort parameter, so `/effort` inside a prompt string remains the fallback for native
   subagents only.

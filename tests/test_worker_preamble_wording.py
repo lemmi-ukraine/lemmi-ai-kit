@@ -144,6 +144,12 @@ def _item_of(lead: str) -> Callable[[str], str]:
     return lambda text: _list_item(text, lead)
 
 
+def _without_quote_marks(locate: Callable[[str], str]) -> Callable[[str], str]:
+    """The located text with its blockquote markers removed, so that a step the block wraps onto
+    a second quoted line is read as the one sentence it is."""
+    return lambda text: re.sub(r"(?m)^[ \t]*>[ \t]?", "", locate(text))
+
+
 def _outside_the_adopters_block(heading: str) -> Callable[[str], str]:
     return lambda text: _without_blockquotes(_section(text, heading))
 
@@ -217,7 +223,7 @@ _ITEM_8_SHELL_SENTENCE = (
 )
 _ITEM_8_OTHER_LIMIT = "The other limit is the refused report file, in the clause above."
 _ITEM_9_SENTENCE = (
-    "Step 3 writes a file: a sub-agent whose harness refuses the write returns the "
+    "Step 4 writes a file: a sub-agent whose harness refuses the write returns the "
     "handoff content as text (item 8)."
 )
 _TEMPLATE_HEADING = (
@@ -519,21 +525,20 @@ _PLACES: tuple[_Place, ...] = (
     _Place(
         name="orchestrate-item-9",
         path=_ORCHESTRATE,
-        locate=_item_of("9. **The close block"),
+        locate=_without_quote_marks(_item_of("9. **The close block")),
         required=(
             _Check(
                 "a sub-agent barred from writing returns the handoff content as text",
                 "a sub-agent whose harness refuses the write returns the handoff content as text",
             ),
             _Check("the sentence, whole, pointing at item 8", _ITEM_9_SENTENCE),
-        ),
-        old=_OLD_ITEM_9,
-        kept=(
             _Check(
-                "the close block is pasted as it was",
-                "> 3. Save everything into the handoff.",
+                "the step the sentence names is the one that saves into the handoff",
+                "4. Save everything into the handoff (the report file or return note your "
+                "brief names).",
             ),
         ),
+        old=_OLD_ITEM_9,
     ),
     _Place(
         name="brief-template",
@@ -658,24 +663,75 @@ def test_the_blockquote_filter_sees_a_limit_written_inside_the_block() -> None:
 
 def test_the_close_block_is_not_reworded() -> None:
     """The close block is pasted verbatim into every brief, so the fallback for a refused write
-    goes beside it and not in it: the four steps read as they did, in the contract and in the
-    template."""
+    goes beside it and not in it: the five steps read as they do now, in the same words in the
+    contract and in the template. (The block was reworded once on purpose, when the review skill,
+    the lessons step and the handoff's name were added; this pins the wording after that.)"""
     steps = (
         "1. Self-challenge: is it detailed enough? Have you missed something? Say what it changed, "
         'including "nothing".',
-        "2. Then the task-completion review, if you have not already run it. Both run BEFORE the "
-        "handoff.",
-        "3. Save everything into the handoff.",
+        "2. Then the completion review: run `lemmi-ai-kit-core:post-task-review` through the "
+        "Skill tool, whatever the size of the task (a hand-written review does not replace it), "
+        "if you have not already run it. Both run BEFORE the handoff.",
+        "3. Lessons: run `lemmi-ai-kit-core:task-learnings`. If your brief bars the learnings "
+        "buffer, put the lesson drafts in your handoff and say so in your closing message.",
+        "4. Save everything into the handoff (the report file or return note your brief "
+        "names).",
+        "5. Then write a short summary for whoever reads it next: bullets, at most 10 lines, "
+        "plain language, no internal ids, with the review's step list and the lessons result in "
+        "it, and say in plain words that the session may be closed.",
     )
     quoted = _list_item(_read(_ORCHESTRATE), "9. **The close block")
     contract = _folded(re.sub(r"(?m)^\s*>\s?", "", quoted))
     template = _folded(_first_fenced_block(_read(_TEMPLATE)))
     for step in steps:
         assert step in contract, f"the contract lost: {step}"
-    # The template words step 2 a little differently ("if not already run") and is checked on
-    # the two steps whose text is the same.
-    for step in (steps[0], steps[2]):
         assert step in template, f"the template lost: {step}"
+
+
+def _planted_item_9(step_four: str) -> str:
+    """Item 9 cut down to what its place reads: a blockquote holding the Close block, whose fourth
+    step is `step_four`, and the sentence after the block. It is planted, so that the test below
+    does not depend on how the real file wraps its lines."""
+    return (
+        "9. **The close block** paste it verbatim into every brief.\n\n"
+        "   > **Close, run in this order.**\n"
+        "   > 1. Self-challenge: one.\n"
+        f"   {step_four}\n"
+        "   > 5. Then write a short summary: five.\n\n"
+        f"   {_ITEM_9_SENTENCE}\n"
+        "10. **Another item.**\n"
+    )
+
+
+def test_a_re_wrapped_close_block_is_read_whole() -> None:
+    """The Close block is a blockquote, and a step can wrap onto a second quoted line at any
+    word. The step that saves into the handoff is still found when the quoted line breaks inside
+    it, and is still reported when its number or its words change."""
+    place = next(p for p in _PLACES if p.name == "orchestrate-item-9")
+    saves = (
+        "> 4. Save everything into the handoff (the report file or return note your "
+        "brief names)."
+    )
+    assert _gaps(place, _planted_item_9(saves)) == []
+    wraps = (
+        "> 4. Save everything into the handoff\n"
+        "   > (the report file or return note your brief names).",
+        "> 4. Save everything into\n   >    the handoff (the report file or return\n"
+        "   >    note your brief names).",
+        "> 4.\n   >    Save everything into the handoff (the report file or return note "
+        "your brief names).",
+    )
+    for wrapped in wraps:
+        assert wrapped != saves and "\n" in wrapped, "the planted wrap changed nothing"
+        assert _gaps(place, _planted_item_9(wrapped)) == [], wrapped
+    changed = (
+        saves.replace("4.", "3."),
+        saves.replace("everything", "it"),
+        saves.replace(" (the report file or return note your brief names)", ""),
+    )
+    for other in changed:
+        gaps = _gaps(place, _planted_item_9(other))
+        assert len(gaps) == 1 and "saves into the handoff" in gaps[0], (other, gaps)
 
 
 def test_a_re_wrapped_item_is_read_whole() -> None:
