@@ -7,6 +7,8 @@
 >   and link to it; delete the inline block below.
 > - `Ownership` column — omit entirely unless distinct parties write the tests at different levels.
 >   A column filled with the same name throughout is ceremony.
+> - `Style` column and census line — omit unless a level has more than one test form. One form per
+>   level: leave both out.
 > - All other sections are mandatory.
 >
 > **Vocabulary**: a *test scenario* here means an execution sequence — a test script or procedure
@@ -38,6 +40,13 @@
 
 <!-- Every case has exactly ONE owning level. A case at two levels is duplication unless it is a
      deliberate smoke case or a contract pinned on both sides — and then it says so. -->
+
+<!-- Only where a level has more than one test form; otherwise leave out both lines below. The
+     census comes from a listing command run now, not from memory. -->
+
+- **Census**: {feature}: {N} {form}, {N} {form}; {sibling area}: {...}; {sibling area}: {...}
+- **Placement rule**: {one sentence — a case goes in the form the repository already uses for that
+  kind of flow, read from the census, unless the case says why not}
 
 ## Test Conditions and Cases
 

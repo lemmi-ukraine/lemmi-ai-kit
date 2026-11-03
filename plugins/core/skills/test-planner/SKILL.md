@@ -141,7 +141,7 @@ written for another language never overrides the project's own conventions. Do n
 hardcode any pack skill's name here; route by role, so the plan stays correct in a project with a
 different language pack or none at all.
 
-Level names, the default-downward decision tree, and the exclusion phrasing:
+Level names, the default-downward decision tree, the exclusion phrasing and the style column:
 [references/level-assignment.md](references/level-assignment.md)
 
 ## Step 4 — Ground every expected result in a cited id
@@ -172,7 +172,7 @@ Ask it of every case before the gate closes. A case that passes because its prec
 never reachable is indistinguishable from one that passes because the behaviour is correct — and
 it is the shape that survives longest, because nothing ever fails.
 
-Three shapes to check for:
+Five shapes to check for:
 
 - **Empty population.** The case iterates over a set that can legitimately be empty. Add an
   assertion that the set is non-empty, and say what it is guarding.
@@ -181,6 +181,16 @@ Three shapes to check for:
   message, a field — or neutralize the other causes in the preconditions.
 - **A precondition that cannot hold in the target environment.** The case is skipped rather than
   run. A skip is not a pass; plan to count them.
+- **An absence check with no positive precondition.** "Nothing is sent" and "no error is raised"
+  hold whenever nothing happens at all. Give the check a positive precondition: the handler's own
+  evidence that it ran.
+- **An id-coverage check that reads a region restating the ids.** A closing paragraph or an index
+  that lists every id satisfies the check whatever the bodies cite. Exclude such regions, and put
+  that shape in the checker's own fixtures.
+
+Run every new checker once where the right answer is fail before trusting its zero, and name that
+tree beside each checker command in the plan. The `post-task-review` skill covers how to fire a
+checker at a known positive.
 
 Note the guard on the case itself, so nobody later removes it as redundant.
 
@@ -212,6 +222,12 @@ GOOD  NFR-01 p95 < 500ms | observability | metric api.request.duration, p95 aler
 Check the project's testing conventions for banned test categories **before** assigning
 `automated` to any performance, load, or throughput requirement.
 
+**A `manual` check names the branch it reaches.** Every `manual` row states which branch the
+operator's action normally reaches and how often (a measured rate, or UNKNOWN). It gives one step
+per branch with how to force the rare one, or says that only a test or review proves it. Never
+list as a falsifier a value that the common, correct branch produces: a correct build would fail
+the check.
+
 ## Step 6 — State deliberate non-coverage
 
 What you decided not to test is an output of this document, not an omission from it.
@@ -235,7 +251,8 @@ of each other. Left alone they never meet. Reconciliation is this stage's comple
 it runs in **both** directions once `tasks.md` exists:
 
 1. **Every `TC-` has an owner.** Either an implementing task in `tasks.md`, or a named party
-   outside this spec's scope. A case owned by nobody is not planned work.
+   outside this spec's scope. A case owned by nobody is not planned work. Count ids in the task
+   bodies alone, never in a closing index that lists them all (the fifth shape in Step 4).
 2. **Every task's `Test requirements` field cites `TC-` ids.** That field already exists in the
    task template and holds free prose by default. Back-fill it with the ids that task must
    satisfy. Prose that names no case is not a test requirement.
@@ -259,7 +276,9 @@ A test-planning document is READY when all of the following hold:
 3. Every case has exactly one owning level, and any upward move carries a reason.
 4. Every expected result cites an id, or is marked `[UNGROUNDED]` and surfaced.
 5. No case can pass vacuously — empty populations are guarded, falsy expected results distinguish
-   their cause, and environment-dependent preconditions are stated.
+   their cause, environment-dependent preconditions are stated, absence checks carry a positive
+   precondition, id-coverage checks read the task bodies alone, and each new checker command names
+   the tree where it must fail.
 6. Every NFR has a verification method, and no banned test category is assigned `automated`.
 7. Non-coverage is stated with bands and rationale, not left implicit.
 8. Reconciliation against `tasks.md` is complete, or explicitly marked pending.

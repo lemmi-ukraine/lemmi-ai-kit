@@ -136,11 +136,15 @@ substitute for this pass.
   citation — Blocker. Check by grep, not by reading.)
 
 **Vacuous passes**
-- Can any case pass without proving anything? Three shapes: it iterates a population that may be
-  empty and is not guarded; its expected result is a falsy value (`None`, `False`, `[]`,
-  "rejected") that more than one code path produces; or its precondition cannot hold in the
-  target environment, so it is skipped rather than run. A case that passes for want of a
-  reachable precondition is indistinguishable from a correct one and never fails. Major.
+- Can any case pass without proving anything? Five shapes: (1) it iterates a population that may be
+  empty and is not guarded; (2) its expected result is a falsy value (`None`, `False`, `[]`,
+  "rejected") that more than one code path produces; (3) its precondition cannot hold in the
+  target environment, so it is skipped rather than run; (4) it is an absence check with no
+  positive precondition (the handler's own evidence that it ran), so it passes whenever nothing
+  happens; (5) it is an id-coverage check that reads a region restating the ids (a closing
+  paragraph or an index), so it passes whatever the bodies cite. Was each new checker command run
+  once where the right answer is fail, and does the plan name that tree? A case that passes for
+  want of a reachable precondition is indistinguishable from a correct one and never fails. Major.
 
 **No duplication of the requirements**
 - Is any Given/When/Then text copied from `requirements.md` rather than cited? Two copies of one
@@ -152,6 +156,9 @@ substitute for this pass.
   set? Those have no boundaries; the cases are noise displacing the rule combinations that matter.
 - Is a technique *named* but not actually applied — "Decision table" above three ad-hoc cases with
   no table? That claims a rigour the cases do not have. Major.
+- Does a command assigned to boundary rows exercise the comparison that decides accept or reject,
+  not only the threshold table it reads? Was it run once on the pre-change tree (identical output
+  before and after means it cannot see the change), and are the edges that stay review-only named?
 
 **Level assignment**
 - Does every case have exactly **one** owning level?
@@ -163,12 +170,18 @@ substitute for this pass.
   language pack's testing conventions reference applies only where it matches the code under test,
   so a plan is not wrong for skipping one written for another language; it is wrong when it
   invents level names that the conventions, or a matching table, already define. Major.
+- When a level has more than one test form: does every acceptance scenario that CI can verify have
+  an owner in the form the repository uses for that kind of flow, per the census? Major.
 
 **Verification method**
 - Does every NFR have a method (`automated` / `observability` / `manual` / `accepted-unverified`)?
 - Is any category the project's testing conventions **ban** assigned `automated`? Performance and
   load targets in a project that forbids those tests must get observability and a named metric.
   Producing a test the conventions require deleting on sight is a Major.
+- Does every `manual` row state which branch the operator's action normally reaches and how often
+  (a measured rate, or UNKNOWN), give one step per branch with how to force the rare one, or say
+  that only a test or review proves it? Is any value that the common, correct branch produces
+  listed as a falsifier?
 
 **Reconciliation**
 - Does every `TC-` have an implementing task or a named out-of-scope owner?

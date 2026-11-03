@@ -104,3 +104,29 @@ of them, the column is ceremony: leave it out rather than filling it with the sa
 
 An unfilled ownership column is honest. A column filled with a party that does not exist makes the
 plan look like a handoff document and invites the reader to wait for someone.
+
+## Style within a level
+
+Style is optional and empty by default, like ownership.
+
+Add a `Style` column to the case table only where a level has more than one test form: plain test
+functions beside scenario or feature files, or hand-written tests beside generated or snapshot
+ones. A project with one form per level leaves the column and the census line out.
+
+The plan states its placement rule in one sentence: a case goes in the form the repository already
+uses for that kind of flow, read from the census, unless the case says why not. A case that departs
+from the rule says why on its own row.
+
+The census is one line for the feature and two sibling areas, each counting its tests by form. Take
+the counts from a listing command run now, not from memory, and name the command beside the line.
+
+```
+Census  (functions, scenarios)  <feature>: 6, 0;  <sibling area>: 4, 11;  <sibling area>: 2, 9
+        counted with: <listing command, run today>
+Rule    acceptance flows go in feature files, as both siblings do; pure logic stays in functions
+```
+
+Without a census a plan labels its cases in the form its author knows, and every review written
+against that plan inherits the omission: it checks that the cases are sound, not that their form is
+the one CI already runs for that kind of flow. Observed once; the rule is reasoned from that case,
+not measured.

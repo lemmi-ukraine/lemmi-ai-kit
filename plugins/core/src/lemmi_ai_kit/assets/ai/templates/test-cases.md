@@ -10,6 +10,10 @@
 >
 > **Vocabulary**: condition = what must be proven (no inputs, no expected result) → case = inputs +
 > expected result (`TC-` id). Execution sequences (`TS-` ids) live in `test-plan.md`.
+>
+> **`Style` column** — omit unless a level has more than one test form (plain test functions beside
+> scenario or feature files, hand-written beside generated). The placement rule and the census are
+> in `test-plan.md`, under Test Levels. One form per level: leave the column out.
 
 ## Source Documents
 
@@ -42,10 +46,10 @@
 - **Owning level**: {level name from the project's own test-type table}
 - **Excluded levels**: {level} ({one-clause reason}); {level} ({reason})
 
-| ID | Preconditions | Input / action | Expected result | Source |
-|----|---------------|----------------|-----------------|--------|
-| TC-01 | {state that must hold} | {concrete input, exact values} | {observable outcome, exact values} | `AC-{nn}` |
-| TC-02 | {state} | {boundary or error input} | {expected failure behavior} | `AC-{nn}` |
+| ID | Preconditions | Input / action | Expected result | Source | Style |
+|----|---------------|----------------|-----------------|--------|-------|
+| TC-01 | {state that must hold} | {concrete input, exact values} | {observable outcome, exact values} | `AC-{nn}` | {form; omit column if one form} |
+| TC-02 | {state} | {boundary or error input} | {expected failure behavior} | `AC-{nn}` | {form} |
 
 <!-- Expected results must be exact. "responds quickly" is not an expected result;
      "responds within 500ms (NFR-02)" is. A value the spec does not fix is a requirements gap:
@@ -59,9 +63,9 @@
 - **Owning level**: {level}
 - **Excluded levels**: {level} ({reason})
 
-| ID | Preconditions | Input / action | Expected result | Source |
-|----|---------------|----------------|-----------------|--------|
-| TC-03 | {state} | {input} | {outcome} | `UC-{nn}` E1 |
+| ID | Preconditions | Input / action | Expected result | Source | Style |
+|----|---------------|----------------|-----------------|--------|-------|
+| TC-03 | {state} | {input} | {outcome} | `UC-{nn}` E1 | {form} |
 
 <!-- Add one block per condition. Conditions come from: every Gherkin Scenario, every Use Case
      main/alternative/exception flow, every NFR, and the adversarial-five answers (auth,
