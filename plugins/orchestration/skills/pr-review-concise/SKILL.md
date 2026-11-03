@@ -242,7 +242,7 @@ The gate commands and paths in this table are one repository's examples.
 | # | Pattern | Why it is not a defect |
 |---|---|---|
 | 1 | Gate output quoted from the PR body | A gate's verdict is its log, never its exit code — the Docker runner returned exit 0 around `1 failed, 2260 passed`. Never accept "gates green". |
-| 2 | `ruff` violations under a broader scope | `ruff check backend tests` exits 1 on ~35 pre-existing violations; `ruff check backend` is the canonical gate and exits 0. Name the scope. |
+| 2 | `ruff` violations under a broader scope | `ruff check backend tests` exits 1 on ~35 pre-existing violations; the gate, the project's lint command (AGENTS.md § Commands), exits 0. Name the scope. |
 | 3 | Type errors in `scripts/` | `pyproject.toml` scopes basedpyright to `include = ["backend", "tests"]` — `scripts/` was never in gate scope. |
 | 4 | "This prompt file is missing from the repo" | `prompts/**` are deployment artifacts (untracked; runtime reads GCS). `git ls-files prompts` is empty by design. |
 | 5 | Any `patch()` in a test | Only patching a **concrete external client class** violates the DI rule. `patch()` on a non-client internal at the import site is allowed. |
@@ -251,7 +251,7 @@ The gate commands and paths in this table are one repository's examples.
 
 **True positives that look like these:**
 
-- **Bare `@fast_test` / `@integration_test` / `@websocket_test` without parentheses — ALWAYS flag.**
+- **Bare `@fast_test` / `@integration_test` / `@websocket_test` without parentheses — ALWAYS flag, where the project defines them.**
   These are decorator *factories*, so the bare form rebinds the test to the inner `decorator(func)`.
   **The consequence depends on the shape, and the common shape is the silent one:**
   - On a **test method** (the dominant form here — tests inherit `BaseEndpointTest`/`BaseCRUDTest`):

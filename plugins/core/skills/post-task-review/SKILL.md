@@ -90,7 +90,8 @@ the three commands above are the minimum.
    inputs** were missing; a stated 40%-coverage caveat that sat beside its own headline instead of
    gating it (re-measured, the effect collapsed and reversed); and a pytest **collection** error
    generalised into "the tree does not import", written into a hand-off as verified state when the
-   application's own one-line import check exits 0.
+   application's own one-line import check exits 0. It also holds four shorter cases, where a
+   status word or a figure stood in for what it summarises.
    Three further verified traps: (a) any claim grounded in a NAMED config/settings field is
    unverified until the field's description/usage is read — a name that pattern-matches the claim
    ("tolerance" ≈ leniency) is a false friend; (b) every COUNT written into a ledger/changelog entry

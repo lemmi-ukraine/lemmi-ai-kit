@@ -460,10 +460,10 @@ never a parent directory — directory-scoped autofix silently reformats unrelat
 in that tree and folds them into your changeset. At review time, `git status` every change and revert
 edits to files outside the task's scope.
 
-**The verdict depends on the scope you pass**: `ruff check backend` (the canonical gate) exits 0
-while `ruff check backend tests` exits 1 on 35 pre-existing violations across 25 files. Always
-REPORT ruff with its scope spelled out, and confirm violations outside `backend` predate your branch
-before treating them as yours.
+**The verdict depends on the scope you pass**: the project's lint command (AGENTS.md § Commands)
+can exit 0 over its own scope while a wider scope exits 1 on pre-existing violations. Always
+REPORT ruff with its scope spelled out, and confirm violations outside that scope predate your
+branch before treating them as yours.
 
 ## Hot Paths & Logging Boundaries
 

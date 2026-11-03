@@ -261,8 +261,8 @@ Coverage per arm: {low arm x% · high arm y%}
 
 - `${CLAUDE_PLUGIN_ROOT}/skills/post-task-review/scripts/probe_checker.py` — the **sight** gate.
   Different question, run first.
-- [references/join-diagnostics.md](references/join-diagnostics.md) — linkage detail and the
-  write-up format.
+- [references/join-diagnostics.md](references/join-diagnostics.md) — linkage detail, the
+  write-up format, and counting recorded commands.
 - The audit this method comes from is not shipped with the kit; every claim above that cites it is a
   measurement of that one corpus, and Phase A's label-blind list is what keeps it from being
   generalised past its evidence.

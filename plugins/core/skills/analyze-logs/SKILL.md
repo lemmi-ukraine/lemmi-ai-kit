@@ -344,6 +344,7 @@ See [references/analysis-examples.md](references/analysis-examples.md) for calib
 - Evidence-based root cause vs. surface-level description
 - Proper hypothesis labeling vs. unfounded speculation
 - Correct issue grouping vs. over-splitting
+- An absence found by a join, with its overall match count vs. a bare zero
 
 ## What NOT to Do
 

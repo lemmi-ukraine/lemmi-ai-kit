@@ -66,7 +66,7 @@ requests, Step 2.7 also sends you to the documents its steps depend on. Identify
 
 Then run the DoR pre-flight from [references/dor-tables.md](references/dor-tables.md).
 
-### Step 2 — Run the Five Dimensions
+### Step 2 — Run the Seven Dimensions
 
 **Load and WALK the reference files — never review from a mental summary of them.** For
 high-blast-radius plans (production-wide behavior, shared contracts, data), an inline from-memory
@@ -131,7 +131,7 @@ Skip this step for a single-slice spec.
 
 ### Step 3 — Apply the Universal Challenge Questions
 
-After the five dimensions, answer these six questions regardless of scope.
+After the dimensions, answer these six questions regardless of scope.
 Each question must produce either a confident answer or a finding:
 
 1. **Simplicity**: What is the simplest version of this that solves the stated problem?
@@ -160,7 +160,7 @@ Each question must produce either a confident answer or a finding:
 
 5. **Inherited framing**: which claims did this plan **inherit rather than measure**? This is the
    one question the other four cannot reach, because a premise every section shares reads as
-   coherence, not as a defect — and coherence is what the five dimensions check. Measured failure
+   coherence, not as a defect — and coherence is what the dimensions check. Measured failure
    (2026-08-15): this skill ran on an initiative plan and passed it, and the operator then found
    **three** scope gaps it had missed — prior shipped work, a substance-vs-delivery mis-framing, and
    an already-fixed row — each an unexamined inheritance rather than an inconsistency. One of them

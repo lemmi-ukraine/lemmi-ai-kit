@@ -41,8 +41,9 @@ repository's examples):
 **pytest was NOT run** — no test verdict in this document is an executed result.
 ```
 
-- **Scope is part of the result.** `ruff check backend` exits 0 while `ruff check backend tests` exits
-  1 on pre-existing violations. A gate name without its scope is not a result.
+- **Scope is part of the result.** The project's lint command (AGENTS.md § Commands) can exit 0
+  over its own scope while a wider scope exits 1 on pre-existing violations. A gate name without
+  its scope is not a result.
 - **Name the gates that did NOT run.** Silence reads as "passed" to every later reader.
 - A gate whose output you did not read is `UNREAD`, never `passed` — including one exiting 1 for
   reasons in files you did not touch. Attribute by filename and say so.
