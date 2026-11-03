@@ -32,10 +32,14 @@ post-task-review was edited again after its one excerpt was taken (a row on SQL 
 checks of the prompt sweep): its 2 later phrases sit in the same table, so the excerpt still reports the 7
 phrases it lacked then.
 
+parallel-session-safety was edited again after its one excerpt was taken (its backup rule names
+the committed restore point): its 1 later phrase sits in the same table, so the excerpt still reports
+the 7 phrases it lacked then.
+
 THE SURFACE, in numbers the tests assert: 23 edited upstream-origin rows, 4 earlier notes kept whole,
 4 kit-origin rows left alone, no name in both sets, 1 retired wording, 2 incomplete notes reported
 as they read, 7 missing phrases each, 2 later incomplete notes reported as they read, 5 missing
-phrases each, and 2 rows edited again after their excerpts, their 5 later phrases checked apart.
+phrases each, and 3 rows edited again after their excerpts, their 6 later phrases checked apart.
 """
 
 import re
@@ -76,6 +80,7 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "C6 gains a fidelity read",
         "a fresh reader, not the promoter, carries the read",
         "the Output Format gains a Fidelity read line",
+        "one fresh reader per four promoted paragraphs",
     ),
     "flow-mapping": (
         "--registers",
@@ -103,6 +108,7 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "no default cap",
         "derivation 3 names where the project opt-out is read",
         "chokepoint search takes <source-roots>",
+        "runs within its own run cap instead of telling the reader to resolve Blockers and Majors silently",
     ),
     "learning-consolidator": (
         "count only CONSOLIDATION entries whose Drained count is above 0",
@@ -112,6 +118,7 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "a repeatable --surface glob",
         "any other pre-drain snapshot as a landing site",
         "Phase 5 has the operator commit the buffer in its own commit before the first removal",
+        "refuses the changelog and hypotheses ledgers as landing sites by file name",
     ),
     "parallel-session-safety": (
         "12g to 12k",
@@ -135,6 +142,7 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "the plan lets the project's own testing conventions come first",
         "asks for each fix as exact replacement text",
         "diff the document against its version before the first fix pass",
+        "copy the document before the first fix pass and diff against the copy",
     ),
     "post-task-review": (
         "references/fix-rounds.md",
@@ -160,6 +168,8 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "error-class counts move against older reports",
         "the output-schema reference's category table",
         "redacts a GitHub token by its shape",
+        "a .NET project's buildTestLoops are listed",
+        "names the GitHub tokens (ghp_, gho_, ghu_, ghs_, ghr_ and github_pat_) in both of its lists",
     ),
     "skill-creator": (
         "the kit's own recommendation instead of one repository's decision",
@@ -174,6 +184,7 @@ _EDITED: dict[str, tuple[str, ...]] = {
     "spec-driven-dev": (
         "three documents (spec, tasks, test plan)",
         "a Large one four (requirements, design, tasks, verification plan)",
+        "the review runs within its own run cap instead of telling the reader to resolve all findings",
     ),
     "stacked-pr-planner": (
         "never ordered by ancestry",
@@ -289,6 +300,9 @@ _LATER_EDITS: dict[str, tuple[str, ...]] = {
         "a syntax-only check of SQL that another person will run is syntax-clean, not validated",
         "Step 7c-extra gains a one-line item 4",
     ),
+    "parallel-session-safety": (
+        "names a commit of the file as it stands (the restore point) as its backup",
+    ),
 }
 
 
@@ -335,10 +349,10 @@ def test_the_surface_is_stated_in_numbers() -> None:
     assert len(_RETIRED_WORDING) == 1 and set(_RETIRED_WORDING) <= set(_EDITED)
     assert len(_OLD_NOTES) == 2 and set(_OLD_NOTES) <= set(_EDITED)
     assert len(_LATE_NOTES) == 2 and set(_LATE_NOTES) <= set(_EDITED)
-    assert len(_LATER_EDITS) == 2 and set(_LATER_EDITS) <= set(_LATE_NOTES) | set(
+    assert len(_LATER_EDITS) == 3 and set(_LATER_EDITS) <= set(_LATE_NOTES) | set(
         _OLD_NOTES
     )
-    assert sum(len(phrases) for phrases in _LATER_EDITS.values()) == 5
+    assert sum(len(phrases) for phrases in _LATER_EDITS.values()) == 6
     assert not set(_EDITED) & set(_AUTHORED_HERE), "a skill is in both sets"
     rows = _rows(_RECORD.read_text(encoding="utf-8"))
     unknown = [n for n in (*_EDITED, *_AUTHORED_HERE) if n not in rows]
