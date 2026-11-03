@@ -344,6 +344,36 @@ to its home above and removed here.
 - **Verify-at**: tests/test_amendment_sweep_wording.py
 - **Scope**: durable
 
+### [2026-11-03] A wave of agents spends the account's usage window faster than the disk or the machine limit it, and an agent the limit kills has often written its report already
+- **Context**: One release day on one account: a ten-commit review by six readers with about twenty skeptics, a lane of twelve builders with their verifiers, a second lane, and three integration and fix builders.
+- **Finding**: The 5-hour usage limit stopped agents three times in under three hours: every opus and fable agent at about 18:30 (the 28-agent review workflow had spent about 3.5 million sub-agent tokens in 28 minutes, by its notice in an untracked checkpoint), the opus agents again at about 20:44, 32 minutes after the limit had reopened, and the sonnet alias at about 21:14. The reset time it printed moved later each time (22:50, 01:10, 01:40), the sessions stalled without a message (mine for 1 h 50 min), and an agent died after it had written a complete 15 KB report, so its structured result was lost while the file survived; a second run of the same reader two hours later reached the same two blockers.
+- **Impact**: Size a wave from the usage window as well as from the disk and the machine (the AGENTS.md sub-agent rule's last sentence names only those two), prefer a cheaper model for mechanical rows and probe each model with a one-word agent before a wave; find out what a dead agent did from its report file, not from its returned value, and copy a report aside before a re-run overwrites it.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
+### [2026-11-03] A watcher armed on a phrase fires at once when the text that describes the signal already contains the phrase
+- **Context**: Waiting in the background for a peer session to write one hand-over line into a shared queue file.
+- **Finding**: A loop that ended when the file contained the hand-over phrase ended on its first check, because the file's own instruction line quoted the phrase; only a read of the file's last lines showed that no hand-over had been written. The corrected watcher anchors the phrase at the start of a line, said no on the present file and yes on a planted copy.
+- **Impact**: Before arming a watcher, run its condition on the present state (it must say no) and on a planted positive (it must say yes), and anchor the pattern to the signal's own form (a line start, a field name), not to a phrase that the surrounding text may quote.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
+### [2026-11-03] After a stall the machine clock says what time it is
+- **Context**: A finisher session that waited for background results while the account's usage limit and an operator question stalled its own session and a peer session.
+- **Finding**: The session's last clock reading was 18:21 and the next was 20:12; its plan and the times it had given peers were 1 h 50 min stale, and a peer session had the same gap (it was blocked on an operator question).
+- **Impact**: Read `date` at every wake-up and before every estimate, state times to peers from that reading, and re-derive a deadline plan (what can still finish before a cutoff) from it instead of from the last plan.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
 ## Convention Clarifications
 
 ### [2026-10-30] A skill's step list restated outside the skill goes stale when the skill grows

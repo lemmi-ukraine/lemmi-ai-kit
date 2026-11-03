@@ -17,6 +17,14 @@
 
 ## 2026-11-03
 
+### [SKILL-MODIFIED] A brief built from the template points a worker at the project's host-rules file
+- **Category:** Quality
+- **Hypothesis:** By naming the project's own host-rules file in section 0 of the worker preamble and carrying a line for it in the brief template's Standing rules, we expect the next 5 briefs written from the template in a project that keeps such a file to name it, and the workers that receive them to apply a rule only that file states, because the template now carries the line and the preamble tells a worker to read the file its brief names.
+- **Signal:** Over the next 5 briefs written from the template in a project that keeps a host-rules file, or by 2026-12-28, whichever comes first, read each brief and its worker's first messages, count the briefs that name the file (N), and call a worker tested when its brief named the file and it met a rule that only that file states. Inconclusive if fewer than 5 such briefs exist by that date. Otherwise refute if N is under 3 or if a tested worker did not follow the rule; otherwise inconclusive if no worker was tested or N is 3; otherwise confirm (N is at least 4 and every tested worker followed the rule).
+- **Risk:** The line is a placeholder that the writer must fill, and a wrong path passes the placeholder rule; the preamble says a brief that names none means there are no host rules, which is wider than the template's line, because a host rule can apply to a worker without any brief naming it; the template's heading still says read this file.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Name the host-rules file generically, make the drain landing audit paragraph say what the script refuses, and correct seven older statements
+
 ### [SKILL-MODIFIED] Dispatched prompts stop quoting a superseded decision, and a bare proceed is not read as consent to bypass a closed gate
 - **Category:** Quality
 - **Hypothesis:** By adding the amendment sweep and the operator-first report rules to the dispatch gates, we expect fewer dispatched prompts that still quote a superseded decision, and fewer bare proceed replies taken as consent to bypass a closed gate, in the next two multi-session initiatives, because each check is a command or a comparison and the stop report names the owner of the action.
@@ -45,7 +53,7 @@
 - **Category:** Knowledge Retention
 - **Hypothesis:** By making the drain audit refuse the changelog and hypotheses ledgers by file name and print its scan surface, and by making the consolidation critic and the safety rule describe the backup as the committed restore point, we expect the next two drains to commit no second backup of the buffer and to report no entry as landed whose only hit is in a ledger, because the three texts a drain loads now say what the drain procedure says, and the ledgers that quote drained entries are refused by name.
 - **Signal:** Over the next 2 drains in a project that runs the consolidator, or by 2026-12-28, whichever comes first, read each drain's commits and its audit output: confirm if neither drain commits a byte copy or a snapshot file beside its restore-point commit, and each audit prints its scan surface line with no landing whose only hit is a ledger; refute if a drain commits such a file, or an audit lands an entry through a ledger; inconclusive with fewer than 2 drains.
-- **Risk:** The reference's landing-audit paragraph still calls the byte copies pre-drain snapshots and does not name the ledgers, so a session that reads only it may describe the refusal wrongly; a refusal by file name also refuses a real home that happens to share a ledger's name; two drains are few.
+- **Risk:** The reference's landing-audit paragraph called the byte copies pre-drain snapshots and named no ledger until 441ac8d rewrote it, so a session that reads an older copy may describe the refusal wrongly; a refusal by file name also refuses a real home that happens to share a ledger's name; two drains are few.
 - **Status:** PENDING
 - **Changelog ref:** 2026-11-03 — Align the drain audit, the consolidation critic and the safety rule with the restore-point drain, read .NET commands as build-and-test loops, point plan-critic's callers at its run cap, and fix the smaller claims the last review found
 
@@ -77,7 +85,7 @@
 - **Category:** Knowledge Retention
 - **Hypothesis:** By having the operator commit the learnings buffer in its own commit before a drain's first removal, and by keeping the byte copy and the gate record local and ignored, we expect the changelog entries of the next two drains to cite that commit's id as the landing audit's input and none to cite a snapshot file path, because a commit is not removed before the merge the way a committed snapshot file was, so no citation of it breaks.
 - **Signal:** Over the next 2 drains in a project that runs this skill, or by 2026-12-28, whichever comes first, read each drain's changelog entry and the audit command it cites: confirm if both cite a restore-point commit id and neither cites a snapshot file path or commits the byte copy or the gate record; refute if either cites a path, cites no commit, or commits the copy or the record; inconclusive with fewer than 2 drains in the window.
-- **Risk:** The consolidation critic's Inputs row and printed audit lines, and the audit script's closing line, still name the snapshot file, so a session that reads them may cite a path anyway; kit-setup seeds neither ignore entry, so a project without them may commit the copy or the record; the eight citations rewritten after a committed snapshot was removed are one observation.
+- **Risk:** The consolidation critic's Inputs row and printed audit lines, and the audit script's closing line, named the snapshot file until the polish chain (39cf685, a5f71e3) rewrote them, so a session that reads an older copy may cite a path anyway; kit-setup seeds neither ignore entry, so a project without them may commit the copy or the record; the eight citations rewritten after a committed snapshot was removed are one observation.
 - **Status:** PENDING
 - **Changelog ref:** 2026-11-03 — Delete the PR-review skill's bare-decorator bullet, commit the learnings buffer as a drain's restore point, give the brief template a blocker line and a problem and value line, send the preamble's host rules to the project's own file, and add a SQL hand-off trap and two prompt-sweep checks
 
@@ -109,7 +117,7 @@
 - **Category:** Quality
 - **Hypothesis:** By asking for each fix as exact replacement text and diffing the document after the last fix pass, we expect the next documents that plan-critic fixes to carry no edit that a fix pass made by accident, because every changed line is held against a fix the critic meant to make, and replacement text can be checked line by line where a described change could not.
 - **Signal:** Over the next 5 plan-critic runs that fix a document, or by 2026-12-28, whichever comes first, diff each document against its version before the first fix pass and read the run's findings: confirm if every changed line is one a Resolution field quotes and no Resolution field describes a change instead of quoting one; refute if a run leaves a changed line that no finding names, or a Resolution field that describes a change; inconclusive with fewer than 5 such runs.
-- **Risk:** The diff check names no source for the pre-fix-pass copy, so a run that kept none cannot do it; whether a critic follows the clause is unmeasured; the run cap is a separate rule and unchanged.
+- **Risk:** The diff check named no source for the pre-fix-pass copy until the polish chain (43b9a6f) added one (copy the document before the first fix pass; git stands in only when git holds that version), so a run that kept no copy still cannot do it; whether a critic follows the clause is unmeasured; the run cap is a separate rule and unchanged.
 - **Status:** PENDING
 - **Changelog ref:** 2026-11-03 — Give delegated sessions size, stop and close rules and one five-step Close block, ask plan-critic for each fix as replacement text, keep the cleanup sweep off the hand-offs ignore file, and give the stacked-PR document its shared-checkout recipes
 
