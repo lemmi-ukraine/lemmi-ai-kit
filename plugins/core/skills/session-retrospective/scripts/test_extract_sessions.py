@@ -690,6 +690,100 @@ def test_exit_code_zero_is_not_an_error():
     assert ex.classify_error("Bash", False, "done\nExit code 0") is None
 
 
+# --- .NET build output is a build error -----------------------------------------------------
+# MSBuild stamps a failed build "Build FAILED." and the C# compiler writes "error CS" and four
+# digits, so a generic "failed" rule files a .NET build as a test failure and a bare compiler line
+# as a plain non-zero exit. The samples keep their bytes exactly (the runs of spaces in the dotnet
+# test summary are part of its shape), each multi-line text joined from its lines. The dotnet
+# test, ruff, pytest, ripgrep and refusal samples are known positives that keep their class.
+_DOTNET_BUILD_FAILED = "\n".join(
+    [
+        "Build FAILED.",
+        "  Program.cs(12,5): error CS1002: ; expected [App.csproj]",
+        "    1 Error(s)",
+    ]
+)
+_COMPILER_ERROR_LINE = "Program.cs(12,5): error CS1002: ; expected"
+_DOTNET_TEST_SUMMARY = (
+    "Failed!  - Failed:     1, Passed:    41, Skipped:     0, Total:    42"
+)
+_RUFF_ERRORS_FOUND = "ruff check: 3 errors found"
+_PYTEST_SESSION = "\n".join(["=== test session starts ===", "1 failed, 3 passed"])
+_RIPGREP_OPTION_ERROR = (
+    "Search failed "
+    + chr(0x2014)
+    + " ripgrep rejected the pattern, glob, or option: regex parse error"
+)
+_HARNESS_REFUSAL = _DENIAL_OPENING + " (tool use was rejected)"
+
+
+@pytest.mark.parametrize(
+    ("origin", "text", "category"),
+    [
+        ("Bash", _DOTNET_BUILD_FAILED, "build-compile"),
+        ("Bash", _COMPILER_ERROR_LINE, "build-compile"),
+        ("Bash", _DOTNET_TEST_SUMMARY, "test-failure"),
+        ("Bash", _RUFF_ERRORS_FOUND, "build-compile"),
+        ("Bash", _PYTEST_SESSION, "test-failure"),
+        ("Grep", _RIPGREP_OPTION_ERROR, "tool-error"),
+        ("Bash", _HARNESS_REFUSAL, "user-rejected"),
+    ],
+    ids=[
+        "dotnet-build-failed",
+        "compiler-error-line",
+        "dotnet-test-summary",
+        "ruff-errors-found",
+        "pytest-session",
+        "ripgrep-option-error",
+        "harness-refusal",
+    ],
+)
+def test_a_dotnet_build_failure_is_a_build_error_and_the_other_classes_hold(
+    origin, text, category
+):
+    assert ex.classify_error(origin, True, text) == category
+
+
+@pytest.mark.parametrize(
+    ("text", "category"),
+    [
+        ("Build FAILED.", "build-compile"),
+        ("MSBUILD : error MSB1009: Project file does not exist.", "build-compile"),
+        ("error CS1002: ; expected", "build-compile"),
+        (
+            "Program.cs(3,7): warning CS0168: The variable 'e' is declared but never used",
+            "runtime-exit",
+        ),
+        (
+            "warning MSB3277: Found conflicts between different versions.",
+            "runtime-exit",
+        ),
+    ],
+    ids=[
+        "build-failed-stamp",
+        "msbuild-error",
+        "compiler-error-without-file-prefix",
+        "compiler-warning",
+        "msbuild-warning",
+    ],
+)
+def test_each_dotnet_build_signature_is_a_build_error_on_its_own(text, category):
+    """No signature rides on another one in the same text. The same codes as warnings are near
+    misses: a warning is no build error, so those texts stay a plain non-zero exit."""
+    assert ex.classify_error("Bash", True, text) == category
+
+
+def test_the_dotnet_build_signatures_are_read_before_the_generic_failed_rule():
+    """MSBuild's own stamp holds the word the generic test rule keys on, so only the ORDER of the
+    two rules decides a text that holds both. The generic half alone is a test failure; joined
+    to the stamp, before it or after it, the build class must win."""
+    stamp = "Build FAILED."
+    generic = "1 failed, 3 passed"
+    assert ex.classify_error("Bash", True, generic) == "test-failure"
+    for text in (stamp, "\n".join([stamp, generic]), "\n".join([generic, stamp])):
+        assert ex.classify_error("Bash", True, text) == "build-compile", text
+
+
 # --- end-to-end -----------------------------------------------------------------------------
 def _write_jsonl(path, rows):
     path.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
@@ -3276,6 +3370,24 @@ def test_the_report_template_says_a_helper_digest_cannot_show_a_structured_resul
     section = flat.split("### Sub-Agent Deep-Dive")[1].split("## ")[0]
     assert "sub-agent digest cannot show a structured returned result" in section
     assert "PER_MESSAGE_TEXT_CAP" in section
+
+
+def test_the_report_template_says_dotnet_build_failures_moved_to_the_build_class():
+    """A report made before .NET build output counted as a build error filed it as a test failure
+    or a plain non-zero exit, so error counts set against that report's window move."""
+    flat = " ".join(_REPORT_TEMPLATE.read_text(encoding="utf-8").split())
+    assert flat.count("## Pipeline Health") == 1, "the Pipeline Health heading is gone"
+    assert "## Recommendations" in flat, "the heading after Pipeline Health is gone"
+    section = flat.split("## Pipeline Health")[1].split("## Recommendations")[0]
+    for phrase in (
+        ".NET build failures",
+        "`build-compile`",
+        "`test-failure`",
+        "`runtime-exit`",
+        "report made before",
+        "counts move",
+    ):
+        assert phrase in section, phrase
 
 
 # --- replayed events ------------------------------------------------------------------------

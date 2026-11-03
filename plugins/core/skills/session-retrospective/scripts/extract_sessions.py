@@ -495,6 +495,19 @@ def iter_operator_turns(jsonl_path):
 # stamp for a cancelled call, not a denial, and is deliberately not matched.
 USER_REJECTED_SENTENCE = "The user doesn't want to proceed with this tool use."
 
+# .NET build output counts as a build error, the class a ruff or mypy failure gets: MSBuild's
+# "Build FAILED." stamp, its own errors ("error MSB" and four digits) and the C# compiler's
+# ("error CS" and four digits, with or without the "file(line,col): " prefix in front). They are
+# matched case-sensitively on the raw text and read BEFORE the generic "failed" rule, because the
+# stamp itself holds the word "failed": read after it, a failed build that prints the stamp would
+# file as a test failure. The dotnet test summary line ("Failed!  - Failed: ...") matches none of
+# them and stays a test failure.
+DOTNET_BUILD_SIGNATURES = (
+    re.compile(r"\bBuild FAILED\."),
+    re.compile(r"\berror MSB\d{4}\b"),
+    re.compile(r"\berror CS\d{4}\b"),
+)
+
 
 def classify_error(origin, is_error, text):
     """Return an error category, 'user-rejected', or None. Classifies by ORIGIN tool.
@@ -525,6 +538,7 @@ def classify_error(origin, is_error, text):
         if (
             re.search(r"\b(ruff|basedpyright|mypy|pyright|syntaxerror)\b", low)
             or "compileerror" in low
+            or any(signature.search(text) for signature in DOTNET_BUILD_SIGNATURES)
         ):
             return "build-compile"
         if re.search(r"\b(pytest|test session starts|failed|assertionerror)\b", low):

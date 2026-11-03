@@ -145,8 +145,8 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
   |---|---|
   | `path-not-found` | Read/Edit/Write on a missing file (`does not exist` / `no such file`) |
   | `edit-stale-read` | Edit/Write rejected: file modified since read / not read yet |
-  | `build-compile` | Shell non-zero exit with ruff/basedpyright/mypy/syntax signature |
-  | `test-failure` | Shell non-zero exit with pytest/test/assertion signature |
+  | `build-compile` | Shell non-zero exit with a lint, type-check or compile signature: ruff, basedpyright, mypy, pyright, `syntaxerror` or `compileerror` (any case); or a .NET build signature (exact case): MSBuild's `Build FAILED.` stamp, or `error MSB` or `error CS` plus four digits |
+  | `test-failure` | Shell non-zero exit with a pytest/`test session starts`/`assertionerror`/`failed` signature (any case; the word `failed` alone is enough, so a .NET test summary's `Failed!` lands here) |
   | `skill-blocked` | Skill tool result errored (e.g. `disable-model-invocation`) |
   | `runtime-exit` | Shell non-zero exit, other |
   | `tool-error` | Any other non-shell tool with `is_error` — the non-shell catch-all |

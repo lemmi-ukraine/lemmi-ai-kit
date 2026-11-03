@@ -162,6 +162,9 @@ fix the step that should have caught it. The 2026-08-01 run scored 2: a zero-inv
 whose cause sat one join away in its own model-distribution data, and a permission-economy
 question it never asked despite measuring the friction.}
 
+{.NET build failures (MSBuild, C# compiler errors) count as `build-compile`; a report made before
+that rule had them in `test-failure` or `runtime-exit`, so its counts move against this window.}
+
 ## Recommendations
 
 ### Priority 1: New/Strengthened Rules for AGENTS.md
