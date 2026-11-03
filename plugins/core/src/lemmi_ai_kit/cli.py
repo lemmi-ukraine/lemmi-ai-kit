@@ -68,7 +68,7 @@ def _build_parser() -> argparse.ArgumentParser:
     scaffold_p.add_argument(
         "--force",
         action="store_true",
-        help="overwrite locally modified managed files (.ai/templates)",
+        help="overwrite locally modified managed files: everything placed under .ai/ except the state logs",
     )
     scaffold_p.add_argument(
         "--reseed",

@@ -281,6 +281,8 @@ than plausible guesses.
 | `CLAUDE.md` | `@AGENTS.md` plus the skill index, pre-rendered | you — edit freely |
 | `.ai/learnings.md`, `.ai/ai-changelog.md`, `.ai/improvement-hypotheses.md` | empty intake and log files the workflow writes to | your project's state — never overwritten |
 | `.ai/templates/` | spec templates (requirements, design, tasks, test cases, test plan) | kit-managed |
+| `.ai/git-stacked-pr-workflow.md` | reference note for the stacked-PR workflow | kit-managed |
+| `.ai/tmp/.gitignore`, `.ai/handoffs/.gitignore`, `.ai/retrospectives/.gitignore` | one self-ignoring file in each local-only folder, so git ignores the scratch files, hand-offs and retrospective reports kept there | kit-managed |
 
 Your own rules go in the `### Project rules` section of `AGENTS.md`. It sits last in
 the file, so where your rules and the kit's disagree, yours win. That seam is why

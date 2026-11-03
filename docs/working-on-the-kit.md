@@ -93,7 +93,7 @@ makes re-running it safe.
 |---|---|
 | *(none)* | writes what is missing and keeps every seed file that already exists |
 | `--dry-run` | reports what would change and writes nothing |
-| `--force` | updates the kit-managed `.ai/templates/` |
+| `--force` | overwrites every kit-managed file that differs from the kit's copy. Kit-managed means everything the scaffold places under `.ai/` except the state logs; today that is the spec templates in `.ai/templates/`, `.ai/git-stacked-pr-workflow.md`, and the self-ignoring `.gitignore` in each of `.ai/tmp/`, `.ai/handoffs/` and `.ai/retrospectives/`. An existing `AGENTS.md`, `CLAUDE.md` or state log is left alone |
 | `--reseed` | resets seed files to their templates — it will discard a customized `AGENTS.md` or a non-empty `.ai/` log |
 
 `--reseed` is the blunt one and it is **not** an upgrade path.

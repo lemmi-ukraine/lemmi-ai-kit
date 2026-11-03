@@ -262,6 +262,7 @@ rather than guessing.
 | `.ai/learnings.md`, `.ai/ai-changelog.md`, `.ai/improvement-hypotheses.md` | Empty intake and log files the learnings loop appends to | **yours** — never overwritten |
 | `.ai/templates/design.md`, `requirements.md`, `tasks.md`, `test-cases.md`, `test-plan.md` | Spec and verification templates used by `spec-driven-dev` and `test-planner` | kit-managed — refreshed on update |
 | `.ai/git-stacked-pr-workflow.md` | Reference doc for the stacked-PR workflow | kit-managed |
+| `.ai/tmp/.gitignore`, `.ai/handoffs/.gitignore`, `.ai/retrospectives/.gitignore` | One self-ignoring file (`*`, then `!.gitignore`) in each local-only folder, so git ignores the scratch files, hand-offs and retrospective reports kept there. No other ignore file is touched | kit-managed |
 
 Every file in that table, all additive. Nothing else in your repository is
 touched, and this page prints no total for the same reason it prints no skill
@@ -419,7 +420,7 @@ Against a project that already has an `AGENTS.md`, that prints:
 
 ```text
 [dry-run] lemmi-ai-kit 0.2.0 scaffold -> /path/to/your/project
-[dry-run] written: 6  seeded: 4  overwritten: 0  unchanged: 0
+[dry-run] written: 9  seeded: 4  overwritten: 0  unchanged: 0
 
 [dry-run] kept 1 project-owned seed file(s) (use --reseed to overwrite):
   - AGENTS.md
@@ -431,8 +432,10 @@ written — `--dry-run` only reports.
 > **The one destructive flag:** `--reseed` *does* overwrite `AGENTS.md`,
 > `CLAUDE.md` and your `.ai/` state logs with fresh templates. There is no reason
 > to pass it during adoption. (`--force` is milder — it touches only the
-> kit-managed files, which are `.ai/templates/` and `.ai/git-stacked-pr-workflow.md`,
-> and never a seed file.)
+> kit-managed files, which are everything the scaffold places under `.ai/` except
+> the state logs: today `.ai/templates/`, `.ai/git-stacked-pr-workflow.md` and the
+> self-ignoring `.gitignore` in each of `.ai/tmp/`, `.ai/handoffs/` and
+> `.ai/retrospectives/`. It never touches a seed file.)
 
 #### So how do you get the kit's content into a file it refuses to write?
 

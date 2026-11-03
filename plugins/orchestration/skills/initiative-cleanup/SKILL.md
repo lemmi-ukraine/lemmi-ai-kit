@@ -349,14 +349,14 @@ Only once 4a and 4b both pass:
 |---|---|
 | Spec for work that **shipped** | **DELETE it** (tracked, so `git log --diff-filter=D` recovers it) after relocating anything durable to the **code-adjacent home** — feature README, test name, code comment — and leaving a changelog pointer to the landing commit. Once code ships, the code + tests are the truth and a retained spec is a second source that drifts. *Measured:* a shipped fold-split spec was 242 lines, of which ~10 (alternatives-rejected) were not already in the code, its 19 tests, the README or the task doc. Relocate those 10, delete the file. |
 | Spec for work that was **parked** | **Keeps its revival trigger.** Deleting it destroys the decision *not* to build — exactly what stops the next initiative re-deriving it |
-| Genuine scratch under `.ai/tmp/` | Go — **only after 4c below**. Gate captures, one-off scripts, intermediate JSON |
+| Genuine scratch under `.ai/tmp/` | Go — **only after 4c below**. Gate captures, one-off scripts, intermediate JSON. Never the folder's own `.gitignore`: kit-setup manages it |
 | **Anything under `.ai/tmp/` that is an INPUT, not an output** | **KEEP — never swept.** See 4c: `.ai/tmp/` is not one class |
 | Hand-offs in `.ai/handoffs/` | Go. They are pointers by contract; the durable fact is elsewhere in git |
 | Every other kind — decision record, scaffolding, rollback anchor, instrument, result | **Step 3b owns these.** Disposition is that kind's life-ending condition, not this table. Measurement corpora and raw exports in particular: keep, and move somewhere durable — they have been lost once with no copy anywhere |
 
 ### 4c. `.ai/tmp/` is NOT one class — classify by content, never by directory
 
-`.ai/tmp/` is gitignored, so **nothing in it has history and nothing in it is
+`.ai/tmp/` is gitignored, so **no file a session puts in it has history and none is
 recoverable** — a sweep there is final. It holds two populations that look identical from the path:
 **scratch** (this session made it and could remake it → sweep) and **INPUT / corpus** (production
 exports, log downloads, anything a report's numbers were computed from → **never** sweep; upstream

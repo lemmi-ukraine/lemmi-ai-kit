@@ -69,6 +69,13 @@ see what would happen. Do not hand-copy templates — the script also renders th
 CLAUDE.md skill catalog (pack-namespaced invocations) and stamps
 provenance.
 
+The `.ai/` scaffolding includes three local-only folders, `.ai/tmp/`,
+`.ai/handoffs/` and `.ai/retrospectives/`, each with one self-ignoring
+`.gitignore` (`*`, then `!.gitignore`): git ignores every note in them but
+not that file, unless the project's own ignore rules already cover the folder
+(harmless: the notes stay ignored). The script edits no other ignore file, so
+the project's root `.gitignore` stays exactly as it was.
+
 If `.claude/skills/` contains copies of kit skills (from the retired pip
 installer), tell the user what actually happens, which is **not** shadowing:
 **both copies load.** Plugin skills are namespaced, so the project copy keeps the bare
