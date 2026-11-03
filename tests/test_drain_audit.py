@@ -27,7 +27,16 @@ A surface may reach `.ai/`, where the snapshot lives, and the snapshot holds eve
 tokens: with `--surface '.ai/*.md'` two entries that landed nowhere read as landed, exit 0, in
 either scan. Only the fallback left anything out (a file named `learnings.md`). Now one rule,
 applied by both scans, says no file that holds the entries is a landing site: the buffer, the
-snapshot under audit whatever its name, and every other pre-drain snapshot.
+snapshot under audit whatever its name, and every byte copy (`learnings-pre-drain-*.md`).
+
+A drain also leaves records. The changelog's CONSOLIDATION entry and the hypotheses ledger quote
+the entries a drain removed, so a surface that reached `.ai/` landed an entry in the record of
+its own removal. Both ledgers are now left out by name, as the buffer is. The report prints the
+globs it scanned beside the counts, so a home outside them shows before a `[LOSS?]` row is read as
+lost. And the docstring and `--help` describe the pre-drain snapshot the way the drain procedure
+now does: the buffer as committed at the restore point, read through a scratch file, with the
+operator's byte copy kept until the audit is clean. The files named `learnings-pre-drain-*.md`
+are those byte copies, and the script's own texts call them that and not snapshots.
 
 The script finds its project from its OWN file (`repo_root` walks up looking for `.ai/`
 beside `.git`), so every test copies it into a throwaway repository: run in place it would
@@ -41,11 +50,14 @@ making every run exit 1, or by breaking a path that already worked.
 """
 
 import argparse
+import ast
 import importlib.util
+import os
 import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
@@ -258,10 +270,11 @@ _PATHS: tuple[tuple[str, bool, bool], ...] = (
 )
 
 
-def _landed_paths(
+def _audit_table(
     repo: _Repo, *, before: tuple[str, ...], after: tuple[str, ...]
-) -> set[str]:
-    """Which of `_PATHS` the audit reports as landed, read off the entries it lists as lost."""
+) -> tuple[set[str], str]:
+    """Which of `_PATHS` the audit reports as landed, read off the entries it lists as lost,
+    and the report it printed."""
     for index, (path, *_) in enumerate(_PATHS):
         _stage(repo, path, f"A promotion that names `tok_{index}_here` for {path}.\n")
     entries = [
@@ -273,11 +286,19 @@ def _landed_paths(
     assert done.returncode in (0, 1), done.stdout + done.stderr
     assert _counts(done.stdout)["entries scanned"] == len(_PATHS), done.stdout
     lost = _lost_titles(done.stdout)
-    return {
+    landed = {
         path
         for index, (path, *_) in enumerate(_PATHS)
         if _title(f"p{index}") not in lost
     }
+    return landed, done.stdout
+
+
+def _landed_paths(
+    repo: _Repo, *, before: tuple[str, ...], after: tuple[str, ...]
+) -> set[str]:
+    """Which of `_PATHS` the audit reports as landed."""
+    return _audit_table(repo, before=before, after=after)[0]
 
 
 @pytest.mark.parametrize(
@@ -540,7 +561,7 @@ def test_help_names_the_files_that_are_never_a_landing_site(repo: _Repo) -> None
         "never a landing site, in either scan",
         "the buffer (any learnings.md)",
         "the snapshot under audit (whatever its name)",
-        "every other pre-drain snapshot (learnings-pre-drain-*.md)",
+        "every byte copy (learnings-pre-drain-*.md)",
     ):
         assert needle in flat, f"--help does not say {needle!r}:\n{done.stdout}"
 
@@ -691,3 +712,537 @@ def test_the_parser_can_be_built_and_enforces_the_ref_rule(
     with pytest.raises(SystemExit) as helped:
         parser.parse_args(["-h"])
     assert helped.value.code == 0
+
+
+# --- ledgers are never a landing site -------------------------------------------------------
+
+# The two ledgers a drain writes. The changelog's CONSOLIDATION entry names what the drain
+# removed and a hypothesis may quote the entry it grew from, so each holds the tokens of entries
+# that landed nowhere: a token found in one proves nothing, as in the buffer.
+_LEDGERS: tuple[str, ...] = (".ai/ai-changelog.md", ".ai/improvement-hypotheses.md")
+_LEDGER_IDS = ["changelog", "hypotheses"]
+
+_QUOTED = " and ".join(f"`{token}`" for _, token in _NEVER_LANDED)
+
+
+def _quote_the_entries(repo: _Repo, relative: str) -> None:
+    """Stage `relative` holding a record that quotes the tokens of `_NEVER_LANDED`."""
+    _stage(repo, relative, f"## 2026-01-02 CONSOLIDATION\n- Drained: {_QUOTED}\n")
+
+
+# (id, the ledger, the surface that reaches it): the ledger by its literal path and by its
+# folder's glob, and a file of the same name in another folder, which the by-name rule refuses
+# as it refuses any `learnings.md`.
+_LEDGER_ONLY: tuple[tuple[str, str, str], ...] = (
+    ("changelog-by-path", ".ai/ai-changelog.md", ".ai/ai-changelog.md"),
+    ("changelog-by-folder", ".ai/ai-changelog.md", ".ai/*.md"),
+    (
+        "hypotheses-by-path",
+        ".ai/improvement-hypotheses.md",
+        ".ai/improvement-hypotheses.md",
+    ),
+    ("hypotheses-by-folder", ".ai/improvement-hypotheses.md", ".ai/*.md"),
+    ("same-name-elsewhere", "notes/ai-changelog.md", "notes/*.md"),
+)
+
+
+@pytest.mark.parametrize(
+    ("ledger", "surface"),
+    [(ledger, surface) for _, ledger, surface in _LEDGER_ONLY],
+    ids=[name for name, _, _ in _LEDGER_ONLY],
+)
+@pytest.mark.parametrize("mode", _MODES)
+def test_a_surface_holding_only_a_ledger_lands_none_of_the_entries_it_quotes(
+    repo: _Repo, mode: str, ledger: str, surface: str
+) -> None:
+    """Red before the fix: the ledger quotes both tokens and nothing else holds them, yet each
+    entry read as landed (exit 0, either scan). The snapshot under audit sits outside the
+    surface, so the ledger is the only file that can land anything."""
+    _quote_the_entries(repo, ledger)
+    snapshot = _stage_the_entries(repo, "scratch/snapshot.md")
+    before, after = _scan(repo, mode)
+    _a_loss_row_each(_run(repo, *before, "--surface", surface, str(snapshot), *after))
+
+
+@pytest.mark.parametrize("ledger", _LEDGERS, ids=_LEDGER_IDS)
+@pytest.mark.parametrize("mode", _MODES)
+def test_a_real_home_lands_the_entries_a_ledger_also_quotes(
+    repo: _Repo, mode: str, ledger: str
+) -> None:
+    """Control, green before the fix and after: the rule leaves out the ledger, not the surface
+    around it. `notes/n.md` is a home that holds both tokens, so both entries land beside the
+    ledger that quotes them and the run is clean."""
+    _quote_the_entries(repo, ledger)
+    _stage(repo, "notes/n.md", f"The new rule names {_QUOTED}.\n")
+    snapshot = _stage_the_entries(repo, "scratch/snapshot.md")
+    before, after = _scan(repo, mode)
+    surfaces = ("--surface", ".ai/*.md", "--surface", "notes/*.md")
+    done = _run(repo, *before, *surfaces, str(snapshot), *after)
+    assert done.returncode == 0, done.stdout + done.stderr
+    counts = _counts(done.stdout)
+    assert counts["landed (>=1 tok)"] == len(_NEVER_LANDED), done.stdout
+    assert counts["CANDIDATE LOSS"] == 0, done.stdout
+
+
+@pytest.mark.parametrize("ledger", _LEDGERS, ids=_LEDGER_IDS)
+@pytest.mark.parametrize("mode", _MODES)
+def test_a_ledger_lands_nothing_the_real_home_left_out(
+    repo: _Repo, mode: str, ledger: str
+) -> None:
+    """Red before the fix: the ledger quotes both tokens and the home holds only the second, so
+    the first entry read as landed through the ledger (exit 0). The rule is per entry: the one
+    the home carries lands, the one only the ledger quotes is a loss row."""
+    (first, _), (_, second_token) = _NEVER_LANDED
+    _quote_the_entries(repo, ledger)
+    _stage(repo, "notes/n.md", f"The new rule names `{second_token}`.\n")
+    snapshot = _stage_the_entries(repo, "scratch/snapshot.md")
+    before, after = _scan(repo, mode)
+    surfaces = ("--surface", ".ai/*.md", "--surface", "notes/*.md")
+    done = _run(repo, *before, *surfaces, str(snapshot), *after)
+    assert done.returncode == 1, done.stdout + done.stderr
+    assert _lost_titles(done.stdout) == {_title(first)}, done.stdout
+    landed = _counts(done.stdout)["landed (>=1 tok)"]
+    assert landed == len(_NEVER_LANDED) - 1, done.stdout
+
+
+# Names near a ledger's that are not a ledger's. The rule is the whole file name, not a prefix,
+# a suffix or a family of names, for either ledger, and each of these holds a real promotion
+# that must still land.
+_NEAR_MISSES: tuple[tuple[str, str], ...] = (
+    ("suffix", "docs/ai-changelog-guide.md"),
+    ("prefix", "docs/my-ai-changelog.md"),
+    ("family", "docs/changelog.md"),
+    ("other-ledger-suffix", "docs/improvement-hypotheses-guide.md"),
+    ("other-ledger-prefix", "docs/my-improvement-hypotheses.md"),
+    ("other-ledger-family", "docs/hypotheses.md"),
+    ("under-the-ledger-folder", ".ai/templates/ai-changelog-format.md"),
+)
+
+
+@pytest.mark.parametrize(
+    "home",
+    [home for _, home in _NEAR_MISSES],
+    ids=[name for name, _ in _NEAR_MISSES],
+)
+@pytest.mark.parametrize("mode", _MODES)
+def test_a_file_with_a_name_near_a_ledger_s_still_lands_the_entry(
+    repo: _Repo, mode: str, home: str
+) -> None:
+    """Control, green before the fix and after: a refusal that matched a prefix, a suffix or a
+    part of the name would send these real homes to the loss list."""
+    _stage(repo, home, "The new rule names `iota_widget_token` once.\n")
+    snapshot = _snapshot(
+        repo, _entry("iota", "the lesson is about `iota_widget_token`")
+    )
+    before, after = _scan(repo, mode)
+    done = _run(repo, *before, "--surface", ".ai/templates/*.md", str(snapshot), *after)
+    assert done.returncode == 0, done.stdout + done.stderr
+    counts = _counts(done.stdout)
+    assert counts["landed (>=1 tok)"] == 1, done.stdout
+    assert counts["CANDIDATE LOSS"] == 0, done.stdout
+
+
+# --- the report prints the globs it scanned, beside the counts ------------------------------
+
+
+@dataclass(frozen=True)
+class _PrintedSurface:
+    total: int
+    default: int
+    added: int
+    globs: list[str]
+
+
+_SURFACE_LINE = re.compile(
+    r"^scan surface\s*:\s*(\d+) globs \((\d+) default \+ (\d+) --surface\): (.+)$",
+    re.MULTILINE,
+)
+
+
+def _printed_surface(output: str) -> _PrintedSurface:
+    """The `scan surface` line parsed; a report with no such line fails with the report shown."""
+    match = _SURFACE_LINE.search(output)
+    assert match is not None, f"the report has no 'scan surface' line:\n{output}"
+    return _PrintedSurface(
+        total=int(match.group(1)),
+        default=int(match.group(2)),
+        added=int(match.group(3)),
+        globs=match.group(4).split(", "),
+    )
+
+
+def _surface_gaps(
+    printed: _PrintedSurface, scanned: Sequence[str], added: int
+) -> list[str]:
+    """How the printed surface differs from `scanned`, the globs the run was handed in order."""
+    gaps: list[str] = []
+    if printed.globs != list(scanned):
+        gaps.append(f"globs: printed {printed.globs}, scanned {list(scanned)}")
+    if printed.total != len(scanned):
+        gaps.append(f"total: printed {printed.total}, scanned {len(scanned)}")
+    if printed.added != added:
+        gaps.append(f"--surface count: printed {printed.added}, given {added}")
+    if printed.default != len(scanned) - added:
+        gaps.append(
+            f"default count: printed {printed.default}, scanned {len(scanned) - added}"
+        )
+    return gaps
+
+
+def _options(surfaces: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(word for glob in surfaces for word in ("--surface", glob))
+
+
+def _reached_by(root: Path, globs: Sequence[str]) -> set[str]:
+    """The files under `root` that `Path.glob` reaches with any of `globs`, as relative paths."""
+    return {
+        found.relative_to(root).as_posix()
+        for glob in globs
+        for found in root.glob(glob)
+        if found.is_file()
+    }
+
+
+@pytest.mark.parametrize(
+    "surfaces",
+    [(), ("notes/*.md",), _SURFACES],
+    ids=["no-surface", "one-surface", "two-surfaces"],
+)
+@pytest.mark.parametrize("mode", _MODES)
+def test_the_report_prints_the_globs_it_scanned_beside_the_counts(
+    repo: _Repo, mode: str, surfaces: tuple[str, ...]
+) -> None:
+    """Red before the fix: the report said how many entries matched and not what they were
+    matched against. The expected globs come from the script's own `TARGET_GLOBS` and from the
+    options this test passed, so no count or glob is retyped here."""
+    snapshot = _snapshot(repo, _entry("a", "about `alpha_token`"))
+    before, after = _scan(repo, mode)
+    done = _run(repo, *before, *_options(surfaces), str(snapshot), *after)
+    assert done.returncode == 1, done.stdout + done.stderr
+    _counts(done.stdout)
+    defaults = cast(tuple[str, ...], _load(repo.script).TARGET_GLOBS)
+    printed = _printed_surface(done.stdout)
+    assert _surface_gaps(printed, (*defaults, *surfaces), len(surfaces)) == []
+    lines = done.stdout.splitlines()
+    last_count = next(
+        index for index, line in enumerate(lines) if line.startswith("CANDIDATE LOSS")
+    )
+    assert lines[last_count + 1].startswith("scan surface"), (
+        f"the surface line is not beside the counts:\n{done.stdout}"
+    )
+
+
+@pytest.mark.parametrize(
+    "surfaces",
+    [(), _SURFACES],
+    ids=["the-ten-defaults", "with-two-surfaces"],
+)
+@pytest.mark.parametrize("mode", _MODES)
+def test_the_printed_globs_reach_exactly_the_files_the_audit_landed(
+    tmp_path: Path, mode: str, surfaces: tuple[str, ...]
+) -> None:
+    """Two instruments for one surface: the files the PRINTED globs reach under `Path.glob`, and
+    the files the audit really treated as homes (the table of `_PATHS`). They must agree, so a
+    printed line that drifts from what the scans received is red. Red before the fix: there were
+    no printed globs to read."""
+    repo = _make_repo(tmp_path)
+    before, after = _scan(repo, mode)
+    landed, output = _audit_table(
+        repo, before=(*before, *_options(surfaces)), after=after
+    )
+    printed = _printed_surface(output)
+    staged = {path for path, *_ in _PATHS}
+    assert landed, "the table landed nothing, so the comparison would prove nothing"
+    assert staged & _reached_by(repo.root, printed.globs) == landed
+
+
+def test_the_surface_checks_see_their_planted_positives() -> None:
+    """A guard never shown to fail has not been shown to work: the parse and the comparison are
+    fired at the old report, at four planted defects and at a near-miss that must pass."""
+    stand_in = ("AGENTS.md", "docs/**/*.md", "src/**/*.py")
+    scanned = (*stand_in, "notes/*.md")
+    report = (
+        "CANDIDATE LOSS   : 0\n"
+        "scan surface     : 4 globs (3 default + 1 --surface): "
+        "AGENTS.md, docs/**/*.md, src/**/*.py, notes/*.md\n\n"
+    )
+    assert _surface_gaps(_printed_surface(report), scanned, 1) == []
+
+    with pytest.raises(AssertionError, match="no 'scan surface' line"):
+        _printed_surface("entries scanned  : 1\nCANDIDATE LOSS   : 0\n\n")
+
+    planted = {
+        "a surface left out of the line": report.replace(", notes/*.md", "").replace(
+            "4 globs (3 default + 1", "3 globs (3 default + 0"
+        ),
+        "a glob that differs by one character": report.replace(
+            "docs/**/*.md", "docs/*/*.md"
+        ),
+        "a total that is not the count": report.replace("4 globs", "5 globs"),
+        "a default miscounted as a surface": report.replace(
+            "(3 default + 1", "(2 default + 2"
+        ),
+    }
+    for name, variant in planted.items():
+        gaps = _surface_gaps(_printed_surface(variant), scanned, 1)
+        assert gaps, f"the comparison missed {name}"
+
+    # Each defect above breaks a glob or two counts at once, so deleting one count comparison
+    # would still be seen. These break one count only: the line is caught by that comparison
+    # alone, and the gap says which.
+    one_count = {
+        "a --surface count that is not the number given": (
+            "(3 default + 2",
+            "--surface count",
+        ),
+        "a default count that is not the number of defaults": (
+            "(2 default + 1",
+            "default count",
+        ),
+    }
+    for name, (wrong, label) in one_count.items():
+        variant = report.replace("(3 default + 1", wrong)
+        gaps = _surface_gaps(_printed_surface(variant), scanned, 1)
+        assert [gap.split(":")[0] for gap in gaps] == [label], (
+            f"the comparison missed {name}: {gaps}"
+        )
+
+    spaced = report.replace("scan surface     :", "scan surface:")
+    assert _surface_gaps(_printed_surface(spaced), scanned, 1) == [], (
+        "the padding after the label is not part of the surface"
+    )
+
+
+# --- the docstring and --help say what the drain procedure now says -------------------------
+
+_SNAPSHOT_DEFINITION = (
+    "the buffer as committed at the restore point, read through a scratch file"
+)
+
+# One clause each, matched in the whitespace-folded text of the docstring and of `--help`.
+_RESTORE_POINT_CLAUSES: tuple[str, ...] = (
+    _SNAPSHOT_DEFINITION,
+    "takes a file, not a commit",
+    "byte copy",
+    "never committed",
+    "until the audit is clean",
+)
+
+# What the old docstring, the old help and the old closing line of the report said.
+_OLD_WORDING: dict[str, str] = {
+    "before deleting the snapshot": (
+        r"\bbefore\s+deleting\s+the\s+(?:pre-drain\s+)?snapshot\b"
+    ),
+    "a copy made before any deletion": r"\ba\s+copy\s+made\s+before\s+any\s+deletion\b",
+}
+
+
+def _old_wording(text: str) -> list[str]:
+    """The labels of the old phrases found in `text`."""
+    return [
+        label
+        for label, pattern in _OLD_WORDING.items()
+        if re.search(pattern, text, re.IGNORECASE)
+    ]
+
+
+def _docstring() -> str:
+    """The module docstring of the script, read from the source so nothing is imported."""
+    tree = ast.parse(_SCRIPT.read_text(encoding="utf-8"))
+    return _flat(ast.get_docstring(tree) or "")
+
+
+def _help_flat(repo: _Repo) -> str:
+    """`--help` whitespace-folded. It runs wide: argparse breaks a hyphenated word at a line end
+    when it wraps, and the clauses below hold such words."""
+    done = subprocess.run(
+        [sys.executable, "-B", str(repo.script), "-h"],
+        cwd=repo.root.parent,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        timeout=_TIMEOUT_SECONDS,
+        env={**os.environ, "COLUMNS": "400"},
+    )
+    assert done.returncode == 0, done.stdout + done.stderr
+    return _flat(done.stdout)
+
+
+def _between(text: str, start: str, end: str) -> str:
+    assert start in text and end in text, (
+        f"the help has no {start!r} or {end!r}:\n{text}"
+    )
+    return text.split(start, 1)[1].split(end, 1)[0]
+
+
+def test_the_docstring_describes_the_snapshot_the_way_the_drain_procedure_does() -> (
+    None
+):
+    """Red before the fix: the docstring said to run BEFORE deleting the pre-drain snapshot,
+    which the drain procedure no longer deletes, and named neither the restore point, the
+    scratch file nor the byte copy."""
+    docstring = _docstring()
+    missing = [clause for clause in _RESTORE_POINT_CLAUSES if clause not in docstring]
+    assert not missing, f"the module docstring does not say {missing}"
+    assert _old_wording(docstring) == [], "the module docstring keeps the old wording"
+
+
+def test_help_describes_the_snapshot_the_way_the_drain_procedure_does(
+    repo: _Repo,
+) -> None:
+    """Red before the fix: the snapshot argument was described as a copy made before any
+    deletion, and `--help` named neither the restore point, the scratch file nor the byte copy."""
+    helped = _help_flat(repo)
+    missing = [clause for clause in _RESTORE_POINT_CLAUSES if clause not in helped]
+    assert not missing, f"--help does not say {missing}"
+    positional = _between(helped, "positional arguments:", "options:")
+    assert _SNAPSHOT_DEFINITION in positional, (
+        f"the snapshot argument is not described as {_SNAPSHOT_DEFINITION!r}: {positional}"
+    )
+    assert _old_wording(helped) == [], "--help keeps the old wording"
+
+
+def test_the_closing_line_of_a_report_with_rows_names_the_byte_copy(
+    repo: _Repo,
+) -> None:
+    """Red before the fix: it said to adjudicate before deleting the snapshot, which is now a
+    scratch file that is rebuilt from the restore point; the file to keep is the byte copy."""
+    snapshot = _snapshot(repo, _entry("lost", "the lesson is about `nowhere_token`"))
+    done = _run(repo, str(snapshot), repo.base)
+    assert done.returncode == 1, done.stdout + done.stderr
+    report = _flat(done.stdout)
+    assert "Adjudicate every row above before deleting the byte copy." in report, report
+    assert _old_wording(report) == [], "the closing line keeps the old wording"
+
+
+def test_the_old_wording_check_sees_its_planted_positives() -> None:
+    """The three old sentences, as they stood, are found; wording close to them is not."""
+    for old in (
+        "Usage (run BEFORE deleting the pre-drain snapshot):",
+        "the pre-drain snapshot of the buffer: a copy made before any deletion",
+        "Adjudicate every row above before deleting the snapshot. Expected-clean rows:",
+    ):
+        assert _old_wording(_flat(old)), f"the check missed {old!r}"
+    for near in (
+        "Adjudicate every row above before deleting the byte copy.",
+        "keep the byte copy until the audit is clean",
+        "a copy of the buffer that is never committed",
+        "before any deletion the operator commits the buffer",
+    ):
+        assert _old_wording(near) == [], f"the check flagged {near!r}"
+
+
+def test_the_docstring_and_help_name_every_file_name_the_audit_refuses(
+    repo: _Repo,
+) -> None:
+    """The refusal list is data in the script (`NEVER_A_LANDING_SITE`). Both texts list each
+    name, so a name added to the data and not to the text is red, and the two ledgers the row
+    names are asserted to be in the data. Red before the fix for those two names."""
+    refused = cast(tuple[str, ...], _load(repo.script).NEVER_A_LANDING_SITE)
+    ledger_names = {Path(ledger).name for ledger in _LEDGERS}
+    assert ledger_names <= set(refused), (
+        f"{ledger_names - set(refused)} are not refused"
+    )
+    docstring, helped = _docstring(), _help_flat(repo)
+    for name in refused:
+        assert name in docstring, f"the module docstring does not name {name!r}"
+        assert name in helped, f"--help does not name {name!r}"
+
+
+# The clause both texts use for the report line that prints the globs: the docstring says "on
+# the `scan surface` line beside them" and `--help` says "on its `scan surface` line, beside
+# the counts".
+_SCAN_SURFACE_CLAUSES: tuple[str, ...] = ("`scan surface` line",)
+
+
+def test_the_docstring_and_help_document_the_scan_surface_line(repo: _Repo) -> None:
+    """Pins prose the report line came with and no test held: green on the tree it was written
+    against, red when the docstring paragraph or the `--help` line that tells a reader the
+    report prints the globs it scanned is deleted."""
+    for where, text in (
+        ("the module docstring", _docstring()),
+        ("--help", _help_flat(repo)),
+    ):
+        missing = [clause for clause in _SCAN_SURFACE_CLAUSES if clause not in text]
+        assert not missing, f"{where} does not say {missing}"
+
+
+# --- the files named learnings-pre-drain-*.md are byte copies, not snapshots -----------------
+
+# The pre-drain snapshot is now the scratch file read from the restore point, and the copy the
+# operator keeps is a byte copy. The files named `learnings-pre-drain-*.md` are those copies, so
+# a text that calls them snapshots contradicts the definition it gives two paragraphs earlier.
+_STALE_SNAPSHOT_NAMES: dict[str, str] = {
+    "every (other) pre-drain snapshot": r"\bevery\s+(?:other\s+)?pre-drain\s+snapshot\b",
+    "pre-drain snapshots": r"\bpre-drain\s+snapshots\b",
+}
+
+# The new shape: the file-name pattern introduced as a byte copy, in `--help` and the docstring.
+_BYTE_COPY_NAMES = re.compile(
+    r"\bbyte cop(?:y|ies)\b[^.()]{0,40}\(`?learnings-pre-drain-\*\.md`?\)"
+)
+
+
+def _stale_snapshot_names(text: str) -> list[str]:
+    """The labels of the stale shapes found in `text`."""
+    return [
+        label
+        for label, pattern in _STALE_SNAPSHOT_NAMES.items()
+        if re.search(pattern, text, re.IGNORECASE)
+    ]
+
+
+def test_the_pre_drain_file_names_are_called_byte_copies_not_snapshots(
+    repo: _Repo,
+) -> None:
+    """Red before the fix: the module docstring, `--help`, a comment and a function docstring
+    called the files named `learnings-pre-drain-*.md` pre-drain snapshots, in the same texts that
+    define the pre-drain snapshot as the scratch file and call the copy kept until the audit is
+    clean a byte copy. The scan reads the whole script, comments included, with `#` folded away,
+    and the second half asserts the new shape is present, so a scan that sees nothing is red."""
+    source = _flat(_SCRIPT.read_text(encoding="utf-8").replace("#", " "))
+    assert _stale_snapshot_names(source) == [], (
+        "the script still calls the byte copies snapshots"
+    )
+    for where, text in (
+        ("the module docstring", _docstring()),
+        ("--help", _help_flat(repo)),
+    ):
+        assert _BYTE_COPY_NAMES.search(text), (
+            f"{where} does not introduce learnings-pre-drain-*.md as a byte copy"
+        )
+
+
+def test_the_stale_snapshot_name_check_sees_its_planted_positives() -> None:
+    """The shapes the stale wording took (the docstring and `--help` sentence, the comment, the
+    function docstring) and a plural variant are found, wording close to it is not, and the
+    byte-copy shape is accepted only when the file-name pattern follows the term."""
+    for stale in (
+        "under audit (the path given), every other pre-drain snapshot (`learnings-pre-drain-*.md`) and",
+        "# proves nothing: the buffer, every pre-drain snapshot (an older one still holds the KEEP",
+        "is found: the buffer, every pre-drain snapshot and the ledgers, by name",
+        "older pre-drain snapshots keep the entries that dwelt through earlier drains",
+    ):
+        flat = _flat(stale.replace("#", " "))
+        assert _stale_snapshot_names(flat), f"the check missed {stale!r}"
+    for near in (
+        "The pre-drain snapshot is the buffer as committed at the restore point",
+        "did every entry of the pre-drain snapshot land in a promotion target",
+        "every byte copy (`learnings-pre-drain-*.md`) and the ledgers",
+        "pre-drain snapshot (first argument): the buffer as committed at the restore point",
+    ):
+        assert _stale_snapshot_names(_flat(near)) == [], f"the check flagged {near!r}"
+    for shaped in (
+        "every byte copy (`learnings-pre-drain-*.md`) and the ledgers",
+        "every byte copy (learnings-pre-drain-*.md) and the ledgers",
+        "every byte copy of the buffer (`learnings-pre-drain-*.md`)",
+    ):
+        assert _BYTE_COPY_NAMES.search(shaped), f"the shape check missed {shaped!r}"
+    for unshaped in (
+        "every other pre-drain snapshot (`learnings-pre-drain-*.md`) and the ledgers",
+        "keep the byte copy until the audit is clean",
+    ):
+        assert not _BYTE_COPY_NAMES.search(unshaped), (
+            f"the shape check took {unshaped!r}"
+        )

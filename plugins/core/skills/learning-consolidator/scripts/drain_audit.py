@@ -5,10 +5,17 @@ opposite failure: an entry removed without its knowledge reaching any home. That
 2026-07-31 drain lost 6 of 87 entries (7%) that way, including a rule the consolidation then
 cross-referenced as if it existed, and manual accounting did not catch any of them.
 
-Usage (run BEFORE deleting the pre-drain snapshot):
+Usage:
 
     python "${CLAUDE_SKILL_DIR}/scripts/drain_audit.py" <pre-drain-snapshot.md> <base-ref>
     python "${CLAUDE_SKILL_DIR}/scripts/drain_audit.py" --current-contents <pre-drain-snapshot.md>
+
+The pre-drain snapshot is the buffer as committed at the restore point, read through a scratch
+file: before the first removal the operator commits the buffer in its own commit, and writes the
+buffer at that commit to a scratch file. This script takes a file, not a commit, so the scratch
+file is what it is given, and it can be rebuilt from the commit id whenever the audit has to be
+re-run. The operator's byte copy of the buffer is a different file, kept locally and never
+committed, and it stays until the audit is clean.
 
 The base ref is mandatory: the commit that was HEAD before the promotions. Pass HEAD itself while
 the promotions are still uncommitted; once they are committed pass the commit BEFORE the promotion
@@ -44,14 +51,20 @@ Exit codes, as in the lint:
        exits 0.
 
 For each entry in the snapshot it extracts the most distinctive backticked identifiers and greps
-every promotion target. A file that holds the entries themselves is never a landing site, in
-either scan and whatever the globs match: the buffer (any `learnings.md`), the snapshot under
-audit (the path given, whatever its name) and every other pre-drain snapshot
-(`learnings-pre-drain-*.md`), so a surface that reaches `.ai/` cannot land an entry in its own
-copy. Zero hits => CANDIDATE LOSS. This is a review list, not a verdict: an
-ARCHIVED entry legitimately has no new home, and an entry whose only tokens are incidental paths
-from its anecdote can false-positive. Adjudicate each by hand; the point is that nothing is
-dropped silently.
+every promotion target. A file that holds or quotes the entries themselves is never a landing
+site, in either scan and whatever the globs match: the buffer (any `learnings.md`), the snapshot
+under audit (the path given, whatever its name), every byte copy (`learnings-pre-drain-*.md`) and
+the ledgers that quote what a drain removed (any `ai-changelog.md`, any
+`improvement-hypotheses.md`), so a surface that reaches `.ai/` cannot land an entry in its own
+copy or in the record of its removal. Zero hits => CANDIDATE LOSS. This is a review list, not a
+verdict: an ARCHIVED entry legitimately has no new home, and an entry whose only tokens are
+incidental paths from its anecdote can false-positive. Adjudicate each by hand; the point is that
+nothing is dropped silently.
+
+The counts are printed with the globs they were counted against, on the `scan surface` line
+beside them: the defaults first, then each --surface. A count says how many entries matched, the
+line says what they were matched against, so a home outside the surface shows before a [LOSS?]
+row is read as lost.
 
 Forces UTF-8 stdout so the output is readable on consoles that default to a legacy codepage.
 """
@@ -88,11 +101,17 @@ TARGET_GLOBS = (
 # The characters that make a glob more than a literal path.
 GLOB_CHARS = "*?["
 
-# The names of the files that hold the entries themselves, so a token found in one proves
-# nothing: the buffer, and every pre-drain snapshot (an older one still holds the KEEP entries
-# that dwelt through earlier drains). The snapshot under audit is left out by identity as well,
-# whatever its name. `is_landing_site` applies the rule, and both scans call it.
-NEVER_A_LANDING_SITE = ("learnings.md", "learnings-pre-drain-*.md")
+# The names of the files that hold or quote the entries themselves, so a token found in one
+# proves nothing: the buffer, every byte copy (an older one still holds the KEEP
+# entries that dwelt through earlier drains) and the two ledgers, where a drain's CONSOLIDATION
+# entry and a hypothesis quote what it removed. The snapshot under audit is left out by identity
+# as well, whatever its name. `is_landing_site` applies the rule, and both scans call it.
+NEVER_A_LANDING_SITE = (
+    "learnings.md",
+    "learnings-pre-drain-*.md",
+    "ai-changelog.md",
+    "improvement-hypotheses.md",
+)
 
 # Tokens too generic to prove a landing.
 STOP = {
@@ -130,6 +149,11 @@ base ref (second argument): the commit BEFORE the promotions.
   promotions already committed: <promotion-commit>~1, never HEAD
   mandatory unless --current-contents is given
 
+pre-drain snapshot (first argument): the buffer as committed at the restore point, read through a
+scratch file. This script takes a file, not a commit: write the buffer at the restore-point
+commit to a scratch file and pass that. The operator's byte copy of the buffer is a different
+file, kept locally and never committed; keep it until the audit is clean.
+
 exit codes:
   0  clean: every entry landed in at least one target
      (under --current-contents an exit 0 is an upper bound, never a clean audit)
@@ -139,8 +163,11 @@ exit codes:
      or a diff that could not be taken
 
 never a landing site, in either scan and whatever the globs match:
-  the buffer (any learnings.md), the snapshot under audit (whatever its name)
-  and every other pre-drain snapshot (learnings-pre-drain-*.md)
+  the buffer (any learnings.md), the snapshot under audit (whatever its name),
+  every byte copy (learnings-pre-drain-*.md) and the ledgers that quote
+  what a drain removed (any ai-changelog.md, any improvement-hypotheses.md)
+
+the report prints the globs it scanned on its `scan surface` line, beside the counts
 """
 
 
@@ -160,10 +187,11 @@ def repo_root() -> Path:
 def is_landing_site(path: Path, snapshot: Path) -> bool:
     """The one rule both scans apply to each file the globs match: can an entry land in it?
 
-    Not in a file that holds the entries themselves, where every token of every entry is
-    found: the buffer and every pre-drain snapshot, by name (`NEVER_A_LANDING_SITE`), and the
-    snapshot under audit, by identity, whatever its name (a scratch reconstruction under audit
-    is left out too). Without the rule a surface that reaches `.ai/` lands every entry.
+    Not in a file that holds or quotes the entries themselves, where every token of every entry
+    is found: the buffer, every byte copy and the ledgers, by name
+    (`NEVER_A_LANDING_SITE`), and the snapshot under audit, by identity, whatever its name (a
+    scratch reconstruction under audit is left out too). Without the rule a surface that reaches
+    `.ai/` lands every entry.
     """
     if any(fnmatch.fnmatchcase(path.name, name) for name in NEVER_A_LANDING_SITE):
         return False
@@ -327,7 +355,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "snapshot",
-        help="the pre-drain snapshot of the buffer: a copy made before any deletion",
+        help=(
+            "the pre-drain snapshot: the buffer as committed at the restore point, read "
+            "through a scratch file"
+        ),
     )
     parser.add_argument(
         "base_ref",
@@ -365,6 +396,20 @@ def build_parser() -> argparse.ArgumentParser:
 def _force_utf8_stdout() -> None:
     with contextlib.suppress(Exception):
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+
+
+def surface_line(globs: Sequence[str], added: int) -> str:
+    """The globs a run scanned, as the report line that sits beside the counts.
+
+    The counts say how many entries matched; this says what they were matched against, so a
+    home outside the surface shows before a `[LOSS?]` row is read as lost. It prints the very
+    sequence both scans received, the defaults first and each `--surface` after them, and counts
+    the defaults from it rather than from a second constant.
+    """
+    return (
+        f"{len(globs)} globs ({len(globs) - added} default + {added} --surface): "
+        f"{', '.join(globs)}"
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -431,7 +476,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"entries scanned  : {total}")
     print(f"landed (>=1 tok) : {landed}")
     print(f"no probe tokens  : {len(weak)}")
-    print(f"CANDIDATE LOSS   : {len(lost)}\n")
+    print(f"CANDIDATE LOSS   : {len(lost)}")
+    print(f"scan surface     : {surface_line(globs, len(args.surface))}\n")
     for title, toks in lost:
         print(f"  [LOSS?] {title[:105]}")
         print(f"          probes: {toks}")
@@ -440,7 +486,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         for title in weak:
             print(f"   - {title[:105]}")
     if lost or weak:
-        print("\nAdjudicate every row above before deleting the snapshot. Expected-clean rows:")
+        print("\nAdjudicate every row above before deleting the byte copy. Expected-clean rows:")
         print("  * ARCHIVED entries (already covered elsewhere / stale / superseded)")
         print("  * entries whose only tokens are incidental paths from their anecdote")
         print("\nexit 1 means rows to adjudicate (it is not an error).")
