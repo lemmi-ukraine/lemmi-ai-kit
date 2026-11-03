@@ -15,6 +15,40 @@
 
 ---
 
+## 2026-11-03
+
+### [SKILL-MODIFIED] A drain that removes nothing no longer silences the cadence nudges, and the audit lands a promotion in a home the project names
+- **Category:** Observability
+- **Hypothesis:** By marking each `CONSOLIDATION` entry with its Drained count and letting the drain audit take the project's own homes with `--surface`, we expect the next drain in each consumer to write a Drained line that the cadence nudges then date the last drain by, and to report no `[LOSS?]` row for a promotion that landed in a home named with `--surface`, because Phase 7a writes the line (0 included), every reader skips an entry whose count is 0, and both scans read a plain added glob in the tree's case alike.
+- **Signal:** Over the next drain in each consumer, or by 2026-12-28, whichever comes first, read its changelog entry, the next task-learnings or session-retrospective nudge, and its audit output: confirm if the entry carries a Drained line, a nudge after a run that drained nothing still dates the last drain by the earlier entry, and no `[LOSS?]` row names a promotion that landed under a `--surface` glob; refute if an entry lacks the line, a run that drained nothing silences a nudge, or such a row appears; inconclusive if no drain runs in the window.
+- **Risk:** A surface that reaches `.ai/` still lets a ledger that quotes an entry land it, an open question for the operator; a consumer that names no home with `--surface` tests only the marker half.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Date the last drain by a marked count, let the drain audit take a project's own homes, read each promoted paragraph beside its source entry, file .NET build failures as build errors, and seed a self-ignoring .gitignore in each local-only folder
+
+### [SKILL-MODIFIED] The consolidation critic's fidelity read catches a promoted paraphrase that changed its entry's claim
+- **Category:** Quality
+- **Hypothesis:** By having a fresh reader read each promoted paragraph beside its source entry in C6, we expect the next two consolidations' critic reports to list at least one changed claim that the other checks would have passed, corrected before the drain lands, because paraphrases that changed a claim passed every presence, anchor and hedge check before.
+- **Signal:** Over the next two consolidation runs in either consumer, or by 2026-12-28, whichever comes first, read each critic report's Fidelity read line: confirm if at least one run lists a changed claim that was corrected before the drain landed and its reader rejected the planted claim; refute if both runs list none while a later read finds a changed claim in a promoted paragraph; inconclusive with fewer than two runs.
+- **Risk:** A fresh reader's brief is capped at four real claims, so a large drain needs several readers and C6 does not say so; a reader that rejects the plant can still miss a subtle change.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Date the last drain by a marked count, let the drain audit take a project's own homes, read each promoted paragraph beside its source entry, file .NET build failures as build errors, and seed a self-ignoring .gitignore in each local-only folder
+
+### [SKILL-MODIFIED] A retrospective over a .NET project files its build failures as build errors
+- **Category:** Observability
+- **Hypothesis:** By filing .NET build output as build-compile, we expect the next retrospective over the .NET consumer to show at least one build-compile result from a dotnet or MSBuild call and no dotnet test summary filed build-compile, because the table matches the build stamp and the coded errors, not the test summary's `Failed!`.
+- **Signal:** In the next session-retrospective run over the .NET consumer, or by 2026-12-28, whichever comes first: confirm if at least one build-compile result comes from a dotnet or MSBuild call and no dotnet test summary is filed build-compile; refute if a failing dotnet build is still filed test-failure or runtime-exit, or a test summary is filed build-compile; inconclusive if the window holds no failing .NET build (none of the 23 local .NET error results moved class when the change was measured).
+- **Risk:** A failing dotnet test that also prints the build stamp files build-compile; terminal-logger output with no coded line, and NU, NETSDK, CA, IDE, FS and BC codes, are not read as build errors.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Date the last drain by a marked count, let the drain audit take a project's own homes, read each promoted paragraph beside its source entry, file .NET build failures as build errors, and seed a self-ignoring .gitignore in each local-only folder
+
+### [SKILL-MODIFIED] A project scaffolded after the seed commits nothing under its local-only folders but their ignore files
+- **Category:** Quality
+- **Hypothesis:** By seeding a self-ignoring `.gitignore` in `.ai/tmp/`, `.ai/handoffs/` and `.ai/retrospectives/`, we expect a project scaffolded or refreshed after this change to add no file under those folders to git except the three ignore files, because a plain `git add` there is now refused and the skills' gitignored claims hold without the adopter acting.
+- **Signal:** By 2026-12-28 (calendar backstop), list the files added to git under the three folders, after the seed, in each project scaffolded or refreshed after this change: confirm if no file under the three folders other than their `.gitignore` files was added; refute if any other file was; inconclusive if no project was scaffolded or refreshed in the window, or if the window holds only projects whose root rules already ignore the folders. Only a fresh adopter (no root rule over those folders) can move this signal.
+- **Risk:** Notes committed before the seed stay tracked, since an ignore rule never untracks a file; a root rule that covers a folder only partly is overridden by the seeded `*`.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-03 — Date the last drain by a marked count, let the drain audit take a project's own homes, read each promoted paragraph beside its source entry, file .NET build failures as build errors, and seed a self-ignoring .gitignore in each local-only folder
+
 ## 2026-11-02
 
 ### [SKILL-MODIFIED] Skill creation and review cite no decision an adopter cannot read and name only commit-message as user-only

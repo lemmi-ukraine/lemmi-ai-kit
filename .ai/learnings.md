@@ -184,6 +184,36 @@ to its home above and removed here.
 - **Enforce-via**: prose
 - **Scope**: durable
 
+### [2026-11-03] An emptied GIT_CONFIG_GLOBAL does not isolate a git test: git still reads its default excludes file
+- **Context**: The local-only folder tests ask git, in a fixture repository, which files it ignores.
+- **Finding**: With GIT_CONFIG_GLOBAL pointed at an empty file, git still read its default excludes file under the user's config home: an XDG `git/ignore` holding `*.md` made the fixture ignore AGENTS.md, so the test answered for the machine and not for the scaffold. Naming an empty `core.excludesFile` in the fixture's own global config isolated it, and the same planted excludes file then left every case green.
+- **Impact**: In a test that asks git what it ignores, set `core.excludesFile` to an empty file as well as emptying GIT_CONFIG_GLOBAL, and run the test once under a planted global excludes file before trusting it.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_scaffold_local_only_folders.py::git_repo
+- **Scope**: durable
+
+### [2026-11-03] ruff and basedpyright exclude plugins/*/skills, so a skill script given to ruff by path is reformatted in lines nobody changed
+- **Context**: Two packages edited Python under `plugins/*/skills/` (the session extractor and its tests, the drain audit).
+- **Finding**: pyproject.toml's `extend-exclude` keeps `plugins/*/skills` out of ruff and basedpyright, so those files were never formatted, and those two gates stay green whatever those files hold. A file passed to ruff by path is read anyway: `ruff format` on the extractor's test file rewrote 11 old lines no edit touched, and `ruff format --check` on that file and the drain audit reports both as files it would reformat, while `--force-exclude` skips them.
+- **Impact**: For a skill script, check only the added hunks for what ruff would change, or pass `--force-exclude`; never run `ruff format` on the file by path, and never read the ruff or basedpyright result as evidence about code under `plugins/*/skills/`; pytest does run those scripts' tests (tests/test_skill_script_tests.py and the drain audit's own test file).
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: pyproject.toml
+- **Scope**: durable
+
+### [2026-11-03] git pathspecs and Path.glob read a plain file glob alike and a directory shape differently
+- **Context**: The drain audit reads one glob list through git's `:(glob)` pathspecs in its base-ref scan and through Path.glob in its current-contents fallback.
+- **Finding**: Measured on Python 3.11, the two agree on `notes/**/*.md`, `notes/*.md`, `notes/*`, `**/n.md` and `./notes/*.md`, and part on `notes/**`, `notes/` and a bare folder name (git takes every file below, Path.glob none), on an empty value or an absolute or drive path (Path.glob raises) and on `../x` (git refuses, Path.glob leaves the project), and, unrefused, on letter case (a case-insensitive file system), a `[^...]` class and a `**` inside a name on Python 3.11. Mirroring git's rule in the fallback would have let `notes/*` take `notes/a/m.md`, which git does not.
+- **Impact**: Before one glob value feeds two matchers, measure both on the same tree for each shape you accept, and refuse the shapes they read differently with a stated reason rather than mirroring one matcher in the other.
+- **Category**: pitfall
+- **Home**: comment:plugins/core/skills/learning-consolidator/scripts/drain_audit.py:surface_glob
+- **Enforce-via**: test
+- **Verify-at**: tests/test_drain_audit.py::test_a_surface_the_two_scans_would_read_differently_exits_two
+- **Scope**: durable
+
 ## Convention Clarifications
 
 ### [2026-10-30] A skill's step list restated outside the skill goes stale when the skill grows
