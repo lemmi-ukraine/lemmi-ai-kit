@@ -36,10 +36,15 @@ parallel-session-safety was edited again after its one excerpt was taken (its ba
 the committed restore point): its 1 later phrase sits in the same table, so the excerpt still reports
 the 7 phrases it lacked then.
 
+The second round of change requests edited 2 more upstream-origin skills: 1 (plan-critic) gained
+phrases in their rows; 1 (post-task-review with 2 phrases) keep an excerpt of an older note, so
+their new phrases sit in the table of later edits and the excerpts still report the 7 phrases they
+lacked then.
+
 THE SURFACE, in numbers the tests assert: 23 edited upstream-origin rows, 4 earlier notes kept whole,
 4 kit-origin rows left alone, no name in both sets, 1 retired wording, 2 incomplete notes reported
 as they read, 7 missing phrases each, 2 later incomplete notes reported as they read, 5 missing
-phrases each, and 3 rows edited again after their excerpts, their 6 later phrases checked apart.
+phrases each, and 3 rows edited again after their excerpts, their 8 later phrases checked apart.
 """
 
 import re
@@ -145,6 +150,8 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "asks for each fix as exact replacement text",
         "diff the document against its version before the first fix pass",
         "copy the document before the first fix pass and diff against the copy",
+        "asks about a test form's owner when a level has more than one form",
+        "names five vacuous-pass shapes",
     ),
     "post-task-review": (
         "references/fix-rounds.md",
@@ -301,6 +308,8 @@ _LATER_EDITS: dict[str, tuple[str, ...]] = {
     "post-task-review": (
         "a syntax-only check of SQL that another person will run is syntax-clean, not validated",
         "Step 7c-extra gains a one-line item 4",
+        "gains four sections (a probe certifies the matcher and not the region",
+        "on a figure, a population or a set standing in for the whole",
     ),
     "parallel-session-safety": (
         "names a commit of the file as it stands (the restore point) as its backup",
@@ -354,7 +363,7 @@ def test_the_surface_is_stated_in_numbers() -> None:
     assert len(_LATER_EDITS) == 3 and set(_LATER_EDITS) <= set(_LATE_NOTES) | set(
         _OLD_NOTES
     )
-    assert sum(len(phrases) for phrases in _LATER_EDITS.values()) == 6
+    assert sum(len(phrases) for phrases in _LATER_EDITS.values()) == 8
     assert not set(_EDITED) & set(_AUTHORED_HERE), "a skill is in both sets"
     rows = _rows(_RECORD.read_text(encoding="utf-8"))
     unknown = [n for n in (*_EDITED, *_AUTHORED_HERE) if n not in rows]
