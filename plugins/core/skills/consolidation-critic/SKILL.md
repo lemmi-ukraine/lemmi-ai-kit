@@ -164,6 +164,16 @@ Check every promoted claim for: source quality, whether *this project* measured 
 hedge in the source entry survived. Where the evidence is thin, state it as a hypothesis and name
 the experiment that would settle it.
 
+**Fidelity read.** The checks above test where an entry landed, what its passage cites and whether
+its hedge survived; none reads the rewritten paragraph beside the entry it came from, so a
+paraphrase that changes the claim passes them all. A fresh reader carries the read, not you: the
+author of a paraphrase reads it as faithful. You spawn it, as `post-task-review` describes one for
+a fix round (section 2 of its fix-rounds reference, the planted false claim included), and brief it
+to read each promoted paragraph beside its source entry in the pre-drain snapshot and list every
+place it changes the claim: a narrative inverted, two techniques fused into one, a sentence
+addressed to the promoter left in committed text, a dropped qualifier such as "not run" or "only".
+A promotion passes only when the read lists none. The read does not replace C1 to C8.
+
 > **Caught:** an undocumented provider default sourced from a single forum post whose author's
 > affiliation was explicitly unverifiable, promoted as fact into an auto-loaded skill — in a project
 > whose own rules forbid trusting unofficial sources for model internals.
@@ -220,6 +230,7 @@ found it* — not a different one. A fix asserted without re-running its own che
 **Landing audit:** N entries scanned · M candidate losses · K adjudicated as real → recovered
 **Claim verification:** N claims checked · M false → corrected
 **Always-loaded delta:** +N chars (~T tokens), was +N₀ before this review
+**Fidelity read:** N paragraphs · M changed claims → corrected · planted claim rejected: yes/no
 
 ### Blockers (N)
 | # | Finding | Where | Resolution |
