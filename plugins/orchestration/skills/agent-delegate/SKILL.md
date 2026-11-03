@@ -110,3 +110,15 @@ git. If it is missing, the work is missing — not just the note.
 With `--second-opinion` (or when the user asks to "compare" or "get another take"): run the
 worker read-only on the question, do NOT share your own or any other worker's answer with it,
 then present both takes and your synthesis — agreements, conflicts, and your recommendation.
+
+## Resuming a worker
+
+- **After a usage limit.** A sub-agent that a usage limit stopped can be resumed with `SendMessage`
+  once requests are accepted again. Say what you measured and what is left, and re-read the state by
+  command first: its last words can predate its last write. Small sub-agents resumed more than an
+  hour after the stop finished normally (observed once), and a sub-agent that had already finished
+  re-sent its old report when messaged (observed once).
+- **Near the context window.** Do not resume a session that ended near its window: the resume
+  compacts almost at once, and past the prompt-cache lifetime it first re-reads the whole context
+  uncached (reasoned, not tried). Resume only a session well under its window and within that
+  lifetime; otherwise start a fresh session whose brief points at the return note of the first.

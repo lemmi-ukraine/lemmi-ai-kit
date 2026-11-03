@@ -129,6 +129,10 @@ In the one recorded controlled contrast, a worker told to write its report early
 survived the same usage window that killed its sibling, and delivered. One occurrence — so this is
 a practice with a named test (re-measure the no-return rate after adopting it), not a law.
 
+**Publish before extras.** Write the result (or create the branch or ref your brief names) before
+any optional verification, and keep the evidence on disk: a session limit stops every agent at
+once, and a resume starts from that state.
+
 ---
 
 ## 4 · Returning your result
@@ -149,3 +153,31 @@ a practice with a named test (re-measure the no-return rate after adopting it), 
 - **If your brief turns out to be wrong, say so explicitly and early.** A brief premise that does
   not reproduce is the single most common defect in delegated work (measured at roughly half of
   sessions). Report the discrepancy as a finding; do not quietly work around it.
+- **Return acceptance criteria as a table.** If your brief points at a task file or lists acceptance
+  criteria, return them as a table before the rest of your report: one state each (met, not met,
+  superseded or operator-owned) and one evidence pointer each. Your brief names who ticks the boxes
+  and who writes the Status line; with no such line, edit no task file you do not own.
+
+---
+
+## 5 · Size, stop and close
+
+- **Size the work first.** Size it against your context before you start. If it will not fit one
+  session, say so and split it into staged sessions with a prompt each. Set a stop line in the unit
+  your host shows you (transcript size, tool calls or tokens); your brief or the project's host
+  rules may give it. Starting values, uncalibrated defaults and not measured limits: about 5 MB of
+  transcript or about 250 tool calls.
+- **Plan the close.** At the stop line, or at a compaction notice, start no new work: run the Close
+  block of your brief and write a continuation prompt for what remains. Do not carry on through a
+  compaction.
+- **Run the Close block of your brief**, in its order, without waiting to be asked. A read-only
+  sub-agent that returns text is exempt.
+- **Sessions are the operator's to open.** Never start a successor or peer session yourself (a
+  terminal window or a headless run of the agent CLI): propose it, name its prompt and folder, and
+  ask first. A sub-agent your brief lets you launch is not one.
+- **No external call by default.** Make no call to an external service (a payment provider, a cloud
+  API, an AI provider) and start no local stack unless your brief names that one call as approved by
+  the operator. A ban that names a few services leaves every other one callable, so allow by name
+  instead. Record a check you could not run as UNKNOWN with its command.
+- **If you run `lemmi-ai-kit-core:plan-critic` on a document, run it within its own run cap**,
+  and no more often.
