@@ -143,7 +143,7 @@ Create three documents (spec, tasks, test plan); a design document is added only
    task, and every task's `Test requirements` field cites `TC-` ids instead of prose. Skip this step
    only when the change touches no executable code, and say so explicitly.
 6. Self-review using the Spec Quality Checklist at the bottom of this file.
-7. **Run the plan-critic self-review** (the `plan-critic` skill) — full review over spec.md + tasks.md + test-plan.md (+ design.md if split out). Resolve all findings before continuing. If any Blockers or Questions remain, surface them in the presentation.
+7. **Run the plan-critic self-review** (the `plan-critic` skill) — full review over spec.md + tasks.md + test-plan.md (+ design.md if split out), within its own run cap. If any Blockers or Questions remain, surface them in the presentation.
 8. **STOP.** Present to the user for approval. Wait for explicit approval before continuing.
 9. Only proceed to implementation after approval.
 
@@ -157,14 +157,14 @@ same approved design, and neither is an input to the other until they are reconc
    - Use `.ai/templates/requirements.md` as the starting template
    - Fill in all sections based on task analysis and codebase exploration
    - See [references/requirements-guide.md](references/requirements-guide.md) for Gherkin syntax, actor identification, adversarial scenario generation, and AI pipeline patterns
-   - **Run the plan-critic self-review** (the `plan-critic` skill) — full review. Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
+   - **Run the plan-critic self-review** (the `plan-critic` skill) — full review, within its own run cap. If any Blockers or Questions remain unresolved, surface them in the presentation.
    - **STOP.** Present to user. Wait for explicit approval before continuing.
 
 2. **Design**: Create `.specs/{task-name}/design.md` (only after requirements approved)
    - Use `.ai/templates/design.md` as the starting template
    - Reference the requirements document for acceptance criteria
    - See [references/design-guide.md](references/design-guide.md) for writing guidance
-   - **Run the plan-critic self-review** (the `plan-critic` skill) — full review. Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
+   - **Run the plan-critic self-review** (the `plan-critic` skill) — full review, within its own run cap. If any Blockers or Questions remain unresolved, surface them in the presentation.
    - **STOP.** Present to user. Wait for explicit approval before continuing.
 
 3. **Tasks**: Create `.specs/{task-name}/tasks.md` (only after design approved)
@@ -190,7 +190,7 @@ same approved design, and neither is an input to the other until they are reconc
      immediately tick it against `tasks.md` — a new task, or an explicit "no task because…" — and
      re-check every instrument the spec promises against a building task. Cheap form: end every
      spec-amending turn with "does each new noun have a task?"
-   - **Run the plan-critic self-review** (the `plan-critic` skill) — completeness-only pass (Dimensions 4–5 only). Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
+   - **Run the plan-critic self-review** (the `plan-critic` skill) — completeness-only pass (Dimensions 4–5 only), within its own run cap. If any Blockers or Questions remain unresolved, surface them in the presentation.
    - **STOP.** Present to user. Wait for explicit approval before implementation.
 
 4. **Verification plan**: run the `test-planner` skill (only after design approved — **in parallel
@@ -204,8 +204,8 @@ same approved design, and neither is an input to the other until they are reconc
      from. An uncited expected value is a document defect, not a formatting nit — a model asked to
      fill an expected-result column produces something plausible, specific, and wrong, and
      plausibility is exactly what survives review
-   - **Run the plan-critic self-review** (the `plan-critic` skill) — verification pass. Resolve all
-     findings before continuing
+   - **Run the plan-critic self-review** (the `plan-critic` skill) — verification pass, within its
+     own run cap
    - **Reconcile against `tasks.md` once both exist.** Bidirectional, and it is this stage's
      completion gate: every `TC-` has an implementing task or a named out-of-scope owner, and every
      task's `Test requirements` field cites `TC-` ids instead of prose. Parallel authoring means

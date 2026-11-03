@@ -473,14 +473,14 @@ filed elsewhere. Deleting is also allowed; leaving both unmarked is not.
 ## Before presenting
 
 1. Run **`plan-critic`** over the artifacts, its Step 2.7 sequencing check included (AGENTS.md
-   requires it before *any* plan is presented). Resolve Blockers and Majors silently; surface anything
-   needing operator input at the top. **Then run the inheritance check yourself, because `plan-critic`
-   does not.** On 2026-08-15 it ran and missed all three scope gaps the operator later found — prior
-   work, substance-vs-delivery, and an already-fixed row — because each was an *unexamined
-   inheritance* rather than an internal inconsistency, and a consistency checker cannot see a premise
-   every section shares. Ask directly: **which claims did this plan inherit rather than measure**
-   (step 1.2), and **what already shipped against this problem** (step 1.1)? A plan can be perfectly
-   self-consistent and scoped by a sentence nobody checked.
+   requires it before *any* plan is presented), within its own run cap; surface anything needing
+   operator input at the top. **Then run the inheritance check yourself: a review pass cannot audit
+   its own framing** (`plan-critic` Step 3). On 2026-08-15 it ran and missed all three scope gaps
+   the operator later found — prior work, substance-vs-delivery, and an already-fixed row — because
+   each was an *unexamined inheritance* rather than an internal inconsistency, and a consistency
+   checker cannot see a premise every section shares. Ask directly: **which claims did this plan
+   inherit rather than measure** (step 1.2), and **what already shipped against this problem**
+   (step 1.1)? A plan can be perfectly self-consistent and scoped by a sentence nobody checked.
 2. Confirm every deliverable from step 2 appears in exactly one session row.
 3. Confirm the concurrency cap shows its three derivations.
 4. Say the artifacts are ready to commit. **Do not stage them** — staging is the operator's call,
