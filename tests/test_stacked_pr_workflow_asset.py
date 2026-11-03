@@ -14,7 +14,9 @@ for delivering a branch from a shared checkout without switching it. These tests
 - scan surface: the citation scan reads every markdown file under `plugins/` but the document,
   counted by a second instrument;
 - wording: the intro is true of the whole document, a garbled sentence stays repaired, and each
-  added section keeps the sentence that names the failure it prevents, in its own text.
+  added section keeps the sentence that names the failure it prevents, in its own text; the
+  intro says the kit manages the file, and two recipes keep the sentence that makes them work
+  over a stack and from Windows PowerShell 5.1.
 
 Every forbidden string is built from fragments, so this file is clean under its own scan.
 """
@@ -704,3 +706,160 @@ def test_section_keeps_the_sentence_that_names_its_trap(
     section = _fold(_section(_text(), heading, level, own=True))
     missing = [p for p in phrases if p.lower() not in section]
     assert not missing, f"{heading!r} no longer says: {missing}"
+
+
+# --- the kit-managed warning and the two recipes that under-delivered -------------------
+
+_RESTACK = "Re-stacking without a checkout"
+_COMPOSITION = "Prove the composition, not only the merge"
+
+# What each added sentence must say, whitespace-folded and lower-cased like the traps above.
+# The warning sits in the intro, above the first level-2 heading, where an adopter who edits
+# the file sees it first; the other two sit in the section of the recipe they correct.
+_BANNER = (
+    "this file is kit-managed",
+    "`--force`) overwrites an edited copy",
+    "keep project-only lines in a separate file",
+)
+_REPLAY = (
+    "when the range holds more than one branch",
+    "add `--contained`",
+    "only the tip's line is printed",
+    "the lower branches keep their old commits",
+    "replay one layer at a time",
+)
+_ARCHIVE = (
+    "windows powershell 5.1 re-encodes the binary stream",
+    "of that pipe (measured)",
+    "`tar` cannot read it",
+    "run the line in a posix shell (git bash)",
+    "write the archive to a file first with `git archive -o <file>`",
+)
+
+# The passages as they read before the sentences were added, cut to the lead-in and the
+# recipe line that each sentence follows. The intro is verbatim; the other two are abridged
+# (shorter wording, fewer recipe lines): enough to plant the shape the checks must flag.
+_OLD_INTRO = """\
+# Stacked PR Workflow
+
+Hard-won mechanics for maintaining a stacked-PR chain in the project (the deepest seen was 11 PRs).
+Each rule below cost real work to learn and has a trap that silently drops a commit or closes a PR.
+
+The later sections hold recipes for delivering a branch from a shared checkout without switching it
+(see "Plumbing from a shared checkout" and "Hand-over checks in a shared checkout"); the kit's
+`parallel-session-safety` owns the generic shared-index rules.
+"""
+_OLD_RESTACK = """\
+In a dirty shared checkout that must not be switched, `git rebase` is off the table. `git replay`
+(experimental, measured on git 2.55: read `git replay -h` first) computes the new commits and
+prints the ref update without touching the working tree or the ref:
+
+```bash
+git replay --ref-action=print --onto <new-base> <old-base>..<branch>    # exit 0
+```
+
+Prove that only the base changed before moving anything: (1) each new commit's patch-id equals
+the old commit's.
+"""
+_OLD_COMPOSITION = """\
+A clean `git merge-tree` over a set of branches proves only that they do not conflict textually,
+not that the combination builds or passes. Compose them as unreferenced commits, export, then
+build and test what would ship:
+
+```bash
+git archive <composed-commit> | tar -x -C <posix-dir>          # a POSIX-style path
+```
+
+GNU tar (measured on 1.35) could not open a directory given with backslashes after `-C`, and it read
+the `C:` of a drive-letter archive name (`-f`) as a host.
+"""
+
+
+def _intro(text: str) -> str:
+    """The title and lead-in: everything above the first level-2 heading."""
+    firsts = [h.line for h in _headings(text) if h.level == 2]
+    assert firsts, "no level-2 heading: the intro cannot be cut"
+    return "\n".join(text.splitlines()[: firsts[0]])
+
+
+def _passages(text: str) -> dict[str, tuple[str, tuple[str, ...]]]:
+    """Each passage cut by its own heading, with the phrases it must hold."""
+    return {
+        "intro": (_intro(text), _BANNER),
+        "restack": (_section(text, _RESTACK, 3), _REPLAY),
+        "composition": (_section(text, _COMPOSITION, 2), _ARCHIVE),
+    }
+
+
+def _missing(passage: str, phrases: tuple[str, ...]) -> list[str]:
+    folded = _fold(passage)
+    return [p for p in phrases if p not in folded]
+
+
+def _planted(
+    intro: str, restack: str, composition: str, tail: str = "", first: str = "x"
+) -> str:
+    """A small document whose passages are cut by the same headings as the real one.
+
+    `first` is the section right below the intro and `tail` the last one: text planted in
+    either belongs to no passage, so a cut that runs into one of them is seen.
+    """
+    return (
+        f"{intro}\n## First\n\n{first}\n\n"
+        f"## Cascading\n\n### {_RESTACK}\n\n{restack}\n"
+        f"## {_COMPOSITION}\n\n{composition}\n"
+        f"## Tail\n\n{tail}\n"
+    )
+
+
+def test_the_document_warns_at_the_top_that_the_kit_manages_it() -> None:
+    gaps = _missing(_intro(_text()), _BANNER)
+    assert not gaps, f"the intro no longer says: {gaps}"
+
+
+def test_restacking_names_contained_for_a_range_of_several_branches() -> None:
+    gaps = _missing(_section(_text(), _RESTACK, 3), _REPLAY)
+    assert not gaps, f"{_RESTACK!r} no longer says: {gaps}"
+
+
+def test_the_archive_pipe_warns_about_windows_powershell() -> None:
+    gaps = _missing(_section(_text(), _COMPOSITION, 2), _ARCHIVE)
+    assert not gaps, f"{_COMPOSITION!r} no longer says: {gaps}"
+
+
+def test_the_sentence_checks_flag_the_old_text_in_full() -> None:
+    old = _planted(_OLD_INTRO, _OLD_RESTACK, _OLD_COMPOSITION)
+    for name, (passage, phrases) in _passages(old).items():
+        assert _missing(passage, phrases) == list(phrases), (
+            f"{name}: not flagged in full"
+        )
+
+
+def test_the_sentence_checks_are_scoped_to_their_own_passage() -> None:
+    real = _passages(_text())
+    elsewhere = "\n\n".join(passage for passage, _phrases in real.values())
+    for _passage, phrases in real.values():
+        assert not _missing(elsewhere, phrases), "the control text lacks a phrase"
+    old = _planted(
+        _OLD_INTRO, _OLD_RESTACK, _OLD_COMPOSITION, first=elsewhere, tail=elsewhere
+    )
+    for name, (passage, phrases) in _passages(old).items():
+        assert _missing(passage, phrases) == list(phrases), (
+            f"{name}: counted from elsewhere"
+        )
+    with pytest.raises(AssertionError):
+        _passages(old.replace(f"### {_RESTACK}", "### Renamed"))
+    with pytest.raises(AssertionError):
+        _intro("# Title\n\ntext, and no level-2 heading\n")
+
+
+def test_the_sentence_checks_ignore_wrapping_and_each_phrase_counts_alone() -> None:
+    for name, (passage, phrases) in _passages(_text()).items():
+        narrow = _rewrapped(passage, 40)
+        assert any(p not in narrow.lower() for p in phrases), (
+            f"{name}: no phrase wrapped"
+        )
+        assert not _missing(narrow, phrases), f"{name}: a re-wrap hides a phrase"
+        for phrase in phrases:
+            without = _fold(passage).replace(phrase, "")
+            assert _missing(without, phrases) == [phrase], f"{name}: {phrase!r} alone"

@@ -1,5 +1,8 @@
 # Stacked PR Workflow
 
+This file is kit-managed: refreshing it (a scaffold run with `--force`) overwrites an edited copy,
+so keep project-only lines in a separate file.
+
 Hard-won mechanics for maintaining a stacked-PR chain in the project (the deepest seen was 11 PRs).
 Each rule below cost real work to learn and has a trap that silently drops a commit or closes a PR.
 
@@ -265,6 +268,9 @@ prints the ref update without touching the working tree or the ref:
 git replay --ref-action=print --onto <new-base> <old-base>..<branch>    # exit 0; prints "update <ref> <new-tip> <old-tip>"
 ```
 
+When the range holds more than one branch, add `--contained` (without it only the tip's line is
+printed and the lower branches keep their old commits) or replay one layer at a time.
+
 Prove that only the base changed before moving anything: (1) each new commit's
 `git patch-id --stable` equals the old commit's; (2) author, date and message are identical and the
 first new commit's parent is `<new-base>`; (3) `git diff <old-tip> <new-tip>` has the same patch-id
@@ -318,6 +324,9 @@ git archive <composed-commit> | tar -x -C <posix-dir>          # a POSIX-style p
 
 GNU tar (measured on 1.35) could not open a directory given with backslashes after `-C`, and it read
 the `C:` of a drive-letter archive name (`-f`) as a host.
+Windows PowerShell 5.1 re-encodes the binary stream of that pipe (measured) and `tar` cannot read
+it: run the line in a POSIX shell (Git Bash), or write the archive to a file first with
+`git archive -o <file>`.
 
 Run `<build command>` and `<test command>` in the export (the project's testing rule); tests that are
 not committed must be copied into it to run. Read each exit code on its own line, and compare the
