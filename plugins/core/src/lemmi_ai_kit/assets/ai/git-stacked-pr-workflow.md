@@ -1,8 +1,11 @@
 # Stacked PR Workflow
 
-Hard-won mechanics for maintaining a stacked-PR chain in this repo (the deepest so far was 11
-PRs, #373–#383). Both rules below cost real work to learn; each has a trap that silently drops a
-commit or closes a PR.
+Hard-won mechanics for maintaining a stacked-PR chain in the project (the deepest seen was 11 PRs).
+Each rule below cost real work to learn and has a trap that silently drops a commit or closes a PR.
+
+The later sections hold recipes for delivering a branch from a shared checkout without switching it
+(see "Plumbing from a shared checkout" and "Hand-over checks in a shared checkout"); the kit's
+`parallel-session-safety` owns the generic shared-index rules.
 
 ## Native stacks first (`gh stack`, public preview 2026-07-30)
 
@@ -18,9 +21,9 @@ shows `gh-stack`. Missing → use the manual workflow below and say which path y
 
 | Intent | Command |
 |---|---|
-| Start a stack (trunk is `dev` in this repo) | `gh stack init --base dev [branches...]` |
+| Start a stack (`<trunk>` is the project's integration branch) | `gh stack init --base <trunk> [branches...]` |
 | New layer on top | `gh stack add [-m <msg>]` (run from the top branch) |
-| Open/update the PRs | `gh stack submit` — **draft is NOT the default on the interactive path.** Verified against the CLI: in the editor "new PRs default to ready for review; switch any to draft with the CREATE AS toggle". Only `--auto` creates drafts ("with `--auto`, new PRs are created as drafts unless you pass `--open`"). To honour this repo's early-draft rule, either toggle each PR in the editor or use `gh stack submit --auto` |
+| Open/update the PRs | `gh stack submit` — **draft is NOT the default on the interactive path.** Verified against the CLI: in the editor "new PRs default to ready for review; switch any to draft with the CREATE AS toggle". Only `--auto` creates drafts ("with `--auto`, new PRs are created as drafts unless you pass `--open`"). To honour the project's early-draft rule, either toggle each PR in the editor or use `gh stack submit --auto` |
 | Absorb a mid-stack fix | commit on the owning branch; cascade at a boundary via `gh stack sync` |
 | Cascade + push + PR sync | `gh stack sync` (fetch, trunk FF, cascading rebase, per-branch `--force-with-lease`, PR sync) |
 | Conflict recovery | **start** `gh stack rebase`, then `--continue` / `--abort` — a `sync` that hit a conflict has already rolled every branch back, so there is nothing to continue (see below). **The often-quoted "exit code 3 = conflict" mapping is UNVERIFIED**: `gh stack rebase --help` documents no exit codes. Branch on the command's output, not a remembered code. |
@@ -92,7 +95,7 @@ branch refs in one pass**. Never hand-rebase each descendant. Force-push the mov
 > derived afterwards.
 
 **Guard before any force-push** — a per-branch integrity check: `own-commits >= 1` and
-`behind-dev == 0`. Run it for every branch the rebase moved, not just the one you edited.
+`behind-<trunk> == 0`. Run it for every branch the rebase moved, not just the one you edited.
 
 ## Work the layers in ONE direction
 
@@ -118,7 +121,7 @@ git rebase --onto <base> origin/<base> <layer>     # replays only that layer's o
 **Then assert the fixes actually arrived** — the rebase's exit code will not tell you:
 
 ```bash
-git log --oneline origin/dev..<top> | grep -c '<your fix marker>'   # must equal the number of layers you fixed
+git log --oneline origin/<trunk>..<top> | grep -c '<your fix marker>'   # must equal the number of layers you fixed
 ```
 
 > **`--update-refs` also moves branches you never named.** It updates *every* ref pointing into the replayed range, not just your stack layers — one cascade here moved three unrelated branches (two of them old review-fix branches) under a success banner. Snapshot before, diff after, restore anything unintended:
@@ -134,7 +137,7 @@ gates had missed. After any conflicted cascade, assert conflict markers are ZERO
 layer before continuing: a marker committed at layer N is replayed into every layer above it.
 `git rebase --continue` does not check content, and `git diff --check` inspects only *uncommitted*
 changes — it does flag leftover markers if you run it before staging, but once the marker is
-committed both are silent (see the AGENTS.md gate-verdict rule for the `grep -c`
+committed both are silent (see the project's gate-verdict rule for the `grep -c`
 count-read-as-clean trap). Keep pre-work backup tags until merge — a lost commit is recoverable
 only while the object survives.
 
@@ -153,7 +156,7 @@ tag rather than leaving partial progress.
 rejected `--force-with-lease` leaves the old SHA on the remote and does not announce itself to a
 later session — one audited push table recorded a branch as force-pushed while the remote still
 held a commit stacked on a branch deliberately rebased OUT of the line; merging that chain would
-have landed another developer's parked WIP on `dev`. Exactly one link was broken, so spot-checks
+have landed another developer's parked WIP on `<trunk>`. Exactly one link was broken, so spot-checks
 passed.
 
 Before any push of — or PR action on — a stacked chain:
@@ -186,6 +189,14 @@ git rev-parse <branch> origin/<branch>     # the two SHAs must be identical, per
 ```
 
 Stop at the first failing pair. Pushing a higher layer onto a broken link buries the break.
+
+## Pushing a stack can start one CI build per branch
+
+A push of any branch can start CI for it: pushing 14 branches started 14 parallel builds, and in the
+observed setup opening their PRs started none. Read the CI trigger filters before pushing a deep
+stack, name the expected builds in the hand-off, and never name a stack branch like the trunk (a
+deploy condition may be keyed on that name). To prove that a push deployed nothing, list the newest
+deploy revisions with the project's own read-only command and look for one created at the push time.
 
 ## Cascading a stack after fixes land at the bottom
 
@@ -244,6 +255,26 @@ rewrites the branches the next session was briefed against — so each brief goe
 used. Fix-only sessions that commit but **never push**, followed by a single cascade session, cost
 ~13. Tell the fix sessions *why* they must not push, or they will helpfully push.
 
+### Re-stacking without a checkout
+
+In a dirty shared checkout that must not be switched, `git rebase` is off the table. `git replay`
+(experimental, measured on git 2.55: read `git replay -h` first) computes the new commits and
+prints the ref update without touching the working tree or the ref:
+
+```bash
+git replay --ref-action=print --onto <new-base> <old-base>..<branch>    # exit 0; prints "update <ref> <new-tip> <old-tip>"
+```
+
+Prove that only the base changed before moving anything: (1) each new commit's
+`git patch-id --stable` equals the old commit's; (2) author, date and message are identical and the
+first new commit's parent is `<new-base>`; (3) `git diff <old-tip> <new-tip>` has the same patch-id
+as `git diff <old-base> <new-base>`, while a control pair of different commits does not. Then write
+the old tip down for rollback, apply with it as the guard, and build an export of the new tip:
+
+```bash
+git update-ref <ref> <new-tip> <old-tip>
+```
+
 ## Collapsing a stack
 
 Advancing a root PR's head branch past a child's head makes **GitHub automatically mark that direct
@@ -257,6 +288,43 @@ So after advancing the root:
 3. Close only the descendants that remain open; preserve their branches and discussions.
 4. Guard the root update with an exact `--force-with-lease`.
 
+## Deciding whether finished branches may stay independent PRs
+
+Compare each branch's own change, not two tips against `<trunk>`. Per-branch `git diff --name-only`
+finds the shared files; then apply each branch's own change onto the other's tree, in both
+directions, with that branch's own parent as the merge base:
+
+```bash
+git merge-tree --write-tree --merge-base=<parent of b> <a> <b>     # exit 0 = clean, 1 = conflict
+```
+
+Tip-versus-`<trunk>` pairs gave one false conflict in 45 pairs (90 merges): that branch's parent was
+two commits behind `<trunk>`, so its tree carried stale copies of two files another branch changes.
+Re-parent a branch that is behind `<trunk>` before judging it, and give the operator the denominators
+(pairs, directions) with the verdict, so that "chaining is required" is not confused with "chaining
+is convenient".
+
+## Prove the composition, not only the merge
+
+A clean `git merge-tree` over a set of branches proves only that they do not conflict textually, not
+that the combination builds or passes. Compose them as unreferenced commits (no ref, index or
+checkout changes), export, then build and test what would ship:
+
+```bash
+git merge-tree --write-tree <cur> <branch>                     # prints the tree id; exit 0 = clean
+git commit-tree <tree> -p <cur> -p <branch> -m compose         # one pair per branch; the new commit becomes <cur>
+git archive <composed-commit> | tar -x -C <posix-dir>          # a POSIX-style path, not a backslash path
+```
+
+GNU tar (measured on 1.35) could not open a directory given with backslashes after `-C`, and it read
+the `C:` of a drive-letter archive name (`-f`) as a host.
+
+Run `<build command>` and `<test command>` in the export (the project's testing rule); tests that are
+not committed must be copied into it to run. Read each exit code on its own line, and compare the
+distinct warnings of the base and composed builds with their positions stripped. Eight branches that
+merged clean also built with no added warning and passed every test; the pairwise results had said
+nothing about either. Compose the exact combination the operator will release.
+
 ## Base retargeting is a MANUAL step
 
 GitHub's stacked-PR feature LOCKS base branches: `PATCH /pulls/{n}` returns 422 (`"Cannot change
@@ -266,9 +334,122 @@ does NOT release the lock — only the web UI can change the base. When planning
 write base retargeting into the hand-off as an explicit manual step. Symptom if skipped: the PR
 shows a huge wrong diff (44 files instead of 1 in the observed case), because GitHub diffs
 against a base that is no longer an ancestor — the branch content is fine, only the PR pointer is
-stale. Related: a platform refusal message names a precondition, not a permanent verdict (AGENTS.md
-rule) — e.g. a "branch was force-pushed or recreated" reopen-refusal clears once the branch is
-force-pushed back to the exact commit the PR was closed at.
+stale. Related: a platform refusal message names a precondition, not a permanent verdict (the
+project's rule) — e.g. a "branch was force-pushed or recreated" reopen-refusal clears once the
+branch is force-pushed back to the exact commit the PR was closed at.
+
+## Plumbing from a shared checkout
+
+When the checkout is dirty, another session works in it or the operator edits through the IDE,
+deliver a branch without ever checking it out: build trees and commits with a private index file and
+create the ref last. The kit's `parallel-session-safety` owns the generic shared-index rules; this
+is the recipe that applies here.
+
+### Building a stack by plumbing
+
+1. Create every tree and commit first (a private index file, `git write-tree`, then
+   `git commit-tree -p <parent>`). Nothing is referenced yet, so a failed predicate leaves nothing to
+   undo.
+2. Check every predicate on the commit ids: the parent chain, the changed paths (none that the
+   project keeps out of its history), the tree ids.
+3. Create each ref with an all-zero old value, which makes the call fail if the ref exists:
+
+```bash
+git update-ref refs/heads/<name> <new-commit> 0000000000000000000000000000000000000000
+```
+
+Never pass an empty string for it: Windows PowerShell 5.1 drops an empty argument to a native
+program and the guard disappears.
+
+A deterministic rebuild gives equal tree ids for the layers it did not change, which proves that
+nothing leaked downward. `git commit-tree -F` stores the message file's bytes as they are: count the
+carriage-return bytes of a draft first (Git Bash's `grep -c $'\r'` is not a CR counter).
+
+### Edit a committed file by its blob bytes, not in an export
+
+Read the bytes with `git cat-file blob <commit>:<path>`, assert that every old text occurs once and
+every new text is absent, replace, and store the result with `git hash-object -w --no-filters`:
+editing an export and hashing with `--path` runs into the line-ending and byte-order-mark traps of an
+autocrlf checkout. A second run of the script must fail on its first assertion. Replay the later
+commits with `git merge-tree --write-tree --merge-base=<old parent> <new parent> <old commit>`,
+check them with `git range-diff` (`=` for each), build and test an export of the exact candidate
+commit, and create the ref last.
+
+### Prove the delivery left the checkout alone
+
+`git status` before and after proves nothing either way: it changed in one observed case although no
+command used could have changed it (the operator committed the staged files through the IDE), and it
+stays equal when an already-modified file is edited again. Prove instead: (1) the write set, which
+is a private index file, new objects, one create-only ref and that ref's reflog entry, nothing else;
+(2) an unchanged shared index tree (copy `.git/index`, point `GIT_INDEX_FILE` at the copy and run
+`git write-tree`: the tree stays equal even when someone commits the staged files); (3) reflog
+attribution of any HEAD move (`git reflog --date=iso` says when and which command ran;
+`git log -g --format='%gd %gn %gs'` adds who). Take the read-only snapshots with
+`git --no-optional-locks` so they cannot touch the shared index, and the last one right before the
+ref is created. To show that content, not just paths, did not change, compare content hashes, never
+status rows or counts (see the kit's `parallel-session-safety`).
+
+### Prove the tip
+
+Any correction to a plumbing-committed tip voids every proof, so re-run the whole set and print each
+command's own exit code and denominator:
+
+1. Export check: export the tip (`git archive`), compare the file count with
+   `git ls-tree -r --name-only <tip>`, and each file's `git hash-object --path <p> <p>` with
+   `git rev-parse <tip>:<p>`.
+2. Id check: the commit's diff holds none of the paths or ids the project keeps out of its history.
+3. Checker probe: run that check on a planted positive and a placeholder negative, so that a zero is
+   proven.
+4. Build: `<build command>` in the export.
+5. Tests: `<test command>` there (the tracked tests; copy the change's local, uncommitted tests in to
+   run them too).
+6. Mutation pass, only when the change claims its tests catch a regression: one planted mutant per
+   claim, each run once.
+
+List these commands in the hand-off so that a re-run after a correction is explicit. Script them
+only if the operator asks.
+
+## Editing a file the operator holds uncommitted
+
+The operator edits through the IDE, so a file you must change may carry uncommitted hunks of theirs.
+Read their diff first (`git --no-optional-locks diff -- <path>`), add the new text at least ten
+unchanged lines away from every pending hunk instead of rewriting paragraphs they own, and prove the
+merge on LF-normalised copies before committing:
+
+```bash
+git merge-file -p <operator's file> <base> <your file>; echo $?     # the exit code is the conflict count: expect 0
+```
+
+Add a control that rewrites one of their sentences in a copy of your file: it must exit 1. Reading
+two diffs side by side does not show whether edits to nearby lines of one file merge cleanly.
+
+## Hand-over checks in a shared checkout
+
+The operator acts through the IDE in a shared checkout, and none of it shows in an agent's own
+commands: within minutes of a "ready for a PR" hand-over the checkout was switched to a new branch,
+the two staged files were committed and merged, and `<trunk>` had moved.
+
+- **Before any "ready to PR" or "next step" message**, re-read in the same turn
+  `git rev-parse --abbrev-ref HEAD`, `git diff --cached --name-only` and
+  `git ls-remote origin <trunk> <branch>`, and compare blob ids (`git rev-parse <ref>:<path>`) before
+  calling a pushed branch still needed.
+- **Re-read the base after any pause and before the commit.** Write the base commit down at the
+  start and run `git fetch origin <trunk>` and then `git rev-parse origin/<trunk>` again after any
+  pause (an approval, a long gate) and before `commit-tree`: when `origin/<trunk>` moved twice during
+  one wait, the first export and baseline no longer described the tip. Without the fetch,
+  `git rev-parse` re-reads only the local copy of the ref and passes after the remote has moved; a
+  fetch that fails (an unreachable remote, say) leaves the same stale copy, so the line also reads
+  the fetch's exit code. Make the check a line of the commit script, so that a commit on stale
+  evidence stops (PowerShell):
+
+  ```powershell
+  git fetch origin <trunk>; if ($LASTEXITCODE -ne 0 -or (git rev-parse origin/<trunk>) -ne '<verified base>') { throw }
+  ```
+
+  If the base moved, compare the blobs of the touched files, and of what they depend on, across the
+  tips and run `git merge-tree --write-tree origin/<trunk> <branch>` (exit 0) before deciding
+  whether the export, the baseline and the gate must be rebuilt, and record the base commit in the
+  hand-off.
 
 ## Is it merged? Is it safe to delete?
 
@@ -286,34 +467,47 @@ three standard checks disagreed and each was wrong on its own:
   merged while its remote-tracking ref went stale, so reading only the `error:` line misclassifies
   it.
 
-To prove a rebased branch is safe to delete: (1) `git cherry -v origin/dev <ref>` for the bulk
-verdict; (2) for each `+` commit, find the same-subject commit on dev and diff the two patch
-bodies — base drift shows up ONLY as blob hashes and `@@` offsets, real divergence shows as
+To prove a rebased branch is safe to delete: (1) `git cherry -v origin/<trunk> <ref>` for the bulk
+verdict; (2) for each `+` commit, find the same-subject commit on `<trunk>` and diff the two
+patch bodies — base drift shows up ONLY as blob hashes and `@@` offsets, real divergence shows as
 content; (3) run `git branch -d` and read the whole message, not the error line; (4) for anything
 the branch uniquely added, check file-level survival on the integration branch. Finish with
 `git branch --list '<glob>'` — globbing after a hand-written delete list is a discovery step, and
 it surfaced 5 sibling branches the list had missed.
 
+**A branch built by plumbing and never checked out lives only in its own reflog.** Its tip is in no
+other ref, so deleting the branch leaves the objects reachable by nothing until garbage collection
+(two weeks by default). Bundle it first and prove the bundle by restoring it: `git bundle verify`
+checks integrity and prerequisites, not that the bundle restores.
+
+```bash
+git bundle create <file> ^<base> refs/heads/<branch>
+git init --bare <scratch>.git      # then point <scratch>.git/objects/info/alternates at the main repository's objects folder
+git -C <scratch>.git fetch <file> refs/heads/<branch>:refs/heads/<branch>
+git -C <scratch>.git fsck --connectivity-only     # exit 0; list the files the bundle carries
+```
+
+Check that the main repository's refs did not move, and keep the bundle in a gitignored folder until
+the operator lets it go.
+
 **"Did this work land?" is a different question from "is this commit an ancestor?"** Under
 squash-merge the same `--is-ancestor` false-negative misleads about *shipping*: three successive
-passes read `git merge-base --is-ancestor <sha> origin/dev` → false and wrote "nothing is merged"
-onto two boards, when all twelve stack PRs had merged hours earlier and the code was in `dev`. For
-landing, the authoritative check is **content, not ancestry**: `git grep -l <symbol> origin/dev`.
+passes read `git merge-base --is-ancestor <sha> origin/<trunk>` → false and wrote "nothing is merged"
+onto two boards, when all twelve stack PRs had merged hours earlier and the code was in `<trunk>`. For
+landing, the authoritative check is **content, not ancestry**: `git grep -l <symbol> origin/<trunk>`.
 Any history rewrite — rebase or squash — makes ancestry a different question from the one asked.
 
 **A commit's own subject states its status at authoring time; its disposition lives in the commit
-that landed it.** `wip(stalls): park … with handoff` reads as outstanding work, but dev's
-One such commit opens "Splits <OID>" and adjudicates it piece by piece — two parts LANDED,
-one deliberately NOT (review found it unsafe, so it was divided rather than taken or dropped
-whole); 9 of the WIP's 10 files were already on dev. Nothing in the WIP commit could have said
-this: its subject was written before the review existed. To decide whether commit X is outstanding,
-search the LANDED history for a commit referencing it (`git log --grep=<short-sha>
-<integration-branch>`) and read its body — never X's own subject. `wip`/`park`/`temp`/`hotfix` are
-self-reported status, and self-reported status ages in exactly the direction that makes safe
-cleanup look risky.
+that landed it.** `wip(<scope>): park … with handoff` reads as outstanding work, but the landed
+history may say otherwise. One such commit opens "Splits <OID>" and adjudicates it piece by piece
+— two parts LANDED, one deliberately NOT (review found it unsafe, so it was divided rather than
+taken or dropped whole); 9 of the WIP's 10 files were already on `<trunk>`. Nothing in the WIP
+commit could have said this: its subject was written before the review existed. To decide whether
+commit X is outstanding, search the LANDED history for a commit referencing it
+(`git log --grep=<short-sha> <trunk>`) and read its body — never X's own subject.
+`wip`/`park`/`temp`/`hotfix` are self-reported status, and self-reported status ages in exactly the
+direction that makes safe cleanup look risky.
 
 ## Related
 
 - `AGENTS.md` — branch and commit conventions.
-- A stale PR's green CI check is not evidence its tests pass if the run predates the 2026-05 CI
-  repair; see the project's installed testing-conventions skill.
