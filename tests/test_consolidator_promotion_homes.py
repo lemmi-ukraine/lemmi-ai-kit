@@ -140,6 +140,51 @@ def _gaps(place: _Place, text: str) -> list[str]:
 
 _SAMPLE_TARGETS = "a sample; the homes the project's own AGENTS.md names replace it"
 _PAIRING = "Where the project's AGENTS.md pairs READMEs with docs"
+_LANDING = "consolidation-actions.md Drain Landing Audit surface paragraph"
+# The sentence that lists the files neither scan counts, whole and in order: the buffer, the file
+# under audit, the byte copies and the two ledgers, then why. The audit script's docstring and
+# `--help` say the same list.
+_NEVER_COUNTED = (
+    "Neither scan counts a file that holds or quotes the entries themselves, whatever the "
+    "globs match: the buffer (any `learnings.md`), the snapshot under audit (the path the "
+    "run is given, whatever its name), every byte copy (`learnings-pre-drain-*.md`; an "
+    "older one still holds the KEEP entries of earlier drains) and the two ledgers that "
+    "quote what a drain removed (any `ai-changelog.md`, any `improvement-hypotheses.md`), "
+    "so a surface that reaches `.ai/` cannot land an entry in its own copy or in the "
+    "record of its removal."
+)
+# The same sentence as the paragraph carried it: the byte copies were called snapshots and the
+# ledgers were not named.
+_NEVER_COUNTED_BEFORE = (
+    "Neither scan counts a file that holds the entries themselves, whatever the globs "
+    "match: the buffer (any `learnings.md`), the snapshot under audit (the path the run "
+    "is given, whatever its name) and every other pre-drain snapshot "
+    "(`learnings-pre-drain-*.md`, which still holds the KEEP entries of earlier drains), "
+    "so a surface that reaches `.ai/` cannot land an entry in its own copy."
+)
+_BYTE_COPIES_AS_SNAPSHOTS = "every other pre-drain snapshot"
+# Each plant is one change to the shipped sentence: what it says now, and what it is made to say.
+# The classes are the lead's polarity, which files the list holds, and the closing consequence.
+_PLANTS: tuple[tuple[str, str, str], ...] = (
+    ("the lead flipped", "Neither scan counts", "Both scans count"),
+    ("the lead negated twice", "Neither scan counts", "Neither scan does not count"),
+    (
+        "the ledgers moved out of the list",
+        " and the two ledgers that quote what a drain removed",
+        ", but both scans count the two ledgers that quote what a drain removed",
+    ),
+    ("a ledger dropped", ", any `improvement-hypotheses.md`", ""),
+    (
+        "the byte copies called snapshots again",
+        "every byte copy (`learnings-pre-drain-*.md`",
+        "every other pre-drain snapshot (`learnings-pre-drain-*.md`",
+    ),
+    (
+        "the consequence inverted",
+        "cannot land an entry in its own copy",
+        "can land an entry in its own copy",
+    ),
+)
 
 _PLACES: tuple[_Place, ...] = (
     _Place(
@@ -219,18 +264,21 @@ _PLACES: tuple[_Place, ...] = (
         "- Feature READMEs must stay in sync with `docs/onboarding/` feature docs (AGENTS.md rule)",
     ),
     _Place(
-        "consolidation-actions.md Drain Landing Audit surface paragraph",
+        _LANDING,
         _ACTIONS,
         _cut("## Drain Landing Audit", _block, "For each entry the script extracts"),
         (
             "its ten default globs (AGENTS.md, CLAUDE.md, `docs/`",
             "plus each `--surface <glob>` the run adds",
-            "Neither scan counts a file that holds the entries themselves",
+            "Neither scan counts a file that holds or quotes the entries themselves",
             "the buffer (any `learnings.md`)",
             "the snapshot under audit (the path the run is given, whatever its name)",
-            "every other pre-drain snapshot (`learnings-pre-drain-*.md`",
+            "every byte copy (`learnings-pre-drain-*.md`",
+            "the two ledgers that quote what a drain removed (any `ai-changelog.md`, "
+            "any `improvement-hypotheses.md`)",
+            _NEVER_COUNTED,
         ),
-        ("module and feature READMEs, backend source",),
+        ("module and feature READMEs, backend source", _BYTE_COPIES_AS_SNAPSHOTS),
         "For each entry the script extracts its most distinctive backticked identifiers and "
         "greps every\npromotion surface (AGENTS.md, CLAUDE.md, `docs/`, skills, cursor rules, "
         "kiro steering, module and\nfeature READMEs, backend source, task docs). Zero hits "
@@ -331,3 +379,31 @@ def test_a_label_that_carries_half_of_the_rule_is_reported() -> None:
     assert _gaps(
         routing, "classify the promotion action and its home (homes are a sample)."
     )
+
+
+def test_the_never_counted_sentence_keeps_its_files_and_its_polarity() -> None:
+    """A pin on each name passes a sentence that has turned the byte copies or the ledgers from
+    files the scans skip into files they count, so the sentence is pinned whole and in order and
+    fired at plants. The shipped paragraph must pass; the sentence as it read before (byte copies
+    called snapshots, no ledgers) and each plant, a change of the lead's polarity, of which files
+    the list holds, or of the closing consequence, must each be reported; a plant that misses its
+    target fails loudly instead of passing; the paragraph re-wrapped, or followed by another
+    sentence, is not reported."""
+    place = next(place for place in _PLACES if place.name == _LANDING)
+    shipped = _flat(place.cut(_read(place.path)))
+    assert not _gaps(place, shipped), "the shipped paragraph fails its own check"
+    assert _NEVER_COUNTED in shipped
+    before = shipped.replace(_NEVER_COUNTED, _NEVER_COUNTED_BEFORE)
+    assert before != shipped
+    assert _gaps(place, before), "the check passes the sentence as it read before"
+    for label, target, change in _PLANTS:
+        assert target in shipped, f"the plant {label!r} misses its target"
+        assert _gaps(place, shipped.replace(target, change)), (
+            f"the check passes the plant {label!r}"
+        )
+    words = shipped.split(" ")
+    rewrapped = "\n".join(
+        "> " + " ".join(words[start : start + 9]) for start in range(0, len(words), 9)
+    )
+    assert "\n" in rewrapped and not _gaps(place, rewrapped)
+    assert not _gaps(place, shipped + " A sentence that follows changes nothing here.")

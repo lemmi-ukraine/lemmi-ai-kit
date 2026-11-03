@@ -429,11 +429,12 @@ three of them dispositioned KEEP. Always check `entries scanned` against
 For each entry the script extracts its most distinctive backticked identifiers and greps every
 promotion surface: its ten default globs (AGENTS.md, CLAUDE.md, `docs/`, skills, cursor rules, kiro
 steering, task docs, and the READMEs and Python files under `src/`), plus each `--surface <glob>`
-the run adds. Neither scan counts a file that holds the entries themselves, whatever the globs
-match: the buffer (any `learnings.md`), the snapshot under audit (the path the run is given,
-whatever its name) and every other pre-drain snapshot (`learnings-pre-drain-*.md`, which still
-holds the KEEP entries of earlier drains), so a surface that reaches `.ai/` cannot land an entry in
-its own copy. Zero hits ⇒ `[LOSS?]`.
+the run adds. Neither scan counts a file that holds or quotes the entries themselves, whatever the
+globs match: the buffer (any `learnings.md`), the snapshot under audit (the path the run is given,
+whatever its name), every byte copy (`learnings-pre-drain-*.md`; an older one still holds the KEEP
+entries of earlier drains) and the two ledgers that quote what a drain removed (any
+`ai-changelog.md`, any `improvement-hypotheses.md`), so a surface that reaches `.ai/` cannot land
+an entry in its own copy or in the record of its removal. Zero hits ⇒ `[LOSS?]`.
 
 **Adjudicate every flagged row by hand and record the verdict.** Two row classes are expected-clean:
 

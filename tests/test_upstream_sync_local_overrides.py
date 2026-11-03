@@ -119,6 +119,8 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "any other pre-drain snapshot as a landing site",
         "Phase 5 has the operator commit the buffer in its own commit before the first removal",
         "refuses the changelog and hypotheses ledgers as landing sites by file name",
+        "the Drain Landing Audit paragraph of references/consolidation-actions.md names the "
+        "byte copies and the two ledgers",
     ),
     "parallel-session-safety": (
         "12g to 12k",
