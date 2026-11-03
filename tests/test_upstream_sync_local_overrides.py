@@ -24,14 +24,14 @@ the check is report-only by default, so a re-apply from the note could bring bac
 and it named neither the registers folder of the documented command nor the new probe fixtures. Both
 notes as they read then are kept as excerpts as well, and the check reports the phrases each lacked.
 
-initiative-cleanup was edited again after both of its excerpts were taken. The phrases of that later
-edit sit in a table of their own: the row's note must carry them too, while the checks fired at the
-excerpts count only the phrases of the excerpts' own time, so each still reports what it lacked then.
+initiative-cleanup was edited twice more after both of its excerpts were taken. The phrases of those
+later edits sit in a table of their own: the row's note must carry them too, while the checks fired at
+the excerpts count only the phrases of the excerpts' own time, so each still reports what it lacked then.
 
 THE SURFACE, in numbers the tests assert: 23 edited upstream-origin rows, 4 earlier notes kept whole,
 4 kit-origin rows left alone, no name in both sets, 1 retired wording, 2 incomplete notes reported
 as they read, 7 missing phrases each, 2 later incomplete notes reported as they read, 5 missing
-phrases each, and 1 row edited again after its excerpts, its 2 later phrases checked apart.
+phrases each, and 1 row edited again after its excerpts, its 3 later phrases checked apart.
 """
 
 import re
@@ -128,6 +128,8 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "a two-run cap",
         "severity table in finding-format.md",
         "the plan lets the project's own testing conventions come first",
+        "asks for each fix as exact replacement text",
+        "diff the document against its version before the first fix pass",
     ),
     "post-task-review": (
         "references/fix-rounds.md",
@@ -149,6 +151,7 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "files .NET build output",
         "error-class counts move against older reports",
         "the output-schema reference's category table",
+        "redacts a GitHub token by its shape",
     ),
     "skill-creator": (
         "the kit's own recommendation instead of one repository's decision",
@@ -272,6 +275,7 @@ _LATER_EDITS: dict[str, tuple[str, ...]] = {
     "initiative-cleanup": (
         "no file a session puts in `.ai/tmp/` has history",
         "the sweep table never sweeps the folder's own `.gitignore`",
+        "the sweep table's hand-offs row never sweeps the folder's own `.gitignore` either",
     ),
 }
 
@@ -320,7 +324,7 @@ def test_the_surface_is_stated_in_numbers() -> None:
     assert len(_OLD_NOTES) == 2 and set(_OLD_NOTES) <= set(_EDITED)
     assert len(_LATE_NOTES) == 2 and set(_LATE_NOTES) <= set(_EDITED)
     assert len(_LATER_EDITS) == 1 and set(_LATER_EDITS) <= set(_LATE_NOTES)
-    assert sum(len(phrases) for phrases in _LATER_EDITS.values()) == 2
+    assert sum(len(phrases) for phrases in _LATER_EDITS.values()) == 3
     assert not set(_EDITED) & set(_AUTHORED_HERE), "a skill is in both sets"
     rows = _rows(_RECORD.read_text(encoding="utf-8"))
     unknown = [n for n in (*_EDITED, *_AUTHORED_HERE) if n not in rows]
