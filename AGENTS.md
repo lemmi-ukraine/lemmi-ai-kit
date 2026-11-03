@@ -307,6 +307,31 @@ worktrees; concurrency is bought with disjoint paths and nothing else.
   Path partition has no defence against that, or against one path set assigned twice, or
   against a rename sweep that crosses every file at once.
 
+#### Sub-agents with their own context
+
+A sub-agent never writes in this tree, so it adds no writer to the shared checkout: "disjoint
+paths and nothing else" above is about sessions that write here.
+
+- **Hand crisp, independent pieces to sub-agents instead of asking the operator to open another
+  session.** Four sessions in a row found nothing they could build and ended at "waiting on the
+  operator"; the fourth then used sub-agents and came back with an audit and two verified
+  patches. A worker's report is a claim: read the file it wrote, not its summary.
+- **A sub-agent that writes works in a `git archive` export of one pinned commit and delivers a
+  patch; only the main session applies and commits it.** Make the export with `mktemp -d`, because
+  the deepest tracked path was 134 characters at `b723236` and a long scratch root breaks the
+  Windows path limit. Never `git init` in a tree you deliver: a worker's `.git` and `.ruff_cache`
+  went into one diff, 183,227 bytes and 3,281 lines, before the patch was built from the named
+  files.
+- **Check a patch on fresh copies before it is applied.** An export shows a new test red on the old
+  text and green on the patch; the gates need a clone with its own `uv sync --dev` venv, because an
+  export has no git and fails tests on both sides (7 of 103 and 23 of 869 existing tests did).
+- **Read the usage window before a wave, and have every worker and session save a checkpoint to a
+  file at each milestone and at the latest every hour.** A checkpoint says what is done, what is
+  left and where the results are (commit ids, report files), so a worker or session stopped by a
+  usage limit is resumed from its latest checkpoint and loses only the work since. Two of three
+  workers died to usage-limit and access errors mid-wave, and a worker that dies returns exactly
+  what one that found nothing returns. A wave is as wide as the disk and the machine allow.
+
 #### Documents
 
 - **Run every command before you write it into a document.** A shipped guide contained a
