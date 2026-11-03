@@ -42,12 +42,12 @@ You verify each entry against the current codebase before deciding its fate.
 
 ### Phase 1: Inventory & Cluster Detection
 
-0. **Cadence guard** — count intake entries (run
-   `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --list-entries --project "<absolute project root>"`)
-   and read the newest `CONSOLIDATION` entry date in `.ai/ai-changelog.md`. Proceed when intake > 0 AND the
-   last consolidation is ≥7 days old — or whenever the user explicitly asked. Otherwise report
-   why not ("buffer empty" / "last drain {D} days ago — fresh") and stop. This is the pair of
-   `session-retrospective` Phase 0; that skill's ending also nudges THIS one when it is overdue.
+0. **Cadence guard** — the last drain is the newest `CONSOLIDATION` entry in `.ai/ai-changelog.md` whose
+   `**Drained:**` count is above 0 (one without the line counts as drained). Count intake entries (run
+   `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --list-entries --project "<absolute project root>"`).
+   Proceed when intake > 0 AND the last drain is ≥7 days old — or whenever the user explicitly asked.
+   Otherwise report why not ("buffer empty" / "last drain {D} days ago — fresh") and stop. This is the
+   pair of `session-retrospective` Phase 0; that skill's ending also nudges THIS one when it is overdue.
    Cadence: measured **~5 entries/day** (REFUTED twice — draining does not slow intake, do not
    re-predict it), so the >25 NOTE fires in ~5 days and weekly is the FLOOR; if volume is the
    concern the lever is capture-side selectivity at `task-learnings`, not more drains.
@@ -348,10 +348,10 @@ After all promotions are executed:
    rules/skills are deleted entirely. No tombstones — the rule/skill is the authoritative
    source now, and the git history preserves the original entry.
 3. **Replace merged entries** — remove source entries, insert the merged entry.
-4. **Keep entries** — leave unchanged, but enforce the dwell limit: if an entry already
-   survived the TWO previous consolidation runs as KEEP (check its date against the two most
-   recent `CONSOLIDATION` entries in `.ai/ai-changelog.md`), KEEP is no longer available —
-   promote it to a home or drop it. A lean buffer must not silently re-accumulate.
+4. **Keep entries** — leave unchanged, but enforce the dwell limit: if an entry already survived
+   the TWO previous consolidation runs as KEEP (its date predates the two most recent `CONSOLIDATION`
+   entries whose `**Drained:**` count is above 0; one without the line counts as drained), KEEP is no
+   longer available — promote it to a home or drop it. A lean buffer must not silently re-accumulate.
 5. **Verify removal (structural, not eyeballed)** — run (`--project` takes the absolute project root: a relative path resolves inside the plugin, so the lint exits 2 for a buffer that exists):
    `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --project "<absolute project root>"`
    (zero findings required), then re-read `.ai/learnings.md` and confirm:
@@ -419,7 +419,7 @@ here (one owner, multiple callers); Phase 6.5 keeps its Steps 6 and 8:
 **7a. Append changelog entry** — Read the `ai-changelog` skill and append a
 `CONSOLIDATION` entry to `.ai/ai-changelog.md` summarizing all promotions, new skills,
 rule additions, and archives from this consolidation run. Use the grouped format documented
-in the ai-changelog skill.
+in the ai-changelog skill, with its `- **Drained:** N entries` line (0 if the run drained none).
 
 **7b. Record improvement hypothesis** — Read the `ai-improvement-tracker` skill
 and evaluate whether the consolidation warrants improvement hypotheses (e.g., promoted rules

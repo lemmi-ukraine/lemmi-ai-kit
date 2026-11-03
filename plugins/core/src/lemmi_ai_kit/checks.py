@@ -518,6 +518,76 @@ def _in_policy(entry_date: date | None, since: date | None) -> bool:
     return entry_date is not None and entry_date >= since
 
 
+# --- the drain marker ---------------------------------------------------------------------
+#
+# A `CONSOLIDATION` entry carries `- **Drained:** N entries`: the entries its run removed
+# from the learnings buffer, 0 allowed. The cadence readers take the newest entry whose N is
+# above 0 as the last drain and count an entry without the line as drained, so a ledger
+# written before the marker keeps working -- and so, once a ledger has adopted the marker,
+# an entry that leaves it out reads as a drain whatever its run did. The rule therefore
+# starts at the ledger's own oldest marked entry. No date lives here, for the reason the
+# vocabulary note gives for `--since`: a cut-off belongs to the adopter, not to the kit.
+
+DRAIN_ENTRY_TYPE: str = "CONSOLIDATION"
+DRAINED_FIELD: str = "Drained"
+# A count is digits, then a space or the end: no number, a sign or a fraction is not one.
+DRAINED_COUNT_RE = re.compile(r"^\d+(?:\s|$)")
+
+
+def _is_drain_entry(entry: Entry) -> bool:
+    tag = TYPE_TAG_RE.match(entry.title)
+    return tag is not None and tag.group(1) == DRAIN_ENTRY_TYPE
+
+
+def _first_drain_marker(blocks: list[Block]) -> date | None:
+    """The date of the oldest `CONSOLIDATION` entry with a `Drained` line, or `None`.
+
+    Only that type marks a ledger, because the readers look for the line nowhere else; a
+    line with no count marks it too, so the typo is reported instead of switching the rule
+    off. File-wide, like the hypotheses ledger's verdict count: whether a ledger has adopted
+    the marker is a property of the whole file, not of the entries `--since` leaves in policy.
+    """
+    marked: list[date] = []
+    for block in blocks:
+        heading_date = block.heading_date()
+        if heading_date is not None and any(
+            _is_drain_entry(entry) and DRAINED_FIELD in fields_of(entry.body)
+            for entry in block.entries
+        ):
+            marked.append(heading_date)
+    return min(marked, default=None)
+
+
+def _drain_marker_finding(
+    entry: Entry, entry_date: date | None, marked_from: date | None, where: str
+) -> LintFinding | None:
+    """A `CONSOLIDATION` entry dated on or after the first marked one must state a count."""
+    if (
+        marked_from is None
+        or entry_date is None
+        or entry_date < marked_from
+        or not _is_drain_entry(entry)
+    ):
+        return None
+    value = fields_of(entry.body).get(DRAINED_FIELD)
+    if value is None:
+        return LintFinding(
+            where,
+            entry.line,
+            f"entry '{entry.title[:60]}' has no '- **{DRAINED_FIELD}:** N entries' line; "
+            f"this ledger marks every {DRAIN_ENTRY_TYPE} entry from {marked_from} on, and "
+            "a reader counts an unmarked one as a drain",
+        )
+    if DRAINED_COUNT_RE.match(value.strip()) is None:
+        return LintFinding(
+            where,
+            entry.line,
+            f"entry '{entry.title[:60]}' has a '{DRAINED_FIELD}' line with no entry count "
+            f"('{value[:40]}'); write '- **{DRAINED_FIELD}:** N entries' with N of 0 or more",
+        )
+    return None
+
+
 # --- per-file lints -----------------------------------------------------------------------
 
 
@@ -528,6 +598,7 @@ def lint_changelog(
     findings = check_orphan_entries(text, where)
     findings += check_date_headings(blocks, where)
     findings += check_entry_body_integrity(blocks, where, CHANGELOG_REQUIRED_FIELDS)
+    marked_from = _first_drain_marker(blocks)
     for block in blocks:
         heading_date = block.heading_date()
         for entry in block.entries:
@@ -559,6 +630,9 @@ def lint_changelog(
                             where, entry.line, f"entry missing required field '{field}'"
                         )
                     )
+            drained = _drain_marker_finding(entry, heading_date, marked_from, where)
+            if drained is not None:
+                findings.append(drained)
     return findings
 
 

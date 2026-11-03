@@ -200,10 +200,11 @@ Leave the entry in learnings.md for future reference.
 
 **Dwell limit (lean-buffer invariant):** an entry may be KEPT for at most **2 consolidation
 runs**. To check: compare the entry's date against the two most recent `CONSOLIDATION` entries
-in `.ai/ai-changelog.md` — if the entry predates both, KEEP is no longer available; this run
-must promote it to a home (`RULE`/`SKILL`/`README`/`COMMENT`) or `ARCHIVE` it. An entry that
-keeps dwelling is silent re-accumulation — the failure mode the intake-buffer model exists to
-prevent. Note "highly specific and valuable" entries usually have a home: README or comment.
+in `.ai/ai-changelog.md` whose `**Drained:**` count is above 0 (one without the line counts as
+drained) — if the entry predates both, KEEP is no longer available; this run must promote it to
+a home (`RULE`/`SKILL`/`README`/`COMMENT`) or `ARCHIVE` it. An entry that keeps dwelling is
+silent re-accumulation — the failure mode the intake-buffer model exists to prevent. Note
+"highly specific and valuable" entries usually have a home: README or comment.
 
 **Default action:** When in doubt (and within the dwell limit), KEEP. False negatives (keeping
 something that should be promoted) are low-cost. False positives (promoting something

@@ -291,8 +291,9 @@ Fifteen days later the identical defect blocked the pipeline again.
    > If you have written to memory in this session, re-read the field list above before appending.
 4. **Buffer-pressure check (REQUIRED, mechanical):** the same lint with `--list-entries`
    (`uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --list-entries --project "<absolute project root>"`)
-   prints the entry count; there is no `list` mode. If the buffer holds **> 25 entries** OR the newest `CONSOLIDATION`
-   entry in `.ai/ai-changelog.md` is **≥ 7 days old**, you MUST surface one line in your
+   prints the entry count; there is no `list` mode. If the buffer holds **> 25 entries** OR the last drain is
+   **≥ 7 days old** (the newest `CONSOLIDATION` entry in `.ai/ai-changelog.md` whose `- **Drained:** N entries` line
+   has N above 0; one without the line counts as drained), you MUST surface one line in your
    user-facing output: `intake at {N} entries, last drain {D} days ago → run
    /lemmi-ai-kit-core:learning-consolidator`. Never refuse or defer the append itself (a lost learning is worse
    than a fat buffer) — the surfaced line is the enforcement. This is the capture-side twin of

@@ -461,9 +461,9 @@ instead of applying them and step 4 offers the consolidation; steps 2 and 3 run 
    form; yours is the CROSS-session claim (say how many sessions), so merge, don't near-duplicate.
 3. **Surface the sibling cadence** (the inverse of this skill's Phase-0 guard): count intake
    entries (`uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --list-entries --project "<absolute project root>"`)
-   and read the newest `CONSOLIDATION` date in `.ai/ai-changelog.md`; if intake > 0 and the last
-   drain is ≥7 days old, state "intake has {N} entries, last drain {D} days ago → run
-   `/lemmi-ai-kit-core:learning-consolidator`".
+   and date the last drain by the newest `CONSOLIDATION` entry in `.ai/ai-changelog.md` whose `**Drained:**`
+   count is above 0 (one without the line counts as drained); if intake > 0 and it is ≥7 days old, state
+   "intake has {N} entries, last drain {D} days ago → run `/lemmi-ai-kit-core:learning-consolidator`".
 4. **If 4g settled a window-elapsed signal,** offer to run `hypothesis-validator` now — under the
    seam, offer `learning-consolidator` instead, whose Phase 2 runs it.
 5. Only then offer discussion of findings and the P3/P5 items.
