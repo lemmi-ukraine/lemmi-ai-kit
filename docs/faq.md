@@ -157,9 +157,13 @@ installation. `claude plugin install` alone reports an already installed pack
 without refreshing it. On Codex, `codex plugin add <plugin-id>@lemmi` refreshes
 the pack. Check your client's `plugin --help` for other scopes and versions.
 
-Your `AGENTS.md`, `CLAUDE.md` and `.ai/` files are yours and are never updated behind
-you. There is no separate release channel either — the marketplaces serve this
-repository directly, so the published state of `main` is the release.
+Your `AGENTS.md` and `CLAUDE.md` outside their marked blocks, and your `.ai/` intake
+and logs, are yours and are never updated behind you. The rest of what the helper
+places under `.ai/` is kit-managed: a plain run skips a file that differs from the
+kit's copy and reports `skipped N locally modified managed file(s)`, `--force`
+overwrites it, and `--dry-run` shows the plan first. There is no separate release
+channel either — the marketplaces serve this repository directly, so the published
+state of `main` is the release.
 
 ## My `/lemmi-ai-kit:...` commands stopped working. What happened?
 

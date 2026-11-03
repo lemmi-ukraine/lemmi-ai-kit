@@ -72,7 +72,8 @@ Core-first installation commands.
 - It does not require you to change how you build, test, or deploy.
 
 The only files it ever puts in your repository are the ones listed in
-[section 4](#4-set-up-a-project), and you own all of them.
+[section 4](#4-set-up-a-project), which also says which of them you own and which
+the kit manages.
 
 ---
 
@@ -248,10 +249,10 @@ Open the project you want to configure and run:
 (In Codex, invoke the `kit-setup` skill.)
 
 `kit-setup` reads your project — manifests, lockfiles, `Makefile`/`justfile`,
-and your CI workflows — and writes a small set of **project-owned** files, with
-the placeholders filled from what it found. It is told to establish every fact
-from a real file and to leave an honest `TODO(project)` stub where it cannot,
-rather than guessing.
+and your CI workflows — and writes a small set of files, each marked below as
+**yours** or kit-managed, with the placeholders filled from what it found. It is
+told to establish every fact from a real file and to leave an honest
+`TODO(project)` stub where it cannot, rather than guessing.
 
 ### What it writes, and who owns it
 
@@ -260,9 +261,9 @@ rather than guessing.
 | `AGENTS.md` | Your AI workflow rules. Commands, conventions, restart steps and project rules detected from the project | **yours** — edit freely |
 | `CLAUDE.md` | `@AGENTS.md` plus the skill index, pre-rendered | **yours** — edit freely |
 | `.ai/learnings.md`, `.ai/ai-changelog.md`, `.ai/improvement-hypotheses.md` | Empty intake and log files the learnings loop appends to | **yours** — never overwritten |
-| `.ai/templates/design.md`, `requirements.md`, `tasks.md`, `test-cases.md`, `test-plan.md` | Spec and verification templates used by `spec-driven-dev` and `test-planner` | kit-managed — refreshed on update |
-| `.ai/git-stacked-pr-workflow.md` | Reference doc for the stacked-PR workflow | kit-managed |
-| `.ai/tmp/.gitignore`, `.ai/handoffs/.gitignore`, `.ai/retrospectives/.gitignore` | One self-ignoring file (`*`, then `!.gitignore`) in each local-only folder, so git ignores the scratch files, hand-offs and retrospective reports kept there. No other ignore file is touched | kit-managed |
+| `.ai/templates/design.md`, `requirements.md`, `tasks.md`, `test-cases.md`, `test-plan.md` | Spec and verification templates used by `spec-driven-dev` and `test-planner` | kit-managed — refreshed with `--force` |
+| `.ai/git-stacked-pr-workflow.md` | Reference doc for the stacked-PR workflow | kit-managed — refreshed with `--force` |
+| `.ai/tmp/.gitignore`, `.ai/handoffs/.gitignore`, `.ai/retrospectives/.gitignore` | One self-ignoring file (`*`, then `!.gitignore`) in each local-only folder, so git ignores the scratch files, hand-offs and retrospective reports kept there. No other ignore file is touched | kit-managed — refreshed with `--force` |
 
 Every file in that table, all additive. Nothing else in your repository is
 touched, and this page prints no total for the same reason it prints no skill
@@ -641,8 +642,12 @@ That is worse, and this guide will not pretend otherwise.
 ## 7. Staying up to date
 
 Skills live in the plugin, not in your repository, so they update when the plugin
-updates. Your `AGENTS.md`, `CLAUDE.md` and `.ai/` files are yours and are never
-updated behind you.
+updates. Your `AGENTS.md` and `CLAUDE.md` outside their marked blocks, and your
+`.ai/` state logs, are yours and are never updated behind you. The rest of what the
+helper places under `.ai/` is kit-managed, as the table in
+[section 4](#4-set-up-a-project) shows: a plain run skips a file that differs from
+the kit's copy and reports `skipped N locally modified managed file(s)`, `--force`
+overwrites it, and `--dry-run` shows the plan first.
 
 Enable, disable and update each installed pack through your host's plugin
 interface. Research and Python remain usable by themselves; if you disable
