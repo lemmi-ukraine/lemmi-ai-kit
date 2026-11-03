@@ -76,6 +76,17 @@ not that file, unless the project's own ignore rules already cover the folder
 (harmless: the notes stay ignored). The script edits no other ignore file, so
 the project's root `.gitignore` stays exactly as it was.
 
+- A root rule that covers such a folder only partly (say `.ai/handoffs/*` with
+  `!.ai/handoffs/README.md`) is overridden by the seeded `*`, because a folder's
+  own `.gitignore` outranks the root one (and within one file the last matching
+  line decides): to keep a file there tracked, put its negation (`!README.md`)
+  below the `*` in the folder's own `.gitignore`, which a re-run of the script
+  leaves alone and only `--force` resets to the two seeded lines.
+- Notes committed before the seed stay tracked, because an ignore rule never
+  untracks a file: tell the user to run `git rm --cached <file>` for any they
+  want untracked, and do not run it yourself, since it stages a deletion in
+  their next commit.
+
 If `.claude/skills/` contains copies of kit skills (from the retired pip
 installer), tell the user what actually happens, which is **not** shadowing:
 **both copies load.** Plugin skills are namespaced, so the project copy keeps the bare
