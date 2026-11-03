@@ -45,7 +45,7 @@ already written into always-loaded rules. Both were invisible until checked.
 
 | Input | Why it is needed |
 |---|---|
-| The pre-drain snapshot (`.ai/learnings-pre-drain-<date>.md`) | C1 cannot run without it |
+| The pre-drain snapshot: a scratch file written from the buffer at the restore-point commit | C1 cannot run without it |
 | `git diff HEAD` over the promotion targets | The actual change under review — not your memory of it |
 | The consolidation plan (`.ai/consolidation-plan-*.md`) | Promotions the plan promised but the drain never made |
 | The gate record (`.ai/consolidation-gates/<date>-plan-approved.md`) | The plan as recorded approved before any removal: a written claim C1 checks against the plan the operator saw |
@@ -61,16 +61,17 @@ Run all eight. Each names the failure it has actually caught.
 Removal verification proves entries left the buffer. It is **structurally blind** to the opposite
 failure: an entry removed whose knowledge reached no home. Run the audit that fits the state of the
 promotions, with the same `--surface` values as the consolidator's Phase 5 audit (`--surface <glob>`
-adds a home); the base ref is mandatory (no ref exits 2):
+adds a home). It takes the pre-drain snapshot, a scratch file written from the buffer at the
+restore-point commit, and a base ref, which is mandatory (no ref exits 2):
 
 ```bash
 # Promotions still UNCOMMITTED: HEAD is the pre-promotion state.
 python "${CLAUDE_PLUGIN_ROOT}/skills/learning-consolidator/scripts/drain_audit.py" \
-  .ai/learnings-pre-drain-<date>.md HEAD
+  <pre-drain-snapshot>.md HEAD
 
 # Promotions ALREADY COMMITTED: the commit before the promotion commit, never HEAD.
 python "${CLAUDE_PLUGIN_ROOT}/skills/learning-consolidator/scripts/drain_audit.py" \
-  .ai/learnings-pre-drain-<date>.md <promo-commit>~1
+  <pre-drain-snapshot>.md <promo-commit>~1
 ```
 
 Exit 1 means rows to adjudicate, not a failed run. Adjudicate **every** `[LOSS?]` and no-probe-token
@@ -78,10 +79,11 @@ row by hand. Expected-clean: ARCHIVED entries, and entries whose only tokens are
 from their anecdote. Anything else is deleted knowledge — recover it from the snapshot and promote
 it before proceeding.
 
-**If no snapshot exists** (a drain that predates the Phase-5 snapshot requirement), reconstruct one
-from git into scratch: the operator writes the buffer's last committed contents to a scratch path in
-their own terminal (a session never names the buffer on a shell line), deliberately NOT the
-committed snapshot path, because a reconstruction is not evidence — and say so in the report: a
+**If no snapshot exists** (a drain that predates the Phase-5 restore point), reconstruct one from
+git into scratch: the operator writes the buffer's last committed contents to a scratch path in
+their own terminal (a session never names the buffer on a shell line), deliberately NOT the byte
+copy's path (the operator's local, never-committed copy of the buffer from Phase 5), so it cannot
+pass for that copy, and say in the report that it is a reconstruction: it is not evidence, and a
 snapshot rebuilt from the last commit misses anything appended since, so C1's coverage is partial
 and must be stated as partial, not clean.
 
@@ -172,7 +174,9 @@ a fix round (section 2 of its fix-rounds reference, the planted false claim incl
 to read each promoted paragraph beside its source entry in the pre-drain snapshot and list every
 place it changes the claim: a narrative inverted, two techniques fused into one, a sentence
 addressed to the promoter left in committed text, a dropped qualifier such as "not run" or "only".
-A promotion passes only when the read lists none. The read does not replace C1 to C8.
+A reader's brief carries at most four real claims, plus the planted one, so spawn one fresh reader
+per four promoted paragraphs. A promotion passes only when the read lists none. The read does not
+replace C1 to C8.
 
 > **Caught:** an undocumented provider default sourced from a single forum post whose author's
 > affiliation was explicitly unverifiable, promoted as fact into an auto-loaded skill — in a project
@@ -216,7 +220,7 @@ trains readers to ignore it.
 | Severity | Definition | Action |
 |---|---|---|
 | **Blocker** | Deleted knowledge (C1), or a false claim already shipped into a rule (C2) | Fix before the consolidation may be reported complete |
-| **Major** | Wrong altitude, ≥3-way duplication, self-contradiction, overstated confidence, prose where a seam belongs | Resolve by revising; if it needs a decision only the user can make, surface it as `[UNRESOLVED]` |
+| **Major** | Wrong altitude, ≥3-way duplication, self-contradiction, overstated confidence, a fidelity defect (a promoted paragraph that says more or less than its source entry), prose where a seam belongs | Resolve by revising; if it needs a decision only the user can make, surface it as `[UNRESOLVED]` |
 | **Minor** | Wording, formatting, a redundant clause | Fix silently |
 
 **Blockers use a verify-fix-reverify loop:** state the defect, fix it, then *re-run the check that
