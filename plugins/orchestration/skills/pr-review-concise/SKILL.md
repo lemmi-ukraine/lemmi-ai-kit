@@ -251,20 +251,6 @@ The gate commands and paths in this table are one repository's examples.
 
 **True positives that look like these:**
 
-- **Bare `@fast_test` / `@integration_test` / `@websocket_test` without parentheses — ALWAYS flag, where the project defines them.**
-  These are decorator *factories*, so the bare form rebinds the test to the inner `decorator(func)`.
-  **The consequence depends on the shape, and the common shape is the silent one:**
-  - On a **test method** (the dominant form here — tests inherit `BaseEndpointTest`/`BaseCRUDTest`):
-    `self` binds to `func`, `decorator` returns `sync_wrapper`, and pytest **records a PASS with the
-    assertions never executed.** The only signal is a `PytestReturnNotNoneWarning` buried under a
-    green summary. One real 27-test class ran this way: exit 0, "27 passed", zero assertions.
-  - On a **module-level test function**: pytest requests `func` as a fixture and the test **ERRORS**
-    at setup — loud, and the suite catches it.
-
-  *Both verified 2026-08-04 by running the two shapes against `tests/utils/timeout_decorator.py`:
-  `1 passed, 1 warning, 1 error`. Never assume the loud case — grep the diff for bare
-  `@fast_test$`/`@integration_test$`/`@websocket_test$` at end of line, and treat `N passed` on a new
-  test class as unproven until the warning block is checked.*
 - A repository query or partial unique index missing `deleted_at.is_(None)`.
 - A cached/existing-data fast path that skips the ownership check the generation path enforces.
 

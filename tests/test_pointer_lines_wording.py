@@ -5,8 +5,8 @@ describing the file as it was: a list of three kinds of example with a fourth wr
 that names two things where the file holds three, a count of four cases beside four more, a step
 named for five dimensions over a file of seven. A fifth was never a count. Three review texts
 named one repository's lint command as the gate, so a reader in another project was told that a
-command it does not have is canonical, and the rule on a bare timeout decorator read as if every
-project had those decorators.
+command it does not have is canonical. A bullet on a bare timeout decorator read as if every
+project had those decorators; it was qualified first and then deleted, and its absence is pinned.
 
 What each test asserts:
 
@@ -19,17 +19,26 @@ What each test asserts:
   headings, the section that was added, the numbered cases and the bullets of the closing
   section, the dimension headings) and compare it with the pointer, so a reference that grows
   again turns a test red instead of leaving a second generation of the same leftover.
+* `test_the_known_false_positives_step_holds_no_bare_decorator_bullet` reads one section, the
+  PR-review skill's step of known false positives. It must name none of the three decorators
+  (the old bullet named them in its opening line and again in its grep recipe) and must still
+  hold its table and the two true positives that sat beside the bullet, so a deletion that took
+  more than the bullet is caught too.
 * The instrument tests fire the readers and the checks at planted text, so their silence on the
-  real files means something.
+  real files means something. The decorator check is fired at the old bullet, the qualified
+  one, a stray grep recipe, a text without the bullet (also re-wrapped), the names outside the
+  step, a step that lost more than the bullet, and a text with no such step.
 
 The lint example's own sample lines stay: `test_planner_review_source_roots.py` holds them to the
 label that says they are one repository's. The rows here pin only the claims around them.
 
-THE SURFACE, in numbers the tests assert: 9 rows over 8 files, 19 phrases that must be there and
-9 that must be gone, and 4 references read for a count.
+THE SURFACE, in numbers the tests assert: 8 rows over 8 files, 18 phrases that must be there and
+8 that must be gone, 4 references read for a count, and 1 section read for the deleted bullet
+(3 decorator names it must not hold, 3 phrases it must keep).
 """
 
 import re
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -81,6 +90,18 @@ _COUNT_BEFORE_DIMENSIONS = re.compile(
     rf"\b({'|'.join(_NUMBER_WORDS[1:])})\s+dimensions\b", re.IGNORECASE
 )
 
+# The three timeout decorators of one repository's tests. The known-false-positives step of the
+# PR-review skill must name none of them: its bullet on a bare one was deleted, and both the
+# bullet's opening line and its grep recipe carried the names.
+_DECORATORS = ("@fast_test", "@integration_test", "@websocket_test")
+# What the step keeps, lower-cased and folded: a phrase of its table's first row (it shows the
+# slice that was read is the real step) and the two true positives that sat beside the bullet.
+_STEP_7_KEEPS = (
+    "gate output quoted from the pr body",
+    "missing `deleted_at.is_(none)`",
+    "ownership check the generation path enforces",
+)
+
 # (claim, file, phrases that must be there, phrases that must be gone); every phrase lower-cased,
 # whitespace collapsed. A claim that only adds a sentence has no phrase to be gone.
 _ROWS: tuple[tuple[str, str, tuple[str, ...], tuple[str, ...]], ...] = (
@@ -107,12 +128,6 @@ _ROWS: tuple[tuple[str, str, tuple[str, ...], tuple[str, ...]], ...] = (
             "`ruff check backend` (the canonical gate)",
             "35 pre-existing violations across 25 files",
         ),
-    ),
-    (
-        "1: the bare-decorator rule holds where the project defines the decorators",
-        _PR_REVIEW,
-        ("always flag, where the project defines them.**",),
-        ("always flag.**",),
     ),
     (
         "2: the log-analysis pointer lists the join example",
@@ -195,19 +210,43 @@ def _word(count: int) -> str:
     return _NUMBER_WORDS[count]
 
 
-def _section_bullets(text: str, heading_containing: str) -> list[str]:
-    """The top-level bullets under the first `##` heading that contains a phrase, up to the next."""
+def _section_lines(text: str, heading_containing: str) -> list[str]:
+    """The lines under the first `##` heading that contains a phrase, up to the next `##` heading."""
     inside = False
-    bullets: list[str] = []
+    lines: list[str] = []
     for line in text.split("\n"):
         if line.startswith("## "):
             if inside:
                 break
             inside = heading_containing in line.lower()
-        elif inside and line.startswith("- "):
-            bullets.append(line)
+        elif inside:
+            lines.append(line)
     assert inside, f"no '##' heading that contains {heading_containing!r}"
-    return bullets
+    return lines
+
+
+def _section_bullets(text: str, heading_containing: str) -> list[str]:
+    """The top-level bullets under the first `##` heading that contains a phrase, up to the next."""
+    return [
+        line
+        for line in _section_lines(text, heading_containing)
+        if line.startswith("- ")
+    ]
+
+
+def _decorator_rule_problems(text: str) -> list[str]:
+    """What is wrong with the step of known false positives in a review skill's text.
+
+    The step is the section under the first `##` heading that holds "known false positives"; a
+    text without one fails loudly, so a renamed step cannot pass for a step with no bullet. Folded
+    and lower-cased, the step must name no decorator and must still hold what sat beside the bullet.
+    """
+    step = " ".join(
+        " ".join(_section_lines(text, "known false positives")).split()
+    ).lower()
+    named = [f"names {name}" for name in _DECORATORS if name in step]
+    lost = [f"lost {phrase!r}" for phrase in _STEP_7_KEEPS if phrase not in step]
+    return named + lost
 
 
 def _pointer_bullets(text: str, link: str) -> list[str]:
@@ -252,8 +291,9 @@ def test_the_surface_is_stated_in_numbers() -> None:
     files = {path for _, path, _, _ in _ROWS}
     present = [phrase for _, _, kept, _ in _ROWS for phrase in kept]
     absent = [phrase for _, _, _, gone in _ROWS for phrase in gone]
-    assert (len(_ROWS), len(files), len(present), len(absent)) == (9, 8, 19, 9)
+    assert (len(_ROWS), len(files), len(present), len(absent)) == (8, 8, 18, 8)
     assert len(_REFERENCES) == 4
+    assert (len(_DECORATORS), len(_STEP_7_KEEPS)) == (3, 3)
     references = _REFERENCES
     unreadable = [
         name for name in (*files, *references) if not (_ROOT / name).is_file()
@@ -327,6 +367,11 @@ def test_every_count_of_the_dimensions_is_the_number_the_reference_holds() -> No
     )
 
 
+def test_the_known_false_positives_step_holds_no_bare_decorator_bullet() -> None:
+    problems = _decorator_rule_problems(_raw(_PR_REVIEW))
+    assert not problems, f"{_PR_REVIEW}, the step of known false positives: {problems}"
+
+
 def test_every_phrase_is_reported_when_it_goes_or_returns() -> None:
     """Planted removal and return, on text built from the row so it holds whatever the files say:
     each phrase cut out in turn is the one gap reported, and each old phrase added is the one
@@ -362,6 +407,12 @@ def test_the_readers_fail_loudly_and_stop_where_they_claim() -> None:
         _section_bullets("## One\n- a\n", "shorter cases")
     planted = "## Four shorter cases: x\n- one\n  cont\n- two\n## Next\n- not counted\n"
     assert _section_bullets(planted, "shorter cases") == ["- one", "- two"]
+    assert _section_lines("## One\nline\n\n## Two\nnot counted\n", "one") == [
+        "line",
+        "",
+    ]
+    with pytest.raises(AssertionError, match="no '##' heading"):
+        _section_lines("## One\nline\n", "two")
     pointer = "See [x](references/x.md) for:\n- a\n- b\n\n- not part of it\n"
     assert _pointer_bullets(pointer, "references/x.md") == ["- a", "- b"]
     related = "- [a](references/x.md) - one\n  two\n- [b](references/y.md) - three\n"
@@ -371,3 +422,85 @@ def test_the_readers_fail_loudly_and_stop_where_they_claim() -> None:
     assert [
         m.lower() for m in _COUNT_BEFORE_DIMENSIONS.findall("Run the Five Dimensions")
     ] == ["five"]
+
+
+# The bullet as the skill held it before the qualification: its shape is a bold opening line, a
+# sub-list, a blank line inside the bullet and an italic paragraph that carries the grep recipe.
+_OLD_BULLET = (
+    "- **Bare `@fast_test` / `@integration_test` / `@websocket_test` without parentheses"
+    " - ALWAYS flag.**\n"
+    "  These are decorator *factories*, so the bare form rebinds the test to the inner\n"
+    "  `decorator(func)`.\n"
+    "  - On a **test method**: the test passes and its assertions never run.\n"
+    "  - On a **module-level test function**: the test errors at setup.\n"
+    "\n"
+    "  *Never assume the loud case - grep the diff for bare\n"
+    "  `@fast_test$`/`@integration_test$`/`@websocket_test$` at end of line.*\n"
+)
+_QUALIFIED_BULLET = _OLD_BULLET.replace(
+    "ALWAYS flag.**", "ALWAYS flag, where the project defines them.**"
+)
+_RECIPE_ONLY = "  *Never assume the loud case - grep the diff for bare `@fast_test$` at end of line.*\n"
+_OTHER_TRUE_POSITIVES = (
+    "- A repository query or partial unique index missing `deleted_at.is_(None)`.\n"
+    "- A cached/existing-data fast path that skips the ownership check the generation"
+    " path enforces.\n"
+)
+_TABLE_ROW = "| 1 | Gate output quoted from the PR body | Never accept gates green. |"
+
+
+def _review_skill(
+    true_positives: str = _OTHER_TRUE_POSITIVES,
+    *,
+    summary: str = "Post one summary.",
+    step_heading: str = "## Step 7 - Known false positives in this codebase",
+    table_row: str = _TABLE_ROW,
+) -> str:
+    """A small review skill: a summary step, the step of known false positives, a posting step."""
+    return (
+        "# A review skill\n\n"
+        f"## Step 6 - The summary body\n\n{summary}\n\n"
+        f"{step_heading}\n\n{table_row}\n\n"
+        f"**True positives that look like these:**\n\n{true_positives}\n"
+        "## Step 8 - Posting\n\nPost on approval.\n"
+    )
+
+
+def test_the_decorator_check_reports_each_shape_and_only_inside_the_step() -> None:
+    """Known positives and near misses for the check on the deleted bullet. A check that never
+    saw the old shape fail would read as green on a file that had gone back to it."""
+    every_name = [f"names {name}" for name in _DECORATORS]
+    assert all(name in _OLD_BULLET for name in _DECORATORS), "the plant lost a name"
+    assert _QUALIFIED_BULLET != _OLD_BULLET, "the qualified plant is the old bullet"
+    # known negatives: a step without the bullet passes, laid out as it is and re-wrapped
+    assert _decorator_rule_problems(_review_skill()) == []
+    rewrapped = "\n".join(
+        textwrap.fill(line, width=30, subsequent_indent="  ", break_on_hyphens=False)
+        for line in _OTHER_TRUE_POSITIVES.splitlines()
+    )
+    assert len(rewrapped.splitlines()) > len(_OTHER_TRUE_POSITIVES.splitlines()), (
+        "the plant was not re-wrapped"
+    )
+    assert _decorator_rule_problems(_review_skill(rewrapped + "\n")) == []
+    # known positives: the old bullet and the qualified one each report all three names, and the
+    # recipe left alone reports the one name it holds
+    for planted in (_OLD_BULLET, _QUALIFIED_BULLET):
+        problems = _decorator_rule_problems(
+            _review_skill(planted + _OTHER_TRUE_POSITIVES)
+        )
+        assert problems == every_name, planted
+    assert _decorator_rule_problems(
+        _review_skill(_RECIPE_ONLY + _OTHER_TRUE_POSITIVES)
+    ) == ["names @fast_test"]
+    # near misses: the names in another step are not this step's; a step that lost more than the
+    # bullet reports what it lost; a text with no such step fails loudly
+    elsewhere = "A bare `@fast_test` is described here, in another step."
+    assert _decorator_rule_problems(_review_skill(summary=elsewhere)) == []
+    assert _decorator_rule_problems(_review_skill("")) == [
+        f"lost {phrase!r}" for phrase in _STEP_7_KEEPS[1:]
+    ]
+    assert _decorator_rule_problems(_review_skill(table_row="")) == [
+        f"lost {_STEP_7_KEEPS[0]!r}"
+    ]
+    with pytest.raises(AssertionError, match="no '##' heading"):
+        _decorator_rule_problems(_review_skill(step_heading="## Step 7 - Other things"))
