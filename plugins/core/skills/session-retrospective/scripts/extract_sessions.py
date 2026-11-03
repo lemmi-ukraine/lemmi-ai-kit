@@ -167,6 +167,28 @@ PRESCAN_TAIL_BYTES = 64 * 1024
 TIMESTAMP_RE = re.compile(r'"timestamp"\s*:\s*"(\d{4}-\d{2}-\d{2}[^"]*)"')
 
 # --- redaction -------------------------------------------------------------------------------
+# GitHub tokens are matched by SHAPE. The KEY/TOKEN assignment pattern below masks a token only
+# right after such a name and "=" or ":", so one after a flag ("-p <token>") or in an
+# "Authorization: token <token>" header was emitted as it was, and the leak gate could not see it
+# either. REDACTIONS and LEAK_PATTERNS hold the same compiled pattern, so the gate looks for
+# exactly what the redaction masks. Shapes: "GitHub's token formats" in "About authentication to
+# GitHub" (docs.github.com), and "Behind GitHub's new authentication token formats" (github.blog).
+#   * ghp_ gho_ ghu_ ghs_ ghr_: base62, 30 random characters plus a 6-character checksum. The
+#     bound is 36 or more with no maximum, because GitHub says lengths will likely grow. The class
+#     holds no "_", "-" or ".", so "ghs_installation_token" and "fix/ghp_rotation-fix" are not
+#     tokens.
+#   * github_pat_: GitHub states no length. "_" is in its alphabet, so a snake_case name that
+#     starts with the prefix would pass; the lookahead demands an uppercase letter, which such a
+#     name never has and a random 36-character base62 body lacks about 3 times in a billion.
+#   * The stateless ghs_ token (a ghs_-prefixed JWT) needs no pattern: the JWT pattern runs before
+#     these and masks it.
+# Same left-boundary guard as the sk- patterns below: a letter or digit before the prefix means
+# the tail of a word.
+GITHUB_PREFIXED_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9])gh[pousr]_[A-Za-z0-9]{36,}")
+GITHUB_FINE_GRAINED_PAT_RE = re.compile(
+    r"(?<![A-Za-z0-9])github_pat_(?=[A-Za-z0-9_]*[A-Z])[A-Za-z0-9_]{36,}"
+)
+
 REDACTIONS = [
     (
         re.compile(
@@ -213,6 +235,8 @@ REDACTIONS = [
     (re.compile(r"(?i)\bbearer\s+[A-Za-z0-9_\-\.]{12,}"), "Bearer [REDACTED]"),
     (re.compile(r"AIza[A-Za-z0-9_\-]{20,}"), "[REDACTED_GOOGLE_KEY]"),
     (re.compile(r"AKIA[A-Z0-9]{12,}"), "[REDACTED_AWS_KEY]"),
+    (GITHUB_PREFIXED_TOKEN_RE, "[REDACTED_GITHUB_TOKEN]"),
+    (GITHUB_FINE_GRAINED_PAT_RE, "[REDACTED_GITHUB_TOKEN]"),
     (
         re.compile(
             r"(?i)\b([A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|PWD|CRED)[A-Z0-9_]*)\s*[=:]\s*([^\s,;\"']{4,})"
@@ -244,6 +268,8 @@ LEAK_PATTERNS = [
     re.compile(r"eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{6,}"),
     re.compile(r"AIza[A-Za-z0-9_\-]{20,}"),
     re.compile(r"AKIA[A-Z0-9]{12,}"),
+    GITHUB_PREFIXED_TOKEN_RE,
+    GITHUB_FINE_GRAINED_PAT_RE,
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r'"private_key"\s*:\s*"[^"\]]{8,}"'),
 ]
