@@ -387,9 +387,10 @@ Hand-counting does not catch this at drain scale. The 2026-07-31 drain's manual 
 including a rule the same consolidation then cross-referenced from a skill as if it existed —
 a dangling pointer to knowledge it had just deleted.
 
-Run it against the pre-drain snapshot (Phase 5 requires taking one before any deletion). **The
-second argument, the base ref, is mandatory, and which ref is correct depends on whether the
-promotions are committed yet — this is the step's sharpest edge:**
+Run it against the pre-drain snapshot: the buffer at the restore-point commit (Phase 5 requires
+that commit before any removal), written to a scratch file by the operator. **The second argument,
+the base ref, is mandatory, and which ref is correct depends on whether the promotions are
+committed yet — this is the step's sharpest edge:**
 
 ```bash
 # Promotions still UNCOMMITTED (drain and promote in one session): HEAD is the pre-promotion state.
@@ -442,7 +443,7 @@ its own copy. Zero hits ⇒ `[LOSS?]`.
 | Entries whose only probe tokens are incidental | e.g. a file path mentioned once in the anecdote; the lesson landed under different wording |
 
 Anything else is knowledge deleted without a home: **recover it from the snapshot and promote it
-before proceeding.** Do not delete the snapshot until the audit is clean.
+before proceeding.** Do not delete the byte copy until the audit is clean.
 
 The `no probe tokens` list needs the same treatment — those entries carry no backticked identifiers
 at all, so the script cannot speak to them and a human must confirm each one landed.
@@ -493,36 +494,45 @@ It should be PROMOTE_TO_RULE or KEEP until 2+ related entries form a cluster.
 
 ## Pre-Drain Snapshot (Phase 5)
 
-**Snapshot the buffer FIRST** — copy it to `.ai/learnings-pre-drain-<date>.md` before
-any deletion. Step 6 requires it, and it is the only recovery path if the drain goes wrong.
+**Commit the buffer as it stands BEFORE the first removal, in its own commit.** That commit is the
+**restore point**: the recovery path if the drain goes wrong, the input of Step 6, and what the
+changelog entry cites, by commit id. The **pre-drain snapshot** (the term the consolidation critic and
+the audit script's help use) is the buffer as committed at the restore point, read through a scratch
+file.
 
-**The copy is an operator step** ([§ Operator Steps](#operator-steps)): the operator makes the
-byte copy in their own terminal and confirms it is byte-identical; the session never names the
-buffer on a shell line. You then confirm with Grep in count mode that the snapshot and the
-buffer hold the same number of entries, and commit the snapshot with the drain.
+**The commit and the copies are operator steps** ([§ Operator Steps](#operator-steps)): in their own
+terminal the operator commits the buffer, makes a byte copy and confirms it is byte-identical, and
+writes the buffer as it stands at the restore point to a scratch file outside the buffer's folder
+(`git show <commit>:<path>` redirected to that file). The session never names the buffer on a shell
+line. The audit script takes a file, not a commit, so the scratch file is what Step 6 is given, and it
+can be rebuilt from the commit id whenever the audit has to be re-run. You then confirm with Grep in
+count mode that the byte copy and the buffer hold the same number of entries, and cite the commit id
+in the changelog entry.
 
-**Do NOT put it in `.ai/tmp/`.** That directory is gitignored, so a snapshot
-there can never be committed, never reaches a reviewer, and is routinely swept. One drain
-named a snapshot under `.ai/tmp/` as its evidence; the file no longer
-exists, and the run's two published tallies of the same audit disagree (the changelog says
-5 archived-as-covered / 2 not-drained / 5 probe-token artifacts, the hypotheses ledger says
-4 / 2 / 3) with nothing left to re-run and settle it. A landing audit whose input is
-unreproducible cannot support a "zero entries deleted without a home" claim — it is an
-assertion, not evidence.
+**The byte copy is a local safety net and is never committed.** Keep it, for example at
+`.ai/learnings-pre-drain-<date>.md`, until Step 6's audit is clean. It may live in an ignored folder
+such as `.ai/tmp/`, because the restore point is the evidence and the copy is not.
 
-Commit the snapshot alongside the drain, and cite it by path in the changelog entry. Delete it
-only after Step 6's audit is clean AND the drain has been merged.
+**Why the snapshot is a commit and not a file in the drain.** A snapshot file committed with the drain
+has to be removed before the merge, and removing a file breaks every citation that named its path
+(observed once: one change had to rewrite eight). A commit is not removed before the merge, so citing
+its id does not break the way citing a path does. Evidence that sits in a swept folder fails the
+other way: one drain named a snapshot
+under `.ai/tmp/` as its evidence; the file no longer exists, and the run's two published tallies of
+the same audit disagree (the changelog says 5 archived-as-covered / 2 not-drained / 5 probe-token
+artifacts, the hypotheses ledger says 4 / 2 / 3) with nothing left to re-run and settle it. A landing
+audit whose input cannot be rebuilt cannot support a "zero entries deleted without a home" claim: it is
+an assertion, not evidence, and an input rebuilt from the restore point is evidence.
 
-**Confirm the snapshot's location is not itself ignored, with a command, before trusting it:**
+**Confirm with a command that the byte copy IS ignored, and that the project's ignore file lists it and
+the gate-record folder (`.ai/consolidation-gates/`), so neither can be staged by mistake:**
 
 ```bash
-git check-ignore -v <snapshot-path>;  echo "rc=$? (1 = NOT ignored, good)"
+git check-ignore -v <byte-copy-path>;  echo "rc=$? (0 = ignored, good; 1 = NOT ignored, list it first)"
 ```
 
-A project whose backup directory is gitignored will silently accept the copy and then refuse to
-stage it, so the snapshot exists locally and is absent from the drain — the same failure as putting
-it in a scratch directory, arrived at by a different route. If the only sensible location *is*
-ignored, stage it explicitly with `git add -f` and say so in the report; do not quietly skip it.
+A copy or a record that is not ignored can be staged by a broad `git add`, and a committed copy is the
+file this section rejects.
 
 ### Removing an entry stops at the next SECTION HEADER, not the next entry
 
@@ -597,12 +607,13 @@ only a post-promotion symbol sweep caught it.
 ## Operator Steps
 
 Three steps need bytes of the buffer that no Grep, Read or Edit call delivers: the previous drain's
-heading count at its commit (Phase 1), the pre-drain snapshot copy (Phase 5) and the critic's
-recovery read of the buffer's last committed contents (check C1 of `consolidation-critic`). No kit
-script makes these copies or reads (the `lint learnings` subcommand reads the buffer to check it,
-and copies nothing). **In every project the operator makes each copy or read in their own
-terminal** and the session never names the buffer on a shell line: Phase 1, Phase 5 and C1 describe
-this one route. A project whose own rules (AGENTS.md or its override document) keep the buffer path
+heading count at its commit (Phase 1), the restore-point commit and the local byte copy (Phase 5)
+and the critic's recovery read of the buffer's last committed contents (check C1 of
+`consolidation-critic`). No kit script makes these commits, copies or reads (the `lint learnings`
+subcommand reads the buffer to check it, and copies nothing). **In every project the operator makes
+each commit, copy or read in their own terminal** and the session never names the buffer on a shell
+line: Phase 1, Phase 5 and C1 describe this one route. A project whose own rules (AGENTS.md or its
+override document) keep the buffer path
 off session shell lines requires exactly this; a project without such a rule takes the same route,
 because these skills print no shell line that names the buffer and a session's routes on it are
 the three below. Either way the route is stricter than the kit's guard, which judges a shell line
@@ -617,8 +628,8 @@ them, and **Edit appending after the last entry** to add one.
 | Step | The operator, in their own terminal | The session, afterwards |
 |---|---|---|
 | Previous drain's count (Phase 1, step 0) | reads the buffer's `### ` heading count at the drain's commit | compares it with the post-drain count the drain reported |
-| Snapshot (Phase 5) | copies the buffer to the snapshot path and confirms the copy is byte-identical | confirms with Grep in count mode that both files hold the same number of entries, then commits the snapshot with the drain |
-| Recovery read (C1, no snapshot exists) | writes the buffer's last committed contents to a scratch path that is NOT the snapshot path | audits against it and states the coverage as partial: a reconstruction is not evidence |
+| Restore point and byte copy (Phase 5) | commits the buffer as it stands in its own commit, copies it to the byte copy's path, confirms the copy is byte-identical, and writes the buffer at that commit to a scratch file for Step 6 | confirms with Grep in count mode that the byte copy and the buffer hold the same number of entries, then cites the commit id |
+| Recovery read (C1, no snapshot exists) | writes the buffer's last committed contents to a scratch path that is NOT the byte copy's path | audits against it and states the coverage as partial: a reconstruction is not evidence |
 
 ## Gate Record
 
@@ -643,6 +654,9 @@ best-effort and with known gaps.
   invisible omission into a dated written claim that `consolidation-critic` and the changelog entry
   audit against what the operator actually approved. The drain session has no exemption from the
   guard.
+- **Local.** The record is never committed: it is read here by the learnings guard and by
+  `consolidation-critic`, and the project lists its folder (`.ai/consolidation-gates/`) in its ignore
+  file so it cannot be staged by mistake.
 
 ## Hypothesis Lifecycle in the Plan
 

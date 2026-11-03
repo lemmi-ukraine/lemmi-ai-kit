@@ -335,13 +335,12 @@ The full procedure -- concept presentation, the approval gate, the `skill-creato
 
 After all promotions are executed:
 
-> **Snapshot the buffer FIRST** — before any deletion the operator copies it to
-> `.ai/learnings-pre-drain-<date>.md` in their own terminal and confirms the copy is
-> byte-identical (a session never names the buffer on a shell line), and you **commit the
-> snapshot alongside the drain**. Step 6's landing audit takes it as input, so an uncommitted
-> or gitignored snapshot makes "zero entries deleted without a home" an assertion rather than
-> evidence. Never `.ai/tmp/` (gitignored — a drain whose snapshot lived there left nothing to
-> settle two tallies that disagree). Rationale: [§ Pre-Drain Snapshot](references/consolidation-actions.md#pre-drain-snapshot-phase-5).
+> **Restore point FIRST** — before any removal the operator commits the buffer as it stands, in its
+> own commit and in their own terminal (a session never names the buffer on a shell line), and
+> keeps a byte copy (for example `.ai/learnings-pre-drain-<date>.md`) that is never committed: the
+> project's ignore file lists it and the gate-record folder. Step 6's landing audit takes the
+> pre-drain snapshot, the buffer at that commit written to a scratch file; cite the commit id in the
+> changelog entry. Rationale: [§ Pre-Drain Snapshot](references/consolidation-actions.md#pre-drain-snapshot-phase-5).
 
 1. **Remove archived entries** — entries marked `ARCHIVE` are deleted entirely.
 2. **Remove promoted entries** — entries whose knowledge is now fully captured in
