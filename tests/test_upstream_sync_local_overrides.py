@@ -1,9 +1,9 @@
 """A skill edited here whose upstream is its origin carries a `Local override` note in the sync record.
 
 The next refresh from upstream rewrites a skill unless its row says what was changed on this side,
-and a note that has been replaced loses the overrides it listed. Of the skills edited here, 19
+and a note that has been replaced loses the overrides it listed. Of the skills edited here, 23
 descend from upstream, so each of those rows needs a note, and 4 of the rows that already carried
-one are held to keep it whole as the start of the longer note. The other 3 are authored here
+one are held to keep it whole as the start of the longer note. The other 4 are authored here
 (`kit-origin`), which is why they need no override note: upstream's later edits to them are
 contributions to review.
 
@@ -24,10 +24,14 @@ the check is report-only by default, so a re-apply from the note could bring bac
 and it named neither the registers folder of the documented command nor the new probe fixtures. Both
 notes as they read then are kept as excerpts as well, and the check reports the phrases each lacked.
 
-THE SURFACE, in numbers the tests assert: 19 edited upstream-origin rows, 4 earlier notes kept whole,
-3 kit-origin rows left alone, no name in both sets, 1 retired wording, 2 incomplete notes reported
-as they read, 7 missing phrases each, and 2 later incomplete notes reported as they read, 5 missing
-phrases each.
+initiative-cleanup was edited again after both of its excerpts were taken. The phrases of that later
+edit sit in a table of their own: the row's note must carry them too, while the checks fired at the
+excerpts count only the phrases of the excerpts' own time, so each still reports what it lacked then.
+
+THE SURFACE, in numbers the tests assert: 23 edited upstream-origin rows, 4 earlier notes kept whole,
+4 kit-origin rows left alone, no name in both sets, 1 retired wording, 2 incomplete notes reported
+as they read, 7 missing phrases each, 2 later incomplete notes reported as they read, 5 missing
+phrases each, and 1 row edited again after its excerpts, its 2 later phrases checked apart.
 """
 
 import re
@@ -44,6 +48,11 @@ _REAPPLY = "re-apply on the next sync"
 
 # Each edited skill, and the phrases its note must carry: the edits it records, in the note's words.
 _EDITED: dict[str, tuple[str, ...]] = {
+    "ai-changelog": (
+        "carries a `- **Drained:** N entries` line",
+        "the grouping example shows the line",
+        "from the oldest marked one on",
+    ),
     "ai-docs-lookup": (
         "a model's summary of the page",
         "the pin is read wherever the project pins it",
@@ -57,6 +66,12 @@ _EDITED: dict[str, tuple[str, ...]] = {
     "branch-diff-review": (
         "content hashes of the dirty set",
         "labels its Gates example as one repository's",
+    ),
+    "consolidation-critic": (
+        "the same --surface values as the consolidator's Phase 5 audit",
+        "C6 gains a fidelity read",
+        "a fresh reader, not the promoter, carries the read",
+        "the Output Format gains a Fidelity read line",
     ),
     "flow-mapping": (
         "--registers",
@@ -84,6 +99,14 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "no default cap",
         "derivation 3 names where the project opt-out is read",
         "chokepoint search takes <source-roots>",
+    ),
+    "learning-consolidator": (
+        "count only CONSOLIDATION entries whose Drained count is above 0",
+        "Phase 7a writes the line",
+        "a home the project's own AGENTS.md names",
+        "calls the skill's homes a sample",
+        "a repeatable --surface glob",
+        "any other pre-drain snapshot as a landing site",
     ),
     "parallel-session-safety": (
         "12g to 12k",
@@ -121,6 +144,12 @@ _EDITED: dict[str, tuple[str, ...]] = {
     ),
     "pr-review-concise": ("Step 7 labels its gate examples as one repository's",),
     "product-brief": ("the architecture and flow documents named in AGENTS.md",),
+    "session-retrospective": (
+        "the closing nudge dates the last drain",
+        "files .NET build output",
+        "error-class counts move against older reports",
+        "the output-schema reference's category table",
+    ),
     "skill-creator": (
         "the kit's own recommendation instead of one repository's decision",
         "name commit-message as the only user-only example",
@@ -141,7 +170,11 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "the full CI job",
         "one label line",
     ),
-    "task-learnings": ("close of every task", "a language-neutral entry"),
+    "task-learnings": (
+        "close of every task",
+        "a language-neutral entry",
+        "the buffer-pressure check dates the last drain",
+    ),
     "test-conventions": ("the description's Use-when sentence says Python test files",),
     "vertical-slice": ("scoped to a Python repository laid out by feature",),
 }
@@ -151,7 +184,12 @@ _RETIRED_WORDING: dict[str, tuple[str, ...]] = {
     "initiative-cleanup": ("pass the ref and run a suffix-free sweep",),
 }
 # Skills edited here that this repository authored: no override note is owed.
-_AUTHORED_HERE: tuple[str, ...] = ("agent-delegate", "orchestrate", "test-planner")
+_AUTHORED_HERE: tuple[str, ...] = (
+    "agent-delegate",
+    "kit-setup",
+    "orchestrate",
+    "test-planner",
+)
 
 # The notes four rows carried before: each stays, whole, as the start of the note that replaces it.
 _KEPT: dict[str, str] = {
@@ -228,6 +266,15 @@ _LATE_NOTES: dict[str, str] = {
 }
 _LATE_NOTE_MISSING = 5
 
+# The phrases of an edit made after a row's excerpts above were taken. The row's note must carry
+# them as well; the checks fired at the excerpts leave them out, since no excerpt is from their time.
+_LATER_EDITS: dict[str, tuple[str, ...]] = {
+    "initiative-cleanup": (
+        "no file a session puts in `.ai/tmp/` has history",
+        "the sweep table never sweeps the folder's own `.gitignore`",
+    ),
+}
+
 
 def _rows(text: str) -> dict[str, dict[str, object]]:
     """The skill rows of a record, by name. A record with no skill table fails loudly."""
@@ -266,12 +313,14 @@ def _problems(
 
 
 def test_the_surface_is_stated_in_numbers() -> None:
-    assert len(_EDITED) == 19, f"{len(_EDITED)} edited skills, not the 19 stated"
+    assert len(_EDITED) == 23, f"{len(_EDITED)} edited skills, not the 23 stated"
     assert len(_KEPT) == 4 and set(_KEPT) <= set(_EDITED)
-    assert len(_AUTHORED_HERE) == 3
+    assert len(_AUTHORED_HERE) == 4
     assert len(_RETIRED_WORDING) == 1 and set(_RETIRED_WORDING) <= set(_EDITED)
     assert len(_OLD_NOTES) == 2 and set(_OLD_NOTES) <= set(_EDITED)
     assert len(_LATE_NOTES) == 2 and set(_LATE_NOTES) <= set(_EDITED)
+    assert len(_LATER_EDITS) == 1 and set(_LATER_EDITS) <= set(_LATE_NOTES)
+    assert sum(len(phrases) for phrases in _LATER_EDITS.values()) == 2
     assert not set(_EDITED) & set(_AUTHORED_HERE), "a skill is in both sets"
     rows = _rows(_RECORD.read_text(encoding="utf-8"))
     unknown = [n for n in (*_EDITED, *_AUTHORED_HERE) if n not in rows]
@@ -281,8 +330,9 @@ def test_the_surface_is_stated_in_numbers() -> None:
 @pytest.mark.parametrize("name", sorted(_EDITED))
 def test_an_edited_upstream_origin_skill_carries_an_override_note(name: str) -> None:
     rows = _rows(_RECORD.read_text(encoding="utf-8"))
+    phrases = _EDITED[name] + _LATER_EDITS.get(name, ())
     problems = _problems(
-        rows, name, _EDITED[name], _KEPT.get(name), _RETIRED_WORDING.get(name, ())
+        rows, name, phrases, _KEPT.get(name), _RETIRED_WORDING.get(name, ())
     )
     assert not problems, f"{name}: {problems}"
 

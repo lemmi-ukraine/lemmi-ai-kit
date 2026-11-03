@@ -192,6 +192,7 @@ note = "Entered this repo 2026-07-03 and upstream 2026-07-13, byte-identical at 
 name = "ai-changelog"
 upstream = "ai-changelog"
 direction = "upstream-origin"
+note = "Local override, 2026-11-03: the CONSOLIDATION type row says each entry carries a `- **Drained:** N entries` line, N being the entries the run removed from the learnings buffer, and how a reader dates the last drain from it; the grouping example shows the line; and Step 3 says the lint checks a Drained count on each CONSOLIDATION entry from the oldest marked one on, and that the manual fallback checks that line too. Re-apply on the next sync."
 
 [[skills]]
 name = "ai-docs-lookup"
@@ -231,6 +232,7 @@ direction = "upstream-origin"
 name = "consolidation-critic"
 upstream = "consolidation-critic"
 direction = "upstream-origin"
+note = "Local override, 2026-11-03: C1 runs the landing audit with the same --surface values as the consolidator's Phase 5 audit; C6 gains a fidelity read: a fresh reader, not the promoter, carries the read, spawned by the promoter and briefed to read each promoted paragraph beside its source entry in the pre-drain snapshot and list every place it changes the claim, a promotion passing only when the read lists none; and the Output Format gains a Fidelity read line. Re-apply on the next sync."
 
 [[skills]]
 name = "flow-mapping"
@@ -248,7 +250,7 @@ direction = "upstream-origin"
 name = "initiative-cleanup"
 upstream = "initiative-cleanup"
 direction = "upstream-origin"
-note = "Local override, 2026-10-30: scripts/audit_cleanup_targets.py refs opens every non-binary file, and evidence takes --ref (default HEAD) and a repeatable --code-suffix, answering NO VERDICT when its only hits are in uncounted file types; the gates block and Steps 4a and 5.5a pass the verified ref, Steps 4b and 7 get the suffix-free command, and the shared spec folders are taken from the spec root on disk; new references/retirement-sweep.md, pointed at from Step 4b. Re-apply on the next sync. Further local overrides, 2026-11-02, to re-apply on the next sync: evidence searches the symbol as a fixed string (git grep -F -e, so a dot, a star or a bracket is text and a leading dash is not an option) and exits 2 when the ref does not resolve or git grep fails, never reading ABSENT, and the script's help text says both; the 5.5a gates comment names exit 2 beside exit 1; the Related line names only the learnings routing that both AGENTS.md files carry."
+note = "Local override, 2026-10-30: scripts/audit_cleanup_targets.py refs opens every non-binary file, and evidence takes --ref (default HEAD) and a repeatable --code-suffix, answering NO VERDICT when its only hits are in uncounted file types; the gates block and Steps 4a and 5.5a pass the verified ref, Steps 4b and 7 get the suffix-free command, and the shared spec folders are taken from the spec root on disk; new references/retirement-sweep.md, pointed at from Step 4b. Re-apply on the next sync. Further local overrides, 2026-11-02, to re-apply on the next sync: evidence searches the symbol as a fixed string (git grep -F -e, so a dot, a star or a bracket is text and a leading dash is not an option) and exits 2 when the ref does not resolve or git grep fails, never reading ABSENT, and the script's help text says both; the 5.5a gates comment names exit 2 beside exit 1; the Related line names only the learnings routing that both AGENTS.md files carry. Local override, 2026-11-03: Step 4c and references/tmp-classification.md say no file a session puts in `.ai/tmp/` has history, and the sweep table never sweeps the folder's own `.gitignore`, which kit-setup seeds; upstream seeds no such file. Re-apply on the next sync."
 
 [[skills]]
 name = "initiative-planner"
@@ -266,6 +268,7 @@ note = "This kit's own installer skill. No upstream counterpart has ever existed
 name = "learning-consolidator"
 upstream = "learning-consolidator"
 direction = "upstream-origin"
+note = "Local override, 2026-11-03: the Phase 1 cadence guard and the KEEP dwell limit (in SKILL.md and in references/consolidation-actions.md) count only CONSOLIDATION entries whose Drained count is above 0, an entry without the line counting as drained, and Phase 7a writes the line; Step 3 sends each promotion to a home the project's own AGENTS.md names and calls the skill's homes a sample, and its README steps, both Target selection lists and references/cross-reference-targets.md carry that label; scripts/drain_audit.py takes a repeatable --surface glob that adds a home to its ten defaults, read alike by both scans, and neither scan counts the buffer, the snapshot under audit or any other pre-drain snapshot as a landing site, as its docstring, --help and the reference say. Re-apply on the next sync."
 
 [[skills]]
 name = "metric-validity-check"
@@ -349,7 +352,7 @@ note = "Kit original. Verified rather than assumed: zero commits touch a path of
 name = "session-retrospective"
 upstream = "session-retrospective"
 direction = "upstream-origin"
-note = "Reconciled 2026-08-23 against the correct base. The `base` override and the `divergent-both` direction this row used to carry are dropped in the same commit as that reconciliation, per the instruction the row itself left. What they existed for: a merge attempted against `c05bf72d` reported 13 conflicts and 8 of 35 tests failing, and the ~1,100-word removal blamed for it was an artifact of that too-new base -- upstream added schema v4 three days AFTER this repo extracted, so the diff rendered the whole v4 feature set as a kit deletion. Against `extraction_base` the kit edit set is four hunks and the extractor merges with zero conflicts. Now v4, 99.0% of upstream's added lines carried verbatim, 35 tests passing. Local override, 2026-10-30: references/extractor-output-schema.md gains a paragraph on reading a message that opens with the word proceed. Re-apply on the next sync."
+note = "Reconciled 2026-08-23 against the correct base. The `base` override and the `divergent-both` direction this row used to carry are dropped in the same commit as that reconciliation, per the instruction the row itself left. What they existed for: a merge attempted against `c05bf72d` reported 13 conflicts and 8 of 35 tests failing, and the ~1,100-word removal blamed for it was an artifact of that too-new base -- upstream added schema v4 three days AFTER this repo extracted, so the diff rendered the whole v4 feature set as a kit deletion. Against `extraction_base` the kit edit set is four hunks and the extractor merges with zero conflicts. Now v4, 99.0% of upstream's added lines carried verbatim, 35 tests passing. Local override, 2026-10-30: references/extractor-output-schema.md gains a paragraph on reading a message that opens with the word proceed. Re-apply on the next sync. Local override, 2026-11-03: the closing nudge dates the last drain by the newest CONSOLIDATION entry whose Drained count is above 0, an entry without the line counting as drained; classify_error in scripts/extract_sessions.py files .NET build output (MSBuild's `Build FAILED.` stamp and the `error MSB` and `error CS` codes) as build-compile before the generic failed rule, with its cases in scripts/test_extract_sessions.py; the report template's Pipeline Health notes that error-class counts move against older reports; and the output-schema reference's category table states what classify_error files as build-compile and as test-failure (the word failed). Re-apply on the next sync."
 
 [[skills]]
 name = "skill-content-reviewer"
@@ -394,7 +397,7 @@ note = "Local override, 2026-10-30: one Step 2 paragraph on a journal branch as 
 name = "task-learnings"
 upstream = "task-learnings"
 direction = "upstream-origin"
-note = "Local override, 2026-10-30: the skill runs at the close of every task, whatever its kind or size, and at a stop or hand-off (description, first trigger and opening paragraph); a run that finds nothing is a valid result, and Step 5's rule that the append is never deferred stands. Re-apply on the next sync. Local override, 2026-11-02: the first good-entry example in references/learnings-format.md is a language-neutral entry. Re-apply on the next sync."
+note = "Local override, 2026-10-30: the skill runs at the close of every task, whatever its kind or size, and at a stop or hand-off (description, first trigger and opening paragraph); a run that finds nothing is a valid result, and Step 5's rule that the append is never deferred stands. Re-apply on the next sync. Local override, 2026-11-02: the first good-entry example in references/learnings-format.md is a language-neutral entry. Re-apply on the next sync. Local override, 2026-11-03: the buffer-pressure check dates the last drain by the newest CONSOLIDATION entry whose `- **Drained:** N entries` line has N above 0, an entry without the line counting as drained. Re-apply on the next sync."
 
 [[skills]]
 name = "test-conventions"
