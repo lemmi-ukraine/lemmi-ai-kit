@@ -2,7 +2,8 @@
 
 `probe_checker.py` answers one question: *given these two fixtures, can the checker see?* It cannot
 tell you whether the fixtures model anything real. Every failure below produced a **green probe** on
-a **wrong instrument**, and all of them were measured in this repo.
+a **wrong instrument**, and each was measured on a real instrument (sections 12 to 15 once each, in
+a project that uses the kit).
 
 Read this at the moment you write a checker, not at the gate that has already been driven by its
 output.
@@ -262,6 +263,63 @@ the *whole file*, so a script written to change two strings rewrites every line 
 rewrite hazard wearing the clothes of a fix. Normalise only the replacement text, never the document.
 And measure in BYTES: a `grep -c $'\r$'` census can degrade to a bare end-of-line anchor under some
 shells and report every file as 100% CRLF unconditionally.
+
+## 12. A probe certifies the matcher, never the region
+
+A checker that scans a span of a file (one block, one section, the lines of one command) can pass
+both fixtures and still read the wrong span. The probe saw the pattern match where the fixture put
+the defect; nothing in it asked which part of the file the checker looks at, and the green stamp is
+what stops the reader asking. Section 2 is the same failure seen from the code side.
+
+- Before probing, ask what the checker would return if it were pointed at the wrong region, and
+  choose a positive fixture that only the correct region can see.
+- End a scan region on a token the defect cannot move. A region that ends where the rule under test
+  stops holding cannot see that rule break.
+- Keep one fixture whose defect sits at the boundary of the region and whose target lies beyond it.
+
+Seen once, in a project that uses the kit: a checker ended its region at the first line without a
+trailing backslash, scanned part of a continued command, and reported a hidden comment as fine; its
+probe had passed, because the positive fixture put the defect on that first line.
+
+## 13. A checker keyed on text cannot tell a mention from a use
+
+A broken-reference checker cannot tell a live pointer from a documented absence: a line that says a
+file does not exist, or a fixture named for a path that is meant to be missing, reads as a dangling
+reference. A checker keyed on a command's text flags the comment that documents the command. In
+both, the text of the thing appears where it is being talked about, not used.
+
+- Read the citation's context before counting a hit, and set apart any hit whose surrounding text
+  asserts the absence rather than the path.
+- Put a benign mention in the negative fixture (a documented absence, a comment that names the
+  command), so a matcher that cannot tell the two apart fails its probe.
+- Prefer a structural rule (which token is the command, which line is a comment) to a text match,
+  and keep two mutation controls: one offending insertion that must be flagged and one benign
+  mention that must not.
+
+## 14. A probe tests detection, not normalisation
+
+A probe shows that the checker can see its fixtures, and the fixtures are written in the spelling
+the checker expects. A sweep that compares tokens between two sets (the names in a document against
+the names in the code) can pass its probe and still report real tokens as missing because the
+spelling differs: case, a hyphen against an underscore, a plural, a trailing mark.
+
+- Before acting on the count of the first real run, classify a sample of its findings by hand and
+  name each class. A finding that is only a spelling difference is a defect in the checker's
+  normalisation, not a token missing from the corpus.
+- Draw one fixture from the corpus itself, so that at least one case carries the corpus's own
+  spelling.
+
+## 15. Two sweeps that cannot see what they certify: the wrap and the number
+
+- **A line-at-a-time sweep cannot see a phrase the markdown wrap splits.** A stale-phrase sweep that
+  prints only benign hits can be blind to the one occurrence that matters, because a line break
+  falls inside it. Sweep paragraphs as well as lines (fold whitespace before matching), and run the
+  sweep over the pre-fix copy of the text first: the stale phrase is in that copy, so the sweep must
+  find it there, and a later fix cannot change that known positive (section 3).
+- **A presence-only sweep of tokens cannot check numbers.** A number is present whether or not it
+  is right. Set aside the numbers under three digits (they turn up in any document, so their
+  presence proves nothing), resolve each remaining number by what it counts, in which file, from
+  which command, and report "N checkable, N carried" beside the sweep, never "all resolve".
 
 ---
 
