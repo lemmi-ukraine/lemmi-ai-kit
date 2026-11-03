@@ -12,5 +12,9 @@ there rather than rebuilding it from the digest.
 **Write "done", "last" or "re-stamped" only after the action.** In a prompt, hand-off or record with
 dated blocks, a sentence that says the stamp was refreshed has to be written after the refresh. Take
 the clock reading (`date -u`) immediately before the stamp edit and make that edit the last write;
-take it again after any later patch. A command that fails when a timestamp cited in the document is
-later than the stamp would catch this mechanically; it is not built here.
+take it again after any later patch. The rule covers every write that carries a time, not only a
+stamp edit (a board entry, a label, a header's "updated" time): the same slip has been seen outside
+stamp edits. When one reading cannot pin the time, write the bound between two clock readings,
+never a guessed minute or a masked label. Correct a guessed stamp with a script that asserts exactly
+one match per replacement and prints how many it made. A command that fails when a timestamp cited
+in the document is later than the stamp would catch this mechanically; it is not built here.
