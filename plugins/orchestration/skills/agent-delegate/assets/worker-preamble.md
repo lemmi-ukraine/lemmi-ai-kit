@@ -17,19 +17,18 @@ inline has no measured benefit to trade against it.
 
 ---
 
-## 0 · Host rules (project-specific — fill this in)
+## 0 · Host rules (project-specific — kept in the project's host-rules file)
 
-> **Adopters: replace this block** with your environment's hard constraints — shell and path
-> rules, forbidden directories, interpreter names, redirection requirements. Keep it to
-> constraints a worker can *violate*, not general advice.
->
-> Leave the heading in place even if the block is empty: a worker that finds the section missing
-> cannot tell "no host rules" from "the preamble was truncated".
+> The project's own host rules — shell and path rules, forbidden directories, interpreter names,
+> redirection requirements — live in the project's host-rules file, by convention
+> `.claude/preambles/spawned-session-host-rules.md`, not in this file: an edit to an installed
+> plugin copy does not survive an update. Point every brief at that file beside this preamble, and
+> never edit this copy. Keep that file to constraints a worker can *violate*, not general advice.
 
-**Shell hooks (a kit default: keep it when you replace the block above).** A leading `NAME=value`
-assignment before a command can be denied by a shell hook. Put the value inline in the command,
-write multi-step logic to a script file, or use the interpreter's UTF-8 mode flag (`python -X utf8`
-for Python) instead of an environment variable.
+**Shell hooks (a kit default).** A leading `NAME=value` assignment before a command can be denied
+by a shell hook. Put the value inline in the command, write multi-step logic to a script file, or
+use the interpreter's UTF-8 mode flag (`python -X utf8` for Python) instead of an environment
+variable.
 
 ---
 

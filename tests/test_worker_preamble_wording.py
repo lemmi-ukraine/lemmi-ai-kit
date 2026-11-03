@@ -5,12 +5,16 @@ harness may refuse a sub-agent's write of a report file. The preamble and the br
 said "write your report file EARLY and INCREMENTALLY" with no word about either, so a worker
 that obeyed met a denial on its first command or on its last write, with no way out.
 
-What the text says now, in the seven places of the three files it lists:
+What the text says now, in the eight places of the three files it lists:
 
-* the preamble's host rules, outside the block an adopter replaces, give the shell-hook limit
-  and its substitutes: put the value inline, write multi-step logic to a script file, or use the
-  interpreter's UTF-8 mode flag instead of an environment variable; the paragraph says it is a
-  kit default to keep when the block above it is replaced;
+* the preamble's host rules, outside the blockquote that points at the project's host-rules
+  file, give the shell-hook limit and its substitutes: put the value inline, write multi-step
+  logic to a script file, or use the interpreter's UTF-8 mode flag instead of an environment
+  variable; the paragraph says it is a kit default;
+* the preamble's section 0 sends the project's own host rules to the project's host-rules file,
+  by convention `.claude/preambles/spawned-session-host-rules.md`, because an edit to an
+  installed plugin copy does not survive an update: every brief points at that file beside the
+  preamble, nobody edits this copy, and no sentence of it tells an adopter to replace a block;
 * the preamble's section on the report file says the advice holds only if the worker is allowed
   to write, and its section on returning a result says that a refused write makes the final
   message the report;
@@ -154,6 +158,29 @@ def _outside_the_adopters_block(heading: str) -> Callable[[str], str]:
     return lambda text: _without_blockquotes(_section(text, heading))
 
 
+def _unquoted(text: str) -> str:
+    """The text with the quote mark of every blockquote line dropped, so that a sentence a
+    blockquote wraps over several lines reads whole."""
+    return "\n".join(re.sub(r"^>\s?", "", line) for line in text.split("\n"))
+
+
+def _unquoted_section_of(heading: str) -> Callable[[str], str]:
+    return lambda text: _unquoted(_section(text, heading))
+
+
+def _rewrap_quote(words: list[str], width: int) -> list[str]:
+    """`words` as blockquote rows of at most `width` characters (one long word may run over)."""
+    rows: list[str] = []
+    current = ">"
+    for word in words:
+        if len(current) > 1 and len(current) + 1 + len(word) > width:
+            rows.append(current)
+            current = ">"
+        current = f"{current} {word}"
+    rows.append(current)
+    return rows
+
+
 def _has(flat: str, needle: str) -> bool:
     """Whether the folded text says `needle`, capitals ignored: the same sentence opens a
     sentence in one place and follows a colon in another."""
@@ -189,11 +216,27 @@ _NOT_AN_ENV_VAR = "instead of an environment variable"
 _REFUSAL = "A harness may refuse a sub-agent's write of a report file"
 _REFUSED_WRITE_REPORTED = "say the write was refused"
 
-_KIT_DEFAULT = "Shell hooks (a kit default: keep it when you replace the block above)."
+_KIT_DEFAULT = "Shell hooks (a kit default)."
 _PREAMBLE_SHELL_PARAGRAPH = (
     f"{_KIT_DEFAULT} {_SHELL_HOOK}. Put the value inline in the command, write multi-step "
     "logic to a script file, or use the interpreter's UTF-8 mode flag (`python -X utf8` for "
     "Python) instead of an environment variable."
+)
+_MIDDLE_DOT = chr(0x00B7)
+_EM_DASH = chr(0x2014)
+_SECTION_0 = f"## 0 {_MIDDLE_DOT}"
+_HOST_RULES_PATH = ".claude/preambles/spawned-session-host-rules.md"
+_SECTION_0_HEADING = (
+    f"{_SECTION_0} Host rules (project-specific {_EM_DASH} "
+    "kept in the project's host-rules file)"
+)
+_HOST_RULES_POINTER = (
+    f"The project's own host rules {_EM_DASH} shell and path rules, forbidden directories, "
+    f"interpreter names, redirection requirements {_EM_DASH} live in the project's "
+    f"host-rules file, by convention `{_HOST_RULES_PATH}`, not in this file: an edit to an "
+    "installed plugin copy does not survive an update. Point every brief at that file beside "
+    "this preamble, and never edit this copy. Keep that file to constraints a worker can "
+    "*violate*, not general advice."
 )
 _PREAMBLE_REPORT_PARAGRAPH = (
     "Write the deliverable as you go, not at the end — but only if you are allowed to "
@@ -299,6 +342,27 @@ found nothing returns, so the orchestrator cannot tell a missing gate from a pas
   say UNKNOWN and name what would settle it.
 - **Run your completion checklist BEFORE writing your return, never after.** A return written first
   carries whatever the review would have corrected, and the orchestrator inherits it as fact.
+"""
+
+# Section 0 as it stood before the project's own host rules moved to the project's file: a block
+# an adopter was told to replace, and a shell-hook paragraph that spoke of that block.
+_OLD_SECTION_0 = f"""{_SECTION_0} Host rules (project-specific {_EM_DASH} fill this in)
+
+> **Adopters: replace this block** with your environment's hard constraints {_EM_DASH} shell and path
+> rules, forbidden directories, interpreter names, redirection requirements. Keep it to
+> constraints a worker can *violate*, not general advice.
+>
+> Leave the heading in place even if the block is empty: a worker that finds the section missing
+> cannot tell "no host rules" from "the preamble was truncated".
+
+**Shell hooks (a kit default: keep it when you replace the block above).** A leading `NAME=value`
+assignment before a command can be denied by a shell hook. Put the value inline in the command,
+write multi-step logic to a script file, or use the interpreter's UTF-8 mode flag (`python -X utf8`
+for Python) instead of an environment variable.
+
+---
+
+## 1 {_MIDDLE_DOT} Evidence discipline {_EM_DASH} how you are allowed to make a claim
 """
 
 _OLD_ITEM_8 = """8. **Point the worker at the preamble FILE — do not restate the rules inline, and require the
@@ -421,13 +485,54 @@ _PLACES: tuple[_Place, ...] = (
             _Check("substitute: a script file for multi-step logic", _SCRIPT_FILE),
             _Check("substitute: the UTF-8 mode flag", _UTF8_FLAG),
             _Check("not an environment variable", _NOT_AN_ENV_VAR),
-            _Check(
-                "a kit default that is kept when the block above is replaced",
-                _KIT_DEFAULT,
-            ),
+            _Check("the shell-hook paragraph says it is a kit default", _KIT_DEFAULT),
             _Check("the shell-hook paragraph, whole", _PREAMBLE_SHELL_PARAGRAPH),
         ),
         old=_OLD_PREAMBLE,
+    ),
+    _Place(
+        name="preamble-section-0-host-rules-file",
+        path=_PREAMBLE,
+        locate=_unquoted_section_of(_SECTION_0),
+        required=(
+            _Check(
+                "the heading says the rules are kept in the project's host-rules file",
+                _SECTION_0_HEADING,
+            ),
+            _Check(
+                "the project's own host rules live in its host-rules file",
+                "live in the project's host-rules file",
+            ),
+            _Check(
+                "by convention, at the conventional path",
+                f"by convention `{_HOST_RULES_PATH}`",
+            ),
+            _Check(
+                "an edit to an installed plugin copy does not survive an update",
+                "an edit to an installed plugin copy does not survive an update",
+            ),
+            _Check(
+                "every brief points at that file beside this preamble",
+                "point every brief at that file beside this preamble",
+            ),
+            _Check("this copy is never edited", "never edit this copy"),
+            _Check("the pointer, whole", _HOST_RULES_POINTER),
+        ),
+        old=_OLD_SECTION_0,
+        retired=(
+            _Check("the instruction to replace a block", "replace this block"),
+            _Check("the heading that says to fill the section in", "fill this in"),
+            _Check(
+                "the kit default that is kept when a block is replaced",
+                "replace the block above",
+            ),
+        ),
+        kept=(
+            _Check(
+                "the file holds constraints a worker can violate, not general advice",
+                "constraints a worker can *violate*, not general advice",
+            ),
+        ),
     ),
     _Place(
         name="preamble-section-3",
@@ -612,8 +717,8 @@ _PLACES: tuple[_Place, ...] = (
 
 
 def test_the_scan_surface_is_stated_in_numbers() -> None:
-    """Seven places in three files, each file present and non-empty."""
-    assert len(_PLACES) == 7, f"{len(_PLACES)} places, not the 7 stated"
+    """Eight places in three files, each file present and non-empty."""
+    assert len(_PLACES) == 8, f"{len(_PLACES)} places, not the 8 stated"
     paths = {place.path for place in _PLACES}
     assert len(paths) == 3, f"{len(paths)} distinct files, not 3: {sorted(paths)}"
     names = [place.name for place in _PLACES]
@@ -752,3 +857,57 @@ def test_a_re_wrapped_item_is_read_whole() -> None:
     assert not _has(_folded(lines[0]), _ITEM_8_REFUSAL), (
         "the planted wrap hides nothing"
     )
+
+
+def test_section_0_keeps_the_heading_prefix_the_places_find_it_by() -> None:
+    """Exactly one heading starts with the prefix that every place cuts section 0 by."""
+    found = [
+        line for line in _read(_PREAMBLE).split("\n") if line.startswith(_SECTION_0)
+    ]
+    assert len(found) == 1, f"{len(found)} lines start with {_SECTION_0!r}: {found}"
+
+
+def test_no_instruction_to_replace_a_block_is_left_anywhere_in_the_preamble() -> None:
+    """An edit to an installed copy does not survive an update, so no sentence of the file may
+    tell an adopter to replace a block of it. The scan covers the whole file with the quote
+    marks dropped, so that a sentence a blockquote wraps is read whole, and it is fired at the
+    text before (it says so in section 0) and at the same sentence wrapped over two quoted rows,
+    which a plain fold does not read."""
+    phrase = "replace this block"
+    wrapped = (
+        "> **Adopters: replace\n> this block** with your environment's hard constraints"
+    )
+    assert _has(_folded(_unquoted(_OLD_SECTION_0)), phrase), (
+        "the scan cannot see the old text"
+    )
+    assert _has(_folded(_unquoted(wrapped)), phrase), (
+        "the scan cannot see a wrapped sentence"
+    )
+    assert not _has(_folded(wrapped), phrase), (
+        "a plain fold reads the wrap: no near-miss"
+    )
+    assert not _has(_folded(_unquoted(_read(_PREAMBLE))), phrase), (
+        "the preamble still tells an adopter to replace this block"
+    )
+
+
+def test_a_re_wrapped_pointer_is_read_whole() -> None:
+    """Section 0's blockquote re-wrapped at 50 columns, so that its phrases run over two rows,
+    still says all of it: the planted wrap hides phrases from a raw read, and the place reads
+    them whole."""
+    place = next(p for p in _PLACES if p.name == "preamble-section-0-host-rules-file")
+    text = _read(_PREAMBLE)
+    assert _gaps(place, text) == [], "the preamble does not say it at the start"
+    lines = text.split("\n")
+    start = next(i for i, line in enumerate(lines) if line.startswith(_SECTION_0))
+    end = next(i for i, line in enumerate(lines) if line.startswith("## 1 "))
+    block = [i for i in range(start, end) if lines[i].startswith(">")]
+    assert block == list(range(block[0], block[-1] + 1)), "the quote is not one block"
+    words = " ".join(re.sub(r"^>\s?", "", lines[i]) for i in block).split()
+    rows = _rewrap_quote(words, 50)
+    wrapped = "\n".join([*lines[: block[0]], *rows, *lines[block[-1] + 1 :]])
+    assert wrapped != text, "the planted wrap changed nothing"
+    assert any(c.needle.lower() not in wrapped.lower() for c in place.required), (
+        "the planted wrap hides nothing from a raw read"
+    )
+    assert _gaps(place, wrapped) == []
