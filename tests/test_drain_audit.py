@@ -17,6 +17,18 @@ are red without their fix:
   `*` crosses `/`), so a promotion written to `docs/x.md` read as lost, while `tasks/*.md`
   matched `tasks/a/b.md`, which the fallback's `Path.glob` never does.
 
+A later gap needed an option: the ten default globs are one layout's homes, so a promotion
+that lands outside all of them (a `notes/` or `lib/` file) read as a false `[LOSS?]`, and
+nothing could add the home. `--surface` adds a glob and never replaces a default, one parse
+hands the same globs to both scans, so the two-instruments table runs with it too, and a
+value in a shape the two scans are known to read differently is refused with exit 2.
+
+A surface may reach `.ai/`, where the snapshot lives, and the snapshot holds every entry's
+tokens: with `--surface '.ai/*.md'` two entries that landed nowhere read as landed, exit 0, in
+either scan. Only the fallback left anything out (a file named `learnings.md`). Now one rule,
+applied by both scans, says no file that holds the entries is a landing site: the buffer, the
+snapshot under audit whatever its name, and every other pre-drain snapshot.
+
 The script finds its project from its OWN file (`repo_root` walks up looking for `.ai/`
 beside `.git`), so every test copies it into a throwaway repository: run in place it would
 audit the kit checkout, run as a copy it audits the temporary one. It runs as a subprocess
@@ -213,27 +225,36 @@ def test_a_token_added_only_to_a_top_level_docs_file_lands(repo: _Repo) -> None:
     assert counts["CANDIDATE LOSS"] == 0, done.stdout
 
 
-# (path, whether the audit sees it), one unique token per path. The expectations are the
-# meaning of each target glob to `Path.glob`, which the fallback uses: `**/` matches zero or
-# more directories, and `*` never crosses `/`.
-_PATHS: tuple[tuple[str, bool], ...] = (
-    ("AGENTS.md", True),
-    ("CLAUDE.md", True),
-    ("docs/x.md", True),
-    ("docs/a/y.md", True),
-    ("docs/a/b/z.md", True),
-    (".claude/skills/s/SKILL.md", True),
-    (".cursor/rules/r.md", True),
-    (".cursor/rules/r.mdc", True),
-    (".kiro/steering/k.md", True),
-    (".kiro/steering/sub/k.md", False),
-    ("tasks/t.md", True),
-    ("tasks/sub/u.md", False),
-    ("src/top.py", True),
-    ("src/pkg/m.py", True),
-    ("src/pkg/README.md", True),
-    ("notes/n.md", False),
-    ("README.md", False),
+# The `--surface` globs the table also runs with, both outside the ten defaults: one that
+# leans on `**/` and one on `*`, given as two options to show that the option repeats.
+_SURFACES: tuple[str, ...] = ("notes/**/*.md", "lib/*.py")
+
+# (path, seen by the ten defaults, seen with `_SURFACES` added), one unique token per path.
+# The expectations are the meaning of each glob to `Path.glob`, which the fallback uses:
+# `**/` matches zero or more directories, and `*` never crosses `/`. A surface adds a glob
+# and never replaces one, so every path the defaults see stays seen with the surfaces.
+_PATHS: tuple[tuple[str, bool, bool], ...] = (
+    ("AGENTS.md", True, True),
+    ("CLAUDE.md", True, True),
+    ("docs/x.md", True, True),
+    ("docs/a/y.md", True, True),
+    ("docs/a/b/z.md", True, True),
+    (".claude/skills/s/SKILL.md", True, True),
+    (".cursor/rules/r.md", True, True),
+    (".cursor/rules/r.mdc", True, True),
+    (".kiro/steering/k.md", True, True),
+    (".kiro/steering/sub/k.md", False, False),
+    ("tasks/t.md", True, True),
+    ("tasks/sub/u.md", False, False),
+    ("src/top.py", True, True),
+    ("src/pkg/m.py", True, True),
+    ("src/pkg/README.md", True, True),
+    ("notes/n.md", False, True),
+    ("notes/a/m.md", False, True),
+    ("notes/n.txt", False, False),
+    ("lib/l.py", False, True),
+    ("lib/sub/k.py", False, False),
+    ("README.md", False, False),
 )
 
 
@@ -241,11 +262,11 @@ def _landed_paths(
     repo: _Repo, *, before: tuple[str, ...], after: tuple[str, ...]
 ) -> set[str]:
     """Which of `_PATHS` the audit reports as landed, read off the entries it lists as lost."""
-    for index, (path, _) in enumerate(_PATHS):
+    for index, (path, *_) in enumerate(_PATHS):
         _stage(repo, path, f"A promotion that names `tok_{index}_here` for {path}.\n")
     entries = [
         _entry(f"p{index}", f"the lesson is about `tok_{index}_here` ({path})")
-        for index, (path, _) in enumerate(_PATHS)
+        for index, (path, *_) in enumerate(_PATHS)
     ]
     snapshot = _snapshot(repo, *entries)
     done = _run(repo, *before, str(snapshot), *after)
@@ -254,29 +275,274 @@ def _landed_paths(
     lost = _lost_titles(done.stdout)
     return {
         path
-        for index, (path, _) in enumerate(_PATHS)
+        for index, (path, *_) in enumerate(_PATHS)
         if _title(f"p{index}") not in lost
     }
 
 
+@pytest.mark.parametrize(
+    "surfaces", [(), _SURFACES], ids=["the-ten-defaults", "with-two-surfaces"]
+)
 def test_sound_mode_and_the_current_contents_scan_agree_on_what_a_target_is(
-    tmp_path: Path,
+    tmp_path: Path, surfaces: tuple[str, ...]
 ) -> None:
     """Two instruments, one table: a pathspec must mean in `git diff` what a glob means in
-    `Path.glob`. Red before the fix on `docs/x.md`, `src/top.py` and `tasks/sub/u.md`."""
-    expected = {path for path, seen in _PATHS if seen}
+    `Path.glob`. Red before the fix on `docs/x.md`, `src/top.py` and `tasks/sub/u.md`.
+
+    With `--surface` the same must hold for the globs a run adds, which reach both scans
+    through one parse. That case was red before the option existed (exit 2), and it is red
+    if git reads a surface as a plain pathspec (`notes/n.md` lost, `lib/sub/k.py` seen), if
+    one scan never receives the surfaces, or if a surface replaces the defaults."""
+    expected = {
+        path
+        for path, by_default, with_surfaces in _PATHS
+        if (with_surfaces if surfaces else by_default)
+    }
+    options = tuple(word for glob in surfaces for word in ("--surface", glob))
 
     sound_repo = _make_repo(tmp_path / "sound")
-    sound = _landed_paths(sound_repo, before=(), after=(sound_repo.base,))
+    sound = _landed_paths(sound_repo, before=options, after=(sound_repo.base,))
     assert sound == expected, (
         f"sound mode saw {sorted(sound)}; the table says {sorted(expected)}"
     )
 
     fallback_repo = _make_repo(tmp_path / "fallback")
-    fallback = _landed_paths(fallback_repo, before=("--current-contents",), after=())
+    fallback = _landed_paths(
+        fallback_repo, before=("--current-contents", *options), after=()
+    )
     assert fallback == expected, (
         f"the current-contents scan saw {sorted(fallback)}; the table says {sorted(expected)}"
     )
+
+
+# The two scans: the arguments before and after the snapshot that select each one.
+_MODES = ("sound", "current-contents")
+
+
+def _scan(repo: _Repo, mode: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    if mode == "current-contents":
+        return ("--current-contents",), ()
+    return (), (repo.base,)
+
+
+def _promoted_outside_the_defaults(repo: _Repo) -> Path:
+    """A promotion written only to `notes/n.md`, outside all ten default globs (the table
+    above marks it not seen), and the snapshot entry it promotes."""
+    _stage(repo, "notes/n.md", "The new rule names `eta_widget_token` once.\n")
+    return _snapshot(repo, _entry("eta", "the lesson is about `eta_widget_token`"))
+
+
+@pytest.mark.parametrize("mode", _MODES)
+def test_a_token_added_only_outside_the_ten_default_globs_reads_as_a_loss(
+    repo: _Repo, mode: str
+) -> None:
+    """The known positive, green before the option and after it: with no `--surface` the
+    home is invisible, so its promotion reads as lost and the run exits 1."""
+    snapshot = _promoted_outside_the_defaults(repo)
+    before, after = _scan(repo, mode)
+    done = _run(repo, *before, str(snapshot), *after)
+    assert done.returncode == 1, done.stdout + done.stderr
+    assert _lost_titles(done.stdout) == {_title("eta")}, done.stdout
+
+
+@pytest.mark.parametrize("mode", _MODES)
+def test_a_surface_naming_that_glob_lands_the_promotion_and_exits_zero(
+    repo: _Repo, mode: str
+) -> None:
+    """Red before the option existed (exit 2, an unrecognized argument): the same fixture
+    with `--surface notes/*.md` lands in either scan."""
+    snapshot = _promoted_outside_the_defaults(repo)
+    before, after = _scan(repo, mode)
+    done = _run(repo, *before, "--surface", "notes/*.md", str(snapshot), *after)
+    assert done.returncode == 0, done.stdout + done.stderr
+    counts = _counts(done.stdout)
+    assert counts["landed (>=1 tok)"] == 1, done.stdout
+    assert counts["CANDIDATE LOSS"] == 0, done.stdout
+
+
+def test_help_names_the_surface_option_and_says_it_only_adds(repo: _Repo) -> None:
+    """Red before the option existed: `--help` named no way to add a surface."""
+    done = _run(repo, "-h")
+    assert done.returncode == 0, done.stdout + done.stderr
+    flat = _flat(done.stdout)
+    for needle in (
+        "--surface GLOB",
+        "never replaces a default",
+        "in the tree's own letter case",
+    ):
+        assert needle in flat, f"--help does not say {needle!r}:\n{done.stdout}"
+
+
+# Values git and the current-contents scan would read differently, each with words of the
+# reason the parse gives. Each was measured: git reads '' as the whole tree where `Path.glob`
+# raises (a traceback, exit 1), an absolute path or a `..` leaves the project, a backslash
+# escapes to git and separates on Windows, `:(...)` is pathspec magic `Path.glob` reads as
+# a name, and a trailing `/` or `**` takes every file below to git and none to `Path.glob`.
+# The backslash and the drive are built from fragments: each is an argument value under
+# test, not a path this test reads, and it runs the same on every platform.
+_REFUSED: tuple[tuple[str, str, str], ...] = (
+    ("empty", "", "is empty"),
+    ("backslash", "notes" + chr(0x5C) + "*.md", "backslash"),
+    ("absolute", "/notes/*.md", "not a glob relative to the project root"),
+    ("drive", "C" + ":/notes/*.md", "not a glob relative to the project root"),
+    ("pathspec-magic", ":(glob)notes/*.md", "not a glob relative to the project root"),
+    ("parent", "../notes/*.md", "climbs out of the project"),
+    ("trailing-slash", "notes/", "names a directory"),
+    ("trailing-double-star", "notes/**", "names a directory"),
+)
+
+
+@pytest.mark.parametrize(
+    ("value", "reason"),
+    [(value, reason) for _, value, reason in _REFUSED],
+    ids=[name for name, _, _ in _REFUSED],
+)
+@pytest.mark.parametrize("mode", _MODES)
+def test_a_surface_the_two_scans_would_read_differently_exits_two(
+    repo: _Repo, mode: str, value: str, reason: str
+) -> None:
+    """Red before the option existed: argparse refused the unknown option, never the value.
+    Exit 2 is a run that could not measure; it must never be exit 1, which means rows."""
+    snapshot = _promoted_outside_the_defaults(repo)
+    before, after = _scan(repo, mode)
+    done = _run(repo, *before, "--surface", value, str(snapshot), *after)
+    assert done.returncode == 2, done.stdout + done.stderr
+    flat = _flat(done.stderr)
+    assert reason in flat and "would not read it alike" in flat, done.stderr
+    assert "Traceback" not in done.stderr, done.stderr
+
+
+@pytest.mark.parametrize("mode", _MODES)
+def test_a_surface_naming_a_directory_exits_two_and_one_naming_a_file_lands(
+    repo: _Repo, mode: str
+) -> None:
+    """Red before the option existed. Git reads a wildcard-free directory as every file below
+    it and `Path.glob` as no file at all, so `notes` is refused; `notes/n.md` names a file,
+    which both read alike, and it lands (the near-miss)."""
+    snapshot = _promoted_outside_the_defaults(repo)
+    before, after = _scan(repo, mode)
+    folder = _run(repo, *before, "--surface", "notes", str(snapshot), *after)
+    assert folder.returncode == 2, folder.stdout + folder.stderr
+    assert "names a directory" in _flat(folder.stdout), folder.stdout
+    file = _run(repo, *before, "--surface", "notes/n.md", str(snapshot), *after)
+    assert file.returncode == 0, file.stdout + file.stderr
+
+
+# Two entries whose tokens no promotion carries: only a file that holds the entries can land
+# them. Phase 5 commits the snapshot with the drain, so each file below is STAGED, and its
+# lines are lines added since the base: sound mode sees them as well as the fallback.
+_NEVER_LANDED: tuple[tuple[str, str], ...] = (
+    ("lost1", "lost_one_token"),
+    ("lost2", "lost_two_token"),
+)
+
+
+def _stage_the_entries(repo: _Repo, relative: str) -> Path:
+    """Write the two entries to `relative` as a snapshot or buffer holds them, and stage it."""
+    entries = (
+        _entry(name, f"the lesson is about `{token}`") for name, token in _NEVER_LANDED
+    )
+    _stage(repo, relative, "# Buffer\n\n" + "\n".join(entries))
+    return repo.root / relative
+
+
+def _a_loss_row_each(done: subprocess.CompletedProcess[str]) -> None:
+    assert done.returncode == 1, done.stdout + done.stderr
+    assert _lost_titles(done.stdout) == {_title(name) for name, _ in _NEVER_LANDED}, (
+        done.stdout
+    )
+
+
+@pytest.mark.parametrize(
+    "snapshot_path",
+    [".ai/learnings-pre-drain-2026-01-02.md", ".ai/snapshot.md"],
+    ids=["phase-5-name", "any-name"],
+)
+@pytest.mark.parametrize("mode", _MODES)
+def test_a_surface_over_the_snapshot_s_folder_lands_none_of_its_entries(
+    repo: _Repo, mode: str, snapshot_path: str
+) -> None:
+    """Red before the fix: `--surface '.ai/*.md'` reached the snapshot itself, so two entries
+    that landed nowhere read as `landed 2`, exit 0, in either scan. The snapshot under audit is
+    left out by its path, whatever its name: `any-name` is one no name rule covers."""
+    snapshot = _stage_the_entries(repo, snapshot_path)
+    before, after = _scan(repo, mode)
+    _a_loss_row_each(
+        _run(repo, *before, "--surface", ".ai/*.md", str(snapshot), *after)
+    )
+
+
+@pytest.mark.parametrize(
+    "holder",
+    [".ai/learnings-pre-drain-2025-12-01.md", ".ai/learnings.md"],
+    ids=["older-snapshot", "buffer"],
+)
+@pytest.mark.parametrize("mode", _MODES)
+def test_an_older_snapshot_or_the_buffer_lands_none_of_the_entries_it_holds(
+    repo: _Repo, mode: str, holder: str
+) -> None:
+    """The twin: the snapshot under audit sits outside the surface, so only `holder` can land
+    the entries. Red before the fix for an older snapshot (it still holds the KEEP entries that
+    dwelt through earlier drains) in either scan, and for the buffer in sound mode. The buffer
+    under the current-contents scan was green before the fix, the one case the old rule (a
+    file named `learnings.md`, skipped by the fallback alone) covered."""
+    _stage_the_entries(repo, holder)
+    snapshot = _stage_the_entries(repo, "scratch/snapshot.md")
+    before, after = _scan(repo, mode)
+    _a_loss_row_each(
+        _run(repo, *before, "--surface", ".ai/*.md", str(snapshot), *after)
+    )
+
+
+@pytest.mark.parametrize("mode", _MODES)
+def test_a_home_under_the_ai_folder_still_lands_beside_the_snapshot(
+    repo: _Repo, mode: str
+) -> None:
+    """Control, green before the fix and after: the rule leaves out files that hold the
+    entries, not a folder and not a name prefix. A promotion written to
+    `.ai/templates/learnings-format.md` (its name starts like the buffer's) lands under the
+    same surface, with the snapshot that holds its entry beside it."""
+    _stage(
+        repo,
+        ".ai/templates/learnings-format.md",
+        "The new rule names `theta_widget_token` once.\n",
+    )
+    _stage(
+        repo,
+        ".ai/learnings-pre-drain-2026-01-02.md",
+        "# Buffer\n\n" + _entry("theta", "the lesson is about `theta_widget_token`"),
+    )
+    snapshot = repo.root / ".ai" / "learnings-pre-drain-2026-01-02.md"
+    before, after = _scan(repo, mode)
+    done = _run(
+        repo,
+        *before,
+        "--surface",
+        ".ai/*.md",
+        "--surface",
+        ".ai/templates/*.md",
+        str(snapshot),
+        *after,
+    )
+    assert done.returncode == 0, done.stdout + done.stderr
+    counts = _counts(done.stdout)
+    assert counts["landed (>=1 tok)"] == 1, done.stdout
+    assert counts["CANDIDATE LOSS"] == 0, done.stdout
+
+
+def test_help_names_the_files_that_are_never_a_landing_site(repo: _Repo) -> None:
+    """Red before the fix: `--help` named no file the scans leave out, so nothing told a
+    reader that a surface over `.ai/` cannot land an entry in its own copy."""
+    done = _run(repo, "-h")
+    assert done.returncode == 0, done.stdout + done.stderr
+    flat = _flat(done.stdout)
+    for needle in (
+        "never a landing site, in either scan",
+        "the buffer (any learnings.md)",
+        "the snapshot under audit (whatever its name)",
+        "every other pre-drain snapshot (learnings-pre-drain-*.md)",
+    ):
+        assert needle in flat, f"--help does not say {needle!r}:\n{done.stdout}"
 
 
 def test_a_loss_row_exits_one_and_says_what_one_means(repo: _Repo) -> None:

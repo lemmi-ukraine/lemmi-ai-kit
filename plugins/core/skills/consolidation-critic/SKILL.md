@@ -60,7 +60,8 @@ Run all eight. Each names the failure it has actually caught.
 
 Removal verification proves entries left the buffer. It is **structurally blind** to the opposite
 failure: an entry removed whose knowledge reached no home. Run the audit that fits the state of the
-promotions; the base ref is mandatory (no ref exits 2):
+promotions, with the same `--surface` values as the consolidator's Phase 5 audit (`--surface <glob>`
+adds a home); the base ref is mandatory (no ref exits 2):
 
 ```bash
 # Promotions still UNCOMMITTED: HEAD is the pre-promotion state.

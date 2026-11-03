@@ -23,6 +23,16 @@ With no ref the script exits 2 and names the one flag that asks for the other sc
                          is an UPPER BOUND and losses can hide behind it. Use it only when no
                          baseline exists at all, and never quote its figure as an audit.
 
+The ten default globs (TARGET_GLOBS) are one layout's promotion surfaces. A home outside them,
+which the project's own AGENTS.md names, is added on every run, once per glob:
+
+    --surface GLOB       add a glob of files, relative to the project root, to the defaults; it
+                         never replaces one. It reaches git as a `:(glob)` pathspec and
+                         --current-contents as a `Path.glob` pattern; the shapes the two are known
+                         to read differently exit 2 (see `surface_glob`), and three still pass:
+                         letter case on a case-insensitive file system, a `[^...]` class, and a `**`
+                         inside a name on Python 3.11. Write a plain glob in the tree's own case.
+
 Exit codes, as in the lint:
 
     0  clean: every entry landed in at least one target. Under --current-contents an exit 0
@@ -34,7 +44,11 @@ Exit codes, as in the lint:
        exits 0.
 
 For each entry in the snapshot it extracts the most distinctive backticked identifiers and greps
-every promotion target. Zero hits => CANDIDATE LOSS. This is a review list, not a verdict: an
+every promotion target. A file that holds the entries themselves is never a landing site, in
+either scan and whatever the globs match: the buffer (any `learnings.md`), the snapshot under
+audit (the path given, whatever its name) and every other pre-drain snapshot
+(`learnings-pre-drain-*.md`), so a surface that reaches `.ai/` cannot land an entry in its own
+copy. Zero hits => CANDIDATE LOSS. This is a review list, not a verdict: an
 ARCHIVED entry legitimately has no new home, and an entry whose only tokens are incidental paths
 from its anecdote can false-positive. Adjudicate each by hand; the point is that nothing is
 dropped silently.
@@ -44,13 +58,16 @@ Forces UTF-8 stdout so the output is readable on consoles that default to a lega
 
 import argparse
 import contextlib
+import fnmatch
 import re
 import subprocess
 import sys
 from collections.abc import Sequence
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
-# Every surface a promotion can land on. Keep in sync with consolidation-actions.md.
+# The default promotion surfaces, one layout's homes. Keep in sync with the Drain Landing Audit
+# section of consolidation-actions.md. A home outside them (the project's own AGENTS.md names
+# its homes) is added per run with --surface, which never replaces one of these.
 TARGET_GLOBS = (
     "AGENTS.md",
     "CLAUDE.md",
@@ -60,12 +77,22 @@ TARGET_GLOBS = (
     ".cursor/**/*.mdc",
     ".kiro/steering/*.md",
     "tasks/*.md",
-    # Source-tree surfaces: adjust these two to the project's own layout. A promotion
-    # that lands in code lands in a module README or a docstring, and this script can
-    # only see the trees it is told about -- a missing glob reports a false [LOSS?].
+    # Source-tree surfaces of the same layout. A promotion that lands in code lands in a
+    # module README or a docstring, and this script can only see the trees it is told
+    # about -- a missing glob reports a false [LOSS?], so a project whose code lives
+    # elsewhere names that tree with --surface.
     "src/**/README.md",
     "src/**/*.py",
 )
+
+# The characters that make a glob more than a literal path.
+GLOB_CHARS = "*?["
+
+# The names of the files that hold the entries themselves, so a token found in one proves
+# nothing: the buffer, and every pre-drain snapshot (an older one still holds the KEEP entries
+# that dwelt through earlier drains). The snapshot under audit is left out by identity as well,
+# whatever its name. `is_landing_site` applies the rule, and both scans call it.
+NEVER_A_LANDING_SITE = ("learnings.md", "learnings-pre-drain-*.md")
 
 # Tokens too generic to prove a landing.
 STOP = {
@@ -110,6 +137,10 @@ exit codes:
      (exit 1 means rows to adjudicate; it is not an error)
   2  usage or error: no ref, a snapshot that is missing, unreadable or holds no entry,
      or a diff that could not be taken
+
+never a landing site, in either scan and whatever the globs match:
+  the buffer (any learnings.md), the snapshot under audit (whatever its name)
+  and every other pre-drain snapshot (learnings-pre-drain-*.md)
 """
 
 
@@ -126,8 +157,26 @@ def repo_root() -> Path:
     return Path.cwd()
 
 
-def load_targets(root: Path) -> str:
-    """FALLBACK haystack: the full CURRENT text of every target file.
+def is_landing_site(path: Path, snapshot: Path) -> bool:
+    """The one rule both scans apply to each file the globs match: can an entry land in it?
+
+    Not in a file that holds the entries themselves, where every token of every entry is
+    found: the buffer and every pre-drain snapshot, by name (`NEVER_A_LANDING_SITE`), and the
+    snapshot under audit, by identity, whatever its name (a scratch reconstruction under audit
+    is left out too). Without the rule a surface that reaches `.ai/` lands every entry.
+    """
+    if any(fnmatch.fnmatchcase(path.name, name) for name in NEVER_A_LANDING_SITE):
+        return False
+    try:
+        return not path.samefile(snapshot)
+    except OSError:
+        return True  # a path the diff lists as deleted: it adds no line either way
+
+
+def load_targets(
+    root: Path, snapshot: Path, globs: Sequence[str] = TARGET_GLOBS
+) -> str:
+    """FALLBACK haystack: the full CURRENT text of every landing site the globs match.
 
     Unsound on its own and reachable only through --current-contents. It cannot tell
     "this drain promoted the entry" from "this token already appeared somewhere
@@ -139,17 +188,33 @@ def load_targets(root: Path) -> str:
     Prefer :func:`load_added_targets`.
     """
     blob = []
-    for g in TARGET_GLOBS:
+    for g in globs:
         for f in root.glob(g):
-            # The buffer itself is not a landing site.
-            if f.is_file() and f.name != "learnings.md":
+            if f.is_file() and is_landing_site(f, snapshot):
                 with contextlib.suppress(OSError):
                     blob.append(f.read_text(encoding="utf-8", errors="ignore"))
     return "\n".join(blob)
 
 
-def load_added_targets(root: Path, base_ref: str) -> str | None:
-    """Haystack of ONLY the lines this drain ADDED to target files.
+def _git_diff(root: Path, *args: str) -> str | None:
+    """The output of `git diff <args>` run in `root`, or None when it could not be taken."""
+    try:
+        proc = subprocess.run(  # noqa: S603 — fixed argv, no shell
+            ["git", "-C", str(root), "diff", *args],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+        )
+    except OSError:
+        return None
+    return proc.stdout if proc.returncode == 0 else None
+
+
+def load_added_targets(
+    root: Path, base_ref: str, snapshot: Path, globs: Sequence[str] = TARGET_GLOBS
+) -> str | None:
+    """Haystack of ONLY the lines this drain ADDED to the landing sites the globs match.
 
     The sound version of :func:`load_targets`. A promotion is an addition, so the
     evidence that an entry landed is new text — matching against pre-existing
@@ -160,33 +225,30 @@ def load_added_targets(root: Path, base_ref: str) -> str | None:
     `tasks/a/b.md`. With the magic a pathspec means here what the same pattern means to
     `Path.glob` in the fallback: `**/` matches zero or more directories, `*` never crosses `/`.
 
+    The fallback's rule holds here too: the files the diff touches are listed first (NUL
+    separated, never quoted, relative to `root` like the pathspecs), and each one
+    :func:`is_landing_site` refuses leaves the diff as a literal exclude.
+
     Returns ``None`` (not an empty string) when the diff cannot be taken, so the
     caller can distinguish "no additions" from "could not check" and refuse to
     report a clean audit on the strength of a failed command.
     """
-    cmd = [
-        "git",
-        "-C",
-        str(root),
-        "diff",
-        "--unified=0",
-        "--no-color",
-        base_ref,
-        "--",
-        *(f":(glob){glob}" for glob in TARGET_GLOBS),
-    ]
-    try:
-        proc = subprocess.run(  # noqa: S603 — fixed argv, no shell
-            cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore"
-        )
-    except OSError:
+    pathspecs = [f":(glob){glob}" for glob in globs]
+    listed = _git_diff(root, "--name-only", "-z", "--relative", base_ref, "--", *pathspecs)
+    if listed is None:
         return None
-    if proc.returncode != 0:
+    excluded = [
+        f":(exclude,literal){name}"
+        for name in listed.split("\0")
+        if name and not is_landing_site(root / name, snapshot)
+    ]
+    diff = _git_diff(root, "--unified=0", "--no-color", base_ref, "--", *pathspecs, *excluded)
+    if diff is None:
         return None
     # '+' lines only, minus the '+++' file headers.
     return "\n".join(
         line[1:]
-        for line in proc.stdout.split("\n")
+        for line in diff.split("\n")
         if line.startswith("+") and not line.startswith("+++")
     )
 
@@ -202,6 +264,39 @@ def tokens_for(title: str, body: str) -> list[str]:
             continue
         out.append(tok)
     return sorted(set(out), key=len, reverse=True)[:6]
+
+
+def surface_glob(value: str) -> str:
+    """One `--surface` value, refused in the shapes git and the current-contents scan read differently.
+
+    The value reaches git as a `:(glob)` pathspec and the current-contents scan as a
+    `Path.glob` pattern, and the two agree on a relative glob of files. They part ways on the
+    shapes refused here: git reads an empty value as the whole tree where `Path.glob` raises;
+    an absolute path or a `..` leaves the project; a backslash escapes in git and separates on
+    Windows; a leading `:` is pathspec magic that `Path.glob` reads as a name; and a value
+    that ends in `/` or `**` takes every file below it in git and no file in `Path.glob`. A
+    wildcard-free value that names a directory parts them the same way, which only the tree
+    can tell, so `main` refuses that one. Three differences are not caught here: letter case, which
+    `Path.glob` ignores on a case-insensitive file system and git does not; a `[^...]` class, which
+    git negates and `Path.glob` reads as a caret; and, on Python 3.11, a `**` inside a name, where
+    `Path.glob` raises.
+    """
+    parts = value.split("/")
+    if not value:
+        problem = "is empty"
+    elif "\\" in value:
+        problem = "holds a backslash (write '/')"
+    elif value.startswith(("/", ":")) or PureWindowsPath(value).drive:
+        problem = "is not a glob relative to the project root"
+    elif ".." in parts:
+        problem = "climbs out of the project with '..'"
+    elif parts[-1] in ("", "**"):
+        problem = "names a directory, not its files (end it with a file glob such as '/**/*')"
+    else:
+        return value
+    raise argparse.ArgumentTypeError(
+        f"{value!r} {problem}, so git and the current-contents scan would not read it alike"
+    )
 
 
 class _AuditParser(argparse.ArgumentParser):
@@ -251,6 +346,19 @@ def build_parser() -> argparse.ArgumentParser:
             "so the result is an upper bound. For when no baseline exists at all"
         ),
     )
+    parser.add_argument(
+        "--surface",
+        action="append",
+        default=[],
+        type=surface_glob,
+        metavar="GLOB",
+        help=(
+            "add a promotion surface to the ten default globs, for a home outside them; "
+            "repeat it for each glob, and it never replaces a default. A glob of files "
+            "relative to the project root, in the tree's own letter case: '**/' matches zero "
+            "or more directories and '*' never crosses '/'"
+        ),
+    )
     return parser
 
 
@@ -282,11 +390,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     root = repo_root()
+    for glob in args.surface:
+        if not any(char in glob for char in GLOB_CHARS) and (root / glob).is_dir():
+            print(
+                f"ERROR: --surface {glob!r} names a directory, so git and the current-contents "
+                "scan would not read it alike (git takes every file below it, the scan none). "
+                f"Pass '{glob}/**/*' for its files."
+            )
+            return 2
+    # One parse feeds both scans: the same globs reach git and the current-contents scan, and
+    # both leave out what `is_landing_site` refuses, the snapshot under audit among it.
+    globs = (*TARGET_GLOBS, *args.surface)
     if args.current_contents:
-        hay = load_targets(root)
+        hay = load_targets(root, snapshot, globs)
         print(CURRENT_CONTENTS_WARNING)
     else:
-        hay = load_added_targets(root, args.base_ref)
+        hay = load_added_targets(root, args.base_ref, snapshot, globs)
         if hay is None:
             print(
                 f"ERROR: could not diff against '{args.base_ref}'. Refusing to fall back to "

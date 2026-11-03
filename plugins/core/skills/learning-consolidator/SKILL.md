@@ -192,9 +192,9 @@ If `PARTIALLY_COVERED`: mark for promotion to fill the gap.
 
 #### Step 3: Promotion Classification
 
-For entries that are `CURRENT` and `NOT_COVERED` or `PARTIALLY_COVERED`, classify the
-promotion action. Use the decision criteria in
-[references/consolidation-actions.md](references/consolidation-actions.md):
+For entries that are `CURRENT` and `NOT_COVERED` or `PARTIALLY_COVERED`, classify the promotion
+action and its home: one the project's own AGENTS.md names (this skill's homes are a sample).
+Use the decision criteria in [references/consolidation-actions.md](references/consolidation-actions.md):
 
 | Action | When to use |
 |--------|-------------|
@@ -302,14 +302,14 @@ For each approved promotion, execute the action:
    - References still linked correctly
 
 #### PROMOTE_TO_README
-1. Identify the owning subsystem: `backend/app/core/<module>/README.md` or
-   `backend/app/features/<feature>/README.md`.
+1. Identify the owning subsystem's README from the project's own AGENTS.md (a sample layout:
+   `backend/app/core/<module>/README.md` or `backend/app/features/<feature>/README.md`).
 2. If the README does not exist, create it with a short purpose header plus the new guidance
    (precedent: the 2026-06-23 redistribution created `backend/app/core/jobs/README.md`).
 3. Add the guidance as a concise bullet in the README's conventions/gotchas section — match the
    file's existing style; state the constraint and the "why" in 1–3 lines.
-4. Feature READMEs must stay in sync with `docs/onboarding/` (AGENTS.md rule) — check whether
-   the matching onboarding doc needs the same note.
+4. Where the project's AGENTS.md pairs READMEs with docs (the sample pairs feature READMEs with
+   `docs/onboarding/`), check whether the paired doc needs the same note.
 
 #### PROMOTE_TO_COMMENT
 1. Locate the exact code site the invariant guards (file + line) — re-verify it still exists
@@ -361,7 +361,7 @@ After all promotions are executed:
    - Category sections with no entries are removed (avoid empty sections)
    - File header and instructions are preserved
 6. **Verify LANDING — mandatory, and NOT step 5's check.** Step 5 proves entries left the buffer; it
-   is blind to an entry removed whose knowledge reached no home. Run
+   is blind to an entry removed whose knowledge reached no home. Run (`--surface <glob>` adds a home)
    `drain_audit.py <snapshot> <base-ref>` — **the ref is not optional** (no ref exits 2), and which
    one is correct depends on whether the promotions are committed; reconcile `entries scanned`
    against `grep -c '^### ' <snapshot>`, then adjudicate every flagged row (exit 1 means rows to

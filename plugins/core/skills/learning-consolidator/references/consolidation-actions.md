@@ -12,7 +12,7 @@ Add the entry's knowledge as a convention or anti-pattern rule in project config
 - The knowledge applies across features, not just one specific file
 - The entry is not already covered in AGENTS.md or skill files
 
-**Target selection:**
+**Target selection** (a sample; the homes the project's own AGENTS.md names replace it):
 
 | Entry describes... | Target location |
 |-------------------|-----------------|
@@ -141,7 +141,7 @@ the home the 2026-06-23 redistribution used for 46 of the 177 drained entries.
 - A session working in that subsystem needs it; sessions elsewhere don't
 - It is guidance/context, not a single-site invariant (that's `PROMOTE_TO_COMMENT`)
 
-**Target selection:**
+**Target selection** (a sample; the homes the project's own AGENTS.md names replace it):
 
 | Entry describes... | Target |
 |-------------------|--------|
@@ -152,7 +152,8 @@ the home the 2026-06-23 redistribution used for 46 of the 177 drained entries.
 - Create the README if absent — short purpose header + the guidance (precedent:
   `backend/app/core/jobs/README.md`, created by the redistribution)
 - Match the README's existing style; one concise bullet per lesson (constraint + why)
-- Feature READMEs must stay in sync with `docs/onboarding/` feature docs (AGENTS.md rule)
+- Where the project's AGENTS.md pairs READMEs with docs (the sample pairs feature READMEs with
+  `docs/onboarding/` feature docs), keep each pair in sync
 
 ### PROMOTE_TO_COMMENT
 
@@ -397,6 +398,9 @@ python "${CLAUDE_SKILL_DIR}/scripts/drain_audit.py" <pre-drain-snapshot>.md HEAD
 # Promotions ALREADY COMMITTED (the mandated promote -> commit -> delete order, or a later
 # session finishing the drain): pass the commit BEFORE the promotion commit, never HEAD.
 python "${CLAUDE_SKILL_DIR}/scripts/drain_audit.py" <pre-drain-snapshot>.md <promo-commit>~1
+
+# Either case, with a home outside the ten default globs: one quoted --surface per glob.
+python "${CLAUDE_SKILL_DIR}/scripts/drain_audit.py" <pre-drain-snapshot>.md HEAD --surface 'notes/**/*.md'
 ```
 
 Passing `HEAD` after the promotions are committed makes the haystack ("lines ADDED since ref")
@@ -422,8 +426,13 @@ three of them dispositioned KEEP. Always check `entries scanned` against
 `grep -c '^### ' <snapshot>` and hand-adjudicate the difference.
 
 For each entry the script extracts its most distinctive backticked identifiers and greps every
-promotion surface (AGENTS.md, CLAUDE.md, `docs/`, skills, cursor rules, kiro steering, module and
-feature READMEs, backend source, task docs). Zero hits ⇒ `[LOSS?]`.
+promotion surface: its ten default globs (AGENTS.md, CLAUDE.md, `docs/`, skills, cursor rules, kiro
+steering, task docs, and the READMEs and Python files under `src/`), plus each `--surface <glob>`
+the run adds. Neither scan counts a file that holds the entries themselves, whatever the globs
+match: the buffer (any `learnings.md`), the snapshot under audit (the path the run is given,
+whatever its name) and every other pre-drain snapshot (`learnings-pre-drain-*.md`, which still
+holds the KEEP entries of earlier drains), so a surface that reaches `.ai/` cannot land an entry in
+its own copy. Zero hits ⇒ `[LOSS?]`.
 
 **Adjudicate every flagged row by hand and record the verdict.** Two row classes are expected-clean:
 
@@ -438,11 +447,18 @@ before proceeding.** Do not delete the snapshot until the audit is clean.
 The `no probe tokens` list needs the same treatment — those entries carry no backticked identifiers
 at all, so the script cannot speak to them and a human must confirm each one landed.
 
-> Keep `TARGET_GLOBS` in the script in sync with the promotion surfaces above. A missing glob
-> produces false `[LOSS?]` rows, which trains readers to skim the output — the same
-> noisy-check-gets-ignored failure the entry-integrity lint was tightened to avoid. Each glob
-> reaches git as a `:(glob)` pathspec, so `**/` matches zero or more directories and `*` never
-> crosses `/`: `docs/**/*.md` includes `docs/x.md`, and `tasks/*.md` is that folder's own files only.
+> The ten defaults are `TARGET_GLOBS` in the script; keep the list above in sync with it. A home
+> outside them (the project's own AGENTS.md names its homes) needs one `--surface <glob>` on every
+> run: the option repeats, and it adds a glob without replacing a default. A missing glob produces
+> false `[LOSS?]` rows, which trains readers to skim the output — the same noisy-check-gets-ignored
+> failure the entry-integrity lint was tightened to avoid. Each glob, a default or a surface,
+> reaches git as a `:(glob)` pathspec and the current-contents scan as the same glob, so `**/`
+> matches zero or more directories and `*` never crosses `/`: `docs/**/*.md` includes `docs/x.md`,
+> and `tasks/*.md` is that folder's own files only. A surface the two scans are known to read
+> differently exits 2: an absolute path, a `..`, a backslash, or a directory (a trailing `/` or
+> `**`, or a bare folder name; `notes/**/*` names its files). Three differences still pass, so write
+> a plain glob in the tree's own case: letter case on a case-insensitive file system, a `[^...]`
+> class, and a `**` inside a name on Python 3.11.
 
 ## Calibration Examples
 
