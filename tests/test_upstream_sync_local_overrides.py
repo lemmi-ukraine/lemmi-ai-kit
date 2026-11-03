@@ -28,10 +28,14 @@ initiative-cleanup was edited twice more after both of its excerpts were taken. 
 later edits sit in a table of their own: the row's note must carry them too, while the checks fired at
 the excerpts count only the phrases of the excerpts' own time, so each still reports what it lacked then.
 
+post-task-review was edited again after its one excerpt was taken (a row on SQL handed to someone else, and two
+checks of the prompt sweep): its 2 later phrases sit in the same table, so the excerpt still reports the 7
+phrases it lacked then.
+
 THE SURFACE, in numbers the tests assert: 23 edited upstream-origin rows, 4 earlier notes kept whole,
 4 kit-origin rows left alone, no name in both sets, 1 retired wording, 2 incomplete notes reported
 as they read, 7 missing phrases each, 2 later incomplete notes reported as they read, 5 missing
-phrases each, and 1 row edited again after its excerpts, its 3 later phrases checked apart.
+phrases each, and 2 rows edited again after their excerpts, their 5 later phrases checked apart.
 """
 
 import re
@@ -107,6 +111,7 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "calls the skill's homes a sample",
         "a repeatable --surface glob",
         "any other pre-drain snapshot as a landing site",
+        "Phase 5 has the operator commit the buffer in its own commit before the first removal",
     ),
     "parallel-session-safety": (
         "12g to 12k",
@@ -144,7 +149,10 @@ _EDITED: dict[str, tuple[str, ...]] = {
     "pr-comment-resolver": (
         "a session may use branch-switch after its pre-switch backup",
     ),
-    "pr-review-concise": ("Step 7 labels its gate examples as one repository's",),
+    "pr-review-concise": (
+        "Step 7 labels its gate examples as one repository's",
+        "the bullet on a bare timeout decorator is deleted from Step 7",
+    ),
     "product-brief": ("the architecture and flow documents named in AGENTS.md",),
     "session-retrospective": (
         "the closing nudge dates the last drain",
@@ -277,6 +285,10 @@ _LATER_EDITS: dict[str, tuple[str, ...]] = {
         "the sweep table never sweeps the folder's own `.gitignore`",
         "the sweep table's hand-offs row never sweeps the folder's own `.gitignore` either",
     ),
+    "post-task-review": (
+        "a syntax-only check of SQL that another person will run is syntax-clean, not validated",
+        "Step 7c-extra gains a one-line item 4",
+    ),
 }
 
 
@@ -323,8 +335,10 @@ def test_the_surface_is_stated_in_numbers() -> None:
     assert len(_RETIRED_WORDING) == 1 and set(_RETIRED_WORDING) <= set(_EDITED)
     assert len(_OLD_NOTES) == 2 and set(_OLD_NOTES) <= set(_EDITED)
     assert len(_LATE_NOTES) == 2 and set(_LATE_NOTES) <= set(_EDITED)
-    assert len(_LATER_EDITS) == 1 and set(_LATER_EDITS) <= set(_LATE_NOTES)
-    assert sum(len(phrases) for phrases in _LATER_EDITS.values()) == 3
+    assert len(_LATER_EDITS) == 2 and set(_LATER_EDITS) <= set(_LATE_NOTES) | set(
+        _OLD_NOTES
+    )
+    assert sum(len(phrases) for phrases in _LATER_EDITS.values()) == 5
     assert not set(_EDITED) & set(_AUTHORED_HERE), "a skill is in both sets"
     rows = _rows(_RECORD.read_text(encoding="utf-8"))
     unknown = [n for n in (*_EDITED, *_AUTHORED_HERE) if n not in rows]
