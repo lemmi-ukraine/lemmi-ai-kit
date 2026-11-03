@@ -229,7 +229,8 @@ When the pattern changes, change this paragraph with it; a test holds the two to
 ## Redaction & privacy
 
 - Every emitted **content** string is redacted: `sk-`/`sk-ant-` keys, JWTs, `Authorization: Bearer`,
-  GCP `private_key`/service-account JSON, PEM blocks, Google/AWS key prefixes, generic
+  GCP `private_key`/service-account JSON, PEM blocks, Google/AWS key prefixes, GitHub tokens
+  (`ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`/`github_pat_`), generic
   `*(KEY|TOKEN|SECRET|PASSWORD|PWD|CRED)* = value`, long hex/base64, and home-dir paths → `~`.
 - `transcriptPath` is the one intentionally **unredacted absolute path** (sub-agents need it). It
   lives only in `aggregate.json` under the gitignored temp dir and never enters the report.
@@ -352,9 +353,10 @@ parameter, not a constant.
 - **Porting this script elsewhere** — three facts none of the docs state, each verified from code:
   (a) `from datetime import UTC` pins the extractor to **Python 3.11+**; a consumer repo on 3.10
   fails at import, so any distribution must state the floor from code evidence, not assumption.
-  (b) The redaction is **SECRET-shapes only** (keys/JWTs/bearer/PEM/hex/home-paths) — there are **no
-  email or PII patterns**. For transcripts carrying customer or research content, re-evaluate that
-  scope and state it honestly rather than claiming "redacted" generically. (c) Root detection
+  (b) The redaction is **SECRET-shapes only** (keys/GitHub tokens/JWTs/bearer/PEM/hex/home-paths) —
+  there are **no email or PII patterns**. For transcripts carrying customer or research content,
+  re-evaluate that scope and state it honestly rather than claiming "redacted" generically.
+  (c) Root detection
   differs per script: this extractor reads the working directory, which must be the project root
   with a session folder of its own under `~/.claude/projects/`, while the kit's `lint` command
   looks for `.ai` + `.git` — so an install must create `.ai/` **before** the first lint run, and a
