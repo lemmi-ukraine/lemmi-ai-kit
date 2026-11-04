@@ -117,3 +117,9 @@ re-measure, not calibrated rules.
   options; never read the word as consent to bypass the gate. A "proceed" that answers a presented
   spec at its approval stop is the approval that stop asked for; this rule is about a stop at an
   action the operator has to take.
+- **An answer that picks no option is a deferral.** The one question a bare "proceed" draws is
+  asked once: a reply that picks none of its options (a remark, a rule, another bare "proceed")
+  leaves it open. Record the deferral, with the path each option would take, and do not ask the
+  same question again unless the operator gives a clear yes.
+- **When a default was offered and no answer arrives, take exactly the default and say so.** A
+  tighter option you would have preferred goes into the report as a suggestion, not into the work.

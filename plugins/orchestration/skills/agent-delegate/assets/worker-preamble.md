@@ -153,6 +153,11 @@ once, and a resume starts from that state.
 - **If your brief turns out to be wrong, say so explicitly and early.** A brief premise that does
   not reproduce is the single most common defect in delegated work (measured at roughly half of
   sessions). Report the discrepancy as a finding; do not quietly work around it.
+- **A stop at an action only the operator can take opens your return with that action and its
+  owner.** Say what stays blocked until then, before any state or table. A bare "proceed" in reply
+  to such a stop is unresolved: it names no action and is not consent to bypass the gate, so
+  re-check the gate with the command that reads it and, while it is closed, ask one question with
+  explicit options.
 - **Return acceptance criteria as a table.** If your brief points at a task file or lists acceptance
   criteria, return them as a table before the rest of your report: one state each (met, not met,
   superseded or operator-owned) and one evidence pointer each. Your brief names who ticks the boxes
