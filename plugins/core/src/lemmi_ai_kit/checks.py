@@ -228,6 +228,35 @@ HANDOFF_REQUIRED_SECTIONS: tuple[str, ...] = (
 HANDOFF_COMMAND_SECTIONS: tuple[str, ...] = ("Preconditions", "Verification")
 HANDOFF_STATUSES: tuple[str, ...] = ("in-progress", "blocked", "ready-for-review")
 
+# Line 1 of a hand-off may carry a version label, `<!-- handoff-contract: v2 -->`, and each
+# version names the sections it requires ON TOP OF `HANDOFF_REQUIRED_SECTIONS`. A file with no
+# label is read as version 1 and is never skipped: a folder run that skipped unlabelled files
+# would pass notes it never read.
+HANDOFF_SECTIONS_BY_VERSION: dict[int, tuple[str, ...]] = {
+    1: (),
+    2: ("Continue", "Orchestrator summary"),
+}
+_UNLABELLED_HANDOFF_VERSION = 1
+# A marker that is misplaced or mistyped is a finding only when it names the first version that
+# asks for more than the five sections, or a later one. A marker that names v1, or no version,
+# is the older kind some projects wrote of their own before the label existed: it asks for
+# nothing the five do not, and failing it would fail notes that always passed.
+_FIRST_VERSION_WITH_EXTRAS = min(
+    version for version, extras in HANDOFF_SECTIONS_BY_VERSION.items() if extras
+)
+# The label is matched exactly (a trailing blank is tolerated). The second pattern is wider on
+# purpose: a line 1 that was MEANT as the label, however its spacing, case or separators went
+# wrong. The third finds the version such a line names: a `v` that is not glued to a letter or
+# a digit, then ASCII digits, which are compared as text because `int()` refuses a run of
+# thousands of them.
+HANDOFF_LABEL_RE = re.compile(r"^<!-- handoff-contract: v(0|[1-9][0-9]*) -->$")
+HANDOFF_LABEL_LIKE_RE = re.compile(
+    r"^\s*<!--.*hand[\s_-]*off[\s_-]*contract", re.IGNORECASE
+)
+HANDOFF_NAMED_VERSION_RE = re.compile(r"(?<![a-z0-9])v\s*([0-9]+)", re.IGNORECASE)
+# How many digits of a version a message shows: a label is untrusted text of any length.
+_SHOWN_VERSION_DIGITS = 12
+
 # --- parsing ------------------------------------------------------------------------------
 
 DATE_HEADING_RE = re.compile(r"^## (\d{4})-(\d{2})-(\d{2})\s*$")
@@ -1039,16 +1068,140 @@ def _command_spans(bullet: str) -> tuple[list[re.Match[str]], int]:
     return [span for span in spans if span.end() <= arrow], arrow
 
 
+def _version_at_least(digits: str, floor: int) -> bool:
+    """Whether a run of ASCII digits names version `floor` or a later one, compared as text.
+
+    The label patterns allow any number of digits and `int()` refuses thousands of them, so
+    the run is compared by length and then by digits, leading zeros set aside: 10 is later
+    than 2, and a run of zeros names no version at all.
+    """
+    have, want = digits.lstrip("0"), str(floor)
+    return (len(have), have) >= (len(want), want)
+
+
+def _declared_handoff_version(digits: str) -> int | None:
+    """The table's version that an exact label's digits name, or None when it knows none."""
+    for version in HANDOFF_SECTIONS_BY_VERSION:
+        if str(version) == digits:
+            return version
+    return None
+
+
+def _unknown_version_finding(where: str, digits: str, checked_as: int) -> LintFinding:
+    """The finding for an exact label whose version the table does not know.
+
+    A label is untrusted text: a version of thousands of digits is cut, with its length.
+    """
+    shown = digits[:_SHOWN_VERSION_DIGITS]
+    size = ""
+    if len(digits) > _SHOWN_VERSION_DIGITS:
+        shown += "..."
+        size = f"{len(digits)} digits; "
+    known = ", ".join(f"v{n}" for n in sorted(HANDOFF_SECTIONS_BY_VERSION))
+    return LintFinding(
+        where,
+        1,
+        f"unknown hand-off contract version 'v{shown}' ({size}known: {known}); "
+        f"checked as v{checked_as}",
+    )
+
+
+def _unparsed_label_names_extras(first: str) -> bool:
+    """Line 1 is shaped like the label, does not parse, and names a version with extras.
+
+    The first version the line names decides. A line that names v1, or no version, is the
+    older kind of marker and is not a finding.
+    """
+    like = HANDOFF_LABEL_LIKE_RE.match(first)
+    if like is None:
+        return False
+    named = HANDOFF_NAMED_VERSION_RE.search(first, like.end())
+    return named is not None and _version_at_least(
+        named.group(1), _FIRST_VERSION_WITH_EXTRAS
+    )
+
+
+def _handoff_version(text: str, where: str) -> tuple[int, list[LintFinding]]:
+    """The contract version line 1 declares, and what its label gets wrong.
+
+    No label is version 1, never a skip. Three label defects are findings, each read as
+    version 1 so one slip is reported once and not as a list of missing sections: a version
+    the table does not know, a line 1 shaped like the label that does not parse, and an exact
+    label below line 1 outside a fence, which would otherwise be ignored in silence. The last
+    two are findings only when the label names `_FIRST_VERSION_WITH_EXTRAS` or a later
+    version: a marker that names v1, or no version, fails nothing the five sections do not.
+    """
+    lines = text.splitlines()
+    findings: list[LintFinding] = []
+    version = _UNLABELLED_HANDOFF_VERSION
+    # `read_text` strips a byte-order mark; a caller that passes raw text gets the same.
+    first = lines[0].lstrip("\ufeff").rstrip() if lines else ""
+    label = HANDOFF_LABEL_RE.match(first)
+    if label is not None:
+        declared = _declared_handoff_version(label.group(1))
+        if declared is not None:
+            version = declared
+        else:
+            findings.append(_unknown_version_finding(where, label.group(1), version))
+    elif _unparsed_label_names_extras(first):
+        findings.append(
+            LintFinding(
+                where,
+                1,
+                "line 1 looks like a hand-off contract label but does not parse; write it "
+                f"exactly as '<!-- handoff-contract: vN -->' (checked as v{version})",
+            )
+        )
+    fenced = _fence_mask(lines)
+    for index in range(1, len(lines)):
+        below = HANDOFF_LABEL_RE.match(lines[index].rstrip())
+        if (
+            below is not None
+            and not fenced[index]
+            and _version_at_least(below.group(1), _FIRST_VERSION_WITH_EXTRAS)
+        ):
+            findings.append(
+                LintFinding(
+                    where,
+                    index + 1,
+                    "hand-off contract label below line 1 is ignored; it counts only "
+                    "on line 1",
+                )
+            )
+    return version, findings
+
+
 def lint_handoff(text: str, where: str, root: Path | None = None) -> list[LintFinding]:
-    """Lint ONE hand-off file. Pass `root` to resolve its anchors against git."""
+    """Lint ONE hand-off file. Pass `root` to resolve its anchors against git.
+
+    Line 1 may carry a version label (`HANDOFF_SECTIONS_BY_VERSION`): the version decides
+    which sections are required beyond the five, and a file with no label is held to the five.
+    A label that is misplaced or mistyped is reported only when it names v2 or a later
+    version, so a marker of the older kind, naming v1 or no version, never fails a note.
+    """
     findings: list[LintFinding] = []
     sections, duplicates = _handoff_sections(text)
+    version, label_findings = _handoff_version(text, where)
+    findings.extend(label_findings)
 
     for name in HANDOFF_REQUIRED_SECTIONS:
         if name not in sections:
             findings.append(
                 LintFinding(where, 1, f"missing required section '## {name}'")
             )
+    for name in HANDOFF_SECTIONS_BY_VERSION[version]:
+        body = sections.get(name)
+        if body is None:
+            findings.append(
+                LintFinding(
+                    where,
+                    1,
+                    f"missing required section '## {name}' "
+                    f"(line 1 declares hand-off contract v{version})",
+                )
+            )
+        elif not any(line.strip() for _, line in body):
+            findings.append(LintFinding(where, 1, f"'## {name}' has no content"))
     for name in duplicates:
         findings.append(
             LintFinding(
@@ -1226,6 +1379,9 @@ def lint_handoff_dir(
     it has pre-contract files on disk, whereas an adopter starts clean and a lint that
     silently passes everything is worse than none. `README.md` is the one exception, since
     a directory note is not a hand-off.
+
+    A version label on line 1 chooses which sections a note needs; it never makes this walk
+    skip one.
     """
     findings: list[LintFinding] = []
     paths = handoff_files(root)

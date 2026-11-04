@@ -283,6 +283,7 @@ instead of a paste into chat.
 | `## Preconditions` | Command + expected result pairs the receiver runs before starting |
 | `## Verification` | Command + expected result pairs that prove the work is done |
 | `## Status` | `in-progress` / `blocked` / `ready-for-review`, plus what is NOT done |
+| `## Continue`, `## Orchestrator summary` | Only in a file whose line 1 is `<!-- handoff-contract: v2 -->` (no label, or `v1`, means the five above): the one line a person pastes into a new session, and at most 10 plain lines for a reader who will not open the rest |
 
 **Preconditions and verification are commands, never prose.** Write what the receiver *runs*:
 

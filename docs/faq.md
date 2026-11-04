@@ -99,9 +99,10 @@ written down somewhere else.
 
 Core's `kit-setup` writes `AGENTS.md`, `CLAUDE.md` and an `.ai/` directory.
 Your project owns the first two files and the `.ai/` intake and logs. The kit
-manages the spec templates, the stacked-PR workflow note and a self-ignoring
-`.gitignore` in each of `.ai/tmp/`, `.ai/handoffs/` and `.ai/retrospectives/`, so
-git ignores the scratch files, hand-offs and retrospective reports kept there.
+manages the spec templates, the hand-off template, the stacked-PR workflow note
+and a self-ignoring `.gitignore` in each of `.ai/tmp/`, `.ai/handoffs/` and
+`.ai/retrospectives/`, so git ignores the scratch files, hand-offs and
+retrospective reports kept there.
 Installing a plugin does not touch your source code.
 
 ## Will it overwrite my existing `AGENTS.md`?

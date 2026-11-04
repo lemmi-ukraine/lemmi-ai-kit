@@ -261,7 +261,7 @@ told to establish every fact from a real file and to leave an honest
 | `AGENTS.md` | Your AI workflow rules. Commands, conventions, restart steps and project rules detected from the project | **yours** — edit freely |
 | `CLAUDE.md` | `@AGENTS.md` plus the skill index, pre-rendered | **yours** — edit freely |
 | `.ai/learnings.md`, `.ai/ai-changelog.md`, `.ai/improvement-hypotheses.md` | Empty intake and log files the learnings loop appends to | **yours** — never overwritten |
-| `.ai/templates/design.md`, `requirements.md`, `tasks.md`, `test-cases.md`, `test-plan.md` | Spec and verification templates used by `spec-driven-dev` and `test-planner` | kit-managed — refreshed with `--force` |
+| `.ai/templates/design.md`, `requirements.md`, `tasks.md`, `test-cases.md`, `test-plan.md`, `handoff.md` | Spec and verification templates used by `spec-driven-dev` and `test-planner`, and the hand-off template to copy when writing a note for another session | kit-managed — refreshed with `--force` |
 | `.ai/git-stacked-pr-workflow.md` | Reference doc for the stacked-PR workflow | kit-managed — refreshed with `--force` |
 | `.ai/tmp/.gitignore`, `.ai/handoffs/.gitignore`, `.ai/retrospectives/.gitignore` | One self-ignoring file (`*`, then `!.gitignore`) in each local-only folder, so git ignores the scratch files, hand-offs and retrospective reports kept there. No other ignore file is touched | kit-managed — refreshed with `--force` |
 

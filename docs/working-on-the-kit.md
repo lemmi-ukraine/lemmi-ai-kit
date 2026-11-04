@@ -27,7 +27,7 @@ support CLI is for, and what a version bump has to touch.
 | `plugins/core/src/lemmi_ai_kit/` | the support package behind the CLI: scaffolding, the manifest reader, the `.ai/` and skill checks, and the publish guard |
 | `plugins/core/src/lemmi_ai_kit/assets/manifest.toml` | the skill registry — one `[[skills]]` entry per skill, carrying `name`, `profile`, `invocation` and `summary` |
 | `plugins/core/src/lemmi_ai_kit/assets/templates/` | the `AGENTS.md` and `CLAUDE.md` seeds `scaffold` writes |
-| `plugins/core/src/lemmi_ai_kit/assets/ai/` | the `.ai/` payload — the empty state logs, the stacked-PR workflow note, and the spec templates |
+| `plugins/core/src/lemmi_ai_kit/assets/ai/` | the `.ai/` payload — the empty state logs, the stacked-PR workflow note, and the spec and hand-off templates |
 | `.vscode/` | editor settings and extension recommendations, shared rather than personal |
 
 Two things about that table are worth stating rather than leaving to be inferred.
@@ -93,7 +93,7 @@ makes re-running it safe.
 |---|---|
 | *(none)* | writes what is missing and keeps every seed file that already exists |
 | `--dry-run` | reports what would change and writes nothing |
-| `--force` | overwrites every kit-managed file that differs from the kit's copy. Kit-managed means everything the scaffold places under `.ai/` except the state logs; today that is the spec templates in `.ai/templates/`, `.ai/git-stacked-pr-workflow.md`, and the self-ignoring `.gitignore` in each of `.ai/tmp/`, `.ai/handoffs/` and `.ai/retrospectives/`. An existing `AGENTS.md`, `CLAUDE.md` or state log is left alone |
+| `--force` | overwrites every kit-managed file that differs from the kit's copy. Kit-managed means everything the scaffold places under `.ai/` except the state logs; today that is the spec and hand-off templates in `.ai/templates/`, `.ai/git-stacked-pr-workflow.md`, and the self-ignoring `.gitignore` in each of `.ai/tmp/`, `.ai/handoffs/` and `.ai/retrospectives/`. An existing `AGENTS.md`, `CLAUDE.md` or state log is left alone |
 | `--reseed` | resets seed files to their templates — it will discard a customized `AGENTS.md` or a non-empty `.ai/` log |
 
 `--reseed` is the blunt one and it is **not** an upgrade path.
