@@ -123,8 +123,7 @@ Every delegation gets a written brief. A good brief has exactly:
    branches"), then **the orchestrator owns placement** and must say, in the brief, where the
    worker's output will be committed and by whom.
 7. **Every list in the brief is a starting set written before the mechanism was known — say so in
-   the brief.** Three of its lists fail the same way, and the worker cannot tell which sentences
-   aged:
+   the brief.** Three of its lists fail the same way, and the worker cannot tell which sentences aged:
    - **The file set.** A brief's declared files are a scope boundary drawn before anyone knew where the fix lives;
      the required file was the one it omitted. The worker must derive its sweep from the *claim* (2–3 phrasings,
      grepped tree-wide, untracked files included: `git grep --untracked` or a working-tree grep) and report **"N
@@ -197,12 +196,15 @@ Every delegation gets a written brief. A good brief has exactly:
    > 5. Then write a short summary for whoever reads it next: bullets, at most 10 lines, plain
    >    language, no internal ids, with the review's step list and the lessons result in it, and say
    >    in plain words that the session may be closed.
+   >
+   > Write the hand-off from `.ai/templates/handoff.md`: line 1 stays
+   > `<!-- handoff-contract: v2 -->`, and `## Continue` and `## Orchestrator summary` stay in it;
+   > run the one-file hand-off lint on it before step 5.
 
    Step 4 writes a file: a sub-agent whose harness refuses the write returns the handoff content as
    text (item 8).
 
-   Plus three operator-interface rules, which apply to **every turn addressed to a human**, not just
-   to briefs:
+   Plus three operator-interface rules, for **every turn addressed to a human**, not just briefs:
 
    - **Answer your own question first.** Escalate only what you genuinely cannot settle. One measured
      window recorded 284 clarifying calls across 62 sessions, the largest cluster being "scope / what
@@ -213,9 +215,8 @@ Every delegation gets a written brief. A good brief has exactly:
      needs one defining clause, and a decision question states your recommendation first, then the
      options (both from one recorded case). Questions the operator could not parse recurred across
      four consecutive measured windows, so the test is whether *any* turn to a human is readable.
-   - **The human-facing summary is a separate artifact from the handoff.** The handoff is written for
-     the next agent; nothing specified a shape for the message a person actually reads. Keep it to
-     ≤10 plain-language bullets.
+   - **The human-facing summary is the hand-off's `## Orchestrator summary`, said again as the
+     closing message.** The rest is for the next agent; keep this to ≤10 plain-language bullets.
 10. **Any rule a close-time lint enforces by EXACT MATCH goes in the brief's close section
     verbatim — never by pointing at the template that carries it.** Measured: every first-draft
     handoff in one day failed the same two exact-match rules, because the briefs said "use
@@ -234,8 +235,7 @@ both in [references/dispatch-gates.md](references/dispatch-gates.md) §1–§2.
 ### 1. Plan first, then execute
 Decompose the goal into briefs. Present the plan — subtasks, routing, parallel groups, what you
 keep for yourself — before dispatching (run the plan-critic self-review first, per AGENTS.md).
-Keep coupled, load-bearing pieces in your own thread; parallelize only independent, well-bounded
-ones.
+Keep coupled, load-bearing pieces in your own thread; parallelize only independent, bounded ones.
 
 **First, is this an initiative rather than a task?** If the work has more than one deliverable, AND
 will outlive this session, AND has an operator gate before it is done — **stop and run
@@ -426,9 +426,10 @@ as a file. These rules make that survivable — the full contract is in `agent-d
   `parallel-session-safety` §10. Delegates never run stack surgery or outward actions
   (`gh stack sync`/`rebase`/`modify`/`merge`/`submit`, any push) — those are user-authorized at
   session boundaries, where layer PRs open as drafts.
-- **The first step finds a duplicate.** Before any write the delegate runs a done check (the return note
-  exists; `git log -1` on its own paths) and a live-peer check (the host's live-session list, else files
-  changed in 30 minutes at its target paths) and stops on either; the
+- **The first step finds a duplicate.** The first write is the hand-off stub at the return path, made
+  only if the path is absent: that is the done check (the return note exists; `git log -1` on its own
+  paths). A live-peer check follows it (the host's live-session list, else files changed in 30 minutes
+  at its target paths). The delegate stops on either, and a live peer sets the stub `blocked`; the
   [paste line](references/brief-template.md) carries state, repository folder and branch.
 
 ### 3. Review before merging — results are claims
@@ -481,8 +482,7 @@ against `git grep -l <symbol> <ref>` — **not** `--is-ancestor`, which answers 
 after a squash-merge and produced three consecutive "nothing is merged" verdicts when all twelve PRs
 had merged — write the forward plan **before** deleting anything, partition every deletion target
 per file into tracked vs untracked (untracked is recoverable by nothing), retire parked specs with
-their revival triggers instead of deleting them, and run the comment pass over what the initiative
-added.
+revival triggers instead of deleting them, and run the comment pass over what the initiative added.
 
 Skipping this is why two board rows read `UNCOMMITTED` after their work was committed, and why an
 entire measurement corpus was deleted with no copy anywhere.

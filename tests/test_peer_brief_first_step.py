@@ -9,18 +9,24 @@ repository folder the session belongs in.
 
 What the text says now:
 
-* section 2b has a bullet for the delegate's first step. Before any write the delegate runs a done
-  check (the return note exists; `git log -1` on its own paths) and a live-peer check (the host's
-  live-session list, else files changed in 30 minutes at its target paths) and stops on either.
-  The bullet says the paste line carries the state, the repository folder and the branch, and links
-  the brief template;
+* section 2b has a bullet for the delegate's first step. The first write is the hand-off stub at the
+  return path, made only if the path is absent, and that is the done check (the return note exists;
+  `git log -1` on its own paths). A live-peer check (the host's live-session list, else files
+  changed in 30 minutes at its target paths) follows it. The delegate stops on either, and a live
+  peer sets the stub `blocked`. The bullet says the paste line carries the state, the repository
+  folder and the branch, and links the brief template;
 * section 2b's lead-in no longer counts its rules ("Three rules make that survivable"), since a
   count written by hand is wrong the day a bullet is added;
 * the brief template has a "Paste line" section: the line carries the state (not started, running
   in a named window, or done), the repository folder and the branch, each compared with what the
-  delegate finds; a line that disagrees, or that holds a placeholder, is a stop. Its lead-in names
-  the items without counting them ("carries three things" is retired, for the reason the lead-in
-  of section 2b lost its count).
+  delegate finds; a line that disagrees, or that holds a placeholder, is a stop that writes nothing
+  more. Its lead-in names the items without counting them ("carries three things" is retired, for
+  the reason the lead-in of section 2b lost its count). The section ends with the order of the
+  first step: the stub is the first write and that write is the done check, the live-peer check
+  follows it, and a live peer sets the stub `blocked`.
+
+Both places once put the done check and the live-peer check before any write, which is the opposite
+of a stub written first. That wording is retired, and each place is fired at the text that held it.
 
 Every check is fired at the text its place carried before (`old`), and each requirement is removed
 from the real text one at a time and must be the only thing reported. A bullet, a section or a link
@@ -51,6 +57,15 @@ _ORCHESTRATE = f"{_SKILLS}/orchestrate/SKILL.md"
 _TEMPLATE = f"{_SKILLS}/orchestrate/references/brief-template.md"
 _BULLET_LEAD = "- **The first step finds a duplicate.**"
 _STOPS = "stops on either"
+# The lead-in of the Paste line section as it first stood, and as it reads now.
+_FIRST_LEAD_IN = (
+    "The line carries three things, so that the delegate's first precondition can compare "
+    "each with what it finds:"
+)
+_LEAD_IN = (
+    "The line carries the items below, so that one of the delegate's preconditions can "
+    "compare each with what it finds:"
+)
 
 
 class _Check(NamedTuple):
@@ -208,12 +223,19 @@ _OLD_TEMPLATE_TAIL = """- **The report is for a decision, not a story.** If the 
   result from the report in under a minute, ask for less prose and more evidence.
 """
 
-# The Paste line section as it first stood: its lead-in counted the items that follow.
-_FIRST_WRITTEN_PASTE_LINE = f"""## Paste line
+# The two places as they stood after the stub was written first elsewhere in the pack and before they
+# said so: both put the done check and the live-peer check ahead of any write.
+_BULLET_AHEAD_OF_THE_STUB = """- **The first step finds a duplicate.** Before any write the delegate runs a done check (the return note
+  exists; `git log -1` on its own paths) and a live-peer check (the host's live-session list, else files
+  changed in 30 minutes at its target paths) and stops on either; the
+  [paste line](references/brief-template.md) carries state, repository folder and branch.
+"""
+
+_PASTE_LINE_AHEAD_OF_THE_STUB = f"""## Paste line
 
 A peer session the user drives starts from one pasted line, and the brief is the file it points at.
-The line carries three things, so that the delegate's first precondition can compare each with what
-it finds:
+The line carries the items below, so that one of the delegate's preconditions can compare each with
+what it finds:
 
 - the state: not started, running in a named window, or done;
 - the repository folder, compared with `git rev-parse --show-toplevel`;
@@ -239,14 +261,19 @@ _PLACES: tuple[_Place, ...] = (
                 "the first step finds a duplicate", "The first step finds a duplicate"
             ),
             _Check(
-                "before any write", "Before any write the delegate runs a done check"
+                "the first write is the hand-off stub, made only if the path is absent",
+                "The first write is the hand-off stub at the return path, made only if "
+                "the path is absent",
             ),
+            _Check("the stub is the done check", "that is the done check"),
             _Check("the done check reads the return note", "the return note exists"),
             _Check(
                 "the done check reads the log of its own paths",
                 "`git log -1` on its own paths",
             ),
-            _Check("a live-peer check", "a live-peer check"),
+            _Check(
+                "a live-peer check follows the stub", "a live-peer check follows it"
+            ),
             _Check(
                 "the host's live-session list, else files changed in 30 minutes",
                 "the host's live-session list, else files changed in 30 minutes at its "
@@ -254,12 +281,22 @@ _PLACES: tuple[_Place, ...] = (
             ),
             _Check("it stops on either", "stops on either"),
             _Check(
+                "a live peer sets the stub to blocked",
+                "a live peer sets the stub `blocked`",
+            ),
+            _Check(
                 "the paste line carries state, repository folder and branch",
                 "[paste line](references/brief-template.md) carries state, repository folder "
                 "and branch",
             ),
         ),
         old=_OLD_ORCHESTRATE_2B,
+        retired=(
+            _Check(
+                "both checks ran before any write",
+                "Before any write the delegate runs a done check",
+            ),
+        ),
         links_to=_TEMPLATE,
     ),
     _Place(
@@ -311,18 +348,38 @@ _PLACES: tuple[_Place, ...] = (
                 "a placeholder in the line is a stop", "holds a placeholder, is a stop"
             ),
             _Check(
-                "the first step, before any write, is the done check and the live-peer check",
-                "The delegate's first step, before any write, is a done check",
+                "a stop writes nothing more",
+                "the delegate writes nothing more and says so in one sentence",
+            ),
+            _Check(
+                "the first write is the hand-off stub",
+                "The delegate's first write is the hand-off stub",
             ),
             _Check(
                 "the done check reads the return note",
                 "the return note at the named return path",
+            ),
+            _Check("the stub is the done check", "that write is the done check"),
+            _Check(
+                "the live-peer check follows the stub", "The live-peer check follows it"
+            ),
+            _Check(
+                "a live peer sets the stub to blocked",
+                "a live peer sets the stub `blocked`",
             ),
         ),
         old=_OLD_TEMPLATE_TAIL,
         retired=(
             _Check(
                 "the lead-in counted its list by hand", "The line carries three things"
+            ),
+            _Check(
+                "both checks ran before any write",
+                "The delegate's first step, before any write, is a done check",
+            ),
+            _Check(
+                "both checks were copied into the preconditions",
+                "copy both into the brief's preconditions",
             ),
         ),
     ),
@@ -413,13 +470,78 @@ def test_a_plant_finds_its_phrase_wherever_a_rewrap_broke_the_line() -> None:
 
 def test_a_paste_line_lead_in_that_counts_its_items_is_reported() -> None:
     """The section as first written said the line carries three things. Its list can grow, and
-    a count written by hand is wrong the day an item is added: the retired lead-in is reported
-    and the new one is missing, and nothing else is."""
+    a count written by hand is wrong the day an item is added: the real section with that lead-in
+    put back reports the retired lead-in and the new one missing, and nothing else."""
     place = _PLACES[2]
-    assert _problems(place, _FIRST_WRITTEN_PASTE_LINE) == [
+    planted = _plant(_read(place.path), _LEAD_IN, _FIRST_LEAD_IN)
+    assert _problems(place, planted) == [
         "missing: the lead-in names the items below without counting them",
         "retired wording still there: the lead-in counted its list by hand",
     ]
+
+
+@pytest.mark.parametrize(
+    ("index", "old", "expected"),
+    (
+        (
+            0,
+            _BULLET_AHEAD_OF_THE_STUB,
+            [
+                "missing: the first write is the hand-off stub, made only if the path is absent",
+                "missing: the stub is the done check",
+                "missing: a live-peer check follows the stub",
+                "missing: a live peer sets the stub to blocked",
+                "retired wording still there: both checks ran before any write",
+            ],
+        ),
+        (
+            2,
+            _PASTE_LINE_AHEAD_OF_THE_STUB,
+            [
+                "missing: a stop writes nothing more",
+                "missing: the first write is the hand-off stub",
+                "missing: the stub is the done check",
+                "missing: the live-peer check follows the stub",
+                "missing: a live peer sets the stub to blocked",
+                "retired wording still there: both checks ran before any write",
+                "retired wording still there: both checks were copied into the preconditions",
+            ],
+        ),
+    ),
+    ids=["orchestrate-2b-first-step", "brief-template-paste-line"],
+)
+def test_the_wording_that_ran_both_checks_before_any_write_is_reported(
+    index: int, old: str, expected: list[str]
+) -> None:
+    """Fired at the text each place carried before it said the stub is written first: the new
+    requirements are missing, the retired sentence is there, and what stood before (the return note,
+    the log of its own paths, the host's list, the stop, the link) still reads as it did."""
+    assert _problems(_PLACES[index], old) == expected
+
+
+@pytest.mark.parametrize(
+    ("index", "phrase", "label"),
+    (
+        (0, "A live-peer check follows it", "a live-peer check follows the stub"),
+        (2, "The live-peer check follows it", "the live-peer check follows the stub"),
+    ),
+    ids=["orchestrate-2b-first-step", "brief-template-paste-line"],
+)
+def test_a_live_peer_check_that_comes_before_the_stub_is_reported(
+    index: int, phrase: str, label: str
+) -> None:
+    """The order is the claim: the real text passes, and the same text with only the verb changed,
+    so that the live-peer check comes first, reports that requirement and no other. The words
+    before the verb stay, so a check that stopped at them would not see the change."""
+    place = _PLACES[index]
+    text = _read(place.path)
+    assert _problems(place, text) == [], (
+        "the real text must pass before it can be planted on"
+    )
+    flipped = phrase.replace("follows it", "comes first")
+    assert flipped != phrase, "the plant changed nothing"
+    planted = _plant(text, phrase, flipped)
+    assert _problems(place, planted) == [f"missing: {label}"]
 
 
 def test_the_fold_joins_a_rewrapped_sentence_and_drops_bold_marks() -> None:

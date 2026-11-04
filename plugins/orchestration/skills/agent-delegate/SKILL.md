@@ -76,6 +76,12 @@ The Process above changes in three places:
    (`parallel-session-safety` §1).
 2. **Dispatch → emit, don't call.** Write a dispatch brief the user carries to the other session.
    On top of the normal brief contract it must carry:
+   - **The hand-off stub, before any precondition**: the brief has the delegate create the hand-off
+     path it names as a stub the hand-off lint accepts, with an operation that fails if the path
+     exists (or read the write tool's created-or-replaced answer). An existing path or a reported
+     replace is a stop: write nothing more and report it. A failed precondition sets the stub's
+     Status to `blocked`. The stub is [`assets/handoff-stub.md`](assets/handoff-stub.md). (Observed
+     in a small sample, not calibrated.)
    - **Preconditions as command + expected-result pairs**, never prose. `git rev-parse --verify
      <ref>` → resolves. `git status --porcelain` → empty. A prose precondition you author is the
      same defect as trusting one you receive, and it has already shipped false.

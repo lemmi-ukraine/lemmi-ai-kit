@@ -63,7 +63,9 @@ file and the deliverable path before auto-dispatching.
   indistinguishable from "never dispatched". The two states are causally linked: **clearing a blocker
   is what resumes the sessions parked on it**, so the chance of a live peer *peaks* at the moment a
   gate reads clear. A complete gate set is not a sufficient one; add a liveness check (claim file,
-  recent mtime, the peer's own register row) before dispatching into a cleared blocker.
+  recent mtime, the peer's own register row) before dispatching into a cleared blocker. The stub a
+  cross-session delegate writes first is the claim file (see
+  [cross-session mode](../../agent-delegate/SKILL.md)).
 - **A gate written as a literal count decays into a false STOP the moment its directory legitimately
   grows** — three instances in one initiative. `wc -l == 7` meant "the corpus is present"; write
   `>= 7`, or an existence loop over the seven names. Encode the predicate you mean, never an

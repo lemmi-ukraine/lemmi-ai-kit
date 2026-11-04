@@ -75,7 +75,7 @@ _PHRASES = tuple(phrase for _, _, phrases in _CLAIMS for phrase in phrases)
 
 # Sentences another test pins in so many words. The bullet does not say them again.
 _NOT_REPEATED = (
-    "the delegate's first step, before any write",
+    "the delegate's first write is the hand-off stub",
     "preconditions are commands",
 )
 

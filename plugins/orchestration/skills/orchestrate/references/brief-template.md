@@ -68,6 +68,10 @@ written at all.
 5. Then write a short summary for whoever reads it next: bullets, at most 10 lines, plain
    language, no internal ids, with the review's step list and the lessons result in it, and say
    in plain words that the session may be closed.
+
+Write the hand-off from `.ai/templates/handoff.md`: line 1 stays `<!-- handoff-contract: v2 -->`,
+and `## Continue` and `## Orchestrator summary` stay in it; run the one-file hand-off lint on it
+before step 5.
 ```
 
 Rules of thumb:
@@ -101,9 +105,10 @@ what it finds:
 - the branch, compared with `git rev-parse --abbrev-ref HEAD`.
 
 A line that disagrees with what the delegate finds, or that holds a placeholder, is a stop: the
-delegate writes nothing and says so in one sentence. The delegate's first step, before any write, is
-a done check (the return note at the named return path exists) and a live-peer check, as `SKILL.md`
-§ 2b says: copy both into the brief's preconditions.
+delegate writes nothing more and says so in one sentence. The delegate's first write is the hand-off
+stub, made only if the return note at the named return path does not exist: that write is the done
+check. The live-peer check follows it, as `SKILL.md` § 2b says: copy that check into the brief's
+preconditions, and a live peer sets the stub `blocked`.
 
 ## Rules a dispatch brief carries
 

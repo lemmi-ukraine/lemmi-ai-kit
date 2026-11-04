@@ -54,6 +54,20 @@ word of it changed in either copy, or the sentence missing from one copy, is the
 the sentence placed in another step is found there and not in step 2, and placed after the block it
 is found in no step; and each block re-wrapped at 3 widths, the narrowest splitting the sentence
 over lines, reads as it did.
+
+Each block also ends with one sentence after its five steps, set off from them by a blank line, and
+the two copies hold it in the same words: write the hand-off from the seeded hand-off template, keep
+the label on line 1 and the sections the newest contract version adds, and run the one-file hand-off
+lint on it before the step that summarises. It is a literal the lint matches by exact text, so a
+brief carries it whole and does not point at the template (item 10 of the contract). The label and
+the section names are read from `checks`, the path of the template is checked against what the
+scaffold plans, and the number of the step it names is read from the steps, so a new contract
+version, a renamed template or a renumbered block turns the tests red. The steps end at the first
+blank line, so the sentence is never a sixth line of step 5. The third operator-interface rule of
+item 9 says the human-facing summary is the hand-off's own section, said again as the closing
+message. THE SURFACE of this part, in numbers the tests assert: 2 blocks, each with 1 closing
+sentence read in 4 runs that leave no word of it out. The summary rule is found among the bullets
+of item 9 by its lead, and a lead that starts no bullet, or two, fails.
 """
 
 import re
@@ -61,6 +75,9 @@ import textwrap
 from pathlib import Path
 
 import pytest
+
+from lemmi_ai_kit import checks, scaffold
+from lemmi_ai_kit.manifest import load_manifest
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _ORCHESTRATE = _REPO_ROOT / "plugins" / "orchestration" / "skills" / "orchestrate"
@@ -97,6 +114,20 @@ _NO_SKILL_TOOL_PHRASE = _NO_SKILL_TOOL.lower().rstrip(".")
 # widest leaves a step shorter than it on one line (a longer step still wraps), and the middle
 # one is near the width the files use.
 _REWRAP_WIDTHS = (40, 90, 200)
+
+# The sentence after the five steps. Its label and its section names are read from the lint's table,
+# and the path it names is checked against what the scaffold plans; the number of the step it names
+# is read from the steps. A new contract version or a renamed template turns the tests red.
+_NEWEST = max(checks.HANDOFF_SECTIONS_BY_VERSION)
+_LABEL = f"<!-- handoff-contract: v{_NEWEST} -->"
+_ADDED_SECTIONS = checks.HANDOFF_SECTIONS_BY_VERSION[_NEWEST]
+_HAND_OFF_TEMPLATE = ".ai/templates/handoff.md"
+_SUMMARY_STEP = "Then write a short summary"
+_SAVE_STEP = "Save everything into the handoff"
+_SUMMARY_SECTION = "Orchestrator summary"
+_NO_SENTENCE = "no sentence follows the five steps"
+_SUMMARY_BULLET_LEAD = "- **The human-facing summary"
+_LESS_OR_EQUAL = chr(0x2264)
 
 # Written whole, the placeholder would match the check that looks for it, and the old path is
 # one project's: both are built from fragments, so no shipped file or test holds them as one.
@@ -322,10 +353,23 @@ def _template_close_block(text: str) -> list[str]:
     return block
 
 
+def _step_line_count(block: list[str]) -> int:
+    """How many lines of a block hold its steps: the lines before the first blank one that
+    follows a step. The whole block when no blank line follows a step."""
+    seen = False
+    for index, line in enumerate(block):
+        if _STEP_START.match(line):
+            seen = True
+        elif seen and not line.strip():
+            return index
+    return len(block)
+
+
 def _steps(block: list[str]) -> list[str]:
-    """The numbered steps of a block, each as one line of folded whitespace."""
+    """The numbered steps of a block, each as one line of folded whitespace. The steps end at the
+    first blank line that follows one: what comes after it is the sentence that closes the block."""
     steps: list[str] = []
-    for line in block:
+    for line in block[: _step_line_count(block)]:
         if _STEP_START.match(line):
             steps.append(line.strip())
         elif steps and line.strip():
@@ -428,11 +472,11 @@ def _rewrapped(place: str, width: int) -> str:
         start = next(
             index for index, line in enumerate(lines) if _SKILL_CLOSE_LEAD in line
         )
-        old_count = len(_skill_close_block(text)) - 1
+        old_count = _step_line_count(_skill_close_block(text)) - 1
         prefix = "   > "
     else:
         start = lines.index(_TEMPLATE_CLOSE_HEADING)
-        old_count = len(_template_close_block(text))
+        old_count = _step_line_count(_template_close_block(text))
         prefix = ""
     wrapped = [
         prefix + piece
@@ -447,6 +491,86 @@ def _rewrapped(place: str, width: int) -> str:
     ]
     lines[start + 1 : start + 1 + old_count] = wrapped
     return "\n".join(lines)
+
+
+def _close_block(place: str) -> list[str]:
+    """The block of `place` as its own cut gives it: the steps and what follows them."""
+    if place == _SKILL_PLACE:
+        return _skill_close_block(_read(_SKILL))
+    return _template_close_block(_read(_TEMPLATE))
+
+
+def _tail(block: list[str]) -> str:
+    """What follows the steps of a block, as one line of folded whitespace: everything after the
+    first blank line that follows a step. Empty when nothing does."""
+    return " ".join(" ".join(block[_step_line_count(block) :]).split())
+
+
+def _closing_runs(step: int) -> tuple[str, ...]:
+    """The sentence after the steps, in four runs that between them leave no word of it out.
+    `step` is the number of the step it says the lint runs before."""
+    sections = " and ".join(f"`## {name}`" for name in _ADDED_SECTIONS)
+    return (
+        f"Write the hand-off from `{_HAND_OFF_TEMPLATE}`:",
+        f"line 1 stays `{_LABEL}`,",
+        f"and {sections} stay in it;",
+        f"run the one-file hand-off lint on it before step {step}.",
+    )
+
+
+def _numbered(steps: list[str], lead: str) -> list[int]:
+    """The 1-based numbers of the folded steps that hold `lead`."""
+    return [number for number, step in enumerate(steps, 1) if lead in step]
+
+
+def _closing_problems(steps: list[str], tail: str) -> list[str]:
+    """Why `tail`, the text after the steps, is not the closing sentence; empty when it is. The
+    step the sentence names is read from `steps`: it is the one that summarises, and the one
+    before it is the one that saves into the handoff, so a renumbered block is reported. Fails
+    loudly when no step, or more than one, summarises."""
+    if not tail:
+        return [_NO_SENTENCE]
+    summarising = _numbered(steps, _SUMMARY_STEP)
+    assert len(summarising) == 1, f"{len(summarising)} steps summarise, not 1"
+    problems: list[str] = []
+    saving = _numbered(steps, _SAVE_STEP)
+    if saving != [summarising[0] - 1]:
+        problems.append(
+            f"step(s) {saving} save into the handoff, and the lint runs before step "
+            f"{summarising[0]}"
+        )
+    expected = " ".join(_closing_runs(summarising[0]))
+    if tail != expected:
+        problems.append(f"the sentence reads {tail!r}, not {expected!r}")
+    return problems
+
+
+def _steps_holding_the_sentence(steps: list[str]) -> list[int]:
+    """The 1-based numbers of the folded steps that hold the first run of the closing sentence."""
+    return _numbered(steps, _closing_runs(0)[0])
+
+
+def _item_bullets(item: str) -> list[str]:
+    """The bullets that stand in an item at three spaces and a dash, each as one line of folded
+    whitespace; the lines that run on under one (five spaces) are part of it."""
+    bullets: list[str] = []
+    for line in item.split("\n"):
+        if line.startswith("   - "):
+            bullets.append(line.strip())
+        elif bullets and line.startswith("     ") and line.strip():
+            bullets[-1] = f"{bullets[-1]} {line.strip()}"
+    return [" ".join(bullet.split()) for bullet in bullets]
+
+
+def _summary_bullet(text: str) -> str:
+    """The one bullet of item 9 that starts with the lead of the human-facing summary rule, folded.
+    Fails loudly when no bullet, or more than one, starts with it."""
+    bullets = _item_bullets(_top_level_item(text, _CONTRACT_ITEM))
+    found = [bullet for bullet in bullets if bullet.startswith(_SUMMARY_BULLET_LEAD)]
+    assert len(found) == 1, (
+        f"{_SUMMARY_BULLET_LEAD!r} starts {len(found)} bullets, not 1"
+    )
+    return found[0]
 
 
 def _holds_placeholder(text: str) -> bool:
@@ -589,6 +713,7 @@ def test_the_surface_is_stated_in_numbers() -> None:
     assert len(_WHOLE_FILE_SCANS) == 2 and len(set(_WHOLE_FILE_SCANS)) == 2
     for path in _WHOLE_FILE_SCANS:
         assert path.is_file(), path
+    assert len(_closing_runs(5)) == 4 and len(_PLACES) == 2
 
 
 @pytest.mark.parametrize("place", _PLACES)
@@ -1178,3 +1303,167 @@ def test_the_skeleton_is_the_first_fenced_block_and_nothing_else() -> None:
         _skeleton("no fence here\n")
     with pytest.raises(AssertionError):
         _skeleton("```markdown\nnever closed\n")
+
+
+# --- the sentence after the five steps ------------------------------------------------------------
+
+
+@pytest.mark.parametrize("place", _PLACES)
+def test_each_close_block_ends_with_the_hand_off_sentence(place: str) -> None:
+    """Red before the change: neither block had a sentence after its five steps."""
+    problems = _closing_problems(_close_steps(place), _tail(_close_block(place)))
+    assert not problems, f"{place}: {problems}"
+
+
+def test_the_two_closing_sentences_agree() -> None:
+    skill = _tail(_close_block(_SKILL_PLACE))
+    template = _tail(_close_block(_TEMPLATE_PLACE))
+    assert skill and skill == template, (
+        f"the closing sentences differ: SKILL.md {skill!r} against the template {template!r}"
+    )
+
+
+@pytest.mark.parametrize("place", _PLACES)
+def test_the_closing_sentence_is_not_a_part_of_a_step(place: str) -> None:
+    """Preventive: the text that came before had no such sentence, so the scan is fired at
+    planted blocks in the next test."""
+    assert _steps_holding_the_sentence(_close_steps(place)) == [], place
+
+
+def test_the_closing_sentence_is_seen_glued_to_step_five_and_set_off_from_it() -> None:
+    """Fired at planted blocks: the sentence set off by a blank line is in no step and is the
+    tail; glued to step 5 with no blank line it is in step 5, the tail is empty and the sentence
+    is reported missing."""
+    sentence = " ".join(_closing_runs(5))
+    steps = [
+        "1. one",
+        "2. two",
+        "3. three",
+        f"4. {_SAVE_STEP} (x).",
+        f"5. {_SUMMARY_STEP}: five.",
+    ]
+    set_off = [*steps, "", sentence]
+    glued = [*steps, sentence]
+    assert _steps(set_off) == steps and _tail(set_off) == sentence
+    assert _steps_holding_the_sentence(_steps(set_off)) == []
+    assert _closing_problems(steps, _tail(set_off)) == []
+    assert _steps(glued)[4] == f"{steps[4]} {sentence}"
+    assert _steps_holding_the_sentence(_steps(glued)) == [5]
+    assert _tail(glued) == ""
+    assert _closing_problems(steps, _tail(glued)) == [_NO_SENTENCE]
+
+
+def test_the_tail_is_what_follows_the_first_blank_line_after_a_step() -> None:
+    """The cut is fired at planted blocks: a block with no steps and a block with no blank line
+    have no tail, a lead line before the first step is not a step, and a second blank line does
+    not start another tail."""
+    assert _tail([]) == "" and _tail(["lead", "", "text"]) == ""
+    assert _step_line_count(["lead", "", "text"]) == 3
+    assert _tail(["1. one", "2. two"]) == ""
+    assert _tail(["lead", "1. one", "", "", "text", "over two lines"]) == (
+        "text over two lines"
+    )
+    assert _steps(["lead", "1. one", "wrapped", "", "text"]) == ["1. one wrapped"]
+
+
+def test_every_run_of_the_closing_sentence_is_reported_when_it_goes() -> None:
+    """Planted removal: each of the four runs cut out of the real sentence in turn is a fault,
+    and so is an empty tail. A run the check could not see go would let the block lose it."""
+    for place in _PLACES:
+        steps = _close_steps(place)
+        tail = _tail(_close_block(place))
+        assert _closing_problems(steps, tail) == [], f"{place}: not right at the start"
+        number = _numbered(steps, _SUMMARY_STEP)[0]
+        for run in _closing_runs(number):
+            assert run in tail, f"{place}: the run {run!r} is not in the sentence"
+            cut = " ".join(tail.replace(run, "").split())
+            assert _closing_problems(steps, cut) != [], (place, run)
+        assert _closing_problems(steps, "") == [_NO_SENTENCE]
+
+
+def test_the_step_the_sentence_names_follows_a_renumbering() -> None:
+    """The step in `before step N` is the one that summarises, and the step before it saves into
+    the handoff. Fired at planted steps: a sentence naming step 4 on the five steps, a sixth step
+    inserted before the summary, and a block with no step that summarises."""
+    steps = [
+        "1. one",
+        "2. two",
+        "3. three",
+        f"4. {_SAVE_STEP} (x).",
+        f"5. {_SUMMARY_STEP}: five.",
+    ]
+    right = " ".join(_closing_runs(5))
+    assert _closing_problems(steps, right) == []
+    stale = _closing_problems(steps, " ".join(_closing_runs(4)))
+    assert len(stale) == 1 and "before step 5" in stale[0], stale
+    inserted = [*steps[:4], "5. A new step.", f"6. {_SUMMARY_STEP}: six."]
+    assert len(_closing_problems(inserted, right)) == 2
+    with pytest.raises(AssertionError):
+        _closing_problems(steps[:4], right)
+
+
+@pytest.mark.parametrize("place", _PLACES)
+def test_a_rewrapped_closing_sentence_reads_the_same(place: str) -> None:
+    """The sentence of each real block, re-wrapped at three widths and put back after the steps,
+    is read as the same sentence, and the steps are still the same five. The wraps are real: the
+    narrowest has more lines than the widest."""
+    block = _close_block(place)
+    expected = _tail(block)
+    assert expected, f"{place}: the block has no sentence after its steps"
+    kept = block[: _step_line_count(block)]
+    rows: dict[int, list[str]] = {}
+    for width in _REWRAP_WIDTHS:
+        rows[width] = textwrap.wrap(
+            expected, width=width, break_long_words=False, break_on_hyphens=False
+        )
+        planted = [*kept, "", *rows[width]]
+        assert _tail(planted) == expected, f"{place} at {width}"
+        assert _steps(planted) == _close_steps(place), f"{place} at {width}"
+    assert len(rows[min(_REWRAP_WIDTHS)]) > len(rows[max(_REWRAP_WIDTHS)])
+
+
+def test_the_template_the_sentence_names_is_one_the_kit_seeds() -> None:
+    """Preventive: the sentence tells a worker to write from a file, so the scaffold must plan
+    that path; a rename of the seeded template turns this red before it strands the sentence."""
+    planned = {item.relative for item in scaffold.plan(load_manifest())}
+    assert _HAND_OFF_TEMPLATE in planned, f"the scaffold plans no {_HAND_OFF_TEMPLATE}"
+
+
+def test_the_human_facing_summary_is_the_hand_offs_own_section_said_again() -> None:
+    """Red before the change: the rule called the summary a separate artifact from the handoff."""
+    assert _SUMMARY_SECTION in _ADDED_SECTIONS, "the lint no longer adds that section"
+    bullet = _summary_bullet(_read(_SKILL))
+    lead = (
+        f"{_SUMMARY_BULLET_LEAD} is the hand-off's `## {_SUMMARY_SECTION}`, said again "
+        "as the closing message.**"
+    )
+    assert bullet.startswith(lead), bullet
+    assert "separate artifact" not in bullet, "the retired wording is still there"
+    assert f"{_LESS_OR_EQUAL}10 plain-language bullets" in bullet, "the cap is gone"
+
+
+def test_the_summary_bullet_is_cut_from_its_own_item_and_a_duplicate_fails() -> None:
+    """The cut is fired at a planted item: a bullet with a line that runs on is one folded line,
+    a quoted line is not a bullet, the next item is not read, and a lead on no line or on two
+    lines is an error."""
+    item = (
+        f"{_CONTRACT_ITEM}** paste it.\n\n"
+        "   > - not a bullet\n\n"
+        "   - **Answer first.** one\n"
+        "     wrapped on.\n"
+        f"   {_SUMMARY_BULLET_LEAD} is X.** two\n"
+        "     wrapped on.\n"
+        f"10. **Next.**\n   {_SUMMARY_BULLET_LEAD} is not read.** three\n"
+    )
+    assert _item_bullets(_top_level_item(item, _CONTRACT_ITEM)) == [
+        "- **Answer first.** one wrapped on.",
+        f"{_SUMMARY_BULLET_LEAD} is X.** two wrapped on.",
+    ]
+    assert _summary_bullet(item) == f"{_SUMMARY_BULLET_LEAD} is X.** two wrapped on."
+    with pytest.raises(AssertionError):
+        _summary_bullet(item.replace(_SUMMARY_BULLET_LEAD, "- **Another lead", 1))
+    twice = item.replace(
+        "   - **Answer first.**", f"   {_SUMMARY_BULLET_LEAD} again.**"
+    )
+    with pytest.raises(AssertionError):
+        _summary_bullet(twice)
