@@ -175,7 +175,7 @@ independently of the project name. Both have to go for `-p` isolation to actuall
 ## 6. A suite verdict over a contended tree is void
 
 A suite run while other sessions edit the checkout samples a **torn state that no commit ever
-contained**, and the failure is unreproducible by the time you read it.
+contained**, and the failure is unreproducible by the time you read it. A starved machine voids a verdict too: [suite verdicts](references/suite-verdicts.md).
 
 Observed shape: 30 failed / 36 errors, all `TypeError: ActionBuildContext.__init__() missing
 1 required positional argument` raised from *production* wiring. Nothing was broken — one
@@ -485,7 +485,7 @@ it with the blob that lands (12a); re-derive anything else at write time (§7, �
 > **Exact commands are in [references/shared-index-protocol.md](references/shared-index-protocol.md):**
 > per-line contention (12a), held index (12b), work after staging (12c), "Everything up-to-date" (12d),
 > multi-branch operation (12e), draft base (12f), content proof (12g), merge dry run (12h), held-file edit
-> (12i), file hand-back (12j), create collision (12k), naming a peer (12l), writers side by side (12m).
+> (12i), file hand-back (12j), create collision (12k), naming a peer (12l), writers side by side (12m). Several sessions landing in one tree (a lock, a queue file, a gate before each commit): [references/landing-queue.md](references/landing-queue.md).
 
 ---
 

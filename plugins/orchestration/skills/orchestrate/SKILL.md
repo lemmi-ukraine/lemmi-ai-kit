@@ -210,7 +210,7 @@ Every delegation gets a written brief. A good brief has exactly:
      window recorded 284 clarifying calls across 62 sessions, the largest cluster being "scope / what
      next"; two sessions dispatched into work a peer already owned while holding the tool that would
      have told them. Asking is free to you and expensive to the reader, and that asymmetry is
-     invisible from inside a session.
+     invisible from inside a session. To ask without blocking the work that does not depend on the answer: [references/operator-questions.md](references/operator-questions.md).
    - **Expand every internal id, board code, metric name and acronym on first use.** A term of art
      needs one defining clause, and a decision question states your recommendation first, then the
      options (both from one recorded case). Questions the operator could not parse recurred across
@@ -280,7 +280,7 @@ Three rules, enforced at this step because dispatch is where the choice exists:
   still states its own cap on simultaneous agents and counts every live session on the account
   toward it; the kit sets no number and no default cap. A wave that dies at the wall costs
   re-dispatch AND duplicate-dispatch races: every resume message must state who else is on the
-  item ("two workers ran this assignment" was found by the worker, not the orchestrator).
+  item ("two workers ran this assignment" was found by the worker, not the orchestrator). Size the wave in tokens, probe each model and wait out a printed reset with [limit-recovery](references/limit-recovery.md).
 - **Epic implementation slices leave the session by default** — the plan-time rule, now owned by
   `initiative-planner` (step 3 assigns each slice a session; step 4 derives what may run at once).
   What still binds you at run time: the orchestrator thread keeps plan, briefs, verification and
@@ -403,7 +403,7 @@ Whether fan-out is *economic* is a plan-time question (`initiative-planner` step
 - **Background subagents inside a `-p` run are cut off at ten minutes** by default, which would
   **silently truncate** a long research session. Raise it with
   `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS` (`0` removes the cap) — set it in settings `env`, not as an
-  inline shell prefix, which defeats this host's prefix-anchored permission rules.
+  inline shell prefix, which defeats this host's prefix-anchored permission rules. A scripted run has hazards of its own: [runtime hazards](../agent-delegate/references/runtime-hazards.md).
 
 ### 2b. Dispatching to a peer session (cross-session)
 A peer session is not a tool call: you emit a brief, the user carries it, and the result comes back

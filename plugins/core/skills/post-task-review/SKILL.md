@@ -197,7 +197,7 @@ the three commands above are the minimum.
    pass's own correction** (2026-08-19). So: re-run the review over the diff the fixes produced, not
    over the original artifact, and **re-derive every figure a fix touched** rather than carrying the
    pre-fix number forward. A correction carries more authority than the claim it replaces, which is
-   what makes an unreviewed fix round expensive: [how to review one](references/fix-rounds.md).
+   what makes an unreviewed fix round expensive: [how to review one](references/fix-rounds.md). Its reader's brief also sweeps the files the diff did not touch (note 2a).
 6. **Run Linting and Diagnostics** — the project's lint command (AGENTS.md § Commands) and `read_lints`, on all modified files.
    **Before quoting any gate result, check you are reading the question you actually asked** —
    [references/reading-gate-output.md](references/reading-gate-output.md) carries five measured cases
@@ -330,7 +330,7 @@ Run all four, in order, and answer each in writing:
    (~49% of sessions each).
 3. **Check the gate against its diff, not against your description of it.** For each gate you claim
    passed: did it actually run, over the files you actually changed, and finish? Print the
-   denominator beside every zero.
+   denominator beside every zero. A green gate says nothing about a rule it does not encode: before asking for a push, measure each stated operator rule itself.
 4. **Name what you did not look at, and say how you know that list is complete.** If you cannot,
    the honest output is UNKNOWN plus what would settle it.
 

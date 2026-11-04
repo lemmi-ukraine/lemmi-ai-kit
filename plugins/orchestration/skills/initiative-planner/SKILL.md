@@ -122,7 +122,7 @@ decision is a slice inside it — write the ADR at level 3, not level 1.
   One 2026-07-30 audit of a doc in this state found **4 load-bearing conclusions false**, including
   a prescribed fix that crashes on a unique constraint; measuring inverted the priority.
 - **No** → write it: [references/charter-template.md](references/charter-template.md) carries the
-  shared fields plus the PDR-only and ADR-only blocks.
+  shared fields plus the PDR-only and ADR-only blocks. The shared block ends with the operator rules in force: each rule, what measures it, what enforces it and who counts slips.
 
 **Both shapes carry the same four load-bearing fields**, and `/lemmi-ai-kit-core:product-brief`'s output does **not**
 include three of them — its template runs Problem · Behavior · UX Content · Out of Scope ·
@@ -386,7 +386,7 @@ Each entry states three things, and the third is the one usually skipped:
 ## Step 7 — Phases, gates, risks, and the minimal initiative → `roadmap.md`
 
 **A gate is a decision the operator makes on evidence, not a checkpoint the planner clears.** Name
-what is presented at each gate and what decision it forces.
+what is presented at each gate and what decision it forces. The first gate also settles how the run is operated: [operating-rules](references/operating-rules.md).
 
 **Falsifier-first.** The first deliverable should be able to **kill the initiative**. State each
 falsifier with the verdict it forces if it holds — including "re-file this against another backlog".
