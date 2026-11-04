@@ -340,9 +340,10 @@ operator's own approval loop — not the normal path. Measured: **56 of 129 sess
 with a hand-pasted brief**, 26 on one day, with the operator acting as transport. One orchestrator
 had already proved the alternative — 7 headless launches, four concurrent — and the **next
 orchestrator on the same initiative used none**, because the practice lived in that session
-instead of in this file. A pasteable prompt the operator asks for by name is written, not argued:
-a request by name measures what the launch costs, it is not a lapse to correct. Unasked, if you
-are about to write "paste this into a new session", first say why a §2a launch will not do.
+instead of in this file. A pasteable prompt the operator asks for by name is written, not argued: a
+request by name measures what the launch costs, it is not a lapse to correct. A `pasted` row in the
+plan's `Dispatch` column is that request made at plan time: write it, no reason needed. Unasked, if
+you are about to write "paste this into a new session", first say why a §2a launch will not do.
 
 **Default 2 — parallel, up to the cap; serialize only on a *named* contended file.** Dispatch
 every unblocked session at once, bounded by the concurrency cap `initiative-planner` derived at
@@ -377,14 +378,13 @@ inherit a previous wave's serialization.
 ### 2a. Launching a headless `claude -p` session — measured mechanics
 
 Whether fan-out is *economic* is a plan-time question (`initiative-planner` step 5.1 and its
-`../initiative-planner/references/dispatch-economics.md`). These are the
-run-time facts, all verified on CLI **2.1.224**, 2026-08-15:
+`../initiative-planner/references/dispatch-economics.md`). These run-time facts, verified on CLI
+**2.1.224**, 2026-08-15, are applied by `${CLAUDE_SKILL_DIR}/scripts/launch_session.py` (`--help`):
 
 - **`-p` and `--bg` are mutually exclusive.** The CLI rejects the pair naming the conflict —
   *"--print never starts the interactive session that `claude agents` attaches to."* Launch under the
   Bash tool's `run_in_background` instead; same outcome, different mechanism.
-- **Always append `< /dev/null`.** Without it every launch prints *"no stdin data received in 3s"*
-  and stalls three seconds — thirty wasted seconds across a ten-session wave.
+- **Always append `< /dev/null`.** Without it a launch stalls 3 s: *"no stdin data received in 3s"*.
 - **Pass repo-relative paths, never absolute POSIX ones.** Measured: a `/nonexistent-probe.md`
   argument reached the CLI rewritten to sit under the Git Bash install root. MSYS rewrites
   `/abs/path` that way, so `--append-system-prompt-file /abs/…` silently loads the wrong file.
@@ -392,9 +392,9 @@ run-time facts, all verified on CLI **2.1.224**, 2026-08-15:
   differential probe: it returns `Error: Append system prompt file not found` where an invented flag
   returns `error: unknown option`. Use it to inject the project's own host-rules file, if it keeps
   one — spawned sessions do **not** inherit `AGENTS.md`.
-- **`--effort` is a real flag** with a validated enum (`low·medium·high·xhigh·max`). The `Agent`
-  tool has no effort parameter, so `/effort` inside a prompt string remains the fallback for native
-  subagents only.
+- **`--effort` is a real flag** (`--help` lists `low·medium·high·xhigh·max`); on CLI **2.1.316** an
+  unknown value only warns and the default effort runs. The `Agent` tool has no effort parameter, so
+  `/effort` inside a prompt string remains the fallback for native subagents only.
 - **Validate a launch table before dispatching it, at zero API cost:** append a sentinel flag
   (`--zzz-sentinel`) to each row; `unknown option '--zzz-sentinel'` proves every real flag parsed.
   **This checks flag names and syntax only** — `--model` has no enum (`--help`: *"Provide an alias …

@@ -63,11 +63,12 @@ session's context. Recovering those numbers took a 129-session transcript sweep;
 column a plan states its own dispatch profile up front and
 `grep -c 'pasted' execution-plan.md` re-measures it in one command.
 
-- `pasted` is the **fallback**, not the default — justify each one in the row's `Blocked by`
-  cell ("needs the operator's own approval loop"), because an unjustified `pasted` row is the
-  43% reproducing itself.
-- `headless` requires the launcher in `orchestrate` §2a; if you invent a dispatch mechanism
-  mid-initiative, write it into that skill **before** the orchestrator handoff or it dies there.
+- `pasted` is an equal choice, made here at plan time: a row may say `pasted` with no reason when
+  the operator will drive that session. Any other `pasted` row gives its reason in the row's
+  `Blocked by` cell, because an unexplained `pasted` row is the 43% reproducing itself.
+- `headless` is launched with `orchestrate`'s `scripts/launch_session.py` (§2a); if you invent a
+  dispatch mechanism mid-initiative, write it into that skill **before** the orchestrator handoff
+  or it dies there.
 
 ## 4. Why the schedule is ordered this way
 
