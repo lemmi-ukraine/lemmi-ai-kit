@@ -30,8 +30,9 @@ breaks each line at every space to show it, and
 guide's layout label, which the layout check reads as a section.
 
 THE SURFACE, in numbers the tests assert: 5 files (the skill and its four references), 19 places in
-them, 34 checks, 13 places whose line is re-wrapped, and one sweep of all 5 files for 9 retired
-phrases. A second surface, asserted disjoint from the first: the 2 design templates (the seeded copy
+them, 34 checks, 13 places whose line is re-wrapped, and one sweep of those 5 files and of 1
+optional page that has no place of its own, for 9 retired phrases. A second surface, asserted
+disjoint from the first: the 2 design templates (the seeded copy
 and the kit's own), with 1 place in each, 2 checks per place, both places re-wrapped, the same
 sweep, and the two copies equal on the line that names the conventions. Each check is fired at the
 text its place carried before (`_OLD_*`, excerpts of the file as it stood), and must report it; the
@@ -54,6 +55,10 @@ _DESIGN = _SKILL_DIR / "references" / "design-guide.md"
 _REQUIREMENTS = _SKILL_DIR / "references" / "requirements-guide.md"
 _PHASED = _SKILL_DIR / "references" / "phased-execution.md"
 _FILES = (_SKILL_MD, _SIZE, _DESIGN, _REQUIREMENTS, _PHASED)
+# An optional page the sweep reads and no place covers: it holds none of the wording the places pin,
+# and a test file of its own pins what it says. Not in `_FILES`, so no place is owed for it.
+_SWEPT_ONLY = (_SKILL_DIR / "references" / "execution-lanes.md",)
+_SWEPT = (*_FILES, *_SWEPT_ONLY)
 # The second surface: the design template a Technical Approach starts from, in the copy every
 # project is seeded with and in the kit's own. Outside the skill's folder, so no file is in both.
 _TEMPLATES: dict[str, Path] = {
@@ -707,9 +712,15 @@ def _gaps(place: _Place, text: str) -> list[str]:
 def test_the_surface_is_stated_in_numbers() -> None:
     assert len(_FILES) == 5, f"{len(_FILES)} files, not the 5 stated"
     on_disk = sorted(_SKILL_DIR.rglob("*.md"))
-    assert on_disk == sorted(_FILES), (
-        f"the skill holds {len(on_disk)} markdown files and the scan reads {len(_FILES)}; "
-        f"only one side has {sorted(set(on_disk) ^ set(_FILES))}"
+    assert on_disk == sorted(_SWEPT), (
+        f"the skill holds {len(on_disk)} markdown files and the scan reads {len(_SWEPT)}; "
+        f"only one side has {sorted(set(on_disk) ^ set(_SWEPT))}"
+    )
+    assert len(_SWEPT_ONLY) == 1, (
+        f"{len(_SWEPT_ONLY)} swept-only pages, not the 1 stated"
+    )
+    assert set(_SWEPT_ONLY).isdisjoint(_FILES), (
+        "a swept-only page is also in the places' scan"
     )
     empty = [p.name for p in _FILES if not _read(p).strip()]
     assert not empty, f"empty files: {empty}"
@@ -812,7 +823,7 @@ def test_the_python_layout_is_kept_as_a_labelled_example() -> None:
     ]
 
 
-@pytest.mark.parametrize("path", _FILES, ids=[p.name for p in _FILES])
+@pytest.mark.parametrize("path", _SWEPT, ids=[p.name for p in _SWEPT])
 def test_no_file_of_the_skill_still_says_what_was_retired(path: Path) -> None:
     found = _swept(_read(path))
     assert not found, f"{path.name} still carries: {sorted(found)}"

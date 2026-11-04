@@ -61,3 +61,17 @@ Identify at least one risk per design. Use this structure:
 - Payloads (e.g., audio data) exceeding expected sizes
 - Race conditions in concurrent session state updates
 - Migration conflicts when multiple branches modify the schema (example: Alembic revision heads)
+
+## Recording a Verification Command
+
+A design or spec that lists the command which re-checks each claim has to survive being copied. A
+markdown table cell must escape every pipe as `\|`, so a command stored in a cell does not
+reproduce: copied raw into `grep -E`, the escaped form reads `\|` as a literal pipe and finds
+nothing, and a form with the backslashes dropped can be another pattern again (a leading `^|` is an
+alternation whose first branch matches every line). Neither reading fails loudly.
+
+- Put any command that contains a pipe in a fenced block under the table and cite it by the row's
+  id. Repeated `-e` patterns replace an alternation and need no pipe there, but a pipe that must
+  stay literal still needs the fence: stored in a cell as `\|`, plain GNU `grep` reads it as an
+  alternation.
+- Re-run every recorded command from the raw text of the file, never from the rendered view.

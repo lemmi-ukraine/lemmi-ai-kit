@@ -359,6 +359,7 @@ When implementing from a spec (phased or non-phased):
 - Mark each task as complete in the tasks document when done
 - If implementation reveals that the spec needs changes, update the spec first and note the deviation in the Deviations Log
 - If scope grows beyond the original spec, stop and discuss with the user
+- Optional and untried: a task may run in two execution lanes, development and tests, joined by a red-then-green gate; see [references/execution-lanes.md](references/execution-lanes.md)
 
 ## Closing a Spec — self-review, then retire
 
