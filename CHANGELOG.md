@@ -32,6 +32,94 @@ rewritten except inside `kit-setup`'s own marked blocks.
 
 ---
 
+## 2026-11-04
+
+### INFRA-MODIFIED: Four more scaffold files, and what a re-run leaves alone
+
+- **What:** The scaffold now also places `.ai/templates/handoff.md` (a template for a note to
+  another session) and a self-ignoring `.gitignore` in each of `.ai/tmp/`, `.ai/handoffs/` and
+  `.ai/retrospectives/`. That is 15 files in an empty project, up from 11. To take this release,
+  update the plugins, start a new session and re-run `kit-setup`. On an existing project the
+  scaffold's plain run writes the four new files, skips and reports the five managed files whose
+  kit copy changed (`--force` overwrites them; `--dry-run` shows the plan) and leaves seeded files
+  alone. A seeded `AGENTS.md` changes only inside `kit-setup`'s marked blocks, so the template's
+  new wording reaches only projects seeded from now on: the review at every completion event (an
+  older `AGENTS.md` still says major tasks), spec size bands by score, the checkpoint rule. Copy
+  what you want by hand.
+- **Why:** The skills already call these folders gitignored, and `orchestrate` already named a
+  hand-off template, but the scaffold placed neither.
+- **Files:** `plugins/core/src/lemmi_ai_kit/scaffold.py`,
+  `plugins/core/src/lemmi_ai_kit/assets/ai/templates/handoff.md`, `docs/adoption-guide.md`
+- **Affected workflows:** `kit-setup`, the scaffold
+
+### INFRA-ADDED: Two command hooks that stay off until a project switches them on
+
+- **What:** Core now registers three command hooks, up from one. `gate_shell_prefix` refuses a
+  Bash or PowerShell call that moves the working directory to an absolute, home, variable or
+  unreadable target, shadows `cd`, or starts with a `NAME=value` assignment.
+  `nudge_learnings_drain` prints one line at session start when the learnings buffer is due for a
+  drain (more than 25 entries, or any entries and a last drain 7 or more days ago). Both do
+  nothing until the project holds `{"enabled": true}` in `.ai/shell-prefix-hook.json` and
+  `.ai/drain-nudge-hook.json` respectively. The learnings-drain gate that shipped before has no
+  switch; its shell check was rewritten and now covers PowerShell's write and delete commands. A
+  registered hook starts `uv` and Python each time its event fires, switched on or not. Restart
+  open sessions after updating. Whether the hooks work in Codex is not established.
+- **Why:** A command prefix defeats the permission rules that match the bare command, and one `cd`
+  re-bases every later call. The gate is off by default because a project that starts commands
+  with an assignment or a `cd` would have them refused: read your project's instructions before
+  switching it on.
+- **Files:** `plugins/core/hooks/`, `plugins/core/README.md`
+- **Affected workflows:** `task-learnings`, `learning-consolidator`, Bash and PowerShell calls
+
+### SKILL-MODIFIED: Review and learnings run at every completion event; the probe stamp counts differently
+
+- **What:** `post-task-review` and `task-learnings` now say to run at every completion event (a
+  finished task of any size, a precondition stop, a gate report, a hand-off), not only after a
+  major or coding task, so expect them at more closes. `test-conventions` and `vertical-slice` now
+  say Python, so they should no longer be picked for other languages; `hypothesis-validator` names
+  the steps that call it. `probe_checker.py` now reads a checker's output as the count when it is
+  one bare integer (what `grep -c` prints) and counts lines otherwise (`--count-mode auto`;
+  `lines` and `grep-c` force either). A correct `grep -c` checker used to read 1 whatever it
+  found, so the probe failed it as blind and over-matching; the stamp it prints
+  (`probe_checker: positive=N negative=M verdict=...`) now carries the real counts, so a stamp
+  saved before this release does not match a new one. New: `--script` runs a checker with no
+  shell.
+- **Why:** The review was tied to a major task and the learnings step to a coding task, so a plan,
+  an audit or a stop at a gate never got the learnings step. A correct one-number checker should
+  not fail the probe.
+- **Files:** the `SKILL.md` of the five skills,
+  `plugins/core/skills/post-task-review/scripts/probe_checker.py`
+- **Affected workflows:** `post-task-review`, `task-learnings`, `test-conventions`,
+  `vertical-slice`, `hypothesis-validator`
+
+### SKILL-MODIFIED: New rules and helper scripts for long and multi-session work
+
+- **What:** Orchestration gains a checkpoint rule in the worker preamble (save a checkpoint at
+  each milestone and at least hourly, and resume from it); `limit-recovery.md` (size a wave in
+  tokens, name each sub-agent's `model`, recover from a usage limit); `operator-questions.md` (ask
+  last, one question at a time); `landing-queue.md` with the read-only `landing_gate.py` (one
+  writer per shared tree; a gate before each commit that never passes what it could not measure);
+  `suite-verdicts.md` (a run whose child processes failed to start has no verdict);
+  `runtime-hazards.md` (four hazards of a scripted run); and `operating-rules.md` (six rules for
+  running an initiative), with additions to the charter, roadmap and execution-plan templates.
+  Core gains `fix-rounds.md` (review a round of fixes with a fresh reader and a sweep past the
+  diff) and a real-data trial in `spec-driven-dev` and `test-planner` (try a feature that reads
+  files its authors did not write on real files before independent verification). Five more helper
+  scripts are new: `review_core.py` (the review's mechanical checks), `pre_switch_backup.py` (a
+  backup before a branch switch), `buffer_table.py` (the triage table), `context_meter.py` (a
+  session's context size) and `launch_session.py` (starts a headless session).
+- **Why:** Examples: a session stopped by a usage limit lost what it held in memory, and a suite
+  verdict measured the machine, not the code. Numbers in these files are starting values,
+  uncalibrated, unless marked observed.
+- **Files:** `plugins/orchestration/skills/` (`orchestrate`, `agent-delegate`,
+  `parallel-session-safety`, `initiative-planner`), `plugins/core/skills/` (`post-task-review`,
+  `branch-switch`, `learning-consolidator`, `spec-driven-dev`, `test-planner`)
+- **Affected workflows:** `orchestrate`, `agent-delegate`, `parallel-session-safety`,
+  `initiative-planner`, `post-task-review`, `spec-driven-dev`, `test-planner`, `branch-switch`,
+  `learning-consolidator`
+
+---
+
 ## 2026-09-14
 
 ### SKILL-ADDED: Share portable flow mapping through Core
