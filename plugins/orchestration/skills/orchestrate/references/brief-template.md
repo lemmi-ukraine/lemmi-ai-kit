@@ -151,3 +151,8 @@ the brief: apply each one to the brief you are about to send.
 - **A brief that lists acceptance criteria names who ticks the boxes and who writes the Status
   line.** A worker that is not named edits no task file; the worker preamble says how it returns
   the criteria.
+- **An implementation brief for an approved slice starts from the gate's approval record.** One of
+  its preconditions greps that record for every operator-question id the slice's tasks cite,
+  expecting each to be found with an answer or "default accepted"; a count of 0 is a stop, never a
+  reason to assume the default. Evidence level: observed in one project's notes, not yet repeated;
+  an uncalibrated default.

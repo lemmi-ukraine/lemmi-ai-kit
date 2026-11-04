@@ -137,12 +137,22 @@ Read the volume honestly in both directions. A lane covering 12.7% of rows but 3
 neither the majority case nor a niche, and writing only the flattering number decides scope by
 omission.
 
+**Past volume measures the exposure that produced it.** Before a value estimate or a falsifier leans
+on past volume (uses, views, requests), ask whether exposure (discoverability, gating, a paywall, a
+pending release) has changed or is about to. If it has, past volume measures the old exposure and
+says nothing about the new one: set an absolute target, measured forward from the change, and make
+the release sequencing a gate decision. A falsifier of "fewer than N uses in D days, park the rest"
+would park most of the remaining deliverables in the very window in which a change makes the feature
+visible. Evidence level: observed in one project's notes, not yet repeated; an uncalibrated default.
+
 ### Falsifiers
 **The first deliverable should be able to kill the initiative.** Each falsifier names the deliverable
 that measures it and the verdict it forces — including "re-file this against another backlog", which
 is a success for the process even though it reads like a failure.
 
 A falsifier nobody has scheduled a measurement for is a disclaimer, not a falsifier.
+
+A falsifier built on past volume needs the exposure check from Expected value first.
 
 ### Definition of done
 Checkable statements. Numeric targets may be set later **at a named gate** from a baseline rather

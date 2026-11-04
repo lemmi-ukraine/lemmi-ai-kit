@@ -15,7 +15,7 @@ as the external CLI workers a brief can be sent to have none: it reads the skill
 so in its closing message. The sentence comes last, after "Both run BEFORE the handoff.", so the
 older words of the step stay one run of text, which the worker-preamble test pins.
 
-The template's list of rules a brief carries gains three, at the end of the section: a brief
+The template's list of rules a brief carries gains three in a row, after the rules it had: a brief
 filled in at launch ends with a marker block that one of its preconditions searches for with a
 regular expression that does not match its own text, a brief never tells an agent to run a
 user-only skill, and a brief that lists acceptance criteria names who ticks the boxes. Section 2a
@@ -206,7 +206,8 @@ _RULE_ROWS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ),
 )
 
-# The three new rules open their bullets with these leads, and they are the last three bullets.
+# The three new rules open their bullets with these leads, in a row and in this order. Later rules
+# may follow them: a rule added at the end of the section is not a break of the order.
 _NEW_RULE_LEADS = (
     "- **A brief filled in at launch ends with a marker block, and one of its preconditions "
     "searches for the marker.**",
@@ -743,11 +744,17 @@ def test_the_rules_section_states_the_claim(
     assert not missing, f"the section does not state {claim!r}: missing {missing}"
 
 
-def test_the_new_rules_are_the_last_three_bullets_in_order() -> None:
+def test_the_new_rules_are_three_consecutive_bullets_in_order() -> None:
     bullets = _bullets(_section(_read(_TEMPLATE), _RULES_HEADING))
-    assert len(bullets) >= len(_NEW_RULE_LEADS), bullets
-    tail = bullets[-len(_NEW_RULE_LEADS) :]
-    for lead, bullet in zip(_NEW_RULE_LEADS, tail, strict=True):
+    starts = [
+        at for at, bullet in enumerate(bullets) if bullet.startswith(_NEW_RULE_LEADS[0])
+    ]
+    assert len(starts) == 1, (
+        f"{_NEW_RULE_LEADS[0]!r} starts {len(starts)} bullets, not 1"
+    )
+    run = bullets[starts[0] : starts[0] + len(_NEW_RULE_LEADS)]
+    assert len(run) == len(_NEW_RULE_LEADS), bullets
+    for lead, bullet in zip(_NEW_RULE_LEADS, run, strict=True):
         assert bullet.startswith(lead), (
             f"expected a bullet that opens {lead!r}, found {bullet!r}"
         )

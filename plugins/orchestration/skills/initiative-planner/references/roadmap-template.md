@@ -114,6 +114,19 @@ as "approve/reject". A gate whose only options are proceed or stop is a status u
 Put the falsifying measurement in the first phase. If the earliest gate cannot change the
 initiative's direction, the phases are ordered for comfort rather than for information.
 
+**Membership lives in one table.** Which deliverables ship in which cut or phase is written once, in
+the phase work tables; the definition of done, the assertion list and the field sets are derived
+from that table, never restated by hand, because a membership list copied into several documents
+drifts and each copy then disagrees with the others. Once ids carry letter suffixes, enumerate them:
+a range hides the suffixed ones. Certify the table's checker on a clean and a defect-injected pair
+built from one template, and state the exact finding counts each must print.
+
+**A gate that approves a spec slice records the slice's operator questions.** Each question, by its
+id in the open-questions list (§7), gets a line in the gate's approval record with its answer, or
+the words "default accepted" when the operator took the default; a gate that recorded none leaves
+the slice's tasks to assume answers nobody gave. Evidence level of this rule and the one above:
+observed in one project's notes, not yet repeated; an uncalibrated default.
+
 ### §5 Delegation contract
 State what every brief carries; **cite** `agent-delegate` and `orchestrate` for the contract itself.
 The two lines worth repeating per initiative, because they are initiative-specific:
@@ -156,3 +169,4 @@ Two risk classes this repo keeps rediscovering:
 Every open question with the gate that closes it. Include conflicts between the plan and a standing
 rule or a stated non-goal — **record the violation, do not hide it.** A plan that only permits clean
 answers gets abandoned at the first messy one.
+Give each question an id the gate's approval record can cite (§4).

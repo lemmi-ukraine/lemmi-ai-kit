@@ -9,7 +9,7 @@ rule is one bullet of the rules section, directly after the bullet on preconditi
 bullet is judged here.
 
 THE SURFACE, in numbers the tests assert: 5 claims and 6 phrases in one bullet of one section of
-one reference, and the rules section holds 9 bullets before the new one and 10 with it. A claim
+one reference, and the rules section holds 9 bullets before the new one, 10 or more after. A claim
 holds when every one of its phrases is in the bullet (lower-cased, bold marks dropped, whitespace
 collapsed, because the file wraps its lines). Each phrase is fired at a planted removal.
 
@@ -283,7 +283,7 @@ def test_the_rules_section_gains_one_bullet_directly_after_the_precondition_bull
     """Red before the change: the section held nine bullets and this one was not among them."""
     items = _items(_section(_read(), _HEADING))
     leads = [_bold_lead(item) for item in items]
-    assert len(items) == _BULLETS_BEFORE + 1, f"{len(items)} bullets: {leads}"
+    assert len(items) >= _BULLETS_BEFORE + 1, f"{len(items)} bullets: {leads}"
     assert _LEAD in leads, f"no bullet leads with {_LEAD!r}: {leads}"
     at = leads.index(_LEAD)
     assert _opens_with(items[at - 1], _ANCHOR), (
@@ -354,7 +354,7 @@ def test_the_two_scan_surfaces_are_disjoint() -> None:
     )
     mine = _shipped_bullet()
     others = [item for item in _items(_section(_read(), _HEADING)) if item != mine]
-    assert len(others) == _BULLETS_BEFORE, f"{len(others)} other bullets"
+    assert len(others) >= _BULLETS_BEFORE, f"{len(others)} other bullets"
     other_text = _folded(" ".join(others))
     shared = [phrase for phrase in _PHRASES if phrase in other_text]
     assert not shared, (
