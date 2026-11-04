@@ -710,7 +710,7 @@ another file is a known false positive.
 
 The routes a session may use on the buffer are the three the guard names when it denies a line:
 **Grep in count mode** (pattern `^### \[`) to count entries, **Read with offset and limit** to read
-them, and **Edit appending after the last entry** to add one.
+them, and **Edit appending under the entry's own category header** to add one.
 
 | Step | The operator, in their own terminal | The session, afterwards |
 |---|---|---|

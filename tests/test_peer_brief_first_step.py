@@ -348,8 +348,9 @@ _PLACES: tuple[_Place, ...] = (
                 "a placeholder in the line is a stop", "holds a placeholder, is a stop"
             ),
             _Check(
-                "a stop writes nothing more",
-                "the delegate writes nothing more and says so in one sentence",
+                "a stop sets the stub to blocked and writes nothing more",
+                "the delegate sets the hand-off stub's Status to `blocked` and writes "
+                "nothing more, and says so in one sentence",
             ),
             _Check(
                 "the first write is the hand-off stub",
@@ -498,7 +499,7 @@ def test_a_paste_line_lead_in_that_counts_its_items_is_reported() -> None:
             2,
             _PASTE_LINE_AHEAD_OF_THE_STUB,
             [
-                "missing: a stop writes nothing more",
+                "missing: a stop sets the stub to blocked and writes nothing more",
                 "missing: the first write is the hand-off stub",
                 "missing: the stub is the done check",
                 "missing: the live-peer check follows the stub",

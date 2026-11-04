@@ -310,9 +310,11 @@ TOOLING=$(printf   '%s\n' "$F" | grep -cE '^(\.claude|\.cursor|scripts|tests)/')
 > old it is, so a `%cr` age trigger can never fire. `%at`/`%ar` survive the replay. Compare a number,
 > not the prose `%ar` renders, or nothing consumes the result.
 
-> **Use `grep -E` with a real pipe, not `grep -i a\|b`.** Under basic regex `\|` is a literal, so the
-> naive form silently matches nothing and reports "no migration here" on a layer that has one. That
-> failure was reproduced against the very migration this skill was written about.
+> **Use `grep -E` with a real pipe, not `grep -i a\|b`.** Unquoted, a POSIX shell drops the
+> backslash, so plain GNU grep is handed `a|b` and takes the pipe as a literal: the naive form
+> silently matches nothing and reports "no migration here" on a layer that has one. Under `-E` an
+> escaped pipe is a literal (plain GNU grep reads it as alternation). Reproduced on the very
+> migration behind this skill.
 
 > **S-rows (siblings) are not in `gh stack`.** A `gh stack` chain is strictly linear — each branch is
 > based on the previous one, with no fork or sibling flag. Siblings are ordinary PRs against trunk;

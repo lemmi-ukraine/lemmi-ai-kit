@@ -1356,7 +1356,7 @@ def test_the_shell_denial_lists_exactly_the_three_routes(project: Path) -> None:
     assert bullets == [
         "- count entries: Grep in count mode, pattern ^### \\[",
         "- read entries: Read with offset and limit",
-        "- add an entry: Edit, appending after the last entry",
+        "- add an entry: Edit appending under the entry's own category header",
     ]
     assert (
         "Appending to learnings.md is never blocked when it is written as an append: "

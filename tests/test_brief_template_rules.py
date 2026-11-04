@@ -39,7 +39,7 @@ _ROWS: tuple[tuple[str, tuple[str, ...]], ...] = (
         (
             "stop on any `<...>` placeholder",
             "walks past the third",
-            "nothing is written",
+            "nothing more is written",
         ),
     ),
     (

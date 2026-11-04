@@ -324,11 +324,11 @@ per row:
 not move together — a `judgment` session doing a routine review is `high`, while a session whose
 entire job is to **refute** a claim earns `max` regardless of how small it is. Record it per row.
 
-> **Set effort with the `--effort` flag.** It is a first-class CLI flag with a validated enum. A
-> plan that routes effort through a `/effort` slash command inside the prompt string is working
-> around a limitation that does not exist on this version — the slash-command route survives only
-> because the **`Agent` tool** has no effort parameter, so it remains the fallback for *native
-> subagents*, not for spawned CLI sessions.
+> **Set effort with the `--effort` flag.** It is a first-class CLI flag; an unknown value only warns
+> (CLI 2.1.316). A plan that routes effort through a `/effort` slash command inside the prompt
+> string is working around a limitation that does not exist on this version — the slash-command
+> route survives only because the **`Agent` tool** has no effort parameter, so it remains the
+> fallback for *native subagents*, not for spawned CLI sessions.
 
 Two corrections this encodes, both against the obvious mapping:
 

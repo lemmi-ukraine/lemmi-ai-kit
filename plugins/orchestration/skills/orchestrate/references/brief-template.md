@@ -105,10 +105,11 @@ what it finds:
 - the branch, compared with `git rev-parse --abbrev-ref HEAD`.
 
 A line that disagrees with what the delegate finds, or that holds a placeholder, is a stop: the
-delegate writes nothing more and says so in one sentence. The delegate's first write is the hand-off
-stub, made only if the return note at the named return path does not exist: that write is the done
-check. The live-peer check follows it, as `SKILL.md` § 2b says: copy that check into the brief's
-preconditions, and a live peer sets the stub `blocked`.
+delegate sets the hand-off stub's Status to `blocked` and writes nothing more, and says so in one
+sentence. The delegate's first write is the hand-off stub, made only if the return note at the named
+return path does not exist: that write is the done check. The live-peer check follows it, as
+`SKILL.md` § 2b says: copy that check into the brief's preconditions, and a live peer sets the stub
+`blocked`.
 
 ## Rules a dispatch brief carries
 
@@ -121,7 +122,7 @@ the brief: apply each one to the brief you are about to send.
   pasted line has arrived unexpanded.
 - **Stop on ANY `<...>` placeholder.** A delegate told to stop on two named spellings walks past the
   third. A `<...>` in a command template means "fill it from the command that names it", and one the
-  delegate cannot fill is a stop: nothing is written, and its one-sentence report names the
+  delegate cannot fill is a stop: nothing more is written, and its one-sentence report names the
   placeholder.
 - **The return note is the first write.** The note and the session's scratch folder come before any
   other file, each made by an operation that fails if it exists (the create collision,

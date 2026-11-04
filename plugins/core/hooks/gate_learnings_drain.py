@@ -463,7 +463,7 @@ def _shell_reason(path, shape):
         "These routes are never blocked:\n"
         "  - count entries: Grep in count mode, pattern ^### \\[\n"
         "  - read entries: Read with offset and limit\n"
-        "  - add an entry: Edit, appending after the last entry\n\n"
+        "  - add an entry: Edit appending under the entry's own category header\n\n"
         "Retrying the same change through another route (another shell, an interpreter, a "
         "copy of the file, another spelling of its name) is the breach this gate exists to "
         "stop, not a way round it.\n\n"
