@@ -1926,6 +1926,13 @@ def configure(project_root: Path, code_root: Path | None = None) -> None:
     )
 
 
+CODE_ROOT_HINT = (
+    "hint: --code-root was not given, so the project root is the code root and a cited "
+    "file under any directory (for example tasks/) needs a Coverage row; if the source "
+    "tree is a subdirectory, pass --code-root <dir>."
+)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     # Findings carry non-ASCII (e.g. the '### Legend — …' heading). On a Windows console
     # whose code page lacks them, print() would raise and abort the run mid-way, so the
@@ -1933,6 +1940,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if isinstance(sys.stdout, io.TextIOWrapper):
         sys.stdout.reconfigure(encoding="utf-8")
     args = parse_args(argv)
+    # Read before the lines below overwrite it: the hint is for a run that never named a code root.
+    code_root_given = args.code_root is not None
     configure(
         args.project_root,
         (args.project_root / args.code_root)
@@ -1962,7 +1971,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     findings = validate(
         args.document, args.code_root, report_crossflow=args.report_crossflow
     )
-    return 1 if render_findings(args.document, findings, args.check) else 0
+    failed = render_findings(args.document, findings, args.check)
+    # A clean run, or a selection that printed nothing, has no finding to explain: no hint.
+    if failed and not code_root_given:
+        print(CODE_ROOT_HINT, file=sys.stderr)
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

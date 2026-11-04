@@ -1,6 +1,6 @@
 # Register and validator pitfalls
 
-Three ways a flow-document edit looks finished and is not. Each is a check to run before calling
+Four ways a flow-document edit looks finished and is not. Each is a check to run before calling
 an edit done, not a statement about the validator's internals.
 
 **An edit that drops a call edge, or cites a new file, cascades into other tables.** The validator
@@ -23,3 +23,10 @@ was counted at, and other cells may sum it, so a later layer does not overwrite 
 named without regenerating anything in the shared tree: generate each derived artifact from the
 layer's base export and from its changed export, scratch copies only, and diff the two outputs.
 Prove a "no difference" with a control that must differ.
+
+**A number in prose is not checked.** The validator checks that a cited symbol resolves, not that a
+count an invariant quotes still holds: an invariant that says how many methods of a class take an
+argument reads clean before and after one more is added. When a change adds, removes or re-signs a
+method on a class a flow document describes, grep the document for the class name and for a number
+or number word near it, re-run each derivation the claim quotes (the same walk or count that
+produced it), and correct the claim in the same change.
