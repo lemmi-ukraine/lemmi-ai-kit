@@ -122,3 +122,13 @@ then present both takes and your synthesis — agreements, conflicts, and your r
   compacts almost at once, and past the prompt-cache lifetime it first re-reads the whole context
   uncached (reasoned, not tried). Resume only a session well under its window and within that
   lifetime; otherwise start a fresh session whose brief points at the return note of the first.
+- **After a refusal by the platform.** A sub-agent can be refused mid-run by an organization-policy
+  error (an HTTP 403 whose text says the organization has disabled the access it used) while its
+  parent session keeps working. Read it as a permission decision, not a tool failure, and do not
+  route around it. Quote the refusal verbatim in the report, and keep the dead worker's partial
+  report under a new name, so that the brief's rule that an existing return note stops a second run
+  does not stop the rerun. Retry the route at most once, at a later gate (one small read-only agent
+  first costs less than relaunching), and when it is refused again hand the operator the brief as a
+  pasteable session prompt (the `cross-session` worker). Say in the report which independent read is
+  missing, because the approval decision then passes to the operator. (Observed more than once; the
+  same route answered again later.)

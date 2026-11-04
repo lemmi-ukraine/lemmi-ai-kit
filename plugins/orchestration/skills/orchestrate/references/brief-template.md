@@ -126,6 +126,15 @@ the brief: apply each one to the brief you are about to send.
   reference describes an action and does not authorize it.
 - **Preconditions are commands with expected results**, as `SKILL.md` § 2b says. The expected result
   is a literal the delegate compares, and a surprise is a stop to re-derive, never a judgment call.
+- **The brief's first lines say what to read before the first command.** A brief that lists its
+  state commands or preconditions above the line that points at the standing rules puts the
+  delegate's first shell call ahead of that read, and the first call is where a leading assignment
+  or a `cd` goes wrong. Keep the pointer to the worker preamble, and to the project's own host-rules
+  file when it keeps one, above every command, and word it as "read these, then run the first
+  command". The done check and the live-peer check are commands too. The skeleton above already puts
+  its standing rules first; a kickoff with a section order of its own must do the same, because a
+  rule inside a document the session reads in the same step as its state commands is read after
+  them.
 - **A kickoff that says "any other reply is a no" says what a plain affirmative means.** "Yes" is the
   likeliest reply. The brief lists what it permits (commits by explicit pathspec, say) and what stays
   the operator's (push, tag, release), so the delegate neither does everything nor stalls.

@@ -442,6 +442,12 @@ the two staged files were committed and merged, and `<trunk>` had moved.
   `git rev-parse --abbrev-ref HEAD`, `git diff --cached --name-only` and
   `git ls-remote origin <trunk> <branch>`, and compare blob ids (`git rev-parse <ref>:<path>`) before
   calling a pushed branch still needed.
+- **After someone else opens a PR you prepared, read its live body before you rely on it.** Compare
+  `gh pr view <n> --json body --jq .body` with the prepared file. A PR opened by hand from the web
+  compare page has been seen to take the commit message as its body, so a note that exists only in
+  the prepared file (a merge order, a gate that was not run, a step before deploy) never reached the
+  PR. Cite the live body in any brief or review, and put those notes in the commit message as well,
+  since that is the text the compare page took.
 - **Re-read the base after any pause and before the commit.** Write the base commit down at the
   start and run `git fetch origin <trunk>` and then `git rev-parse origin/<trunk>` again after any
   pause (an approval, a long gate) and before `commit-tree`: when `origin/<trunk>` moved twice during

@@ -177,6 +177,15 @@ Run the built-in **`/code-review`** with the branch target and an explicit effor
 `/code-review origin/dev...HEAD high`. Its dial is real: low/medium yield fewer high-confidence
 findings, high/max broaden coverage and admit uncertain ones. Pick from blast radius, not habit.
 
+**Match the fan-out to the diff.** A review that fans out to several read-only lenses (one sub-agent per
+axis) costs a multiple of the diff itself, and on a small committed diff most of that reading repeats
+what the main thread's own diff already shows. Before any fan-out, run in the main thread what needs no
+sub-agent: the base branch's drift since the fork (Step 1) and the gates. Then fan out only the lenses
+that execute something (a harness, a reproduction, a check of each documented claim against the code),
+and tell each lens which items accepted in an earlier round to re-test against the current base, not
+against the version the review started from. This rests on one sample with no control, so it is a
+calibration, not a measurement.
+
 **Confirm the diff basis before trusting the findings.** What basis `/code-review` uses for a branch
 target is **UNKNOWN** from inside this repo — its definition is not a readable file here. So compare its
 reported file set against step 1's `git diff --stat <base>...HEAD` and state which basis produced the
