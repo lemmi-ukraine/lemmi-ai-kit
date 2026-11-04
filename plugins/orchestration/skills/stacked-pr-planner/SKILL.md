@@ -328,6 +328,11 @@ TOOLING=$(printf   '%s\n' "$F" | grep -cE '^(\.claude|\.cursor|scripts|tests)/')
 Run them at every dispatch round. **Any trigger firing re-opens the topology that day** — not at the
 end of the initiative, when the repair costs a closed PR.
 
+More triggers and the mechanics of a layer, as commands: [layer triggers](references/layer-triggers.md)
+(the declared-file guard, the counters' accepted mixed reading, a task conditional on the base, the
+target's delta) and [layer mechanics](references/layer-mechanics.md) (the fork base, where tests
+ride, committing a layer).
+
 ## Step 7 — Re-verify the table against git/gh at every dispatch round
 
 Two board rows once read `UNCOMMITTED` after their work was committed, and the error survived until a
