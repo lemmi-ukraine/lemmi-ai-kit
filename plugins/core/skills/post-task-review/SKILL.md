@@ -32,8 +32,8 @@ that counts for any step a gate left out.
 The review consists of 10 steps, executed in order. Step 0 establishes the blast radius. Steps 1–6
 cover code review and convention compliance. Steps 7–8 are documentation and learnings extensions.
 Step 9 is the close self-challenge, and it runs last. Run `python -B "${CLAUDE_SKILL_DIR}/scripts/review_core.py" --base <ref> --plan <file-list>`
-first: it prints Step 0's lists, the diff stat, line endings, lint scope and Step 7b's matrix lookups, each ending with what it did not check
-(exit 2 means a check could not run, never a pass). It reads nothing for you: every UNKNOWN it prints is still yours to open.
+first: it prints Step 0's lists, the diff stat, the test changes (Steps 1 and 2), line endings, lint scope and Step 7b's matrix lookups, each ending with what it did not check
+(exit 2 means a check could not run, never a pass). It reads nothing for you: every UNKNOWN it prints is still yours to open. A session short of context runs the review in a fresh context instead: [references/fresh-context-review.md](references/fresh-context-review.md).
 
 ### Step 0: Dependency & Blast Radius (produces a LIST, not an opinion)
 
@@ -381,8 +381,8 @@ Present the review results using this structure:
 | Documentation impact (step 7) | yes/no | {files checked} |
 | Learnings extraction (step 8) | yes/no | {entries appended} |
 | Close self-challenge (step 9) | yes/no | {findings, or the word "none"} |
-| Backend restart (if backend touched) | yes/no/n-a | {command} |
-| {any other gate this task triggered} | yes/no | {…} |
+| Backend restart (if backend touched), or any other gate this task triggered | yes/no/n-a | {command} |
+| Finished artifact read end to end (as it now stands, after the last edit) | yes/no | {what was read, whole} |
 
 ### 10. Close Self-Challenge Results (REQUIRED — "none" is a valid answer, silence is not)
 - **What the challenge changed**: {findings, or "nothing"}

@@ -478,7 +478,7 @@ def test_the_summary_line_counts_sections_not_checked_and_skipped(tasked: _Run) 
     assert tasked.result.returncode == 0, tasked.result.stderr
     assert tasked.lines[0].startswith("review_core: base=HEAD (")
     assert tasked.lines[-1] == (
-        "review_core: 6 changed file(s); 6 of 6 sections ran; 0 NOT CHECKED; 1 skipped (not asked)"
+        "review_core: 6 changed file(s); 7 of 7 sections ran; 0 NOT CHECKED; 1 skipped (not asked)"
     )
 
 

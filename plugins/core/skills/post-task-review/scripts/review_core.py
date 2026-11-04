@@ -15,7 +15,8 @@ facts for the review to read. It judges nothing and edits nothing.
 
 USAGE (from anywhere inside the repository)
     python -B review_core.py [--base REF] [--plan FILE] [--symbol NAME ...] [--roots PATH ...]
-                             [--matrix FILE] [--max-symbols N]
+                             [--matrix FILE] [--max-symbols N] [--tests PATH ...]
+                             [--assertion TOKEN ...] [--max-rows N]
 
     --base REF       compare the working tree with REF instead of HEAD, to review committed work
     --plan FILE      the plan's file list, one path per line: a trailing `/` covers a directory, a
@@ -28,16 +29,25 @@ USAGE (from anywhere inside the repository)
     --max-symbols N  search at most N names (default 30); the rest are printed as NOT CHECKED
     --max-files N    list at most N readers outside the diff per name (default 15); the rest are
                      counted as NOT CHECKED, so a long list is never silently cut
+    --tests PATH     replace the printed rule for test paths with the project's own entries, written
+                     as in --plan (a trailing `/` covers a directory, `*?[` makes a pattern); a
+                     project directory such as MyApp.Tests/ is a test path only this way
+    --assertion TOKEN  also count a line that holds this fixed string as an assertion; repeatable.
+                     The built-in tokens are case-sensitive: a capitalised form such as C#'s
+                     Assert.Equal( needs `--assertion Assert.`
+    --max-rows N     list at most N removed or changed assertion rows (default 40); the rest are
+                     counted as NOT CHECKED
 
-OUTPUT: a header, six numbered sections (changed files, diff stat, dependents, line endings, lint
-and format scope, documentation matrix), then one summary line. Each section ends with the limit of
-its own instrument.
+OUTPUT: a header, seven numbered sections (changed files, diff stat, dependents, line endings, lint
+and format scope, documentation matrix, test changes), then one summary line. Each section ends
+with the limit of its own instrument.
 
 EXIT CODES
     0  every section ran; what it found is printed for the review to judge
     2  something could not be measured (a NOT CHECKED line says what): not a git work tree, an
-       unresolvable base, an unreadable plan or matrix, no Commands section to read, or more names
-       than a cap allows. Cannot-measure is never a pass, so gate on `!= 0`.
+       unresolvable base, an unreadable plan or matrix, no Commands section to read, a changed
+       test file that git printed no hunk for, or more names or rows than a cap allows.
+       Cannot-measure is never a pass, so gate on `!= 0`.
 """
 
 from __future__ import annotations
@@ -47,9 +57,11 @@ import fnmatch
 import re
 import subprocess
 import sys
+from collections import defaultdict, deque
 from pathlib import Path
+from typing import NamedTuple
 
-_SECTIONS = 6
+_SECTIONS = 7
 
 # Definition syntax is read only in files with one of these extensions, so a markdown line that
 # happens to start with "type" or "class" does not become a symbol.
@@ -108,6 +120,46 @@ _TOOLS: dict[str, frozenset[str]] = {
 }
 
 _STYLE_ORDER = ("lf", "crlf", "mixed", "binary", "none", "empty")
+
+# A test path has a directory named test, tests or __tests__ (any case) or a file name matching one
+# of these; --tests replaces the rule with the project's own entries.
+_TEST_DIRS = ("test", "tests", "__tests__")
+_SCRIPT_EXTENSIONS = ("js", "jsx", "mjs", "cjs", "ts", "tsx")
+_TEST_NAMES = (
+    "test_*.py",
+    "*_test.py",
+    "*_test.go",
+    "*_test.rb",
+    "*_spec.rb",
+    *(f"*.{kind}.{ext}" for kind in ("test", "spec") for ext in _SCRIPT_EXTENSIONS),
+    "*Test.java",
+    "*Tests.java",
+    "*Test.kt",
+    "*Tests.kt",
+    "*Test.cs",
+    "*Tests.cs",
+)
+_TEST_RULE = (
+    f"a directory named {', '.join(_TEST_DIRS[:-1])} or {_TEST_DIRS[-1]}, "
+    f"or a file named {', '.join(_TEST_NAMES)}"
+)
+
+# A line is an assertion when it holds one of these tokens (or a --assertion token) and is not a
+# comment. The token floor sees an assertion by its first line only.
+_ASSERTION = re.compile(
+    r"\bassert\w*|\bexpect\w*|\bshould\b|\.to[A-Z]\w*\(|\bt\.(?:Error|Fatal|Fail)\w*|\braises\b"
+)
+_COMMENT_STARTS = ("#", "//", "/*", "*")
+_ROW_KINDS = ("REMOVED", "CHANGED", "MOVED?", "DELETED")
+_ROW_LINES = 5
+_ROW_WIDTH = 120
+_HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+# The section's diff is asked for code files only, matched without regard to case as the extension
+# test is, so that --text (which makes git print hunks for a file an attribute marks `-diff`) is
+# never applied to an image or an archive.
+_CODE_DIFF_PATHSPECS = tuple(
+    f":(icase)*{extension}" for extension in sorted(_CODE_EXTENSIONS)
+)
 
 
 class _GitError(Exception):
@@ -330,6 +382,375 @@ def _path_regex(token: str) -> re.Pattern[str]:
     return re.compile(f"^{body}.*" if token.endswith("/") else f"^{body}$")
 
 
+def _is_test_path(path: str, entries: list[str] | None) -> bool:
+    """The printed rule, or the project's own --tests entries when given (an entry ending in `/`
+    covers a directory, one with `*?[` is a pattern, as in --plan)."""
+    if entries is not None:
+        return any(_covers(entry, path) for entry in entries)
+    parts = path.rstrip("/").split("/")
+    directory = path.endswith("/")
+    if any(part.lower() in _TEST_DIRS for part in (parts if directory else parts[:-1])):
+        return True
+    return not directory and any(
+        fnmatch.fnmatchcase(parts[-1], name) for name in _TEST_NAMES
+    )
+
+
+def _is_assertion(text: str, tokens: list[str]) -> bool:
+    line = text.strip()
+    if not line or line.startswith(_COMMENT_STARTS):
+        return False
+    return bool(_ASSERTION.search(line)) or any(token in line for token in tokens)
+
+
+class _Hunk(NamedTuple):
+    """One `-U0` hunk: where it starts in the base and in the work tree, and its changed lines."""
+
+    path: str
+    old_line: int
+    new_line: int
+    removed: list[str]
+    added: list[str]
+
+
+class _Row(NamedTuple):
+    """One printed row of section 7: kind, `path:line` in the base, what changed, detail lines."""
+
+    kind: str
+    where: str
+    what: str
+    lines: list[str]
+
+
+def _read_hunks(diff: str) -> list[_Hunk]:
+    """The hunks of a `-U0` diff made with fixed a/ and b/ prefixes, in the diff's own order."""
+    hunks: list[_Hunk] = []
+    path, in_header = "", False
+    for line in diff.splitlines():
+        if line.startswith("diff --git "):
+            path, in_header = "", True
+        elif in_header and line.startswith(("--- ", "+++ ")):
+            name = line[4:].split("\t")[0]
+            path = name[2:] if name != "/dev/null" else path
+        elif line.startswith("@@"):
+            in_header = False
+            found = _HUNK_HEADER.match(line)
+            if found is None:
+                raise _GitError(f"unreadable hunk header {line[:40]!r}")
+            hunks.append(_Hunk(path, int(found[1]), int(found[2]), [], []))
+        elif not in_header and hunks and line[:1] in ("-", "+"):
+            (hunks[-1].removed if line[0] == "-" else hunks[-1].added).append(line[1:])
+    return hunks
+
+
+def _added_text(
+    hunks: list[_Hunk], root: Path, untracked: list[str], rule: list[str] | None
+) -> dict[str, deque[tuple[str, int]]]:
+    """Every line the diff adds to a code file and every line of an untracked test file, by its
+    stripped text, with the place it was added at."""
+    pool: dict[str, deque[tuple[str, int]]] = defaultdict(deque)
+    for hunk in hunks:
+        if Path(hunk.path).suffix.lower() in _CODE_EXTENSIONS:
+            for offset, text in enumerate(hunk.added):
+                if text.strip():
+                    pool[text.strip()].append((hunk.path, hunk.new_line + offset))
+    for path in untracked:
+        file = root / path
+        if (
+            Path(path).suffix.lower() in _CODE_EXTENSIONS
+            and _is_test_path(path, rule)
+            and file.is_file()
+        ):
+            data = file.read_bytes()
+            if b"\0" in data[:8000]:
+                continue
+            for number, text in enumerate(
+                data.decode("utf-8", "replace").splitlines(), start=1
+            ):
+                if text.strip():
+                    pool[text.strip()].append((path, number))
+    return pool
+
+
+def _take(pool: dict[str, deque[tuple[str, int]]], text: str) -> str | None:
+    """The place an identical line was added at, used up so that one added line answers one
+    removed line."""
+    places = pool.get(text.strip())
+    if not places:
+        return None
+    path, number = places.popleft()
+    return f"{path}:{number}"
+
+
+def _clip(text: str) -> str:
+    return text if len(text) <= _ROW_WIDTH else text[: _ROW_WIDTH - 3] + "..."
+
+
+def _hunk_rows(
+    path: str,
+    hunks: list[_Hunk],
+    pool: dict[str, deque[tuple[str, int]]],
+    tokens: list[str],
+) -> tuple[list[_Row], int]:
+    """One row per hunk that removes an assertion line, and the count of the other removed lines."""
+    rows: list[_Row] = []
+    other = 0
+    for hunk in hunks:
+        gone = [
+            (hunk.old_line + index, text.strip())
+            for index, text in enumerate(hunk.removed)
+            if _is_assertion(text, tokens)
+        ]
+        other += sum(
+            1
+            for text in hunk.removed
+            if text.strip() and not _is_assertion(text, tokens)
+        )
+        if not gone:
+            continue
+        places = [_take(pool, text) for _, text in gone]
+        unmatched = places.count(None)
+        if not unmatched:
+            kind = "MOVED?"
+            where = ", ".join(place for place in places[:3] if place)
+            more = f" and {len(places) - 3} more" if len(places) > 3 else ""
+            what = f"{len(gone)} assertion line(s) removed, identical text added at {where}{more}"
+        elif hunk.added:
+            kind = "CHANGED"
+            what = f"{len(gone)} assertion line(s) removed, {len(hunk.added)} line(s) added"
+        else:
+            kind = "REMOVED"
+            what = f"{len(gone)} assertion line(s) removed, nothing added"
+        shown = [
+            f"- {_clip(text)}"
+            + (f" (identical text added at {place})" if place and unmatched else "")
+            for (_, text), place in zip(gone, places, strict=True)
+        ]
+        lines = shown[:_ROW_LINES]
+        if len(shown) > _ROW_LINES:
+            lines.append(
+                f"... and {len(shown) - _ROW_LINES} more removed assertion line(s)"
+            )
+        if kind == "CHANGED":
+            lines += [f"+ {_clip(text.strip())}" for text in hunk.added[:3]]
+            if len(hunk.added) > 3:
+                lines.append(f"... and {len(hunk.added) - 3} more added line(s)")
+        rows.append(_Row(kind, f"{path}:{gone[0][0]}", what, lines))
+    return rows, other
+
+
+def _deleted_row(
+    path: str,
+    hunks: list[_Hunk],
+    pool: dict[str, deque[tuple[str, int]]],
+    tokens: list[str],
+) -> _Row:
+    gone = [
+        text for hunk in hunks for text in hunk.removed if _is_assertion(text, tokens)
+    ]
+    again = sum(1 for text in gone if _take(pool, text) is not None)
+    what = f"{len(gone)} assertion line(s) in the deleted file, {again} of {len(gone)} added again as identical text"
+    return _Row("DELETED", path, what, [])
+
+
+def _lost_lines(count: tuple[str, str] | None) -> bool:
+    """True unless the diff stat says a path lost no line (`-` is a file git counted as binary)."""
+    return count is not None and count[1] != "0"
+
+
+def _held_tests(root: Path, rule: list[str] | None) -> int:
+    listed = _split_nul(_git(root, "ls-files", "-z", "-c", "-o", "--exclude-standard"))
+    return sum(
+        1 for path in listed if _is_test_path(path, rule) and (root / path).is_file()
+    )
+
+
+def _test_changes(
+    report: _Report,
+    root: Path,
+    args: argparse.Namespace,
+    tracked: list[tuple[str, str]],
+    untracked: list[str],
+    counts: dict[str, tuple[str, str]],
+) -> None:
+    """Section 7: the census of changed test paths, the plan over test paths only, and one row for
+    each hunk that removes or changes an assertion in an edited test or a shared test helper."""
+    rule: list[str] | None = (
+        None
+        if args.tests is None
+        else [entry.replace("\\", "/").removeprefix("./") for entry in args.tests]
+    )
+    tokens: list[str] = args.assertion
+    print(
+        "test paths: "
+        + (f"--tests entries only: {', '.join(rule)}" if rule else _TEST_RULE)
+    )
+    letters = {path: letter for letter, path in tracked}
+    every = sorted(set(letters) | set(untracked))
+    changed = [path for path in every if _is_test_path(path, rule)]
+    added = sum(1 for path in changed if letters.get(path, "?") in ("A", "?"))
+    deleted = sum(1 for path in changed if letters.get(path) == "D")
+    plus = minus = binary = 0
+    for path in changed:
+        more, fewer = counts.get(path, ("0", "0"))
+        if more == "-":
+            binary += 1
+        else:
+            plus, minus = plus + int(more), minus + int(fewer)
+    try:
+        held = str(_held_tests(root, rule))
+    except _GitError as exc:
+        report.fail(f"test changes: the test paths could not be listed ({exc})")
+        held = "an unknown number of"
+    print(
+        f"census: {len(changed)} of {len(every)} changed path(s) are test paths "
+        f"({added} added, {len(changed) - added - deleted} modified, {deleted} deleted; "
+        f"+{plus} -{minus} lines{f', {binary} binary' if binary else ''}); "
+        f"the repository holds {held} test path(s)"
+    )
+    readable = [p for p in changed if Path(p).suffix.lower() in _CODE_EXTENSIONS]
+    print(
+        f"read: {len(readable)} of {len(changed)} changed test path(s) have a code extension; "
+        f"{len(changed) - len(readable)} not read"
+    )
+
+    if args.plan is None:
+        print(
+            "plan: comparison over test paths not run (no --plan given; counted once, in section 2)"
+        )
+    else:
+        try:
+            entries = _read_plan(Path(args.plan))
+        except OSError:
+            print(
+                "plan: comparison over test paths not run (the plan was unreadable, see section 2)"
+            )
+        else:
+            planned = [entry for entry in entries if _is_test_path(entry, rule)]
+            outside = [
+                path
+                for path in changed
+                if not any(_covers(entry, path) for entry in entries)
+            ]
+            idle = [
+                entry
+                for entry in planned
+                if not any(_covers(entry, path) for path in changed)
+            ]
+            print(f"plan: {len(planned)} of {len(entries)} plan path(s) are test paths")
+            print(
+                f"changed test paths not in plan ({len(outside)}): {', '.join(outside) or 'none'}"
+            )
+            print(
+                f"planned test paths not changed ({len(idle)}): {', '.join(sorted(idle)) or 'none'}"
+            )
+
+    try:
+        diff = _git(
+            root,
+            "diff",
+            "--no-renames",
+            "--no-ext-diff",
+            "--text",
+            "-U0",
+            "--no-color",
+            "--src-prefix=a/",
+            "--dst-prefix=b/",
+            args.base,
+            "--",
+            *_CODE_DIFF_PATHSPECS,
+        ).decode("utf-8", "replace")
+        hunks = _read_hunks(diff)
+    except _GitError as exc:
+        report.fail(f"test changes: the diff could not be read ({exc})")
+        hunks = None
+    if hunks is not None:
+        pool = _added_text(hunks, root, untracked, rule)
+        rows: list[_Row] = []
+        other: dict[str, int] = {}
+        unread: list[str] = []
+        modified_read = deleted_read = 0
+        for path in readable:
+            letter = letters.get(path, "?")
+            if letter in ("A", "?"):
+                continue
+            mine = [hunk for hunk in hunks if hunk.path == path]
+            if not mine and _lost_lines(counts.get(path)):
+                unread.append(path)
+                continue
+            if letter == "D":
+                deleted_read += 1
+                rows.append(_deleted_row(path, mine, pool, tokens))
+            else:
+                modified_read += 1
+                found, other[path] = _hunk_rows(path, mine, pool, tokens)
+                rows += found
+        listed = rows[: max(args.max_rows, 0)]
+        if rows:
+            print(
+                "columns: kind, where (path:line in the base), what changed, what covers it now, "
+                'a broken version that passes the old test and fails the new one (or "none")'
+            )
+        for row in listed:
+            print(f"{row.kind}\t{row.where}\t{row.what}\tUNKNOWN\tUNKNOWN")
+            for line in row.lines:
+                print(f"  {line}")
+        if rows:
+            kinds = ", ".join(
+                f"{kind} {sum(1 for row in rows if row.kind == kind)}"
+                for kind in _ROW_KINDS
+            )
+            print(
+                f"rows: {len(rows)} ({kinds}) over {modified_read} modified and "
+                f"{deleted_read} deleted test file(s) read"
+            )
+        elif changed:
+            print(
+                f"no rows: {modified_read} modified and {deleted_read} deleted test file(s) read, "
+                "none removes or changes an assertion line"
+            )
+        else:
+            print("no rows: no test path changed")
+        if len(rows) > len(listed):
+            report.fail(
+                f"test changes: {len(rows) - len(listed)} more row(s) not listed "
+                f"(--max-rows {args.max_rows})"
+            )
+        if unread:
+            more = f" and {len(unread) - 5} more" if len(unread) > 5 else ""
+            report.fail(
+                f"test changes: {len(unread)} changed test file(s) lost lines in the diff stat but "
+                f"git printed no hunk for them, so they were not read (a diff driver or a text "
+                f"conversion may be in the way): {', '.join(unread[:5])}{more}"
+            )
+        counted = sorted((path, count) for path, count in other.items() if count)
+        for path, count in counted:
+            print(f"other removed lines: {path}\t{count}")
+        if not counted:
+            print(
+                f"other removed lines: none in {modified_read} modified test file(s) read"
+            )
+    print(
+        "LIMIT: a line is an assertion when it holds a token (assert*, expect*, should, .toX(, "
+        "t.Error or t.Fatal calls, raises, all matched case-sensitively, plus each --assertion: "
+        "a capitalised form such as Assert.Equal( needs --assertion Assert., and a project "
+        "directory such as MyApp.Tests/ is a test path only through --tests) and is not a "
+        "comment, so a "
+        "data-driven pin, an assertion built by a helper and the later lines of a multi-line "
+        "assertion are seen by their token lines only (a needle table shows in the other removed "
+        "lines count: open it by hand); stronger or weaker is not judged; skip and xfail markers "
+        "are not read; MOVED? means identical text was added elsewhere, not that it still guards "
+        "the same thing; what covers it now and the broken version are for the review to fill in "
+        "and stay UNKNOWN until read."
+    )
+
+
+def _token(value: str) -> str:
+    if not value:
+        raise argparse.ArgumentTypeError("an assertion token cannot be empty")
+    return value
+
+
 def _parse(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Print the post-task review's mechanical checks."
@@ -341,6 +762,9 @@ def _parse(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--matrix")
     parser.add_argument("--max-symbols", type=int, default=30)
     parser.add_argument("--max-files", type=int, default=15)
+    parser.add_argument("--tests", nargs="+")
+    parser.add_argument("--assertion", action="append", default=[], type=_token)
+    parser.add_argument("--max-rows", type=int, default=40)
     return parser.parse_args(argv)
 
 
@@ -638,6 +1062,9 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "LIMIT: a match names the docs to open, not whether they are stale; event rows are judged by hand."
         )
+
+    report.open(7, "Test changes")
+    _test_changes(report, root, args, tracked, untracked, counts)
 
     return report.finish(len(changed), _SECTIONS - len(report.failed))
 

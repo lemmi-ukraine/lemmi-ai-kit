@@ -20,6 +20,7 @@ invisible to anyone working from it.
 - [ ] No obvious design flaws or anti-patterns
 - [ ] Integrates well with existing system components
 - [ ] No missing pieces that prevent end-to-end functionality
+- [ ] The tests that already exist for the touched area and for two neighbouring areas are listed before the change's own tests are judged (the script's test-changes section prints how many test paths changed and how many the repository holds)
 
 ### Step 2: Detailed File-by-File Review
 - [ ] Every function reviewed for correctness
@@ -29,6 +30,8 @@ invisible to anyone working from it.
 - [ ] Proper resource cleanup (connections, files, sessions)
 - [ ] No potential memory leaks or performance issues
 - [ ] Async/await usage correct (no missing awaits)
+- [ ] Every removed or changed assertion in an edited test or shared test helper (the script's test-changes section lists them) has what covers it now and a broken version that passes the old test and fails the new one, or the word "none"; a "none" is a finding (see `claim-boundaries.md`, the paragraph on a mutant that survives)
+- [ ] The test files that changed match the plan's list of test files that may change: each changed test path the plan does not list, and each listed one left alone, is explained
 
 ### Step 3: Convention Compliance
 - [ ] Imports: global at top, proper grouping, no unused
@@ -96,6 +99,7 @@ were modified). Checks 1 to 3 are in SKILL.md and cover a feature removed or add
 - [ ] Asked: is it detailed enough? what was missed? what would a reviewer object to?
 - [ ] Stated what the challenge CHANGED, including "nothing" — silence is not a result
 - [ ] Ran BEFORE the handoff is written, never after
+- [ ] Finished artifact read end to end: the document, plan or report as it now stands, after the last edit (not its diff, not a checker's verdict); yes or no, with what was read
 
 ## Common Mistakes Caught in Past Reviews
 
