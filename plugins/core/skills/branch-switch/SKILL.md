@@ -49,8 +49,9 @@ python -B "${CLAUDE_SKILL_DIR}/scripts/pre_switch_backup.py" <target-branch>
 It writes a new folder under the git directory and prints its path as the last line; a non-zero
 exit means there is no backup, so do not switch. It saves the tracked and staged diffs, the
 untracked file names, the stash list and HEAD, and says what it does not: untracked file contents
-(Step 2's stash takes those, with `--include-untracked`) and ignored files. Then **report the
-backup path to the user before switching.** A backup nobody knows about is not a backup.
+(Step 2's stash takes those for a handful of files or fewer, with `--include-untracked`; past that
+they stay in the tree) and ignored files. Then **report the backup path to the user before
+switching.** A backup nobody knows about is not a backup.
 
 Three refusals that are absolute for a model-initiated switch — stop and hand back to the user:
 
@@ -91,11 +92,23 @@ If there are NO uncommitted changes, skip to Step 3.
 
 Unless `--no-stash` was specified:
 
-1. **Show what will be stashed** — list modified and untracked files
-2. **Create the stash** with a descriptive message:
+1. **Show what will be stashed** — list the modified files and **count the untracked ones**
+   before choosing the stash command (files, not `git status --short` lines: a new directory
+   is one line there; `:/` counts the whole repository, not only the current directory):
+   ```bash
+   git ls-files --others --exclude-standard -- :/ | wc -l
+   ```
+2. **Create the stash** with a descriptive message. With a handful of untracked files or fewer
+   (5; a chosen default, not a measured one), take them along:
    ```bash
    git stash push -m "WIP on {current-branch}: {brief description of changes}" --include-untracked
    ```
+   Past a handful, stash the **tracked changes only**: the same command without
+   `--include-untracked`, and tell the user the untracked files stay in the tree. A stash that
+   takes hundreds of untracked files takes files out of the tree that may not be this session's;
+   a checkout carries untracked files across, and refuses rather than overwrite one that the
+   target branch tracks, so leaving them in place loses nothing. With no tracked change there is
+   nothing to stash: go on to Step 3.
 3. **Verify the stash was created**:
    ```bash
    git stash list | head -1
@@ -104,6 +117,7 @@ Unless `--no-stash` was specified:
    ```bash
    git status --short
    ```
+   After a tracked-only stash the untracked files still show as `??`; no tracked change should.
 
 If `git stash push` fails (e.g., merge conflicts in progress), inform the user and
 suggest alternatives:
@@ -160,7 +174,7 @@ Only apply stash if the user requested it (explicit `--apply-stash` or the user 
 Always end by reporting:
 ```
 Branch: {new branch name}
-Status: {clean / N modified files}
+Status: {clean / N modified files / N untracked files left in place}
 Stash: {stash entry if still exists, or "dropped"}
 ```
 

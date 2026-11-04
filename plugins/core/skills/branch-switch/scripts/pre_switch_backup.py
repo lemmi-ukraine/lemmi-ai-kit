@@ -24,8 +24,8 @@ Each file holds the output of one git command, byte for byte:
 files differ", which restores nothing.
 
 NOT saved, and the script says so on every run: the CONTENTS of untracked files (the inventory
-holds names only; the stash a switch takes with `git stash push --include-untracked` is what
-keeps them) and ignored files.
+holds names only; the stash a switch takes with `git stash push --include-untracked` keeps them
+for a handful of files or fewer, and past that they stay in the tree) and ignored files.
 
 The folder is made with a `mkdir` that fails when it exists, so a second run with the same stamp
 can never overwrite the first backup.
@@ -121,7 +121,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     print("untracked files, the stash list, HEAD and the branch.")
     print(
         "NOT saved: the CONTENTS of untracked files (the stash taken with "
-        "`git stash push --include-untracked` keeps them) and ignored files."
+        "`git stash push --include-untracked` keeps them for a handful of files or fewer; "
+        "past that they stay in the tree) and ignored files."
     )
     print(folder)
     return 0

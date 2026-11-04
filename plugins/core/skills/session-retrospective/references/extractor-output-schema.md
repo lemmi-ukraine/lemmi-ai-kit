@@ -226,6 +226,11 @@ no slash or backslash after it), so `msbuild.log`, `run-msbuild`, `tools/msbuild
 `dotnet build-server` do not count, and neither do `dotnet run`, `dotnet new` or `dotnet --info`.
 When the pattern changes, change this paragraph with it; a test holds the two together.
 
+**Compare like with like before reading a with-and-without contrast as an effect:** sessions that
+used a skill, set against sessions that did not, can also differ in model (`models`), size
+(`counts`, `transcriptBytes`) and kind of work (`toolsUsed`), so match the two groups on those
+fields first.
+
 ## Redaction & privacy
 
 - Every emitted **content** string is redacted: `sk-`/`sk-ant-` keys, JWTs, `Authorization: Bearer`,

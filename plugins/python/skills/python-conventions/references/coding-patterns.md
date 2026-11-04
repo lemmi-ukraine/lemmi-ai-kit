@@ -287,6 +287,19 @@ This is narrowing FROM `Any` for internal use inside one function. It is **not**
 `cast(Any, ...)` that AGENTS.md bans — that rule is about smuggling objects between layers with
 different models, a different operation in the opposite direction.
 
+A declared Optional behaves the same way when the assigned value is `Any`. Given
+`payload: dict[str, Any]`, after `limit: int | None = payload["limit"]` basedpyright still reads
+`limit` as `int | None`, so a later `limit > 0` is reported (`reportOptionalOperand`) although the
+value is an integer at run time. The variable keeps the type you declared for it, so take the value
+into a separate local whose annotation is the type you mean, and compare that; if the value can
+really be missing, check it first and narrow on that.
+
+```python
+raw_limit: int = payload["limit"]   # NOT: limit: int | None = payload["limit"]
+if raw_limit > 0:
+    ...
+```
+
 ## New Parameters, and Validators Called By Their Own Caller
 
 Two defects that a reviewer reading one function cannot see — only the call site reveals them.

@@ -179,3 +179,10 @@ path) goes wrong in four ways that none of the seven diagnostics above can see:
 - **In a command that a probe runs through a shell, a bare `|` is a pipe**, not part of the
   pattern: it splits the command, so the probe measures a different command from the one meant.
   Quote it, or keep the pattern in a script file.
+
+**A sum of two presence counts is not their union.** "Sessions that used tool A" plus "sessions
+that used tool B" counts a session that used both twice: say 6 sessions used A, 5 used B and 4
+used both, and the sum is 11 where the union is 7. Take the union from the per-session records,
+counting a session once when either is present, or subtract the overlap and report it beside the
+figure. The same holds for any per-entity presence count: files touched, users affected, runs
+that hit a signal.
