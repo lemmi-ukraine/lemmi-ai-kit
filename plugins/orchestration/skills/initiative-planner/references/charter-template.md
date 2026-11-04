@@ -60,6 +60,14 @@ A legitimate stopping point, not a degraded one.}
 
 {What this deliberately excludes, and why. An empty section is a failure.}
 
+## Operator rules in force
+
+| Rule | Stated or expected | Measured by | Enforced by | Slips counted by |
+|---|---|---|---|---|
+| {the rule, in the operator's words} | {stated: who said it, and when · expected: the fact that makes it obvious} | {the command run at every landing, and the planted line it was fired at} | {a hook switched on for this initiative, a tool grant, or "prose only"} | {who counts a break, and where the count is kept} |
+
+{No rule stated: write "none stated, asked on {YYYY-MM-DD}", never nothing.}
+
 ## Open questions
 
 {Each names its gate and its decider.}
@@ -170,6 +178,30 @@ Every initiative has boundaries. The useful ones are the boundaries someone **wi
 during implementation. If a non-goal conflicts with the chosen build order, say so here rather than
 letting the conflict surface as a surprise at a gate — that is a decision for the operator, not for
 whoever notices first.
+
+### Operator rules in force
+The rules the operator has stated about how this initiative may run, and the rules the operator
+would state if asked. A **stated** rule is one the operator has already said. An **expected** rule
+follows from a fact about the work: a public repository means nothing private may reach anything
+pushed, a shared tree means disjoint file sets, a consumer that installs the work means it must run
+from a fresh copy. Ask for the expected ones at the charter, because a rule that arrives after the
+gates are green meets gates that cannot see it (observed, 2026-11-03: the operator ruled that a
+repository was public, and must carry no project information, on the eighth day of an initiative,
+with every gate green and the forbidden content already tracked).
+
+**Measure the rule itself.** A green gate says nothing about a rule it does not encode. Each row
+names the command that measures its rule on every landing, and that command is fired at a planted
+line before its zero is trusted. A public repository, for example, means a forbidden-content scan on
+every landing, built with a planted control. Run each row's command before asking the operator for a
+push; the gates that ran are not evidence for it.
+
+**Name what enforces the rule, and who counts the slips.** A rule that only a brief states gets
+broken ([dispatch-economics.md](dispatch-economics.md) section 2 gives the measured rate), so each
+row names the hook, tool grant or gate that enforces it for this initiative. Where that is a hook,
+switch it on before the first wave: Core's shell-prefix hook does nothing until
+`.ai/shell-prefix-hook.json` says `{"enabled": true}`, and the switch is flipped while no peer
+session is mid-task. Each row also names who counts a break of the rule, and where the count is
+kept, so a slip is a number and not a memory.
 
 ### Alternatives considered (ADR)
 "Do nothing" is always an alternative and always listed. A rejection reason must be specific enough

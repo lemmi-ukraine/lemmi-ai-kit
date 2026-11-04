@@ -65,6 +65,12 @@ and the numbered definition of done so a gate can be run from this file alone.}
 ## 7. What has NOT been decided
 
 {Each with the gate that decides it.}
+
+## 8. Forecast log
+
+| Date | Claim | Basis | Observed |
+|---|---|---|---|
+| {YYYY-MM-DD HH:MM, read from the clock} | {the forecast: a duration, a landing time, the context a session will use, how many sessions remain} | {what it rests on, or "none"} | {what happened, when it was read, and how far from the claim; blank until the session closes} |
 ```
 
 ---
@@ -170,3 +176,15 @@ Every open question with the gate that closes it. Include conflicts between the 
 rule or a stated non-goal — **record the violation, do not hide it.** A plan that only permits clean
 answers gets abandoned at the first messy one.
 Give each question an id the gate's approval record can cite (§4).
+
+### §8 Forecast log
+One row per forecast the plan makes, written when it is made: the date and time read from the
+clock, the claim (a duration, a landing time, the context a session will use, how many sessions
+remain) and the basis it rests on, or the word "none". At each session close, fill in Observed for
+every row that session settled, with how far the result was from the claim, so the next forecast
+starts from what the last one missed by. The plan's sentence that session counts are a
+decomposition, not an estimate (`SKILL.md` step 8) stays as it is: the counts partition the work
+and say nothing about duration, so a forecast of how long or how many is a separate claim, and this
+log holds it. Estimates of a session's context, of landing times and of the sessions remaining
+missed in both directions, and none was logged against its outcome (observed, 2026-10-30 to
+2026-11-03).
