@@ -21,6 +21,18 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --python \">=3.11\" python -B -P -c \"import os,runpy,sys;p=sys.argv[1];sys.argv=[p];os.path.isfile(p) and runpy.run_path(p,run_name='__main__')\" \"${CLAUDE_PLUGIN_ROOT}/hooks/nudge_learnings_drain.py\"; exit $LASTEXITCODE",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

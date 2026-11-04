@@ -36,13 +36,15 @@ in the project. Existing installations need a Core update and a new agent sessio
 
 ## Hooks
 
-Core registers two `PreToolUse` command hooks in [hooks/hooks.json](hooks/hooks.json). Both start
-their script through `uv`, which must be available to the agent client, as for the rest of Core.
+Core registers three command hooks in [hooks/hooks.json](hooks/hooks.json): two on `PreToolUse` and
+one on `SessionStart`. Each starts its script through `uv`, which must be available to the agent
+client, as for the rest of Core.
 
 | Hook | What it blocks | Default |
 |---|---|---|
 | `gate_learnings_drain` | Removing entries from `.ai/learnings.md` (an Edit, MultiEdit or Write that drops entries, or a shell call shaped like a rewrite or a removal of the file) while no approved consolidation plan is recorded for the day. Appending is never blocked. | Registered whenever Core is enabled; there is no switch. |
 | `gate_shell_prefix` | Shell calls (the Bash and PowerShell tools) that move the persistent working directory, start with a variable assignment, or shadow `cd`. | Off by default: it does nothing until a project switches it on. |
+| `nudge_learnings_drain` | Nothing: when a session opens it prints one line if the learnings buffer is due for a drain. | Off by default: it prints nothing until a project switches it on. |
 
 ### The shell-prefix hook
 
@@ -104,6 +106,36 @@ no delay and says nothing about a plugin's own hooks file. This design differs i
 matters: the switch file is read on every call, so turning it on or off reaches every window that
 already has the hook registered on its next shell call.
 
+### The drain-nudge hook
+
+`nudge_learnings_drain` runs when a session opens (the `startup`, `resume` and `clear` sources) and
+prints one line into the session when the learnings buffer is due for a drain:
+`intake at N entries, last drain D days ago -> run /lemmi-ai-kit-core:learning-consolidator`.
+It never blocks and exits 0 on every path. `task-learnings` (its buffer-pressure check) and
+`learning-consolidator` (its cadence guard) say the same thing, but only when they run, so a session
+that ends without either never shows it; this hook says it when the session starts.
+
+It is off by default. It prints nothing until the project holds `.ai/drain-nudge-hook.json` with
+`{"enabled": true}`; the file is read at every session start, so a change takes effect at the next
+session start and needs no change to the plugin. A file the hook cannot use (not UTF-8 JSON, not an
+object, an unknown key, a value that is not a boolean) never blocks and never passes in silence: one
+warning message says what is wrong with the file, and nothing else is checked.
+
+Switched on, it counts the `### ` headings of `.ai/learnings.md` (the count
+`lint learnings --list-entries` prints) and dates the last drain by the newest `CONSOLIDATION` entry
+of `.ai/ai-changelog.md` whose `**Drained:**` count is above 0; an entry without the line, or with a
+count that cannot be read, counts as drained. It prints when the buffer holds more than 25 entries,
+or when it holds any and the last drain is 7 or more days old: the numbers those two skills state,
+and a test fails when the hook or this section disagrees with them. With no drain recorded the age
+rule stays quiet, and a buffer over the entry count prints `no drain recorded` in place of the age.
+It reads no stash, branch or backup copy of the buffer, and a project cannot change the two numbers.
+
+Every session start pays one `uv` and Python start whether or not the switch is on, and the hooks
+reference says Claude's first response waits for SessionStart hooks to finish. The reference says
+the line goes into Claude's context. It does not say whether the operator also sees it, so the
+operator may see it only if Claude relays it, which was not tried live. Nor does it say whether a
+SessionStart `systemMessage`, which carries the warning above, is shown to the user.
+
 ### Registration
 
 A plugin update's new registration is not assumed to reach a window that is already open: restart
@@ -117,11 +149,11 @@ The Codex manifest declares no hooks, which is not the same as no hooks for Code
 documentation says Codex "discovers `hooks/hooks.json` by default" when the plugin's manifest does
 not define hooks, that it skips a plugin's hooks "until the user reviews and trusts the current hook
 definition", and that it "also sets `CLAUDE_PLUGIN_ROOT` and `CLAUDE_PLUGIN_DATA` for compatibility
-with existing plugin hooks". Both hooks may therefore be offered to a Codex user. They have not been
+with existing plugin hooks". All three hooks may therefore be offered to a Codex user. They have not been
 run in Codex here, so whether they work there, with Codex's own tool names and payloads, is not
 established.
 
-Both registrations fail open. Without care, a missing script (a moved plugin folder, an update that
+Every registration fails open. Without care, a missing script (a moved plugin folder, an update that
 renamed a file) makes Python exit 2, and the hooks reference says "Exit with code 2 to block the
 action", so every call the matcher covers would be blocked. Each command is therefore a short launcher:
 it checks that the script file exists, runs it with `runpy` when it does, and ends with
@@ -134,13 +166,15 @@ path: with `-c` alone, a file named `json.py` in the project would be run in pla
 same flag keeps the script's own folder off the import path, so a hook script is one file that
 imports only the standard library: a sibling module would not be found, the script would exit 1
 (a non-blocking failure, except on Windows without Git Bash, see below) and the hook would go quiet.
-A test pins that for both scripts.
+A test pins that for every hook script.
 
 Not protected: `uv` itself. A `uv` that is not on the `PATH` is a shell error: 127 in a POSIX shell,
 which the hooks reference counts as a non-blocking failure, and 0 in PowerShell, because the tail
 passes on a `$LASTEXITCODE` that `uv` never set. A `uv` that starts but cannot do its job exits 2,
 which blocks every call the matcher covers: no Python 3.11 or newer, a cache folder it cannot use
-and a configuration file it cannot read each gave exit 2 when tried. On Windows without Git Bash the
+and a configuration file it cannot read each gave exit 2 when tried. (On `SessionStart` the hooks
+reference says exit 2 only shows stderr to the user and the session proceeds, so for the nudge it is
+a message at session start and not a blocked call.) On Windows without Git Bash the
 hooks reference says "only exit code 0 or 2 counts as this hook's verdict", so there a crash, a
 script that does not compile or a timeout blocks the call as well. The `onFailure` field (`"continue"`
 or `"block"`, Claude Code v2.1.295 or later) says whether the action goes ahead when a hook fails;

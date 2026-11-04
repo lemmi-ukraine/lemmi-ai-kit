@@ -20,9 +20,11 @@ replaces it, through every shell the harness may use that exists on this machine
   command, `${env:CLAUDE_PLUGIN_ROOT}`, which PowerShell resolves from the exported environment:
   the script is found and run, and a missing one is silent;
 - input a hook cannot use (empty, not JSON, not UTF-8, cut short) ends in exit 0 and no output, for
-  both hooks, in every shell;
-- both hook scripts import only the standard library, because the launcher keeps the script's own
+  every hook, in every shell;
+- every hook script imports only the standard library, because the launcher keeps the script's own
   folder off the import path and a sibling module would not be found;
+- the session-start nudge, registered on its own event, prints nothing until its project holds the
+  switch file, and prints its one line once the file is there, in every shell;
 - the old, unwrapped command exits non-zero on a missing script, which is the control that shows
   this probe can see the failure at all.
 
@@ -50,11 +52,13 @@ import pytest
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _HOOKS_DIR = _REPO_ROOT / "plugins" / "core" / "hooks"
 _HOOKS_JSON = _HOOKS_DIR / "hooks.json"
+_README = _REPO_ROOT / "plugins" / "core" / "README.md"
 _PLACEHOLDER = "${CLAUDE_PLUGIN_ROOT}"
 _SCRIPT_REFERENCE = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/hooks/([A-Za-z0-9_.-]+\.py)")
 
 _DRAIN = "gate_learnings_drain.py"
 _PREFIX = "gate_shell_prefix.py"
+_NUDGE = "nudge_learnings_drain.py"
 
 _SHELLS = ("bash", "sh", "powershell", "pwsh")
 _POWERSHELLS = ("powershell", "pwsh")
@@ -111,27 +115,31 @@ class _Registered(NamedTuple):
     script: str
     timeout: int | None
     kind: str
+    event: str
 
 
 def _registered() -> list[_Registered]:
+    """Every registration under every event of hooks.json, with the event it is under."""
     data = cast(dict[str, Any], json.loads(_HOOKS_JSON.read_text(encoding="utf-8")))
     found: list[_Registered] = []
-    for group in cast(list[dict[str, Any]], data["hooks"]["PreToolUse"]):
-        for hook in cast(list[dict[str, Any]], group["hooks"]):
-            command = str(hook["command"])
-            match = _SCRIPT_REFERENCE.search(command)
-            assert match is not None, (
-                f"a registered command names no plugin script: {command}"
-            )
-            found.append(
-                _Registered(
-                    str(group["matcher"]),
-                    command,
-                    match.group(1),
-                    cast("int | None", hook.get("timeout")),
-                    str(hook.get("type")),
+    for event, groups in cast(dict[str, list[dict[str, Any]]], data["hooks"]).items():
+        for group in groups:
+            for hook in cast(list[dict[str, Any]], group["hooks"]):
+                command = str(hook["command"])
+                match = _SCRIPT_REFERENCE.search(command)
+                assert match is not None, (
+                    f"a registered command names no plugin script: {command}"
                 )
-            )
+                found.append(
+                    _Registered(
+                        str(group["matcher"]),
+                        command,
+                        match.group(1),
+                        cast("int | None", hook.get("timeout")),
+                        str(hook.get("type")),
+                        event,
+                    )
+                )
     return found
 
 
@@ -220,6 +228,32 @@ def _mode(mode: str, text: str = "") -> bytes:
     return json.dumps({"mode": mode, "text": text}, ensure_ascii=False).encode("utf-8")
 
 
+# What the nudge prints for a project of 30 entries and no changelog: that line does not depend on
+# the day, so the registered string can be asked for it on any day.
+_NUDGE_LINE = "intake at 30 entries, no drain recorded -> run /lemmi-ai-kit-core:learning-consolidator"
+
+
+def _nudge_project(path: Path, *, switched_on: bool) -> Path:
+    """A project whose buffer holds 30 entries, above the threshold, with or without the switch file."""
+    (path / ".ai").mkdir(parents=True)
+    entries = "".join(f"### [2026-03-01] Entry {n}\nbody\n\n" for n in range(30))
+    (path / ".ai" / "learnings.md").write_text(
+        f"# Learnings\n\n{entries}", encoding="utf-8", newline="\n"
+    )
+    if switched_on:
+        (path / ".ai" / "drain-nudge-hook.json").write_text(
+            '{"enabled": true}', encoding="utf-8"
+        )
+    return path
+
+
+def _session_start(project: Path) -> bytes:
+    """What the harness hands a SessionStart hook on stdin."""
+    return json.dumps(
+        {"hook_event_name": "SessionStart", "source": "startup", "cwd": str(project)}
+    ).encode("utf-8")
+
+
 def _fixture_root(base: Path, name: str, *scripts: str) -> Path:
     """A plugin folder holding the fixture under each script name given; with none, an empty folder."""
     root = base / name
@@ -241,7 +275,7 @@ def _find(script: str) -> str | None:
 def _jobs(base: Path) -> dict[str, _Job]:
     """Every launch to make. An entry that is not registered gets no launch, so the tests for it
     fail by name instead of the whole fixture failing before any test can say why."""
-    drain, prefix = _find(_DRAIN), _find(_PREFIX)
+    drain, prefix, nudge = _find(_DRAIN), _find(_PREFIX), _find(_NUDGE)
     old = f'uv run --no-project --python ">=3.11" python -B "{_PLACEHOLDER}/hooks/{_DRAIN}"'
     empty = _fixture_root(base, "empty")
     both = _fixture_root(base, "both", _DRAIN, _PREFIX)
@@ -284,6 +318,9 @@ def _jobs(base: Path) -> dict[str, _Job]:
             "cwd": str(project),
         }
     ).encode("utf-8")
+    nudge_on = _nudge_project(base / "nudge_on", switched_on=True)
+    nudge_off = _nudge_project(base / "nudge_off", switched_on=False)
+    nudge_on_env = {"CLAUDE_PROJECT_DIR": str(nudge_on)}
     text = "привіт ☃ plain"
     jobs: dict[str, _Job] = {
         "old command, script missing": _Job(old, empty, _mode("echo"), {})
@@ -297,6 +334,10 @@ def _jobs(base: Path) -> dict[str, _Job]:
         if drain is not None:
             jobs[f"malformed stdin ({label}), learnings guard"] = _Job(
                 drain, real, payload, project_env
+            )
+        if nudge is not None:
+            jobs[f"malformed stdin ({label}), drain nudge"] = _Job(
+                nudge, real, payload, nudge_on_env
             )
     # Each scenario runs on one entry; the entries share one launcher (asserted separately), and
     # the two scripts are each exercised by the scenarios that matter to them.
@@ -327,6 +368,17 @@ def _jobs(base: Path) -> dict[str, _Job]:
         )
         jobs["documented rewrite, script present"] = _Job(
             prefix, both, _mode("echo", text), {}, True
+        )
+    if nudge is not None:
+        jobs["script missing, drain nudge"] = _Job(nudge, empty, _mode("echo"), {})
+        jobs["real drain nudge, switch file present"] = _Job(
+            nudge, real, _session_start(nudge_on), nudge_on_env
+        )
+        jobs["real drain nudge, no switch file"] = _Job(
+            nudge,
+            real,
+            _session_start(nudge_off),
+            {"CLAUDE_PROJECT_DIR": str(nudge_off)},
         )
     return jobs
 
@@ -398,7 +450,7 @@ def results(tmp_path_factory: pytest.TempPathFactory) -> _Results:
 def test_every_registered_script_exists_and_every_hook_script_is_registered() -> None:
     registered = {item.script for item in _registered()}
     on_disk = {path.name for path in _HOOKS_DIR.glob("*.py")}
-    assert registered == {_DRAIN, _PREFIX}, registered
+    assert registered == {_DRAIN, _PREFIX, _NUDGE}, registered
     assert registered == on_disk, (
         f"registered but absent: {sorted(registered - on_disk)}; present but not registered: {sorted(on_disk - registered)}"
     )
@@ -417,14 +469,15 @@ def test_each_command_names_its_script_through_the_plugin_root_variable_in_quote
         )
 
 
-def test_both_entries_use_one_fail_open_launcher_and_the_exit_code_tail() -> None:
-    """The launcher is the same text in both, so a fix to it cannot reach only one hook."""
+def test_every_entry_uses_one_fail_open_launcher_and_the_exit_code_tail() -> None:
+    """The launcher is the same text in every entry, so a fix to it cannot reach only some hooks."""
     # `type` is required, and the hooks reference gives it five values; only a "command" entry runs
-    # the shell string the launcher is. Asserted per script, so both entries are named.
+    # the shell string the launcher is. Asserted per script, so every entry is named.
     assert {item.script: item.kind for item in _registered()} == {
         _DRAIN: "command",
         _PREFIX: "command",
-    }, "both registered entries must be command hooks"
+        _NUDGE: "command",
+    }, "every registered entry must be a command hook"
     shapes = {item.command.replace(item.script, "<script>") for item in _registered()}
     assert len(shapes) == 1, f"the entries do not share a launcher: {sorted(shapes)}"
     (shape,) = shapes
@@ -489,7 +542,7 @@ def test_the_import_scan_sees_a_module_that_is_not_in_the_standard_library() -> 
     ]
 
 
-@pytest.mark.parametrize("script", [_DRAIN, _PREFIX])
+@pytest.mark.parametrize("script", [_DRAIN, _PREFIX, _NUDGE])
 def test_a_registered_hook_script_imports_only_the_standard_library(
     script: str,
 ) -> None:
@@ -513,6 +566,21 @@ def test_the_matchers_cover_the_tools_each_hook_judges() -> None:
         "PowerShell",
     }
     assert set(_entry(_PREFIX).matcher.split("|")) == {"Bash", "PowerShell"}
+
+
+def test_each_hook_is_registered_under_the_event_it_was_written_for() -> None:
+    assert {item.script: item.event for item in _registered()} == {
+        _DRAIN: "PreToolUse",
+        _PREFIX: "PreToolUse",
+        _NUDGE: "SessionStart",
+    }
+
+
+def test_the_nudge_runs_when_a_session_opens_and_not_when_one_is_compacted() -> None:
+    """Three of the sources the hooks reference gives a session start. `compact` is left out
+    because a compaction continues the conversation that already saw the line (reasoned, not
+    tried)."""
+    assert set(_entry(_NUDGE).matcher.split("|")) == {"startup", "resume", "clear"}
 
 
 def test_each_hook_has_a_short_timeout() -> None:
@@ -543,7 +611,12 @@ def test_the_old_unwrapped_command_fails_on_a_missing_script(
 
 @pytest.mark.parametrize("shell", _SHELLS)
 @pytest.mark.parametrize(
-    "name", ["script missing, learnings guard", "script missing, shell-prefix hook"]
+    "name",
+    [
+        "script missing, learnings guard",
+        "script missing, shell-prefix hook",
+        "script missing, drain nudge",
+    ],
 )
 def test_a_missing_script_exits_zero_and_prints_nothing(
     shell: str, name: str, results: _Results
@@ -597,10 +670,11 @@ def test_input_a_hook_cannot_use_exits_zero_and_prints_nothing(
 ) -> None:
     """A guard that cannot read its input must not block unrelated work, whichever shell reads the
     registered string: empty input, text that is not JSON, bytes that are not UTF-8 and a payload
-    cut short, for both hooks."""
+    cut short, for every hook. The nudge is handed this in a project that holds its switch file
+    and is due, so a hook that failed to fail open would print its line."""
     failures: list[str] = []
     for label in _MALFORMED_STDIN:
-        for hook in ("shell-prefix hook", "learnings guard"):
+        for hook in ("shell-prefix hook", "learnings guard", "drain nudge"):
             name = f"malformed stdin ({label}), {hook}"
             done = results.get(shell, name)
             if (done.returncode, done.stdout) != (0, b""):
@@ -663,6 +737,79 @@ def test_the_real_shell_prefix_hook_denies_through_the_registered_string(
     assert reply["hookSpecificOutput"]["permissionDecisionReason"].startswith(
         "Do not move"
     )
+
+
+@pytest.mark.parametrize("shell", _SHELLS)
+def test_the_real_drain_nudge_prints_its_one_line_through_the_registered_string(
+    shell: str, results: _Results
+) -> None:
+    """The control for the silence below: the project that holds the switch file is due, and the
+    registered string carries the hook's one JSON reply to the harness unchanged."""
+    done = results.get(shell, "real drain nudge, switch file present")
+    assert done.returncode == 0, done.stderr[-300:]
+    reply = cast(dict[str, Any], json.loads(done.stdout.decode("ascii")))
+    assert reply == {
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": _NUDGE_LINE,
+        }
+    }
+
+
+@pytest.mark.parametrize("shell", _SHELLS)
+def test_the_real_drain_nudge_prints_nothing_without_its_switch_file(
+    shell: str, results: _Results
+) -> None:
+    """The default every adopter gets: a due buffer and no switch file, so exit 0 and no output."""
+    done = results.get(shell, "real drain nudge, no switch file")
+    assert (done.returncode, done.stdout) == (0, b""), done.stderr[-300:]
+
+
+# ------------------------------------------------------------ the README's account of the hooks
+
+_NUMBER_WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
+
+
+def _readme_section(heading: str) -> str:
+    """The README lines under `heading`, up to the next heading of the same or a higher level. A
+    heading that is not found fails: a section that moved is a test to update, never a section to
+    stop reading."""
+    lines = _README.read_text(encoding="utf-8").split("\n")
+    assert heading in lines, f"the README has no {heading!r} section"
+    level = len(heading) - len(heading.lstrip("#"))
+    stops = tuple("#" * depth + " " for depth in range(1, level + 1))
+    found: list[str] = []
+    for line in lines[lines.index(heading) + 1 :]:
+        if line.startswith(stops):
+            break
+        found.append(line)
+    return "\n".join(found)
+
+
+def test_the_readme_counts_the_registered_hooks_and_has_a_table_row_for_each() -> None:
+    section = _readme_section("## Hooks")
+    registered = _registered()
+
+    assert f"Core registers {_NUMBER_WORDS[len(registered)]} command hooks" in " ".join(
+        section.split()
+    )
+    for item in registered:
+        row = f"| `{item.script.removesuffix('.py')}` |"
+        assert row in section, f"the hooks table has no row starting {row}"
+
+
+def test_the_readme_says_the_nudge_is_off_by_default_and_names_its_switch() -> None:
+    rows = [
+        line
+        for line in _readme_section("## Hooks").split("\n")
+        if line.startswith("| `nudge_learnings_drain` |")
+    ]
+    # The nudge's own section: the shell-prefix section also shows `{"enabled": true}`.
+    own = " ".join(_readme_section("### The drain-nudge hook").split())
+
+    assert len(rows) == 1, f"{len(rows)} table rows start with the nudge's name"
+    assert "Off by default" in rows[0], rows[0]
+    assert ".ai/drain-nudge-hook.json" in own and '{"enabled": true}' in own
 
 
 # ------------------------------------------------------------ what the registration cannot protect
