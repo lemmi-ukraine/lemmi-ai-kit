@@ -239,3 +239,51 @@ last written, how large it is, how many tool calls it holds, or a count of one l
 (`grep -c`), which prints a number and no text. Never print the first message of a peer's
 transcript: it is where an operator's paste lands, so printing it copies whatever was pasted (a
 token, a credential) into your own transcript, where it stays on disk.
+
+### 12m. Writers side by side: one owner of the index, a confirmation that expires, proof on a copy
+
+**Who creates, who stages.** When two sessions build one change side by side in one checkout (one
+writes the code, the other the tests from the plan), the session that writes the tests adds new
+files only, each created by an operation that fails if the path exists (12k); a test that must
+change in an existing file goes to the session that owns the index, as a patch written with
+`git diff --output` (12j). Exactly one session owns the index and the order of commits: it stages
+by explicit path and commits, and the other writes files and stages nothing (12b). Whoever changes
+a path both read re-runs the content-hash list of 12g and says so in its return note; the other
+compares it at its next boundary.
+
+**A confirmation is a snapshot.** "No one will switch branches" was true when it was said. 12d
+re-reads the branch before every commit; do the same immediately before every tree stamp, every
+staging and every run on the live tree, and read three values: `git rev-parse --abbrev-ref HEAD`
+(the branch you were given), `git rev-parse HEAD` (the commit your evidence was built on) and
+`git diff --cached --name-only` (the staged list: empty, or your own paths). Compare each with the
+value your brief or your last stamp recorded. Any difference is a stop: read
+`git reflog --date=iso -n 20` to see who moved HEAD and when, and switch back only on the
+operator's word that names the branch, because switching straight back reverts in the working tree
+the files the peer committed (§11).
+
+**Run evidence on a copy.** A before-and-after snapshot of `git diff HEAD` detects some edits and
+protects none: a peer's `git add` of an untracked file changes `git diff HEAD` with no byte moving
+(measured with git 2.55: empty before the add, a whole-file diff after it, the file's hash equal).
+Run a result you will report on a copy: the directories the run reads, copied to a scratch folder
+outside the checkout, or an export of a recorded commit or tree id (`git archive <id>`), and write
+the copy's content hash (12g) or the id beside the result. A red proof runs on an export of the
+recorded commit with the new test files copied over it, and the green run on an export of the
+stamped tree. An export has no repository, so a test that calls git fails on both sides: run those
+in a clone. Never revert a file in the live tree for a before-and-after comparison while another
+session runs against it.
+
+**Stamp a proof of staged work with the tree.** `git write-tree` prints the id of the tree the
+index would commit: export that tree, run on the export, and write the id beside the result. Before
+the commit run it again and `git diff --name-only <tested-tree> <tree-now>`: a path of yours means
+the result is about older content, so re-stage and re-run; another session's path means it staged
+meanwhile, which a path list tells apart from your change and a count cannot. After a commit made
+from the index with no pathspec (12a) `git rev-parse HEAD^{tree}` equals the tested id; a commit
+with a pathspec holds only those paths, so compare them: `git diff <tested-tree> HEAD -- <paths>`
+prints nothing. `git write-tree` takes `index.lock` and, after a `git add`, rewrites `.git/index`
+(measured with git 2.55: the file's hash changed, with or without `--no-optional-locks`, and with a
+peer's lock present it exited 128). Staging holds the index for as long as the run takes (12b), so
+a session that does not own the index builds the tree in a private copy of the index file: copy
+`.git/index` to a file outside `.git`, point the `GIT_INDEX_FILE` environment variable at the copy
+for each of the next three commands only (left set, it redirects every later git command), and run
+`git read-tree HEAD`, `git add -- <your paths>` and `git write-tree`. The id the last one prints is
+HEAD plus your paths, `.git/index` stays byte-equal, and a peer's `index.lock` does not stop it.

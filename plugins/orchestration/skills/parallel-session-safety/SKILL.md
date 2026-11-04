@@ -483,9 +483,9 @@ survives long enough to be quoted in a hand-off: record `git hash-object -- <pat
 it with the blob that lands (12a); re-derive anything else at write time (§7, §9).
 
 > **Exact commands are in [references/shared-index-protocol.md](references/shared-index-protocol.md):**
-> per-line contention (12a), a held index (12b), work after staging (12c), "Everything up-to-date" (12d),
-> a multi-branch operation (12e), a draft base (12f), content proof (12g), a merge dry run (12h),
-> editing a held file (12i), handing a file back (12j), the create collision (12k), naming a peer (12l).
+> per-line contention (12a), held index (12b), work after staging (12c), "Everything up-to-date" (12d),
+> multi-branch operation (12e), draft base (12f), content proof (12g), merge dry run (12h), held-file edit
+> (12i), file hand-back (12j), create collision (12k), naming a peer (12l), writers side by side (12m).
 
 ---
 
