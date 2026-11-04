@@ -1,7 +1,7 @@
 """A skill edited here whose upstream is its origin carries a `Local override` note in the sync record.
 
 The next refresh from upstream rewrites a skill unless its row says what was changed on this side,
-and a note that has been replaced loses the overrides it listed. Of the skills edited here, 23
+and a note that has been replaced loses the overrides it listed. Of the skills edited here, 28
 descend from upstream, so each of those rows needs a note, and 4 of the rows that already carried
 one are held to keep it whole as the start of the longer note. The other 4 are authored here
 (`kit-origin`), which is why they need no override note: upstream's later edits to them are
@@ -41,10 +41,18 @@ The second round of change requests edited 2 upstream-origin skills again, both 
 an older note, gained 2 phrases in the table of later edits, so its excerpt still reports the 7
 phrases it lacked then.
 
-THE SURFACE, in numbers the tests assert: 23 edited upstream-origin rows, 4 earlier notes kept whole,
+The third session of change requests edited 15 upstream-origin skills: 5 (ai-improvement-tracker,
+branch-switch, hypothesis-validator, metric-validity-check, python-conventions) had no phrases here
+and now have rows of their own; 7 (analyze-logs, branch-diff-review, initiative-planner,
+learning-consolidator, session-retrospective, spec-driven-dev, stacked-pr-planner) gained phrases in
+their rows; 3 (flow-mapping with 2 phrases, parallel-session-safety with 4 phrases, post-task-review
+with 3 phrases) keep an excerpt of an older note, so their new phrases sit in the table of later
+edits and the excerpts still report the 7 phrases they lacked then.
+
+THE SURFACE, in numbers the tests assert: 28 edited upstream-origin rows, 4 earlier notes kept whole,
 4 kit-origin rows left alone, no name in both sets, 1 retired wording, 2 incomplete notes reported
 as they read, 7 missing phrases each, 2 later incomplete notes reported as they read, 5 missing
-phrases each, and 3 rows edited again after their excerpts, their 8 later phrases checked apart.
+phrases each, and 4 rows edited again after their excerpts, their 17 later phrases checked apart.
 """
 
 import re
@@ -70,15 +78,26 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "a model's summary of the page",
         "the pin is read wherever the project pins it",
     ),
+    "ai-improvement-tracker": (
+        "a staleness alarm runs in a step that runs for an unrelated reason",
+        "Step 5 reports the ledger-state line after every recorded entry",
+    ),
     "analyze-logs": (
         "the task prefixes from the project's own task conventions",
         "a stated exception (Step 5 and Step 4b)",
         "a placeholder read from the Step 1a Correlation id row",
         "the quotes dropped for an id in message text",
+        "Step 3f opens with a check of which branch of the mechanism the incident took",
+        "the querying method gains a fifth step that names the environment in every query",
+        "puts the project in every service block and on each gcloud call",
     ),
     "branch-diff-review": (
         "content hashes of the dirty set",
         "labels its Gates example as one repository's",
+        "Step 3 gains a paragraph on matching the fan-out to the diff",
+    ),
+    "branch-switch": (
+        "Step 2 counts the untracked files first, over the whole repository",
     ),
     "consolidation-critic": (
         "the same --surface values as the consolidator's Phase 5 audit",
@@ -94,6 +113,10 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "--list-residue --registers tasks",
         "probe-quantifiers.md",
         "seam_probe_registers/",
+    ),
+    "hypothesis-validator": (
+        "Step 7 says the tracker's Step 5 reports the same line",
+        "an alarm inside the process it watches cannot report that process stopping",
     ),
     "initiative-cleanup": (
         "--code-suffix",
@@ -114,6 +137,12 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "derivation 3 names where the project opt-out is read",
         "chokepoint search takes <source-roots>",
         "runs within its own run cap instead of telling the reader to resolve Blockers and Majors silently",
+        "past volume measures the old exposure",
+        "keeps phase and cut membership in one table",
+        "equal choice made at plan time",
+        "launch_session.py",
+        "the effort paragraph says --effort is a first-class flag whose unknown value only warns",
+        "unknown value only warns (CLI 2.1.316), instead of a validated enum",
     ),
     "learning-consolidator": (
         "count only CONSOLIDATION entries whose Drained count is above 0",
@@ -126,7 +155,16 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "refuses the changelog and hypotheses ledgers as landing sites by file name",
         "the Drain Landing Audit paragraph of references/consolidation-actions.md names the "
         "byte copies and the two ledgers",
+        "Phase 1 step 1 lists every other copy of the buffer before the read",
+        "hand-off lessons as conditional intake candidates",
+        "Operator Steps counts four steps with a row for reading a copy of the buffer",
+        "a standing-policy check on an entry's Impact",
+        "scripts/buffer_table.py is added here",
+        "a Generated Triage Table (Phase 3) section",
+        "references/consolidation-actions.md names the way to add an entry as an Edit appending",
+        "guard's denial text (a hook, no row of its own) says the same",
     ),
+    "metric-validity-check": ("a sum of two presence counts is not their union",),
     "parallel-session-safety": (
         "12g to 12k",
         "section 2 (the content hash decides which candidate paths changed, 12g)",
@@ -171,6 +209,14 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "the bullet on a bare timeout decorator is deleted from Step 7",
     ),
     "product-brief": ("the architecture and flow documents named in AGENTS.md",),
+    "python-conventions": (
+        "a deadline on an event or future uses asyncio.timeout on 3.11",
+        "tasks awaited with asyncio.wait outlive a cancelled caller",
+        "a bullet on grepping a name before adding a module-level constant",
+        "a declared Optional that keeps its declared type when assigned an `Any` value",
+        "the deadline-on-an-event section says the cancel is lost when the event is set just",
+        "the event is set just before it (what reproduced), not 'around' it",
+    ),
     "session-retrospective": (
         "the closing nudge dates the last drain",
         "files .NET build output",
@@ -179,6 +225,8 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "redacts a GitHub token by its shape",
         "a .NET project's buildTestLoops are listed",
         "names the GitHub tokens (ghp_, gho_, ghu_, ghs_, ghr_ and github_pat_) in both of its lists",
+        "a soft limit of four deep-dive picks per parent session",
+        "comparing like with like before reading a with-and-without contrast as an effect",
     ),
     "skill-creator": (
         "the kit's own recommendation instead of one repository's decision",
@@ -194,12 +242,19 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "three documents (spec, tasks, test plan)",
         "a Large one four (requirements, design, tasks, verification plan)",
         "the review runs within its own run cap instead of telling the reader to resolve all findings",
+        "references/execution-lanes.md (optional, labelled untried",
+        "an optional Lane line in each example task",
+        "a command with a pipe goes in a fenced block",
     ),
     "stacked-pr-planner": (
         "never ordered by ancestry",
         "names Alembic and EF Core",
         "the full CI job",
         "one label line",
+        "references/layer-triggers.md and references/layer-mechanics.md",
+        "pointed at from the end of Step 6",
+        "the grep paragraph after the layer-trigger commands says an unquoted `a\\|b` reaches grep",
+        "pipe is a literal under -E; its evidence sentence is shortened",
     ),
     "task-learnings": (
         "close of every task",
@@ -310,9 +365,20 @@ _LATER_EDITS: dict[str, tuple[str, ...]] = {
         "Step 7c-extra gains a one-line item 4",
         "gains four sections (a probe certifies the matcher and not the region",
         "on a figure, a population or a set standing in for the whole",
+        "prints a seventh section, Test changes",
+        "gains a third rule (run a change's checks from the cheapest to the dearest",
+        "the new references/fresh-context-review.md",
     ),
     "parallel-session-safety": (
         "names a commit of the file as it stands (the restore point) as its backup",
+        "required only in a file whose line 1 is the v2 version label",
+        "gains 12m (writers side by side",
+        "12m prints `git archive -o <file> <id>` and says to write the export to a file, because a",
+        "with bsdtar 3.8); and that `tar --version` says which of the two runs",
+    ),
+    "flow-mapping": (
+        "prints one hint line on stderr",
+        "a count quoted in prose",
     ),
 }
 
@@ -354,16 +420,16 @@ def _problems(
 
 
 def test_the_surface_is_stated_in_numbers() -> None:
-    assert len(_EDITED) == 23, f"{len(_EDITED)} edited skills, not the 23 stated"
+    assert len(_EDITED) == 28, f"{len(_EDITED)} edited skills, not the 28 stated"
     assert len(_KEPT) == 4 and set(_KEPT) <= set(_EDITED)
     assert len(_AUTHORED_HERE) == 4
     assert len(_RETIRED_WORDING) == 1 and set(_RETIRED_WORDING) <= set(_EDITED)
     assert len(_OLD_NOTES) == 2 and set(_OLD_NOTES) <= set(_EDITED)
     assert len(_LATE_NOTES) == 2 and set(_LATE_NOTES) <= set(_EDITED)
-    assert len(_LATER_EDITS) == 3 and set(_LATER_EDITS) <= set(_LATE_NOTES) | set(
+    assert len(_LATER_EDITS) == 4 and set(_LATER_EDITS) <= set(_LATE_NOTES) | set(
         _OLD_NOTES
     )
-    assert sum(len(phrases) for phrases in _LATER_EDITS.values()) == 8
+    assert sum(len(phrases) for phrases in _LATER_EDITS.values()) == 17
     assert not set(_EDITED) & set(_AUTHORED_HERE), "a skill is in both sets"
     rows = _rows(_RECORD.read_text(encoding="utf-8"))
     unknown = [n for n in (*_EDITED, *_AUTHORED_HERE) if n not in rows]
