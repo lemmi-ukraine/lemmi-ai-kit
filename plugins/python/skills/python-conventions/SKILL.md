@@ -166,6 +166,9 @@ Where to put constants:
 - Feature-scoped: `features/{feature}/constants.py`
 - Core-scoped: `core/{module}/constants/{name}.py` (e.g. `core/jobs/constants/timing.py`)
 - Module-level in the consuming file is acceptable for single-consumer constants
+- Before adding a module-level constant to an existing module, run `grep -n '^<NAME>' <file>`: Python
+  rebinds a name silently, so the new constant can replace an older one that another check still
+  reads. A probe of the new check shows that it can see; only the suite shows that nothing else broke.
 
 ## basedpyright Compliance Patterns
 

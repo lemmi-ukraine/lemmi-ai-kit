@@ -174,6 +174,35 @@ anything a load balancer or an on-call human reads. And **test the timeout by ma
 unreachable** (`docker pause`), never merely slow: a paused peer is exactly the case where cleanup
 itself blocks, and exactly the case `wait_for` silently fails.
 
+### A deadline on an event or future
+
+On Python 3.11, `asyncio.wait_for(event.wait(), timeout)` can swallow a cancellation of the task
+that awaits it: when the awaited event is set in the loop iterations around the cancel, `wait_for`
+returns the result and the `CancelledError` is lost. From 3.12 `wait_for` is built on
+`asyncio.timeout`, so a suite that runs on 3.12 cannot show it. For a deadline on an event or a
+future in code that may run on 3.11, use the context manager:
+
+```python
+async with asyncio.timeout(5.0):
+    await event.wait()
+```
+
+This is about not losing a cancellation, not about bounding a response: `asyncio.timeout` also
+waits for the cancelled work to finish, so a timeout that must bound the response still takes the
+`asyncio.wait` shape at the top of this section. When a behaviour depends on interpreter internals,
+reproduce it with the standard library alone under the interpreter that runs in production.
+
+### Tasks awaited with `asyncio.wait` outlive a cancelled caller
+
+`asyncio.wait(tasks, timeout=...)` cancels none of the tasks it awaits when the coroutine awaiting
+it is itself cancelled. The `asyncio.wait` shape at the top of this section
+(`done, _pending = await asyncio.wait({task}, timeout=2.0)`, then `task.cancel()` only when not
+done) therefore leaves `task` running, neither cancelled nor observed, if its caller is cancelled
+during the wait. Code that fans out tasks and awaits them with `asyncio.wait` cancels or signals
+them when it is itself cancelled (`try`/`finally`, or `except asyncio.CancelledError`), or says
+that the work continues after the caller gave up. "The teardown timed out" does not mean "nothing
+is running".
+
 ## Client Free Text at Logging Boundaries
 
 Nothing upstream bounds a hostile client string. Starlette hands a WebSocket close reason over

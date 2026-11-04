@@ -225,6 +225,10 @@ Present timing evidence as a table:
 - **Blast radius**: one user, one feature, or system-wide?
 
 #### 3f. Propose Solution
+- Before calling a change the fix for this incident, trace which branch of the mechanism the incident
+  took (which outcome of each decision, which terminal state, which threshold was crossed) and
+  confirm that the fix acts on that branch. A fix for a branch that did not run leaves the observed
+  failure as it was; record a class-level fix as a separate item.
 - Describe the fix conceptually (what needs to change, not the code diff).
 - Reference the specific file(s) and function(s) that need modification.
 - If multiple approaches exist, list pros/cons briefly.
@@ -293,6 +297,7 @@ For each reported issue, challenge:
    Files may have changed since the log was produced.
 2. **Fix correctness**: Does the proposed fix contradict any convention in AGENTS.md or `.ai/learnings.md`?
    Cross-check fix patterns against both sources — they can conflict.
+   Does it act on the branch the incident took (Step 3f)?
 3. **Issue grouping**: Are any "separate" issues actually symptoms of the same root cause? Would fixing
    one resolve another?
 4. **Completeness**: Are there log patterns (zombie sessions, resource leaks, timing anomalies) that
@@ -389,6 +394,11 @@ every backend:
    raw-text field for startup output and uncaught exceptions
 4. **Validate the query against a downloaded sample first** when one exists, so that a zero-result
    query can be told apart from a wrong-field query
+5. **Name the environment in every query, and run it once per environment.** Two deployments can
+   share a service name and a region, so a filter or command that names the service alone reads
+   whichever environment the tool points at. Put the project, account or cluster in the filter and
+   in every command that takes one, label each result with the environment it came from, and read
+   the identifiers from the deploy manifests, not from memory.
 
 [references/gcp-query-templates.md](references/gcp-query-templates.md) works this through in GCP
 Cloud Logging's query dialect — a worked example to translate, not the required backend.

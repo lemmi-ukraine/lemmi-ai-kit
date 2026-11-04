@@ -13,22 +13,23 @@ environment you are querying.
 
 ## Base Filters
 
-All queries should start with the service filter:
+All queries should start with the service and project filters:
 
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="{SERVICE_NAME}"
-```
-
-To scope to a specific environment, use `resource.labels.project_id`, not
-`resource.labels.location`. **Measured: `location` does not distinguish environments** when
-deployments share a region — every entry across 11 log exports spanning two environments carried
-the same `location`. One project id per environment is the reliable discriminator:
-
-```
-resource.labels.configuration_name="{SERVICE_NAME}"
 resource.labels.project_id="{PROJECT_ID}"
 ```
+
+Put `resource.labels.project_id` in every filter, not only when comparing environments, and pass
+`--project {PROJECT_ID}` on every `gcloud logging read` and every `gcloud run services describe`.
+Run each query once per project, label each result with the environment it came from, and take the
+project ids from the deploy manifests, not from memory.
+
+The project id, not `resource.labels.location`, is what tells environments apart.
+**Measured: `location` does not distinguish environments** when deployments share a region — every
+entry across 11 log exports spanning two environments carried the same `location`. One project id
+per environment is the reliable discriminator:
 
 ```
 resource.labels.configuration_name="{SERVICE_NAME}"
@@ -44,6 +45,7 @@ Track a session-scoped background job (e.g., a post-session report/feedback gene
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="{SERVICE_NAME}"
+resource.labels.project_id="{PROJECT_ID}"
 jsonPayload.session_id="{SESSION_ID}"
 (jsonPayload.message=~"{PIPELINE_KEYWORD}" OR jsonPayload.message=~"job" OR jsonPayload.message=~"generation")
 severity>=DEFAULT
@@ -58,6 +60,7 @@ All events for a specific session (add feature-scoped ID fields with OR if the a
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="{SERVICE_NAME}"
+resource.labels.project_id="{PROJECT_ID}"
 jsonPayload.session_id="{SESSION_ID}"
 severity>=DEFAULT
 timestamp>="{START_TIME}"
@@ -69,6 +72,7 @@ timestamp<="{END_TIME}"
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="{SERVICE_NAME}"
+resource.labels.project_id="{PROJECT_ID}"
 severity>=ERROR
 timestamp>="{N_HOURS_AGO}"
 ```
@@ -78,6 +82,7 @@ timestamp>="{N_HOURS_AGO}"
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="{SERVICE_NAME}"
+resource.labels.project_id="{PROJECT_ID}"
 (textPayload=~"{EXCEPTION_CLASS}" OR jsonPayload.message=~"{EXCEPTION_CLASS}")
 severity>=ERROR
 ```
@@ -119,6 +124,7 @@ below) and check whether enough time has passed for the job type's normal durati
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="{SERVICE_NAME}"
+resource.labels.project_id="{PROJECT_ID}"
 (jsonPayload.event_type="job_expired" OR jsonPayload.event_type="job_execution_cancelled" OR jsonPayload.message=~"^Exception in " OR jsonPayload.message=~"BackgroundJobError")
 severity>=WARNING
 timestamp>="{START_TIME}"
@@ -136,6 +142,7 @@ window.
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="{SERVICE_NAME}"
+resource.labels.project_id="{PROJECT_ID}"
 (jsonPayload.message=~"websocket" OR jsonPayload.message=~"WebSocket" OR jsonPayload.message=~"connection.*closed")
 severity>=WARNING
 timestamp>="{START_TIME}"
@@ -146,6 +153,7 @@ timestamp>="{START_TIME}"
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="{SERVICE_NAME}"
+resource.labels.project_id="{PROJECT_ID}"
 httpRequest.latency>"5s"
 timestamp>="{START_TIME}"
 ```
@@ -155,6 +163,7 @@ timestamp>="{START_TIME}"
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="{SERVICE_NAME}"
+resource.labels.project_id="{PROJECT_ID}"
 (textPayload=~"Started server process" OR jsonPayload.message=~"Application startup complete")
 timestamp>="{START_TIME}"
 ```
@@ -166,6 +175,7 @@ Useful when AI-parsed output bypasses enum coercion (the AI returns a Python rep
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="{SERVICE_NAME}"
+resource.labels.project_id="{PROJECT_ID}"
 (jsonPayload.message=~"AttributeError.*value" OR jsonPayload.message=~"{ENUM_CLASS}" OR jsonPayload.message=~"enum.*parsing")
 severity>=ERROR
 ```
@@ -175,6 +185,7 @@ severity>=ERROR
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="{SERVICE_NAME}"
+resource.labels.project_id="{PROJECT_ID}"
 jsonPayload.user_id="{USER_ID}"
 severity>=DEFAULT
 timestamp>="{START_TIME}"
