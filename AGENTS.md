@@ -28,6 +28,9 @@ uv run python -B -m lemmi_ai_kit audit-skills --fail-on major
 # the import writes .pyc into the tree being measured and the check blocks on
 # files it created itself. Exit 0 clean, 1 blocked, 2 could-not-measure — gate on
 # `!= 0`, because 2 means the answer is unknown, not good.
+# Run in a fresh clone of the tip, it is the push gate: it sees only what git holds.
+# Run in the real checkout, it is the install gate: an install copies the working
+# tree, so this run also sees untracked, ignored and modified files in the payload.
 uv run python -B -m lemmi_ai_kit publish-check
 ```
 
@@ -337,7 +340,9 @@ paths and nothing else" above is about sessions that write here.
   left and where the results are (commit ids, report files), so a worker or session stopped by a
   usage limit is resumed from its latest checkpoint and loses only the work since. Two of three
   workers died to usage-limit and access errors mid-wave, and a worker that dies returns exactly
-  what one that found nothing returns. A wave is as wide as the disk and the machine allow.
+  what one that found nothing returns. A wave has no fixed width: it is sized in tokens against
+  the usage window first, then held to what the disk and the machine allow (see
+  `references/limit-recovery.md` in the `orchestrate` skill).
 
 #### Documents
 

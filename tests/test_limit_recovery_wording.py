@@ -13,7 +13,7 @@ What the text says now, in five places of five files:
   tokens and state its cost shape (with the observed start cost of a sub-agent), the window per
   account, the verification budget reserved first with builders capped and verifiers in sub-waves,
   and an explicit `model` on every sub-agent call; probe each model before a wave and trust the
-  probe over a printed reset time; write the next wake condition before waiting, arm a waiter at a
+  probe over a printed reset time; write the next wake condition before waiting, read the clock at every wake, arm a waiter at a
   printed reset time, anchor and test a waiter's pattern twice, and stop the child processes a
   stopped task leaves behind;
 * section 2 of the worker preamble holds a "Durable state" group: a lead paragraph and five bullets
@@ -31,8 +31,8 @@ no request id, no absolute local path and no commit id. It reads the three whole
 "Orchestration and delegation" section of each AGENTS.md; the rest of those two files is not this
 change's, and already carries a home-path example in a rule and, in the kit's own file, a commit id.
 
-THE SURFACE, in numbers the tests assert: 5 places in 5 files; 12 claims and 27 sentences in the
-reference, 5 tagged figures and 4 links in it; 6 claims and 13 sentences in section 2 of the
+THE SURFACE, in numbers the tests assert: 5 places in 5 files; 13 claims and 29 sentences in the
+reference, 6 tagged figures and 4 links in it; 6 claims and 13 sentences in section 2 of the
 preamble; 1 claim and 1 sentence in the skeleton's "Context" section; 1 claim and 2 sentences in the
 "Orchestration and delegation" section of each AGENTS.md. The id scan reads 5 regions, 3 whole files
 and 2 sections, with 5 patterns. A claim holds when the block it names (a paragraph or a list item,
@@ -205,6 +205,17 @@ _REFERENCE_REGIONS: tuple[tuple[str, tuple[Claim, ...]], ...] = (
                 ),
             ),
             (
+                "clock",
+                (
+                    "read `date` at every wake-up and before every estimate, and give times to "
+                    "others from that reading.",
+                    "after a stall the last plan can be hours stale: a session that waited out a "
+                    "limit found on waking that the clock had moved about 2.5 hours (observed, "
+                    "2026-11-04), and with it its own estimates and the times it had given its "
+                    "peers.",
+                ),
+            ),
+            (
                 "children",
                 (
                     "stopping a task can leave its child processes running, so list the ones you "
@@ -228,6 +239,7 @@ _FIGURES: tuple[str, ...] = (
     "363k to 479k tokens each over 30 to 37 minutes (observed, 2026-11-04)",
     "about 4 m sub-agent tokens per 5-hour window per account (starting value, uncalibrated)",
     "at most 8 at a time (starting value, uncalibrated)",
+    "about 2.5 hours (observed, 2026-11-04)",
 )
 _SECTION_REFERENCE = re.compile(rf"(?:{_SECT}|section) \d+[a-z]?\b")
 _LINK = re.compile(r"\]\(([^)\s]+)\)")
@@ -559,8 +571,8 @@ def _id_surface() -> list[tuple[str, str]]:
 
 
 def test_the_surface_is_stated_in_numbers() -> None:
-    assert (len(_REFERENCE_CLAIMS), len(_REFERENCE_SENTENCES)) == (12, 27)
-    assert (len(_FIGURES), len(_LINKS)) == (5, 4)
+    assert (len(_REFERENCE_CLAIMS), len(_REFERENCE_SENTENCES)) == (13, 29)
+    assert (len(_FIGURES), len(_LINKS)) == (6, 4)
     assert (len(_DURABLE_CLAIMS), len(_DURABLE_SENTENCES)) == (6, 13)
     assert len(_CONTEXT_CLAIM[1]) == 1 and len(_AGENTS_CLAIM[1]) == 2
     every = [

@@ -5,6 +5,7 @@ a section you can't fill crisply is a sign the subtask isn't ready to delegate.
 
 ```markdown
 **Operator-only blocker:** <the one thing only the operator can clear, or the words "no operator-only blocker">
+**Revision:** <when this brief was written, read from the machine clock, and the commit it was written against>
 
 ## Standing rules (read this FILE — only two harness limits are restated below)
 Read `<absolute path to the installed agent-delegate skill's assets/worker-preamble.md>` in full before your first
@@ -25,6 +26,8 @@ that names none means the project has none.
 
 ## Context (so you don't re-explore the repo)
 - Files: <paths the work touches, with one-line roles> — a STARTING SET, not a boundary
+- Read budget: <the files read whole, and the ones read only by grep or by their headings; reading
+  everything whole can cost more context than the work>
 - Constraints/conventions: <the TASK-SPECIFIC rules — inline them, don't cite them>
 - Known facts: <what the orchestrator already verified; state these as COMMANDS that regenerate
   the figure, not as figures — a brief's measured premise is the most common thing to go stale>
@@ -171,3 +174,7 @@ the brief: apply each one to the brief you are about to send.
   expecting each to be found with an answer or "default accepted"; a count of 0 is a stop, never a
   reason to assume the default. Evidence level: observed in one project's notes, not yet repeated;
   an uncalibrated default.
+- **A rule changed while sessions or workers run is sent to each running one as a message.** A
+  session reads its brief and the files the brief names once, so a change that is only written to
+  a file reaches only the sessions that happen to read it again. The revision line under the
+  blocker line says which version each one read.

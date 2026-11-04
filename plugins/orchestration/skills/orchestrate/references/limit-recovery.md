@@ -46,6 +46,10 @@ measurement. None is a cap the kit sets; a project that states its own cap (§ 1
   pattern once on the present state and once on a planted positive before you rely on it.** On the
   present state it must say no and on the planted positive yes: a pattern that cannot match waits
   forever, and one that matches a quoted mention of the signal fires at once.
+- **Read `date` at every wake-up and before every estimate, and give times to others from that
+  reading.** After a stall the last plan can be hours stale: a session that waited out a limit found
+  on waking that the clock had moved about 2.5 hours (observed, 2026-11-04), and with it its own
+  estimates and the times it had given its peers.
 - **Stopping a task can leave its child processes running, so list the ones you started and stop
   them before you go on.** An orphaned run keeps loading the machine, and a gate run beside it can
   fail for that reason alone. Never stop a process a peer started.
