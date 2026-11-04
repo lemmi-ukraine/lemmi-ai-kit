@@ -15,6 +15,32 @@
 
 ---
 
+## 2026-11-04
+
+### [SKILL-MODIFIED] New hand-offs carry a version label and pass the lint at v2
+- **Category:** Consistency
+- **Hypothesis:** By shipping the version label, the lint rule and the seeded template together, we expect the hand-offs written in an adopter's `.ai/handoffs/` after the update to pass `lint handoffs` at v2 (both new sections present and non-empty) more often than notes written from the five-section contract alone, because the compliance the standard was chosen for came from the template, the label and the lint together (quoted from a consumer, uncalibrated, not re-measured here).
+- **Signal:** Over the next 5 hand-offs written in a project that updated to this version, or by 2026-12-28, whichever comes first, run `lint handoffs` over them: confirm if at least 4 of the 5 carry the v2 label on line 1 and pass with both new sections present; refute if fewer than 3 of the 5 carry the label; inconclusive with fewer than 5 hand-offs in the window.
+- **Risk:** The label is optional by design, so a project can ignore it and still pass at five sections; the compliance figure is quoted and was not re-measured; the thresholds are uncalibrated defaults; the lint checks that the two sections are non-empty, not that they are useful.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-04 — Apply the third session of change requests: 21 verified packages across the review, planning, orchestration, drain and hand-off skills
+
+### [SKILL-MODIFIED] A project that switches the drain-due nudge on drains its learnings buffer sooner
+- **Category:** Knowledge Retention
+- **Hypothesis:** By shipping a default-off SessionStart nudge that prints the buffer-pressure line when a session opens, we expect a project that switches it on to drain its learnings buffer within 7 days of the line first appearing more often than on the prose nudges alone, because the task-learnings and session-retrospective skills speak only when they run and the hook speaks at every session start.
+- **Signal:** Over the next 3 drain-due episodes in a project that switched the hook on, or by 2026-12-28, whichever comes first, compare the date the line first appeared with the date of the drain commit: confirm if at least 2 of the 3 drains came within 7 days; refute if fewer than 1 of 3 did, or if the hook ran in an enabled project and the session never mentioned the line; inconclusive if no project switched it on or fewer than 3 episodes occurred.
+- **Risk:** The line reaches the session only if the harness shows hook output to the model, which was not tried live; the 7 days is an uncalibrated default; a project that switches the hook on may already care about draining.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-04 — Apply the third session of change requests: 21 verified packages across the review, planning, orchestration, drain and hand-off skills
+
+### [SKILL-MODIFIED] A plan row for a session the operator did not drive is launched, not pasted
+- **Category:** Speed
+- **Hypothesis:** By giving the orchestrator one command that prints or runs the headless launch, and letting a plan row say `pasted` with no reason when the operator will drive that session, we expect plans written after this change to show fewer `pasted` rows for sessions the operator did not drive than plans written before it, because the background start now costs about one command, as pasting does.
+- **Signal:** Over the next 3 initiative plans written after this change, or by 2026-12-28, whichever comes first, count each plan's `pasted` rows in its Dispatch table and ask the operator which of those sessions they drove: confirm if the share of `pasted` rows the operator did not drive is lower than in the last 3 plans written before the change in at least 2 of the 3 new plans; refute if it is not lower in 2 of 3; inconclusive with fewer than 3 new plans.
+- **Risk:** The older plans were written by a different planner and are read from their tables; the operator's recollection of which sessions they drove is the instrument; three plans are few.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-04 — Apply the third session of change requests: 21 verified packages across the review, planning, orchestration, drain and hand-off skills
+
 ## 2026-11-03
 
 ### [SKILL-MODIFIED] A brief built from the template points a worker at the project's host-rules file

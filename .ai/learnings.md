@@ -374,6 +374,36 @@ to its home above and removed here.
 - **Verify-at**: AGENTS.md
 - **Scope**: durable
 
+### [2026-11-04] A shared list file that another tool rewrites on Windows can carry carriage returns, and a shell loop that reads it makes them part of every name
+- **Context**: Building a chain of scratch commits from a package list that another session rewrites while the chain is being built.
+- **Finding**: The list was rewritten with CRLF line endings between two runs (the file grew from 42 to 60 bytes). `read -r id` kept the carriage return, so every patch name read `<name><CR>.patch` and the build stopped with a message naming a file that exists. The Python readers of the same file split on whitespace and were not affected.
+- **Impact**: Strip carriage returns at every shell read of a file another tool may rewrite (`${id//$'\r'/}` or `tr -d '\r'`), read such lists with a whitespace split in Python, and fire the loader once at a CRLF copy before trusting it.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
+### [2026-11-04] A replace-once edit whose old text is the first words of its new text applies again on every run
+- **Context**: Writing a re-runnable script that applies a review's 16 exact text replacements to a record, three ledgers and a test docstring.
+- **Finding**: One item replaced a sentence with the same words plus a new sentence, so the old text was still present after the edit and the first version of the script appended the new sentence again on the second run (it printed 1 applied and 15 already applied). An item whose old text is not inside its new text does not do this, and only a second run showed it.
+- **Impact**: Test whether the new text is already present before testing the old text, and run every edit script twice before it is committed, expecting it to say nothing to do the second time.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
+### [2026-11-04] A stale sentence in a file outside every package's owned set has no owner, so the integration step carries one final coherence row
+- **Context**: Integrating packages that were built in parallel, each forbidden to edit a file outside its own set, and reading the merged chain once as a single reader.
+- **Finding**: Five sentences, made stale by four different packages, sat in files the stale-making package was not allowed to touch (a grep note, a flag description, a route list repeated in a hook's denial text, a test header, a hook count): two were contradictions of major weight and three were smaller. Three rounds of verifiers and the integration agent each reported them as not owned and built no text, so the chain would have shipped them; two coherence packages cut from the review's fix list closed them, each pinned by a test that reads the sentence together with the page it contradicted.
+- **Impact**: Give the integration step one last coherence row of one-clause fixes taken from the verdict notes, for the files no package owns, and have each verifier list those notes under a heading of their own so the row can be cut from them; pin each fix with one test over the pair of pages, not one pin per side.
+- **Category**: pitfall
+- **Home**: skill:orchestrate
+- **Enforce-via**: prose
+- **Verify-at**: plugins/orchestration/skills/orchestrate/SKILL.md
+- **Scope**: durable
+
 ## Convention Clarifications
 
 ### [2026-10-30] A skill's step list restated outside the skill goes stale when the skill grows
