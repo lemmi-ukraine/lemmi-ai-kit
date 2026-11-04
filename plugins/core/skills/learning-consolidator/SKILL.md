@@ -231,7 +231,7 @@ keeps its Steps 6 and 8. Whether a meta-synthesis is due is found now too: [§ H
 
 ### Phase 3: Consolidation Plan
 
-Before making any changes, present a consolidation plan to the user:
+Before making any changes, present a consolidation plan to the user, built on the generated triage table ([§ Generated Triage Table](references/consolidation-actions.md#generated-triage-table-phase-3)):
 
 ```
 ## Consolidation Plan

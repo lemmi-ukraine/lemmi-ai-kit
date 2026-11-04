@@ -650,6 +650,46 @@ cites against the CURRENT branch** — entries written on another branch carry t
 One drain shipped a symbol name into a README that the target branch had already renamed;
 only a post-promotion symbol sweep caught it.
 
+## Generated Triage Table (Phase 3)
+
+The triage table holds one row per intake entry and the decision on it. Its columns that copy the
+buffer are generated, never typed, so a column cannot differ from the buffer and a row dropped or
+repeated by hand is a computed difference, not something to spot in a long table. `buffer_table.py`
+reads the buffer under the project root and prints one row per entry: `line` (the entry's heading
+line), `date` and `age` in days (from the `[YYYY-MM-DD]` title and `--today`, which defaults to the
+machine's calendar day), `home` (the `Home:` field), `anchor` (the `Verify-at:` field), `committed`
+and the title.
+
+```bash
+python "${CLAUDE_SKILL_DIR}/scripts/buffer_table.py" --project "<absolute project root>"
+python "${CLAUDE_SKILL_DIR}/scripts/buffer_table.py" --project "<absolute project root>" --decisions <decisions file>
+```
+
+The decisions are the only typed part: a scratch file with one JSON object per line, holding the
+entry's `line`, an `action` from the table of Phase 2's Step 3 and optionally a `target` and a
+`rationale`, and no other key (a copied column in the file is refused). The run joins each object to
+its entry on the line number and reports the set difference both ways: an entry with no row, a row
+whose line is no entry, and a line with two rows. Line numbers move with every edit of the buffer, so
+regenerate the table after the last edit: a decisions file typed against an older buffer shows up as
+that same difference.
+
+**Committed.** `yes` when every non-blank line of the entry is in a commit (read with
+`git blame --porcelain` on the buffer as it stands in the working tree), `no` when one is not (an
+entry not yet committed, or an edit to one), `unknown` when git could not answer. The plan states
+the entry count and, beside it, how many entries are not yet in a commit, read from the `committed`
+column, so deleting an entry that exists in no commit is visible before the first removal.
+
+**Exit codes.** 0 is a complete table (with `--decisions`, a complete join). 1 is rows to
+adjudicate: a set difference, an entry whose `committed` is `unknown`, or a code fence that never
+closes and so hides every heading after it. 2 is input the run could not read: no buffer, a buffer
+with no entry or one that is not UTF-8, a decisions file that is unreadable or holds a row it cannot
+use; never read it as clean. A heading inside a code fence is example text, not an entry, and the
+run lists each one it skipped, so the table's entry count can be reconciled with the
+`--list-entries` count of Phase 1 step 0.
+
+The command names the project root and never the buffer. Like `lint learnings`, the run only reads:
+it makes no commit and no copy, so it does none of the steps of [§ Operator Steps](#operator-steps).
+
 ## Operator Steps
 
 Four steps need bytes of the buffer that no Grep, Read or Edit call delivers: the previous drain's
