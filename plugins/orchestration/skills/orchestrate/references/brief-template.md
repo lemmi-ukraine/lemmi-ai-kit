@@ -30,6 +30,9 @@ that names none means the project has none.
   the figure, not as figures — a brief's measured premise is the most common thing to go stale>
 - Out of scope: <adjacent things this brief must NOT touch>
 - Budget: <how many sessions this work needs and how it splits, written before phase 1>
+- Stop line: <unit, number, and the command that measures it; for context size the command can be
+  `python "${CLAUDE_SKILL_DIR}/scripts/context_meter.py" TRANSCRIPT --window TOKENS`, which
+  only reads and never stops or advises>
 - Ledgers: `.ai/learnings.md`, `.ai/ai-changelog.md` and, for appends only,
   `.ai/improvement-hypotheses.md` stay open to your appends whatever the file set says (a Status or
   marker edit stays with the validator's run, not with you). <Where the project or the plan bars
