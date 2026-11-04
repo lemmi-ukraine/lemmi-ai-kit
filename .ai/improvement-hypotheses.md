@@ -17,6 +17,78 @@
 
 ## 2026-11-04
 
+### [SKILL-MODIFIED] A worker or session stopped by a usage limit or a crash is resumed from a checkpoint, not re-run from the start
+- **Category:** Quality
+- **Hypothesis:** By shipping the checkpoint rule in the worker preamble, the brief template and the seeded `AGENTS.md`, we expect workers and sessions that may write files and that a usage limit, a network error or a crash stops in a project on this version to be resumed from a checkpoint written in the hour before the stop more often than re-run from the start, because the brief names the checkpoint file and the cadence and the preamble says what a checkpoint holds and how a resume re-checks it.
+- **Signal:** Over the next 5 workers or sessions that may write files and that a usage limit, a network error or a crash stops in a project on this version, or by 2026-12-28, whichever comes first, read the checkpoint file or hand-off that each one's brief named and the transcript of its resume: confirm if at least 4 of the 5 left a checkpoint dated within the hour before the stop and were resumed from it; refute if fewer than 3 of the 5 left one; inconclusive with fewer than 5 stops.
+- **Risk:** The rule is prose that a worker must choose to follow, the mechanism that the tracker skill says all refuted verdicts so far share; the hour is an uncalibrated starting value; a checkpoint's time is what the worker wrote, which can be guessed and not read from the clock.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-04 — Ship the checkpoint rule to adopters: a Checkpoints group in the worker preamble, a checkpoint line in the brief template and a bullet in both AGENTS.md files
+
+### [SKILL-MODIFIED] Work built in a scratch clone leaves a patch that outlives the clone
+- **Category:** Quality
+- **Hypothesis:** By putting durable-state lines in the worker preamble and a line for the patch folder and the disk floor in the brief template, we expect the verified commits of the next waves that write in scratch clones to leave a patch in the git-excluded folder their brief named, because the brief names the folder and the preamble ties the patch to each verified commit.
+- **Signal:** Over the next 3 waves with 3 or more workers that write in scratch clones or exports, or by 2026-12-28, whichever comes first, list each wave's verified commits from the workers' return notes and the patches in the folder each brief named: confirm if every verified commit of at least 2 of the 3 waves has a patch there; refute if fewer than half of the verified commits of the 3 waves do; inconclusive with fewer than 3 such waves.
+- **Risk:** Each line relies on a worker choosing to act, and the folder and the floor are left to the brief, so a brief can leave them empty; a check at clone time can date a loss and cannot stop one.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-04 — Give the worker preamble durable-state lines and the brief template a line that names the patch folder and the disk floor
+
+### [SKILL-MODIFIED] A session stopped by a usage limit restarts when its bucket reopens, not when someone types
+- **Category:** Speed
+- **Hypothesis:** By shipping the limit-recovery reference (write the checkpoint's next wake condition before the wait, arm a background waiter at the printed reset time, probe each model with a one-word agent), we expect an orchestrating session that a usage limit stops to make its next tool call within 15 minutes of the printed reset time more often than a session that waits for a message, because the waiter's completion notice restarts the session and the probe tells it whether the bucket is open.
+- **Signal:** Over the next 3 usage-limit stops of an orchestrating session that print a reset time, or by 2026-12-28, whichever comes first, compare the printed reset time with the time of the session's next tool call in its transcript: confirm if at least 2 of the 3 resumed within 15 minutes of that time with no operator message before it; refute if at least 2 of the 3 waited for an operator message; inconclusive with fewer than 3 stops.
+- **Risk:** The waiter restarts a session only on a host that re-invokes the session when a background job ends; the reference states that as a fact, names no host or version, and says that a sub-agent is not restarted by a notice. One of its figures (about 4 M sub-agent tokens per 5-hour window per account) is a starting value, uncalibrated, and so is the 15 minutes here.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-04 — Add a limit-recovery reference to orchestrate: size a wave in tokens, probe each model, wait out a printed reset with a tested waiter, and name the model of every sub-agent
+
+### [SKILL-MODIFIED] A tree landed in a shared checkout is the tree its READY line recorded
+- **Category:** Quality
+- **Hypothesis:** By shipping the landing-queue reference and a read-only gate that exits 0 only when every check measured and passed, we expect the landings of the next initiatives that put several sessions in one tree to show a gate exit 0 on every READY line and a landed tree equal to the tree that line recorded, because the gate compares HEAD, the status, the index, the replayed tree and the working tree's copy of each changed path before each commit and prints the landing commands only on exit 0.
+- **Signal:** Over the next 2 initiatives with two or more sessions landing into one tree under a queue file, or by 2026-12-28, whichever comes first, read each queue file and the commit history: confirm if every READY line records a gate exit 0 and every LANDED line's tree (`git rev-parse HEAD^{tree}` at that commit) equals the tree its READY line recorded; refute if one landing's tree differs from its READY line or a landing has no READY line with a gate result; inconclusive with fewer than 2 initiatives or fewer than 5 landings.
+- **Risk:** The gate applies, stages and commits nothing, so the protocol rests on sessions running it before each commit and writing the lines, a step someone must remember; it sees the tree at the moment it runs, not a peer's write between the run and the commit.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-04 — Add a landing-queue reference and a read-only landing gate to parallel-session-safety
+
+### [SKILL-MODIFIED] Orchestrating sessions start their independent background jobs before they ask the operator a question
+- **Category:** Speed
+- **Hypothesis:** By telling the orchestrator to start every background job that does not depend on the answer first and to ask last, one question per turn, we expect the next orchestrating sessions that ask the operator in the middle of the work to have started every independent background job before the first question, because a question holds the session's turn until it is answered.
+- **Signal:** Over the next 5 orchestrating sessions that ask the operator a question in the middle of the work, or by 2026-12-28, whichever comes first, read each session's transcript up to its first question: confirm if at least 4 of the 5 had already started every background job that did not depend on the answer; refute if at least 3 of the 5 started such a job only after the question was answered; inconclusive with fewer than 5 such sessions.
+- **Risk:** The reference's one measured case is a single session; which jobs depend on the answer is the reader's call, and the rule is prose that a session must remember when it is about to ask.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-04 — Add an operator-questions reference to orchestrate: ask last, one question per turn, and keep the independent work running
+
+### [SKILL-MODIFIED] An initiative planned with the new charter template has its standing operator rulings recorded at the first gate
+- **Category:** Quality
+- **Hypothesis:** By asking for the operator's standing rules in a charter table and by listing the five rulings that arrive piecemeal (the publication invariants, the push policy, the hand-off standard, the usage guard's owner and account, and the owner of the release queue) to be taken in one gate, we expect the next initiatives planned with these templates to record most of those five rulings at or before their first gate, because the planner now asks for them at the charter and the first gate settles how the run is operated.
+- **Signal:** Over the next 2 initiatives planned with the charter template, or by 2026-12-28, whichever comes first, read each charter's "Operator rules in force" table and the initiative's decision log: confirm if in both at least 4 of the five rulings are dated at or before the first gate; refute if in either initiative at least 3 of the five arrive after the first gate; inconclusive with fewer than 2 initiatives.
+- **Risk:** The operating rules say that a ruling asked for one at a time during the run reopens work done under the opposite assumption, and cite one observed case in which all five arrived as separate rulings; the rulings are the operator's to give, so a late one may be the operator's choice and not a miss of the planner's; the first-gate date is read from the initiative's own records; two initiatives are few; and the forecast log and the operating rules beyond those five rulings are not measured here.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-04 — Add operating rules to the initiative planner, an Operator rules in force table to its charter template and a Forecast log to its roadmap template
+
+### [SKILL-MODIFIED] A fix round closed clean by a fresh reader leaves no stale copy of a changed claim in a file it did not edit
+- **Category:** Quality
+- **Hypothesis:** By making the fresh reader's brief sweep the files the change did not edit, check that every pointer carries a section number or a stable heading name, and end its return with what it did not check, we expect the fix rounds closed clean after this change to leave no stale copy of a changed claim in a file they did not edit, because the reader greps the old claim in every skill, reference and README that cites the changed place.
+- **Signal:** Over the next 3 fix rounds that rewrite claims others will act on and are re-reviewed by a fresh reader, or by 2026-12-28, whichever comes first, run the old claim's phrase over the whole tree after each round closes: confirm if none of the 3 leaves a stale copy of a changed claim in a file the round did not edit; refute if one does; inconclusive with fewer than 3 rounds.
+- **Risk:** The sweep is a step that the reader's brief must carry and the reader must perform; the old claim's phrase is chosen by whoever runs the check, so two readers can pick different phrases; the real-data trial lines of this change are not measured here, because their event (a feature that reads files its authors did not write) may not occur in the window.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-04 — Add a fresh reader's sweep past the diff to fix-round review, and a real-data trial to the spec-driven-dev and test-planner checklists
+
+### [SKILL-MODIFIED] A suite verdict taken on a machine that failed to start child processes is reported UNKNOWN with a rerun, not as a pass or a regression
+- **Category:** Quality
+- **Hypothesis:** By adding the suite-verdicts reference (no verdict from a run in which child processes failed to start, a run's time read before its count, a rerun on a quiet machine, one gate run at a time), we expect the next suite or gate reports from a loaded machine to call a run with start errors UNKNOWN and to report the rerun beside it, or the processes that kept a quiet machine from coming back within 30 minutes, because the reference says to count start errors apart from assertion failures and to report both runs.
+- **Signal:** Over the next 3 suite or gate runs in which any child process failed to start, or by 2026-12-28, whichever comes first, read each report: confirm if each calls the run UNKNOWN and reports a rerun on a quiet machine or the processes that kept one from starting; refute if one reports such a run as a pass or as a regression; inconclusive with fewer than 3 such runs.
+- **Risk:** The starting values of one gate run at a time and of the 30-minute wait are uncalibrated; it costs time when waves queue behind a suite, runs with start errors may not occur in the window, and the runtime hazards of the same entry are not measured here, because their events (a message to a running workflow agent, a stage handed over by id) may not occur in the window.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-04 — Add the runtime hazards of a scripted run to agent-delegate and a void-verdict rule for a loaded machine to parallel-session-safety
+
+### [SKILL-MODIFIED] A rule changed while sessions run reaches each running session as a message, and each brief names the revision it was written against
+- **Category:** Quality
+- **Hypothesis:** By adding a revision line to the brief skeleton and a rule that a changed rule is sent to each running session or worker as a message, we expect the next rule changes made while two or more sessions or workers run to reach each of them in the turn in which the change is made, and every brief written after the change to name its revision, because the skeleton asks for the line and the rules section says a changed rule is sent as a message.
+- **Signal:** Over the next 3 rule changes made while two or more sessions or workers run, or by 2026-12-28, whichever comes first, read the orchestrator's transcript and that of each running session: confirm if in at least 2 of the 3 changes every running session received the change as a message before its next action and every brief written after it names a revision; refute if in at least 2 of the 3 a running session learned of the change only by re-reading a file; inconclusive with fewer than 3 such changes.
+- **Risk:** The rule is prose that the orchestrator must remember at the moment it changes a rule, and the revision line is only as good as the clock and the commit that the brief's writer reads; the read-budget line, the two publish-check runs and the wave sentence of the same entry are not measured here, because their events (a brief that names a read budget, a publish-check run in a fresh clone or in the real checkout, a wave sized in tokens) may not occur in the window.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-04 — Add a revision line, a read-budget line and a changed-rule message rule to the brief template, and say in the kit's AGENTS.md what each publish-check run answers and how wide a wave is
+
 ### [SKILL-MODIFIED] New hand-offs carry a version label and pass the lint at v2
 - **Category:** Consistency
 - **Hypothesis:** By shipping the version label, the lint rule and the seeded template together, we expect the hand-offs written in an adopter's `.ai/handoffs/` after the update to pass `lint handoffs` at v2 (both new sections present and non-empty) more often than notes written from the five-section contract alone, because the compliance the standard was chosen for came from the template, the label and the lint together (quoted from a consumer, uncalibrated, not re-measured here).
