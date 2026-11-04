@@ -193,6 +193,10 @@ DEEP_DIVE_TOOLUSE_MIN = 15
 DEEP_DIVE_USERMSGS_MIN = 6
 DEEP_DIVE_CAP = 8
 SUBAGENT_DEEPDIVE_CAP = 6
+# A soft limit on one parent session's share of those sub-agent picks: its later candidates wait
+# while any other candidate remains, and a slot still free after that pass is filled from the
+# ones that waited, so one busy parent still fills every slot. A starting value, not calibrated.
+SUBAGENT_DEEPDIVE_PER_PARENT_CAP = 4
 
 # Slash-command capture (v4, C-2): user-typed "/skill" runs surface as <command-name> pseudo-user
 # messages, which SYSTEM_PREFIXES filters out of user text — previously making the primary
@@ -1344,7 +1348,13 @@ def select_deep_dive(sessions):
 
 
 def select_subagent_deep_dive(sessions):
-    """Deterministic Phase-3b selection over emitted high-signal sub-agent transcripts."""
+    """Deterministic Phase-3b selection over emitted high-signal sub-agent transcripts.
+
+    Candidates are taken in rank order with a soft limit per parent session: a parent's
+    candidates past SUBAGENT_DEEPDIVE_PER_PARENT_CAP wait while any other candidate remains, and
+    a slot still free after that pass is filled from the ones that waited, in rank order. Both
+    lists come out in rank order, so the limit decides who is picked, not how the lists read.
+    """
     pool = []
     for s in sessions:
         for hs in s["subAgents"].get("highSignal", []):
@@ -1362,15 +1372,30 @@ def select_subagent_deep_dive(sessions):
                 }
             )
     ranked = sorted(pool, key=lambda p: (-p["errorCount"], -p["bytes"], p["file"]))
+    taken_per_parent = defaultdict(int)
+    picked, waiting = [], []  # positions in `ranked`
+    for position, p in enumerate(ranked):
+        if len(picked) == SUBAGENT_DEEPDIVE_CAP:
+            break
+        parent = p["parentSessionId"]
+        if taken_per_parent[parent] >= SUBAGENT_DEEPDIVE_PER_PARENT_CAP:
+            waiting.append(position)
+        else:
+            taken_per_parent[parent] += 1
+            picked.append(position)
+    picked += waiting[: SUBAGENT_DEEPDIVE_CAP - len(picked)]
+    chosen = set(picked)
     return {
         "selectionRule": (
             f"all emitted high-signal sub-agents; rank errorCount desc, bytes desc, file; "
-            f"top {SUBAGENT_DEEPDIVE_CAP}"
+            f"top {SUBAGENT_DEEPDIVE_CAP}; at most {SUBAGENT_DEEPDIVE_PER_PARENT_CAP} per "
+            f"parent session while others remain"
         ),
-        "selected": ranked[:SUBAGENT_DEEPDIVE_CAP],
+        "selected": [p for position, p in enumerate(ranked) if position in chosen],
         "overCap": [
             {k: p[k] for k in ("parentSessionId", "file", "errorCount")}
-            for p in ranked[SUBAGENT_DEEPDIVE_CAP:]
+            for position, p in enumerate(ranked)
+            if position not in chosen
         ],
     }
 

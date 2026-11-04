@@ -66,7 +66,7 @@ these lists as-is; qualifiers beyond the cap are listed in `overCap` (never sile
   "overCap":  [ { "sessionId": "…", "toolUse": 21 } ]
 },
 "subAgentDeepDiveCandidates": {
-  "selectionRule": "all emitted high-signal sub-agents; rank errorCount desc, bytes desc, file; top 6",
+  "selectionRule": "all emitted high-signal sub-agents; rank errorCount desc, bytes desc, file; top 6; at most 4 per parent session while others remain",
   "selected": [ { "parentSessionId": "…", "file": "agent-x.md", "transcriptPath": "<ABSOLUTE>", "errorCount": 3, "bytes": 9001, "emittedBytes": 4200 } ],
   // `bytes` = RAW source transcript size (and the rank key). `emittedBytes` (v4, additive) = the
   // redacted, size-capped digest actually on disk — measured at 1.6–2.6% of raw. Quote

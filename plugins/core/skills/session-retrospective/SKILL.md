@@ -169,9 +169,9 @@ what went wrong. Read the narratives for the substantial sessions in parallel.
    - **(c)** Tell boundary-session analysts which findings the prior report already owns, so their
      slots return only NEW material.
 
-   Two standing extractor improvements this implies (candidates, not yet built): downweight sessions
-   the prior report already deep-dived (its ids are in the report), and cap sub-agent picks per
-   parent session for diversity.
+   The extractor caps sub-agent picks at 4 per parent session while others remain (an
+   uncalibrated default). One standing extractor improvement is a candidate, not yet built:
+   downweight sessions the prior report already deep-dived (its ids are in the report).
 
 ### Phase 3b — Sub-Agent Behavioral Scan (REQUIRED)
 

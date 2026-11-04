@@ -1449,6 +1449,196 @@ def test_subagent_deep_dive_and_error_agents_not_emitted(tmp_path, monkeypatch):
     assert all(Path(c["transcriptPath"]).is_file() for c in cands["selected"])
 
 
+# --- per-parent limit on the sub-agent deep-dive picks -----------------------------------------
+# One parent that fans out widely used to take almost every slot, so the picks said little
+# about the other parents. A parent's later candidates now wait while any other candidate
+# remains, and a slot still free after that pass is filled from those that waited.
+def _pick_session(parent, rows):
+    """A session that carries emitted high-signal sub-agents, as select_subagent_deep_dive reads
+    them. Each row is (file, errorCount, bytes)."""
+    return {
+        "sessionId": parent,
+        "subAgents": {
+            "highSignal": [
+                {
+                    "file": name,
+                    "transcriptPath": f"/abs/{parent}/{name}",
+                    "errorsByCategory": {"tool-error": errors},
+                    "bytes": size,
+                    "emittedBytes": size // 40,
+                }
+                for name, errors, size in rows
+            ]
+        },
+    }
+
+
+def _pick_ids(entries):
+    return [(e["parentSessionId"], e["file"]) for e in entries]
+
+
+# pA holds the five best candidates; pB and pC hold three each, ranked between them and below
+# them. Every error count differs, so the ranking needs no tie-break.
+_PICK_ROWS = {
+    "pA": [(f"a{i}.md", 20 - i, 1000) for i in range(5)],
+    "pB": [("b0.md", 15, 1000), ("b1.md", 13, 1000), ("b2.md", 11, 1000)],
+    "pC": [("c0.md", 14, 1000), ("c1.md", 12, 1000), ("c2.md", 10, 1000)],
+}
+
+
+def _picks_fixture():
+    return [_pick_session(parent, rows) for parent, rows in _PICK_ROWS.items()]
+
+
+def test_the_pick_fixtures_assume_a_limit_of_four_of_six():
+    """The fixtures below spell out who is picked, so they are written for these two numbers:
+    retuning either one starts here."""
+    assert ex.SUBAGENT_DEEPDIVE_PER_PARENT_CAP == 4
+    assert ex.SUBAGENT_DEEPDIVE_CAP == 6
+    assert ex.SUBAGENT_DEEPDIVE_PER_PARENT_CAP < ex.SUBAGENT_DEEPDIVE_CAP
+
+
+def test_a_parents_later_picks_give_their_slots_to_other_parents():
+    """pA holds the five best candidates: its fifth waits while others remain, so pB and pC
+    each take a slot. The old ranking gave pA five of the six."""
+    result = ex.select_subagent_deep_dive(_picks_fixture())
+    assert _pick_ids(result["selected"]) == [
+        ("pA", "a0.md"),
+        ("pA", "a1.md"),
+        ("pA", "a2.md"),
+        ("pA", "a3.md"),
+        ("pB", "b0.md"),
+        ("pC", "c0.md"),
+    ]
+    assert _pick_ids(result["overCap"]) == [
+        ("pA", "a4.md"),
+        ("pB", "b1.md"),
+        ("pC", "c1.md"),
+        ("pB", "b2.md"),
+        ("pC", "c2.md"),
+    ]
+
+
+def test_a_free_slot_is_filled_from_the_waiting_picks_in_rank_order():
+    """pA has six candidates and pB one: after the pass one slot is still free, and the best
+    waiting pick of pA takes it, not the worst. The old ranking left pB out."""
+    sessions = [
+        _pick_session("pA", [(f"a{i}.md", 20 - i, 1000) for i in range(6)]),
+        _pick_session("pB", [("b0.md", 10, 1000)]),
+    ]
+    result = ex.select_subagent_deep_dive(sessions)
+    assert _pick_ids(result["selected"]) == [
+        ("pA", "a0.md"),
+        ("pA", "a1.md"),
+        ("pA", "a2.md"),
+        ("pA", "a3.md"),
+        ("pA", "a4.md"),
+        ("pB", "b0.md"),
+    ]
+    assert _pick_ids(result["overCap"]) == [("pA", "a5.md")]
+
+
+def test_one_busy_parent_alone_still_fills_every_slot():
+    """The control for the fill pass: with no other candidate nothing may wait and leave a slot
+    empty. A limit with no fill would pick four here, not six, so this holds on the old
+    ranking and on the new one."""
+    sessions = [_pick_session("pA", [(f"a{i}.md", 20 - i, 1000) for i in range(8)])]
+    result = ex.select_subagent_deep_dive(sessions)
+    assert _pick_ids(result["selected"]) == [("pA", f"a{i}.md") for i in range(6)]
+    assert _pick_ids(result["overCap"]) == [("pA", "a6.md"), ("pA", "a7.md")]
+
+
+def test_the_pick_lists_keep_their_shape_and_lose_nobody():
+    """Both lists keep rank order and their keys, together they hold every candidate once, and
+    the order the sessions arrive in changes nothing."""
+    sessions = _picks_fixture()
+    result = ex.select_subagent_deep_dive(sessions)
+    total = sum(len(rows) for rows in _PICK_ROWS.values())
+    every = _pick_ids(result["selected"]) + _pick_ids(result["overCap"])
+    assert len(every) == len(set(every)) == total, "a candidate was lost or repeated"
+    selected_keys = {
+        "parentSessionId",
+        "file",
+        "transcriptPath",
+        "errorCount",
+        "bytes",
+        "emittedBytes",
+    }
+    over_keys = {"parentSessionId", "file", "errorCount"}
+    assert all(set(e) == selected_keys for e in result["selected"])
+    assert all(set(e) == over_keys for e in result["overCap"])
+    for name in ("selected", "overCap"):
+        errors = [e["errorCount"] for e in result[name]]
+        assert errors == sorted(errors, reverse=True), f"{name} left rank order"
+    assert ex.select_subagent_deep_dive(sessions[::-1]) == result
+    assert ex.select_subagent_deep_dive(sessions[1:] + sessions[:1]) == result
+
+
+def test_the_selection_rule_names_the_limit_per_parent():
+    empty = ex.select_subagent_deep_dive([])
+    assert empty["selected"] == [] and empty["overCap"] == []
+    rule = empty["selectionRule"]
+    assert "per parent session while others remain" in rule
+    limit = ex.SUBAGENT_DEEPDIVE_PER_PARENT_CAP
+    assert f"at most {limit} per parent session while others remain" in rule
+    assert f"top {ex.SUBAGENT_DEEPDIVE_CAP}" in rule
+
+
+def _write_error_agents(subdir, count, pad_base):
+    """`count` sub-agents that each hit one error. The error count is 1 for all, so the bytes
+    rank them: agent i carries `pad_base + 10 * i` more characters than the bare error."""
+    subdir.mkdir(parents=True)
+    for i in range(count):
+        read = {
+            "type": "tool_use",
+            "id": "r1",
+            "name": "Read",
+            "input": {"file_path": f"/repo/missing-{i}.md"},
+        }
+        failed = {
+            "type": "tool_result",
+            "tool_use_id": "r1",
+            "content": "File does not exist." + "x" * (pad_base + 10 * i),
+            "is_error": True,
+        }
+        _write_jsonl(
+            subdir / f"agent-{i:02d}.jsonl",
+            [
+                {"type": "assistant", "message": {"content": [read]}},
+                {"type": "user", "message": {"content": [failed]}},
+            ],
+        )
+
+
+def test_the_extractor_limits_one_parents_share_of_the_sub_agent_picks(
+    tmp_path, monkeypatch
+):
+    """End to end, through the emitter: every sub-agent of `big` is larger than any of `small`,
+    so the old ranking gave `big` all six slots. It keeps four and `small` gets two."""
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    big = "aaaa1111-0000-0000-0000-000000000000"
+    small = "bbbb2222-0000-0000-0000-000000000000"
+    for sid, count, pad_base in ((big, 8, 400), (small, 3, 0)):
+        _write_jsonl(sdir / f"{sid}.jsonl", _minimal_session_rows())
+        _write_error_agents(sdir / sid / "subagents", count, pad_base)
+    agg = _run(sdir, tmp_path / "out", monkeypatch)
+    emitted = sorted(s["subAgents"]["transcriptsEmitted"] for s in agg["sessions"])
+    assert emitted == [3, 8], "the fixture no longer emits every sub-agent"
+    cands = agg["subAgentDeepDiveCandidates"]
+    assert _pick_ids(cands["selected"]) == [
+        (big, "agent-07.md"),
+        (big, "agent-06.md"),
+        (big, "agent-05.md"),
+        (big, "agent-04.md"),
+        (small, "agent-02.md"),
+        (small, "agent-01.md"),
+    ]
+    assert len(cands["overCap"]) == 11 - len(cands["selected"])
+    assert "per parent session while others remain" in cands["selectionRule"]
+    assert all(Path(c["transcriptPath"]).is_file() for c in cands["selected"])
+
+
 def test_check_file_gate(tmp_path, monkeypatch):
     """v4 (C-7): --check-file runs the leak patterns over one file (report-privacy gate)."""
     leaky = tmp_path / "draft.md"
@@ -4172,3 +4362,54 @@ def test_the_schema_reference_names_each_dotnet_command_the_loop_detector_matche
     window = f"first {limit} characters of the command"
     assert window in section, "the reference does not give the reading limit"
     assert "slash or backslash" in section, "the reference leaves out the backslash"
+
+
+# --- the per-parent pick limit, as the skill and the schema reference say it -------------------
+_SKILL_DOC = Path(__file__).resolve().parent.parent / "SKILL.md"
+
+
+def _between_headings(flat, first, last):
+    """The text between two headings of a whitespace-folded document. A heading that is not
+    found, or the first one found twice, fails loudly, so a renamed heading cannot turn a
+    check into a pass."""
+    assert flat.count(first) == 1, f"{first!r} is not found exactly once"
+    rest = flat.split(first)[1]
+    assert last in rest, f"{last!r} does not follow {first!r}"
+    return rest.split(last)[0]
+
+
+def test_the_heading_cut_fails_loudly_when_a_heading_is_missing_or_repeated():
+    doc = "# top ## one alpha ## two beta ## one gamma"
+    assert _between_headings(doc, "## two", "## one") == " beta "
+    for first, last in (
+        ("## nope", "## one"),
+        ("## one", "## two"),
+        ("## two", "## nope"),
+    ):
+        with pytest.raises(AssertionError):
+            _between_headings(doc, first, last)
+
+
+def test_the_skill_says_the_pick_limit_per_parent_is_built_and_the_downweight_is_not():
+    flat = " ".join(_SKILL_DOC.read_text(encoding="utf-8").split())
+    heading = f"### Phase 3 {chr(0x2014)} Deep-Dive the Substantial Sessions"
+    section = _between_headings(flat, heading, "### Phase 3b")
+    assert "Two standing extractor improvements" not in section
+    assert "cap sub-agent picks per parent session for diversity" not in section
+    limit = ex.SUBAGENT_DEEPDIVE_PER_PARENT_CAP
+    built = f"caps sub-agent picks at {limit} per parent session while others remain"
+    assert built in section
+    assert "(an uncalibrated default)" in section
+    assert (
+        "One standing extractor improvement is a candidate, not yet built: "
+        "downweight sessions the prior report already deep-dived"
+    ) in section
+
+
+def test_the_schema_reference_example_rule_is_the_one_the_extractor_emits():
+    flat = " ".join(_SCHEMA_REFERENCE.read_text(encoding="utf-8").split())
+    first = "### `deepDiveCandidates` / `subAgentDeepDiveCandidates` (v4)"
+    section = _between_headings(flat, first, "### `stats`")
+    assert "per parent session while others remain" in section
+    rule = ex.select_subagent_deep_dive([])["selectionRule"]
+    assert f'"selectionRule": "{rule}"' in section
