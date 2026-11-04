@@ -12,23 +12,38 @@ What the text says now, in four places of four files:
 * section 3 of the worker preamble holds a "Checkpoints" group ahead of the paragraph that closes
   the section ("Publish before extras."): a lead paragraph that tells a checkpoint apart from the
   report and from the continuation prompt of section 5 and binds the orchestrating session as much
-  as every worker, then five bullets: the cadence (each milestone and at the latest every hour, an
-  uncalibrated starting value, and what counts as a milestone); what a checkpoint says (done, left,
-  where the results are, anything shared that is held); its next wake condition, with the command
-  that reads it; where it is written (the hand-off file's Status, "Not done" and Continue sections,
-  or the checkpoint file the brief names, newest block first); and the resume rule (from the latest
-  checkpoint, re-read and re-checked by command, losing only the work since);
+  as every worker, then five bullets: the cadence (if you may write files, each milestone and at the
+  latest every hour, an uncalibrated starting value, what counts as a milestone, and that a worker
+  that may not write files writes none and returns its findings as text); what a checkpoint says
+  (done, left, where the results are, anything shared that is held); its next wake condition, with
+  the command that reads it; where it is written (the hand-off file's Status, "Not done" and
+  Continue sections, or the checkpoint file the brief names, newest block first, and a brief that
+  names neither asks for no checkpoint); and the resume rule (from the latest checkpoint, re-read
+  and re-checked by command, losing only the work since);
 * the "Report back" section of the brief template's skeleton has the dispatcher name the checkpoint
-  file and the cadence, and points at section 3 of the preamble;
+  file and the cadence, opens the line with "if you may write files", and points at section 3 of
+  the preamble;
 * the "Orchestration and delegation" section of the kit's own AGENTS.md and of the template the
-  scaffold seeds hold one checkpoint bullet of at most four lines, in the same words.
+  scaffold seeds hold one checkpoint bullet of at most five lines, in the same words: it binds a
+  session or worker that may write files, on a task that may outlive its turn or usage window, to
+  the file its brief or hand-off names, and it marks its pointer as the Orchestration pack's.
+
+Scope. The first wording bound every session and worker, unconditionally, and a cold read found
+three things it could not hold together with the rest of the text: a worker that may not write
+files, or whose write was refused, could only break its scope or route around a refusal that section
+3 forbids routing around; a ten-minute session with no brief had no named place to write and would
+invent one in the tree; and the only pointer led into the Orchestration pack from a section that
+also covers a project with the core pack alone. The scope is now one rule in all four places: the
+checkpoint is for one who may write files, goes to the file the brief or hand-off names, and is
+asked for by a task that may outlive its turn or window. `test_no_agents_file_still_binds_every_session`
+fires at the old unconditional sentence.
 
 Where each place reaches. The preamble and the brief template ship in the Orchestration plugin, so
 every adopter gets them with the plugin. AGENTS.md is a seed: the scaffold writes it once and
 `kit-setup refresh` rewrites only its marked blocks, and this section holds none, so only a project
 seeded after this change gets the bullet; one seeded before gets the rule from the plugin files.
 
-THE SURFACE, in numbers the tests assert: 4 places in 4 files; 6 claims and 13 sentences in section
+THE SURFACE, in numbers the tests assert: 4 places in 4 files; 6 claims and 15 sentences in section
 3 of the preamble, 1 claim and 2 sentences in the skeleton's "Report back" section, and 1 claim and
 2 sentences in the "Orchestration and delegation" section of each AGENTS.md. A claim holds when the
 block it names (a paragraph or a list item, read whole) holds every one of its sentences whole
@@ -69,7 +84,7 @@ _ORCHESTRATION = "### Orchestration and delegation"
 _HEADING = re.compile(r"^(#{1,6})\s")
 _RULE = re.compile(r"^-{3,}\s*$")  # the `---` line that ends each numbered section
 _PUBLISH_LEAD = "publish before extras."
-_AGENTS_MAX_LINES = 4
+_AGENTS_MAX_LINES = 5
 
 Claim = tuple[str, tuple[str, ...]]
 
@@ -89,10 +104,12 @@ _PREAMBLE_CLAIMS: tuple[Claim, ...] = (
     (
         "cadence",
         (
-            "write a checkpoint at each milestone and at the latest every hour (starting value, "
-            "uncalibrated).",
+            "if you may write files, write a checkpoint at each milestone and at the latest every "
+            "hour (starting value, uncalibrated).",
             "a milestone is a verified step, a commit, a finished sub-task or a hand-off to "
             "another worker.",
+            "a worker that may not write files writes none and returns its findings as text "
+            "(section 4).",
         ),
     ),
     (
@@ -117,6 +134,7 @@ _PREAMBLE_CLAIMS: tuple[Claim, ...] = (
             "write it where your brief says.",
             'that is the hand-off file it names, in its status, "not done" and continue '
             "sections, or the checkpoint file it names, with the newest block first.",
+            "a brief that names neither asks for no checkpoint.",
         ),
     ),
     (
@@ -135,8 +153,8 @@ _PREAMBLE_LEADS = tuple(sentences[0] for _, sentences in _PREAMBLE_CLAIMS)
 _TEMPLATE_CLAIM: Claim = (
     "report back",
     (
-        "checkpoint: write one to `<the hand-off file or a checkpoint file>` at each milestone "
-        "and at the latest every `<cadence>`;",
+        "checkpoint: if you may write files, write one to `<the hand-off file or a checkpoint "
+        "file>` at each milestone and at the latest every `<cadence>`;",
         "section 3 of the worker preamble says what it holds and how a stopped worker is "
         "resumed from it.",
     ),
@@ -145,14 +163,26 @@ _TEMPLATE_CLAIM: Claim = (
 _AGENTS_CLAIM: Claim = (
     "agents",
     (
-        "every session and worker writes a checkpoint to a file at each milestone and at the "
-        "latest every hour (starting value, uncalibrated): what is done, what is left, where the "
-        "results are, and the next wake condition.",
+        "a session or worker that may write files, on a task that may outlive its turn or usage "
+        "window (a wave, a delegated task, a hand-off), writes a checkpoint to the file its "
+        "brief or hand-off names at each milestone and at the latest every hour (starting "
+        "value, uncalibrated): what is done, what is left, where the results are, and the next "
+        "wake condition.",
         "one stopped by a usage limit, a network error or a crash resumes from its latest "
-        "checkpoint, re-checked by command, and loses only the work since (`agent-delegate` "
-        "worker preamble, section 3).",
+        "checkpoint, re-checked by command, and loses only the work since (orchestration pack: "
+        "`agent-delegate` worker preamble, section 3).",
     ),
 )
+
+# The unconditional sentence the bullet opened with before the scope change: the known positive
+# the check below must see, and the sentence no AGENTS.md may carry again.
+_OLD_UNCONDITIONAL = "every session and worker writes a checkpoint to a file"
+_OLD_AGENTS_BULLET = """\
+- Every session and worker writes a checkpoint to a file at each milestone and at the latest every
+  hour (starting value, uncalibrated): what is done, what is left, where the results are, and the
+  next wake condition. One stopped by a usage limit, a network error or a crash resumes from its latest
+  checkpoint, re-checked by command, and loses only the work since (`agent-delegate` worker preamble, section 3).
+"""
 
 # The places as they stood before the change, shortened to lines of ASCII text (the em dash is
 # built from its code point): the known positives the checks must see the gap in.
@@ -360,7 +390,7 @@ def _places() -> list[tuple[str, str, tuple[Claim, ...]]]:
 
 
 def test_the_surface_is_stated_in_numbers() -> None:
-    assert (len(_PREAMBLE_CLAIMS), len(_PREAMBLE_SENTENCES)) == (6, 13)
+    assert (len(_PREAMBLE_CLAIMS), len(_PREAMBLE_SENTENCES)) == (6, 15)
     assert len(_TEMPLATE_CLAIM[1]) == 2 and len(_AGENTS_CLAIM[1]) == 2
     every = [*_PREAMBLE_SENTENCES, *_TEMPLATE_CLAIM[1], *_AGENTS_CLAIM[1]]
     assert len(set(every)) == len(every), "a sentence is listed twice"
@@ -464,6 +494,17 @@ def test_the_two_agents_files_say_the_same_bullet() -> None:
     seeded = _block(_orchestration(_SEEDED_AGENTS), lead)
     assert kit, "the kit's AGENTS.md has no checkpoint bullet"
     assert kit == seeded, f"the files disagree: {kit!r} versus {seeded!r}"
+
+
+@pytest.mark.parametrize("path", _AGENTS_FILES, ids=["kit", "seeded"])
+def test_no_agents_file_still_binds_every_session(path: Path) -> None:
+    """Red before the scope change: the bullet bound every session and worker to write a checkpoint
+    file, a ten-minute session and a worker that may not write files included. The known positive
+    carries the old sentence, so a retyped copy in `_OLD_UNCONDITIONAL` cannot make this blind."""
+    assert _OLD_UNCONDITIONAL in _flat(_OLD_AGENTS_BULLET), (
+        "the known positive lacks the old sentence"
+    )
+    assert _OLD_UNCONDITIONAL not in _flat(_orchestration(path)), path.name
 
 
 # --- the checks can fail ------------------------------------------------------------------------

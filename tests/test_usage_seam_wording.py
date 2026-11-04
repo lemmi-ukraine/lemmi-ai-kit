@@ -15,6 +15,14 @@ on a wave because of it. The kit ships no usage guard, so no reading is ever pre
 and a project that opts out accepts the risk the gate protects against: waves killed at the
 limit and duplicate dispatch after a re-run.
 
+The default also tells the orchestrator what to checkpoint, and a cold read found that the old
+wording ("continuation notes + workflow `resumeFromRunId` lines") contradicted the runtime-hazards
+reference of `agent-delegate`: a resume id works only in the session that ran the workflow, so a
+successor session handed those lines had nothing to resume. The bullet now writes a resume line
+only for a resume in this session and a standalone stage script for a hand-off to another one,
+and points at the reference. The skill is at its line cap, so the clause replaces words of the
+two lines that carried the old one and adds no line.
+
 That project still states its own cap on simultaneous agents and counts every live session on
 the account toward it. The kit sets no number and no default cap, so the sentence names none.
 The check is a tripwire for a default, not a proof that none is there: it reads digits and the
@@ -43,7 +51,7 @@ _ORCHESTRATE = "plugins/orchestration/skills/orchestrate/SKILL.md"
 _HEADING = re.compile(r"^(#{1,6})\s")
 # A line opens the next list item the way the skill opens its own: "- " or a number and a
 # period. It never opens one with "+" or "*", so a line that a word of the bullet opens, as a
-# re-wrap can do with the "+" of "notes + workflow", stays part of the bullet.
+# re-wrap could do with the "+" of the old bullet's "notes + workflow", stays part of the bullet.
 _MARKER = re.compile(r"\s*(?:-|\d+\.)\s")
 
 _SECTION_HEADING = "### 1b. Context and usage budget"
@@ -88,6 +96,12 @@ _REQUIRED: tuple[tuple[str, str], ...] = (
         "Past the warn threshold: do not start the wave",
     ),
     ("the default stays: checkpoint first", "checkpoint first"),
+    (
+        "a resume line is for a resume in this session, a standalone script for a hand-off",
+        "continuation notes; a workflow `resumeFromRunId` line only for a resume in this "
+        "session, a standalone stage script for a hand-off to another session; see [runtime "
+        "hazards](../agent-delegate/references/runtime-hazards.md)",
+    ),
     ("the age of the reading is noted", "note how old the reading is"),
     (
         "a reading older than a few minutes is stale during a fan-out",
@@ -305,8 +319,8 @@ def test_a_re_wrapped_bullet_is_read_whole() -> None:
     """The real bullet's words after its lead are laid out again with every continuation in
     column 0, in chunks of every size from one word to all of them, and every requirement is
     still found in each layout: the reader does not stop at the first line that is not
-    indented, nor at a line that a word of the bullet opens, such as the "+" of "notes +
-    workflow", and it stops at the next list item. The layouts are built from the bullet's
+    indented, nor at a line that a word of the bullet opens, such as the "+" of the old
+    bullet's "notes + workflow", and it stops at the next list item. The layouts are built from the bullet's
     words, not its lines, so how the file wraps the bullet decides nothing, and the lead alone
     satisfies none of the requirements."""
     section = _section(_orchestrate(), _SECTION_HEADING)

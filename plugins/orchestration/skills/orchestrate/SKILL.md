@@ -271,8 +271,8 @@ Three rules, enforced at this step because dispatch is where the choice exists:
   your client exposes — a statusline rate-limit feed, or the provider's console) before any
   fan-out of ≥3 workers, and note how old the reading is: a reading older than a few minutes is
   stale during a fan-out, and every other live session draws on the same window. Past the warn
-  threshold: do not start the wave — checkpoint first (continuation notes + workflow
-  `resumeFromRunId` lines), then wait or hand off. **If the project's AGENTS.md or its override
+  threshold: do not start the wave — checkpoint first (continuation notes; a workflow
+  `resumeFromRunId` line only for a resume in this session, a standalone stage script for a hand-off to another session; see [runtime hazards](../agent-delegate/references/runtime-hazards.md)), then wait or hand off. **If the project's AGENTS.md or its override
   documents say the usage window is not a gate**, report the reading and its age, if one exists,
   and never defer, shrink or skip verification on a wave because of it. The kit ships no usage
   guard, so never presume a reading exists; a project that opts out accepts the risk the gate

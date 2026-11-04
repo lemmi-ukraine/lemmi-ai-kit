@@ -5,8 +5,15 @@ failure modes of a scripted run (a workflow: the harness feature that runs scrip
 keeps a journal of what each stage returned). Each of four was learned by a loss. A message to a
 sub-agent that a workflow was still running started a second live copy of it. A resume id works
 only in the session that ran the workflow, so a stage handed to another session by id had nothing
-to resume. A worker that ended its turn to wait for a background run was not woken when the run
+to resume. A sub-agent that ended its turn to wait for a background run was not woken when the run
 finished. A verifier stage that returned no commit id was skipped without an error.
+
+A cold read found that the third bullet and the limit-recovery reference of `orchestrate` seemed
+to contradict each other (one said a background run's notice wakes a turn that has ended, the other
+that it did not), told apart only by "worker" and "session", and that its wait had no bound: a run
+that hung held the sub-agent for good. The bullet now says "sub-agent", bounds the wait by a time
+limit (the brief's, else the sub-agent's own), and has the sub-agent say which of the two ended it;
+the limit-recovery reference says the waiter is a session's and points here.
 
 `agent-delegate/references/runtime-hazards.md` now holds the four as four bullets and says what a
 workflow is in one clause, in neutral words. `agent-delegate/SKILL.md` points at it from one line
@@ -138,10 +145,11 @@ _REFERENCE_SENTENCES: tuple[str, ...] = (
     "session by id has nothing to resume (observed once).",
     "write the stage as a script that takes what it needs (the commit, the paths, the report "
     "folder) as arguments.",
-    "a worker stays in its turn while its background run finishes.",
-    "a worker that ended its turn to wait for a background run was not woken when the run "
+    "a sub-agent stays in its turn while its background run finishes.",
+    "a sub-agent that ended its turn to wait for a background run was not woken when the run "
     "finished (observed once).",
-    "it waits inside its turn, with a command that exits when the run does, and returns after.",
+    "it waits inside its turn, with a command that exits when the run does or at a time limit "
+    "(its brief's, else its own), and returns either way, saying which.",
     "check the journal for a stage that returned no commit id.",
     "a verifier stage that returned no commit id was skipped without an error, so nothing "
     "flagged it (observed once).",
@@ -155,7 +163,7 @@ _POINTER_SENTENCES: tuple[str, ...] = (
 _LEADS = (
     "never message a running workflow agent.",
     "hand a last stage over as a standalone script with its arguments, never a resume id.",
-    "a worker stays in its turn while its background run finishes.",
+    "a sub-agent stays in its turn while its background run finishes.",
     "check the journal for a stage that returned no commit id.",
 )
 _SECTION_LEADS = (

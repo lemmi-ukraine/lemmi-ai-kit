@@ -13,9 +13,10 @@ stage returned.
   id works only in the session that ran the workflow, so a stage handed to another session by id has
   nothing to resume (observed once). Write the stage as a script that takes what it needs (the
   commit, the paths, the report folder) as arguments.
-- **A worker stays in its turn while its background run finishes.** A worker that ended its turn to
-  wait for a background run was not woken when the run finished (observed once). It waits inside its
-  turn, with a command that exits when the run does, and returns after.
+- **A sub-agent stays in its turn while its background run finishes.** A sub-agent that ended its
+  turn to wait for a background run was not woken when the run finished (observed once). It waits
+  inside its turn, with a command that exits when the run does or at a time limit (its brief's, else
+  its own), and returns either way, saying which.
 - **Check the journal for a stage that returned no commit id.** A verifier stage that returned no
   commit id was skipped without an error, so nothing flagged it (observed once). After every run,
   read the journal for each stage and list any that returned none, then run the missing stage as a

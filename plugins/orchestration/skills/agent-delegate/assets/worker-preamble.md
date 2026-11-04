@@ -148,15 +148,17 @@ a practice with a named test (re-measure the no-return rate after adopting it), 
 successor can pick it up if you are stopped before the report or the continuation prompt of section
 5 is written. These rules bind the orchestrating session as much as every worker it starts.
 
-- **Write a checkpoint at each milestone and at the latest every hour (starting value,
-  uncalibrated).** A milestone is a verified step, a commit, a finished sub-task or a hand-off to
-  another worker.
+- **If you may write files, write a checkpoint at each milestone and at the latest every hour
+  (starting value, uncalibrated).** A milestone is a verified step, a commit, a finished sub-task or
+  a hand-off to another worker. A worker that may not write files writes none and returns its
+  findings as text (section 4).
 - **A checkpoint says what is done, what is left and where the results are.** Name the commit ids,
   the report files and paths, and the state of anything shared that you hold, such as a lock.
 - **A checkpoint names its next wake condition: the event or the time that resumes the work, with
   the command that reads it.** A successor that cannot tell what you were waiting for starts over.
 - **Write it where your brief says.** That is the hand-off file it names, in its Status, "Not done"
-  and Continue sections, or the checkpoint file it names, with the newest block first.
+  and Continue sections, or the checkpoint file it names, with the newest block first. A brief that
+  names neither asks for no checkpoint.
 - **A worker or session stopped by a usage limit, a network error or a crash is resumed from its
   latest checkpoint.** The resumer re-reads it and re-checks each claim in it by command before
   acting, and only the work since that checkpoint is lost.

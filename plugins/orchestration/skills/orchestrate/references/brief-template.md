@@ -60,9 +60,9 @@ If you may write files, write this report file EARLY and INCREMENTALLY, not at t
 killed mid-run by usage limits often enough that a report written only at the end is often never
 written at all.
 
-- Checkpoint: write one to `<the hand-off file or a checkpoint file>` at each milestone and at the
-  latest every `<cadence>`; section 3 of the worker preamble says what it holds and how a stopped
-  worker is resumed from it.
+- Checkpoint: if you may write files, write one to `<the hand-off file or a checkpoint file>` at each
+  milestone and at the latest every `<cadence>`; section 3 of the worker preamble says what it holds
+  and how a stopped worker is resumed from it.
 
 ## Close (run in this order, do not wait to be asked)
 1. Self-challenge: is it detailed enough? Have you missed something? Say what it changed,

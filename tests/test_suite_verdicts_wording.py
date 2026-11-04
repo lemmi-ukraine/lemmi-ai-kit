@@ -7,10 +7,18 @@ several times its usual time: the tree stood still and the verdict still measure
 skill is at its line cap, so the rule lives in a new reference,
 `parallel-session-safety/references/suite-verdicts.md`, with four bullets (no verdict from a run
 whose child processes failed to start; read a run's time before its count; rerun on a quiet
-machine; cap the concurrent gate runners, with a starting value that is labelled uncalibrated). The
-pointer from the skill is the release owner's: this file does not look for it.
+machine, with a wait bound labelled uncalibrated after which the verdict stays UNKNOWN; cap the
+concurrent gate runs, with a starting value that is labelled uncalibrated). The pointer from the
+skill is the release owner's: this file does not look for it.
 
-THE SURFACE, in numbers the tests assert: 1 place in 1 new file, 15 sentences in 4 bullets and an
+A cold read found that the quiet-machine rule could not be followed to its end: it defined quiet as
+no other suite, gate run, verifier loop or mutation loop, then told the agent to start the rerun
+only when no other interpreter process ran, and an editor's language server or a tool server is an
+interpreter process that never exits, so a literal agent waited for good. The start condition now
+names the same four kinds as the definition, the wait is bounded (starting value, uncalibrated), and
+the term "gate runner", which the kit defines nowhere, is "gate run" in both places it was used.
+
+THE SURFACE, in numbers the tests assert: 1 place in 1 new file, 16 sentences in 4 bullets and an
 opening paragraph, each held whole (lower-cased, bold marks dropped, whitespace collapsed) so that
 a clause cannot be dropped while the rest of its sentence still matches. Each sentence occurs once
 and is fired at a planted removal and a planted cut of its last clause; the reference is fired at
@@ -116,12 +124,15 @@ _SENTENCES: tuple[str, ...] = (
     "once: a full run took several times as long, with the processor saturated by dozens of "
     "interpreter processes).",
     "rerun on a quiet machine.",
-    "quiet means no other gate runner, suite, verifier loop or mutation loop is running.",
+    "quiet means no other gate run, suite, verifier loop or mutation loop is running.",
     "list the running interpreter processes with the platform's process lister before the "
-    "rerun, and start it only when none besides yours is running.",
-    "report both runs: the void one with its cause, and the rerun.",
-    "cap the concurrent gate runners.",
-    "starting value, uncalibrated: one gate runner on the machine at a time.",
+    "rerun, and start it only when none of them is another gate run, suite, verifier loop or "
+    "mutation loop.",
+    "if such a process still runs after 30 minutes (starting value, uncalibrated), start no "
+    "rerun, report the verdict unknown with the list of those processes, and stop waiting.",
+    "otherwise report both runs: the void one with its cause, and the rerun.",
+    "cap the concurrent gate runs.",
+    "starting value, uncalibrated: one gate run on the machine at a time.",
     "run gates between waves of workers, not inside one, because a wave of verifiers and a "
     "suite compete for the same processes.",
 )
@@ -129,7 +140,7 @@ _LEADS = (
     "a run in which child processes failed to start has no verdict.",
     "read the run's time before its count.",
     "rerun on a quiet machine.",
-    "cap the concurrent gate runners.",
+    "cap the concurrent gate runs.",
 )
 
 # A reference that exists and says nothing: its title, one line, one bullet.
@@ -154,9 +165,9 @@ def _has_clause(sentence: str) -> bool:
 
 
 def test_the_surface_is_stated_in_numbers() -> None:
-    """1 place, 15 sentences and 4 bullets; no sentence stands twice or inside another; the four
+    """1 place, 16 sentences and 4 bullets; no sentence stands twice or inside another; the four
     leads are four of the sentences."""
-    assert len(_SENTENCES) == 15
+    assert len(_SENTENCES) == 16
     assert len(set(_SENTENCES)) == len(_SENTENCES)
     for sentence in _SENTENCES:
         others = [s for s in _SENTENCES if s != sentence]
@@ -239,7 +250,8 @@ def test_the_reference_opens_with_when_to_read_it_and_holds_four_bullets_in_orde
     None
 ):
     """A new reference opens with one line saying when to read it, then holds the four rules in
-    order. The starting value is labelled once, and the two observed facts are tagged once each."""
+    order. Each of the two starting values (the wait bound of the third rule and the cap of the
+    fourth) is labelled once, and the two observed facts are tagged once each."""
     text = _read(_REFERENCE)
     assert text.split("\n")[0] == _TITLE
     assert _flat(text.split("\n\n")[1]).startswith("read this before you ")
@@ -248,7 +260,7 @@ def test_the_reference_opens_with_when_to_read_it_and_holds_four_bullets_in_orde
     for bullet, lead in zip(bullets, _LEADS, strict=True):
         assert bullet.startswith(lead), (lead, bullet[:60])
     assert [b.count("(observed once") for b in bullets] == [1, 1, 0, 0]
-    assert _flat(text).count("starting value, uncalibrated") == 1
+    assert [b.count("starting value, uncalibrated") for b in bullets] == [0, 0, 1, 1]
 
 
 def test_the_section_it_names_is_the_torn_tree_section_and_is_not_repeated() -> None:
