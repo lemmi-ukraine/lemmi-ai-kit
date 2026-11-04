@@ -113,6 +113,21 @@ Assume this checkout is shared and that other sessions are writing to it right n
 - **A suite or gate verdict over a tree others are editing is void.** Snapshot the changed-file
   list before and after any run you will report, and discard the result if the set changed.
 
+**Durable state.** Work held only in a scratch clone or in your context is lost when you are
+stopped. Keep it where a stop or a cleanup cannot reach it:
+
+- **Cut a patch into a git-excluded folder after each verified commit.** A clone can be lost or
+  damaged, and the patch is what the work is rebuilt from.
+- **Do no overnight work in a clone under the OS temp folder.** The system can empty that folder on
+  a schedule or at a restart, and the clone goes with it.
+- **Run `git fsck` and back up the pack when you make a clone.** Objects can go missing from a
+  clone later: the check shows it started whole, and the backup is what you restore from.
+- **Create and delete a test run's temporary folder (pytest's `--basetemp`) inside one command.** A
+  delete left for a later step is the one a stopped worker skips, and the folders left behind fill
+  the disk.
+- **Check free disk space against the floor your brief names before you start a wave.** A full disk
+  stops every agent at once, in the middle of a write.
+
 ---
 
 ## 3 · Write your report file EARLY and INCREMENTALLY
@@ -128,6 +143,23 @@ found nothing returns, so the orchestrator cannot tell a missing gate from a pas
 In the one recorded controlled contrast, a worker told to write its report early and incrementally
 survived the same usage window that killed its sibling, and delivered. One occurrence — so this is
 a practice with a named test (re-measure the no-return rate after adopting it), not a law.
+
+**Checkpoints.** The report holds what you found; a checkpoint holds where the work stands, so a
+successor can pick it up if you are stopped before the report or the continuation prompt of section
+5 is written. These rules bind the orchestrating session as much as every worker it starts.
+
+- **Write a checkpoint at each milestone and at the latest every hour (starting value,
+  uncalibrated).** A milestone is a verified step, a commit, a finished sub-task or a hand-off to
+  another worker.
+- **A checkpoint says what is done, what is left and where the results are.** Name the commit ids,
+  the report files and paths, and the state of anything shared that you hold, such as a lock.
+- **A checkpoint names its next wake condition: the event or the time that resumes the work, with
+  the command that reads it.** A successor that cannot tell what you were waiting for starts over.
+- **Write it where your brief says.** That is the hand-off file it names, in its Status, "Not done"
+  and Continue sections, or the checkpoint file it names, with the newest block first.
+- **A worker or session stopped by a usage limit, a network error or a crash is resumed from its
+  latest checkpoint.** The resumer re-reads it and re-checks each claim in it by command before
+  acting, and only the work since that checkpoint is lost.
 
 **Publish before extras.** Write the result (or create the branch or ref your brief names) before
 any optional verification, and keep the evidence on disk: a session limit stops every agent at

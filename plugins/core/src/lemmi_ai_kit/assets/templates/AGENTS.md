@@ -139,6 +139,13 @@ Uses: orchestrate (workflow), agent-delegate (task)
 - A worker's summary is a claim: verify the actual output against the definition of done before
   merging. For high-stakes decisions, task independent workers in parallel without showing them
   each other's answers, then synthesize.
+- Every session and worker writes a checkpoint to a file at each milestone and at the latest every
+  hour (starting value, uncalibrated): what is done, what is left, where the results are, and the
+  next wake condition. One stopped by a usage limit, a network error or a crash resumes from its latest
+  checkpoint, re-checked by command, and loses only the work since (`agent-delegate` worker preamble, section 3).
+- Pass an explicit `model` on every sub-agent call, because a call that names none inherits its
+  parent's model, and size a wave in tokens rather than agents before you start it; see
+  `references/limit-recovery.md` in the `orchestrate` skill.
 - Keep single-agent when judgment is the work or the subtasks can't be crisply named.
 - With Core alone, work in one agent. If the user requests an Orchestration workflow,
   report `lemmi-ai-kit-orchestration@lemmi` as a prerequisite before that workflow starts.

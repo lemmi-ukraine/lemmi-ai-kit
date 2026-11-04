@@ -40,6 +40,8 @@ that names none means the project has none.
   for each entry (the worker in its own branch, the session that receives the return, or the next
   consolidation) and adds the files to that writer's set; any other worker returns its drafts and
   lists each as not done, with the writer's name, under `## Status` in a hand-off.>
+- Durable state: <the git-excluded folder that each verified commit's patch is cut into, and the
+  free-disk floor to check before a wave; section 2 of the worker preamble gives the other lines>
 
 ## Definition of done (self-checkable)
 - <command that must pass / observable behavior / artifact that must exist>
@@ -54,6 +56,10 @@ that names none means the project has none.
 If you may write files, write this report file EARLY and INCREMENTALLY, not at the end: workers are
 killed mid-run by usage limits often enough that a report written only at the end is often never
 written at all.
+
+- Checkpoint: write one to `<the hand-off file or a checkpoint file>` at each milestone and at the
+  latest every `<cadence>`; section 3 of the worker preamble says what it holds and how a stopped
+  worker is resumed from it.
 
 ## Close (run in this order, do not wait to be asked)
 1. Self-challenge: is it detailed enough? Have you missed something? Say what it changed,
