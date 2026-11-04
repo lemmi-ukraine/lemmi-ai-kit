@@ -36,10 +36,10 @@ parallel-session-safety was edited again after its one excerpt was taken (its ba
 the committed restore point): its 1 later phrase sits in the same table, so the excerpt still reports
 the 7 phrases it lacked then.
 
-The second round of change requests edited 2 more upstream-origin skills: 1 (plan-critic) gained
-phrases in their rows; 1 (post-task-review with 2 phrases) keep an excerpt of an older note, so
-their new phrases sit in the table of later edits and the excerpts still report the 7 phrases they
-lacked then.
+The second round of change requests edited 2 upstream-origin skills again, both already among the
+23 rows: plan-critic gained 2 phrases in its row, and post-task-review, which keeps an excerpt of
+an older note, gained 2 phrases in the table of later edits, so its excerpt still reports the 7
+phrases it lacked then.
 
 THE SURFACE, in numbers the tests assert: 23 edited upstream-origin rows, 4 earlier notes kept whole,
 4 kit-origin rows left alone, no name in both sets, 1 retired wording, 2 incomplete notes reported

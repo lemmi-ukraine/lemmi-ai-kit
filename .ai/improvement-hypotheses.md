@@ -43,7 +43,7 @@
 
 ### [SKILL-MODIFIED] No new shipped line opens a command with an assignment
 - **Category:** Consistency
-- **Hypothesis:** By adding the assignment-led test with an allowlist of the six lines that existed, we expect no new shipped line to open a command with an assignment before 2026-12-28 and the allowlist to only shrink, because the shipped hook's own judge decides the rule and any new line fails by file and line.
+- **Hypothesis:** By adding the assignment-led test with an allowlist of the six occurrences that existed (five distinct commands), we expect no new shipped line to open a command with an assignment before 2026-12-28 and the allowlist to only shrink, because the shipped hook's own judge decides the rule and any new line fails by file and line.
 - **Signal:** By 2026-12-28, read the allowlist in tests/test_assignment_led_commands.py and the history of shipped text: confirm if no entry was added and no shipped line opens with an assignment while the suite is green; refute if a new such line ships with the suite green or an entry is added without a fix; inconclusive if the test was removed.
 - **Risk:** The test judges a command the way the hook does and nothing else: a command that is not in a fenced shell block or an inline code span is not seen.
 - **Status:** PENDING
