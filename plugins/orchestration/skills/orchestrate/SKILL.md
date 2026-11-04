@@ -209,10 +209,10 @@ Every delegation gets a written brief. A good brief has exactly:
      next"; two sessions dispatched into work a peer already owned while holding the tool that would
      have told them. Asking is free to you and expensive to the reader, and that asymmetry is
      invisible from inside a session.
-   - **Expand every internal id, board code, metric name and acronym on first use.** Sessions
-     repeatedly produced questions the operator could not parse ("I used internal IDs instead of
-     plain language"). This clause has recurred across four consecutive measured windows — the test
-     is not "is the brief self-contained" but whether *any* turn addressed to a human is readable.
+   - **Expand every internal id, board code, metric name and acronym on first use.** A term of art
+     needs one defining clause, and a decision question states your recommendation first, then the
+     options (both from one recorded case). Questions the operator could not parse recurred across
+     four consecutive measured windows, so the test is whether *any* turn to a human is readable.
    - **The human-facing summary is a separate artifact from the handoff.** The handoff is written for
      the next agent; nothing specified a shape for the message a person actually reads. Keep it to
      ≤10 plain-language bullets.
@@ -340,8 +340,9 @@ operator's own approval loop — not the normal path. Measured: **56 of 129 sess
 with a hand-pasted brief**, 26 on one day, with the operator acting as transport. One orchestrator
 had already proved the alternative — 7 headless launches, four concurrent — and the **next
 orchestrator on the same initiative used none**, because the practice lived in that session
-instead of in this file. If you are about to write "paste this into a new session", first say why
-§2a's launcher will not do.
+instead of in this file. A pasteable prompt the operator asks for by name is written, not argued:
+a request by name measures what the launch costs, it is not a lapse to correct. Unasked, if you
+are about to write "paste this into a new session", first say why a §2a launch will not do.
 
 **Default 2 — parallel, up to the cap; serialize only on a *named* contended file.** Dispatch
 every unblocked session at once, bounded by the concurrency cap `initiative-planner` derived at
@@ -356,8 +357,8 @@ inherit a previous wave's serialization.
 - External CLIs: run via Bash with `run_in_background: true` so you can keep working; you are
   re-invoked when they exit. Cap parallel **writers** at what the workspace tolerates — parallel
   writers must be isolated by **declared disjoint file sets** (never new git worktrees — standing
-  user rule 2026-08-07, see `parallel-session-safety` §11; overlap ⇒ sequential); opinion/analysis
-  workers run read-only and can fan out freely.
+  user rule 2026-08-07, see `parallel-session-safety` §11; overlap ⇒ sequential; execution lanes:
+  `spec-driven-dev` reference); opinion/analysis workers run read-only and can fan out freely.
 - **Partition by inventory, not by batch.** Enumerate the FULL file inventory first and assert
   every file class has an owner — or an explicit not-in-scope entry. A fix fan-out partitioned by
   audit batch left `workflows/*.md` belonging to no batch, so two live dead references survived all
@@ -440,6 +441,8 @@ dispatcher or invented by the pass. Trust its confirmations only if it rejected 
 results is unverified. Keep the key out of the artifact. A fresh reader (a new agent that re-derives each claim from the
 pinned source) gets a brief with at most four claims per pass, a tool-call budget stated in the brief and, from the
 repository, the counting traps its AGENTS.md lists, if any; the author re-runs every finding it cites.
+A note's status line and update time, and a workflow's findings, are claims too: [references/reading-returns.md](references/reading-returns.md).
+To check a returned note's Verification commands: [references/return-note-verification.md](references/return-note-verification.md).
 
 **The review loop has three skills and none is optional:**
 
