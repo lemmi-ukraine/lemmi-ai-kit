@@ -16,9 +16,9 @@ owner, the queue and the lock before the first landing, a freeze point before th
 stamp (a starting value, uncalibrated) and a lessons slot that survives the stamp.
 
 THE SURFACE, in numbers the tests assert: 1 file; 2 opening sentences; 4 sections, 20 claims and
-33 sentences, every claim one bullet in its own section and every sentence held whole
+34 sentences, every claim one bullet in its own section and every sentence held whole
 (lower-cased, bold marks dropped, whitespace collapsed), occurring once in its section and fired
-at a planted removal, and each of the 24 sentences that has a clause also fired at a cut one; 1
+at a planted removal, and each of the 25 sentences that has a clause also fired at a cut one; 1
 sentence that opens the gate's section; 5 example lines, one per event word, in order; 1 command
 whose 6 flags are exactly the flags the script's `check` takes; 2 links, both resolving to the
 shared-index protocol, one of them to a section that exists there.
@@ -170,7 +170,14 @@ _SECTIONS: tuple[tuple[str, tuple[tuple[str, tuple[str, ...]], ...]], ...] = (
                     "lines, each written as `git status --porcelain --untracked-files=all` "
                     "prints it; nothing is staged; the patch, replayed on the parent in a "
                     "private index, writes the `--tree`; with `--paths`, the patch changes "
-                    "exactly those paths.",
+                    "exactly those paths; the patch changes at least one path, and `git add --` "
+                    "would store exactly the patch from this working tree, because each changed "
+                    "path is still the parent's file there, is not ignored, and has an executable "
+                    "bit and line ends that this repository stores as the patch has them.",
+                    "run it before you apply the patch, and allow only status lines for paths "
+                    "the patch leaves alone: a peer's edit to a changed path fails even when its "
+                    "line is allowed or hidden from the status, because `git add --` would store "
+                    "it in the landing commit.",
                     "it writes nothing in the tree, the index or any ref.",
                 ),
             ),
@@ -404,7 +411,7 @@ def _event_problems(lines: list[str]) -> list[str]:
 
 def test_the_surface_is_stated_in_numbers() -> None:
     counts = (len(_SECTIONS), len(_CLAIMS), len(_SENTENCES), len(_WITH_CLAUSE))
-    assert counts == (4, 20, 33, 24), counts
+    assert counts == (4, 20, 34, 25), counts
     every = (*_OPENING, _GATE_OPENS, *_SENTENCES)
     assert len(set(every)) == len(every), "a sentence is listed twice"
     for sentence in every:

@@ -57,7 +57,14 @@ python "${CLAUDE_SKILL_DIR}/scripts/landing_gate.py" check --repo <tree> --paren
 - **What it checks:** HEAD is the parent; the status is exactly the `--allow` lines, each written as
   `git status --porcelain --untracked-files=all` prints it; nothing is staged; the patch, replayed
   on the parent in a private index, writes the `--tree`; with `--paths`, the patch changes exactly
-  those paths. It writes nothing in the tree, the index or any ref.
+  those paths; the patch changes at least one path, and `git add --` would store exactly the patch
+  from this working tree, because each changed path is still the parent's file there, is not
+  ignored, and has an executable bit and line ends that this repository stores as the patch has
+  them. Run it
+  before you apply the patch, and allow only status lines for paths the patch leaves alone: a peer's
+  edit to a changed path fails even when its line is allowed or hidden from the status, because
+  `git add --` would store it in the landing commit. It writes nothing in the tree, the index or
+  any ref.
 - **Exit 0:** every check measured and passed, and it printed the landing commands with a pathspec on
   both `git add --` and `git commit --`; run each yourself, in its own call.
 - **Exit 1:** a check failed and the output names what it saw; do not commit.
