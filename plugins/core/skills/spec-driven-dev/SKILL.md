@@ -456,6 +456,7 @@ Before presenting a spec for approval, verify:
 - [ ] Every case has exactly one owning level; upward moves carry a written reason and exclusions are stated
 - [ ] Every expected result cites the id it derives from — zero cases marked `[UNGROUNDED]`
 - [ ] Every NFR has a verification method, and no category the project's testing conventions ban is assigned `automated`
+- [ ] A feature that reads files its authors did not write has a real-data trial planned before any independent verifier runs, its bar set before the run (`test-planner`, Step 2)
 - [ ] Deliberate non-coverage is stated with risk bands and rationale
 - [ ] Reconciliation with `tasks.md` is complete in both directions, or explicitly marked pending
 

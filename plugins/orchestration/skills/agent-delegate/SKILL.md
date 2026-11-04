@@ -119,11 +119,14 @@ then present both takes and your synthesis — agreements, conflicts, and your r
 
 ## Resuming a worker
 
+A scripted run (a workflow) has hazards of its own that a stopped worker does not: read
+[runtime hazards](references/runtime-hazards.md) before you message, resume or trust one.
+
 - **After a usage limit.** A sub-agent that a usage limit stopped can be resumed with `SendMessage`
   once requests are accepted again. Say what you measured and what is left, and re-read the state by
   command first: its last words can predate its last write. Small sub-agents resumed more than an
   hour after the stop finished normally (observed once), and a sub-agent that had already finished
-  re-sent its old report when messaged (observed once).
+  re-sent its old report when messaged (observed once). A worker that wrote checkpoints is resumed from its latest one ([worker preamble](assets/worker-preamble.md), section 3).
 - **Near the context window.** Do not resume a session that ended near its window: the resume
   compacts almost at once, and past the prompt-cache lifetime it first re-reads the whole context
   uncached (reasoned, not tried). Resume only a session well under its window and within that

@@ -154,6 +154,12 @@ home plus a consumer that must not miss it). Three or more means the drain scatt
 A promotion that corrects a fact must correct **every** statement of that fact in the same file and
 its siblings. Grep the *old* claim, not the new one — the stale copy is what you are hunting.
 
+The sweep reaches the files the batch did not edit: grep the old claim in every skill, reference and
+README that cites a promoted rule, because a contradiction sits where the diff does not look. The
+fresh reader of C6 carries the same sweep and checks that each pointer in the batch names a section
+number or a stable heading name, never only a line number or a commit id. Its return ends with what
+it did not check (`post-task-review`, fix-rounds reference, section 2a).
+
 > **Caught:** a skill whose prose was updated to "renders fine via WebFetch" while a table seven
 > rows below still said "Unreliable".
 
