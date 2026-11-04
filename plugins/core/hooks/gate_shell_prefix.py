@@ -81,7 +81,7 @@ WHAT THE REGISTRATION AND THE SCRIPT FOLLOW
      script's own folder off the import path, so a hook script is one file that imports only the
      standard library: a sibling module would not be found, the script would exit 1 (a non-blocking
      failure, except on Windows without Git Bash) and the hook would go quiet. A test pins that for
-     both hook scripts.
+     each hook script.
   3. The decision is a JSON reply on stdout with exit 0, never an exit code.
   4. Stdin is read as bytes and decoded as UTF-8 with errors replaced, so a console code page
      changes nothing.

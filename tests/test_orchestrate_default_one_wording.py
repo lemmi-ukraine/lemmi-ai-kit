@@ -55,10 +55,10 @@ _WRITERS = "writers bullet"
 _ROWS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     (
         _DEFAULT,
-        "the default stays: auto-dispatch, and a brief the operator pastes is the fallback",
+        "the default stays: auto-dispatch, and a brief the operator pastes unasked is the fallback",
         (
             f"default 1 {_EM} auto-dispatch ({_SEC}2a), not a brief for the operator to paste.",
-            "is the *fallback*",
+            "is the unasked fallback",
         ),
     ),
     (

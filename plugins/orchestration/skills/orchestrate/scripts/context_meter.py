@@ -17,6 +17,8 @@ block with absent fields or no usage record prints "NOT MEASURED: <reason>" and 
 reading is not a zero reading. No transcript text is printed, only line numbers.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import sys

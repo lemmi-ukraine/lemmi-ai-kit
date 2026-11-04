@@ -99,7 +99,7 @@ _CLAIMS: tuple[_Claim, ...] = (
         (
             "run evidence on a copy",
             "a peer's `git add` of an untracked file changes `git diff HEAD` with no byte moving",
-            "an export of a recorded commit or tree id (`git archive <id>`)",
+            "an export of a recorded commit or tree id (`git archive -o <file> <id>`)",
             "write the copy's content hash (12g) or the id beside the result",
             "a red proof runs on an export of the recorded commit with the new test files "
             "copied over it",

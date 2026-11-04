@@ -9,8 +9,8 @@ their placeholders filled, and carries a control that could fail:
 * a tree stamp takes `index.lock` and rewrites `.git/index` when a `git add` left the tree cache
   invalid (the control: a second stamp changes nothing), with or without `--no-optional-locks`,
   and a peer's lock stops it with exit 128;
-* `git archive <tree>` holds the staged content and not a later unstaged edit, and an export has
-  no repository;
+* `git archive -o <file> <tree>` holds the staged content and not a later unstaged edit, and an
+  export has no repository;
 * `git diff --name-only <tree-a> <tree-b>` names exactly the path I re-staged and the path a peer
   staged (the control: a tree against itself prints nothing);
 * after a commit with no pathspec `HEAD^{tree}` equals the stamp, after one with a pathspec while
@@ -36,7 +36,6 @@ because a recipe that was not run proves nothing.
 
 import ast
 import hashlib
-import io
 import os
 import re
 import shlex
@@ -67,7 +66,7 @@ _PRINTED: dict[str, str] = {
     "commit": "git rev-parse HEAD",
     "staged": "git diff --cached --name-only",
     "reflog": "git reflog --date=iso -n 20",
-    "archive": "git archive <id>",
+    "archive": "git archive -o <file> <id>",
     "stamp": "git write-tree",
     "names": "git diff --name-only <tested-tree> <tree-now>",
     "tree": "git rev-parse HEAD^{tree}",
@@ -287,10 +286,16 @@ def test_an_export_of_the_stamped_tree_holds_the_staged_content(tmp_path: Path) 
     tree = _ok(repo, _argv("stamp"))
     _write(repo / "a.txt", "three\n")
     assert (repo / "a.txt").read_bytes() == b"three\n", "no unstaged edit to compare to"
-    archive = _run(repo, _argv("archive", {"id": tree}))
-    assert archive.returncode == 0, archive.stderr
+    tarball = tmp_path / "export.tar"
+    # The printed command writes the tar to its own file: nothing goes through a pipe.
+    written = _run(
+        repo, _argv("archive", {"file": shlex.quote(tarball.as_posix()), "id": tree})
+    )
+    assert written.returncode == 0, written.stderr
+    assert written.stdout == b"", "the archive went to standard output"
+    assert tarball.is_file(), "the printed command wrote no file"
     export = tmp_path / "export"
-    with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
+    with tarfile.open(tarball) as tar:
         for member in tar.getmembers():
             if member.isfile():
                 handle = tar.extractfile(member)

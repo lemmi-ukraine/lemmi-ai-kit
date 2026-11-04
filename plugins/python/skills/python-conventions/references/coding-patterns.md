@@ -177,8 +177,8 @@ itself blocks, and exactly the case `wait_for` silently fails.
 ### A deadline on an event or future
 
 On Python 3.11, `asyncio.wait_for(event.wait(), timeout)` can swallow a cancellation of the task
-that awaits it: when the awaited event is set in the loop iterations around the cancel, `wait_for`
-returns the result and the `CancelledError` is lost. From 3.12 `wait_for` is built on
+that awaits it: when the awaited event is set in the loop iterations just before the cancel,
+`wait_for` returns the result and the `CancelledError` is lost. From 3.12 `wait_for` is built on
 `asyncio.timeout`, so a suite that runs on 3.12 cannot show it. For a deadline on an event or a
 future in code that may run on 3.11, use the context manager:
 

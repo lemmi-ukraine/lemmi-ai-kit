@@ -335,14 +335,14 @@ choosing a worker.**
 > you touch the plan.
 
 **Default 1 — auto-dispatch (§2a), not a brief for the operator to paste.** Emitting a brief the
-human carries into a new terminal (§2b) is the *fallback*, for work that genuinely needs the
-operator's own approval loop — not the normal path. Measured: **56 of 129 sessions (43%) opened
-with a hand-pasted brief**, 26 on one day, with the operator acting as transport. One orchestrator
-had already proved the alternative — 7 headless launches, four concurrent — and the **next
-orchestrator on the same initiative used none**, because the practice lived in that session
-instead of in this file. A pasteable prompt the operator asks for by name is written, not argued: a
-request by name measures what the launch costs, it is not a lapse to correct. A `pasted` row in the
-plan's `Dispatch` column is that request made at plan time: write it, no reason needed. Unasked, if
+human carries into a new terminal (§2b) is the unasked fallback, for work that needs the operator's
+own approval loop. Measured: **56 of 129 sessions (43%) opened with a hand-pasted brief**, 26 on
+one day, with the operator acting as transport. One orchestrator had already proved the alternative
+— 7 headless launches, four concurrent — and the **next orchestrator on the same initiative used
+none**, because the practice lived in that session instead of in this file. A pasteable prompt the
+operator asks for by name is written, not argued: a request by name measures what the launch costs,
+it is not a lapse to correct. A `pasted` plan row the operator will drive is that request made at
+plan time: write it, no reason needed; any other `pasted` row says why in `Blocked by`. Unasked, if
 you are about to write "paste this into a new session", first say why a §2a launch will not do.
 
 **Default 2 — parallel, up to the cap; serialize only on a *named* contended file.** Dispatch

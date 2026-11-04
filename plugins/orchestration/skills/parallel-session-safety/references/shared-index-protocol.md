@@ -265,12 +265,17 @@ the files the peer committed (§11).
 protects none: a peer's `git add` of an untracked file changes `git diff HEAD` with no byte moving
 (measured with git 2.55: empty before the add, a whole-file diff after it, the file's hash equal).
 Run a result you will report on a copy: the directories the run reads, copied to a scratch folder
-outside the checkout, or an export of a recorded commit or tree id (`git archive <id>`), and write
-the copy's content hash (12g) or the id beside the result. A red proof runs on an export of the
-recorded commit with the new test files copied over it, and the green run on an export of the
-stamped tree. An export has no repository, so a test that calls git fails on both sides: run those
-in a clone. Never revert a file in the live tree for a before-and-after comparison while another
-session runs against it.
+outside the checkout, or an export of a recorded commit or tree id (`git archive -o <file> <id>`),
+and write the copy's content hash (12g) or the id beside the result. Write the export to a file
+with `-o`: a Windows PowerShell 5.1 pipe or redirect of the archive corrupts the tar, and Git's
+`tar` reads a drive letter and a colon as a host, so with Git's `tar`, extract the file with a
+POSIX-style path (measured with git 2.55 and GNU tar 1.35). Windows' own `tar` (bsdtar) is the
+reverse: it opens a drive-letter path and refuses a POSIX-style one (measured with bsdtar 3.8).
+`tar --version` says which of the two runs. A red proof runs on an export of the recorded commit
+with the new test files copied over it, and the green run on an export of the stamped tree. An
+export has no repository, so a test that calls git fails on both sides: run those in a clone.
+Never revert a file in the live tree for a before-and-after comparison while another session runs
+against it.
 
 **Stamp a proof of staged work with the tree.** `git write-tree` prints the id of the tree the
 index would commit: export that tree, run on the export, and write the id beside the result. Before

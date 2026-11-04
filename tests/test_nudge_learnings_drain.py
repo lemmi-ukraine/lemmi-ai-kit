@@ -774,6 +774,78 @@ def test_the_threshold_reader_fails_loudly_when_a_clause_stops_stating_a_number(
         _readme_thresholds("## Hooks\n")
 
 
+# ------------------------------------------------------- the line, as the hook and the README quote it
+
+# Numbers the printed line holds once each, so that a quoted copy of the line can be read back
+# from the printed one by swapping them for the placeholders the copy uses.
+_ENTRIES_MARK = 777
+_DAYS_MARK = 888
+
+
+def _printed_line() -> str:
+    """The line the hook prints for a buffer that is due, from the hook's own function."""
+    nudge_line = cast(
+        Callable[[int, date | None, date], str | None], _hook().nudge_line
+    )
+    line = nudge_line(_ENTRIES_MARK, _TODAY - timedelta(days=_DAYS_MARK), _TODAY)
+    assert line is not None, "a buffer this large is due, so the hook must speak"
+    for mark in (_ENTRIES_MARK, _DAYS_MARK):
+        assert line.count(str(mark)) == 1, f"{mark} is not in the line once: {line!r}"
+    return line
+
+
+def _quoted_form(entries: str, days: str) -> str:
+    """The printed line with its two numbers replaced by the placeholders a copy of it uses."""
+    return (
+        _printed_line()
+        .replace(str(_ENTRIES_MARK), entries)
+        .replace(str(_DAYS_MARK), days)
+    )
+
+
+def _quotes(text: str, form: str) -> bool:
+    """Whether `text` holds `form` exactly once as a whole phrase, whitespace folded (a quoted
+    line may wrap). A longer name that starts with it, a renamed command, is not a quote."""
+    folded = " ".join(text.split())
+    whole = r"(?<![\w-])" + re.escape(" ".join(form.split())) + r"(?![\w-])"
+    return len(re.findall(whole, folded)) == 1
+
+
+def test_the_line_the_hook_and_the_readme_quote_is_the_line_it_prints() -> None:
+    """Every test that compares the reply with `_ROUTE` pins the printed line. The hook's
+    docstring and the README each quote that line with placeholders: they are read back from
+    the printed line, so a command renamed in the code and not in the prose is reported."""
+    assert _quotes(_read(_README), _quoted_form("N", "D"))
+    docstring = _hook().__doc__
+    assert docstring is not None, "the hook has no docstring"
+    assert _quotes(docstring, _quoted_form("{N}", "{D}"))
+
+
+def test_the_quoted_form_is_read_from_the_printed_line_and_flags_a_planted_copy() -> (
+    None
+):
+    printed = _printed_line()
+    assert printed == (
+        f"intake at {_ENTRIES_MARK} entries, last drain {_DAYS_MARK} days ago -> {_ROUTE}"
+    )
+    form = _quoted_form("N", "D")
+    assert form == f"intake at N entries, last drain D days ago -> {_ROUTE}"
+    # Planted: a copy that names another skill, another wording, or no line at all.
+    assert not _quotes(
+        f"`{form.replace('learning-consolidator', 'consolidator')}`", form
+    )
+    assert not _quotes(form.replace("last drain", "last drained"), form)
+    assert not _quotes("no such line", form)
+    # Planted: a rename that keeps the start of the command is a longer name, not the line.
+    assert not _quotes(f"`{form}r`", form)
+    assert not _quotes(f"`{form}-v2`", form)
+    # Near-misses: a wrapped copy is the same line, and so is one inside a longer paragraph.
+    assert _quotes(form.replace(" -> ", "\n-> "), form)
+    assert _quotes(f"before `{form}`. after", form)
+    # A copy that stands twice is a clause that moved, not one quote.
+    assert not _quotes(f"{form} and again {form}", form)
+
+
 # What the hook reads out of the files is read the way the lint reads them: the patterns it holds
 # are the lint's own, and a pattern the hook adds is listed here as its own.
 _COPIED_FROM_THE_LINT = (

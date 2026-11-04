@@ -381,7 +381,7 @@ def test_a_malformed_line_is_named_by_number_and_never_echoed(tmp_path: Path) ->
 # --- the script's own source --------------------------------------------------------------------
 
 _ALLOWED_IMPORTS = frozenset(
-    {"argparse", "json", "sys", "collections", "pathlib", "typing"}
+    {"__future__", "argparse", "json", "sys", "collections", "pathlib", "typing"}
 )
 
 
@@ -427,7 +427,10 @@ def test_the_source_checks_see_what_they_are_for() -> None:
         "subprocess",
     }
     assert (
-        not _import_roots("import json\nfrom pathlib import Path\n") - _ALLOWED_IMPORTS
+        not _import_roots(
+            "from __future__ import annotations\nimport json\nfrom pathlib import Path\n"
+        )
+        - _ALLOWED_IMPORTS
     )
     drive = "C" + ":" + chr(92) + "work"
     home = "/" + "Users" + "/someone"

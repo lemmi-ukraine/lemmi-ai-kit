@@ -18,8 +18,9 @@ What the text says now, in four places of the Orchestration pack:
 * section 5 of the dispatch gates adds: repeat the check at the write.
 
 This file asserts that rule and nothing else. A hand-off stub written before the preconditions is a
-separate rule that is not built yet, so no place of it is read here: the agent-delegate list, the
-brief template and section 6 of the dispatch gates are untouched by this file.
+separate rule, pinned in tests/test_handoff_stub_wording.py, so no place of it is read here: the
+agent-delegate list, the brief template and section 6 of the dispatch gates are untouched by this
+file.
 
 Every check is fired at the text its place carried before (`old`), and each requirement is removed
 from the real text one at a time and must be the only thing reported. The section 12 pointer has

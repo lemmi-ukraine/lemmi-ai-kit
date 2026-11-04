@@ -340,7 +340,7 @@ def _jobs(base: Path) -> dict[str, _Job]:
                 nudge, real, payload, nudge_on_env
             )
     # Each scenario runs on one entry; the entries share one launcher (asserted separately), and
-    # the two scripts are each exercised by the scenarios that matter to them.
+    # the scripts are each exercised by the scenarios that matter to them.
     if drain is not None:
         jobs["script missing, learnings guard"] = _Job(drain, empty, _mode("echo"), {})
         jobs["script exits 2"] = _Job(drain, both, _mode("exit2"), {})
@@ -629,7 +629,7 @@ def test_a_missing_script_exits_zero_and_prints_nothing(
 def test_a_script_that_exits_two_keeps_its_exit_code_and_its_message(
     shell: str, results: _Results
 ) -> None:
-    """Not a thing these two hooks do (they decide by their reply), but the registration must not
+    """Not a thing these hooks do (they decide by their reply), but the registration must not
     be the reason a script's own verdict is lost: PowerShell's -Command alone reports 1 here."""
     done = results.get(shell, "script exits 2")
     assert done.returncode == 2, (done.returncode, done.stderr[-300:])

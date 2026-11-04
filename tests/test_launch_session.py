@@ -717,10 +717,11 @@ _ROWS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ),
     (
         _DEFAULT_SCOPE,
-        "a pasted row in the plan is the operator's request made at plan time",
+        "a pasted plan row the operator will drive is its request made at plan time, any other says why",
         (
-            "a `pasted` row in the plan's `dispatch` column is that request made at plan "
-            "time: write it, no reason needed.",
+            "a `pasted` plan row the operator will drive is that request made at plan "
+            "time: write it, no reason needed; any other `pasted` row says why in "
+            "`blocked by`.",
         ),
     ),
     (
