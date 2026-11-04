@@ -12,8 +12,9 @@ The charter records the answers, in its "Operator rules in force" section
 **Take the rulings that arrive piecemeal in one gate, before any session starts:** the publication
 invariants (what must never reach anything pushed), the push policy (section 6), the hand-off
 standard (the one set of sections every hand-off carries), the usage guard's owner and account (who
-keeps it, and whose usage it reads), and the owner of the release queue (the one session that lands
-finished work). Asked one at a time during the run, each answer reopens work done under the
+keeps it, and whose usage it reads), and the owner of the release queue (the one session that keeps
+the landing order and the last version stamp; whoever holds the lock lands, see `landing-queue.md` in
+`parallel-session-safety`). Asked one at a time during the run, each answer reopens work done under the
 opposite assumption (observed, 2026-11-03 to 2026-11-04: all five arrived as separate rulings mid-run,
 and the push policy and the queue owner were still open when the last batch of commits was ready to
 land).

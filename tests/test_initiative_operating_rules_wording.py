@@ -30,8 +30,8 @@ CLASSES OF SHAPE covered: a sentence dropped; a clause dropped; a section emptie
 another section, where a whole-file search would still find it; a re-wrap and a re-emphasis, which
 are the same text; a number with no label; a request id, a commit id and an absolute path planted in
 text, beside near-misses that must pass. Shapes not covered are the order of the sections' sentences
-and any wording outside the claims; a project or company name is not scanned for here, because
-naming one in a test would publish it, and the repository-wide hygiene scan owns that.
+and any wording outside the claims; a project or company name is not scanned for here: it has no
+generic shape, and naming one in a test would publish it, so that part stays a reading check.
 """
 
 import re
@@ -87,7 +87,8 @@ _CLAIMS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
             "policy (section 6), the hand-off standard (the one set of sections every "
             "hand-off carries), the usage guard's owner and account (who keeps it, and "
             "whose usage it reads), and the owner of the release queue (the one session "
-            "that lands finished work).",
+            "that keeps the landing order and the last version stamp; whoever holds the "
+            "lock lands, see `landing-queue.md` in `parallel-session-safety`).",
             "asked one at a time during the run, each answer reopens work done under the "
             "opposite assumption (observed, 2026-11-03 to 2026-11-04: all five arrived as "
             "separate rulings mid-run, and the push policy and the queue owner were still "

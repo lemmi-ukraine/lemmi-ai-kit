@@ -8,17 +8,19 @@ machine-clock time and names who and what; the newest lock line is the lock. It 
 example of each of five events (LOCK TAKEN, LOCK TRANSFERRED after the old owner confirmed it is
 idle, READY with parent, tree, how to land and the gate's result, LANDED with the real HEAD now,
 LOCK FREE). Its rules: the lock before the first write and a FREE line at the end; one writer
-per tree; sub-agents never write in the tree; a transfer only after the confirmation; a lane
-lands only on its chain's parent and rebuilds when the parent moved; the status is read before
-every write (one observed fact). The gate is run before every commit, with its path, its flags
-and the meaning of each exit code. From the first day: one orchestrator per lane plus one queue
+per tree; sub-agents never write in the tree; a transfer only after the confirmation, or on the
+operator's ruling when the old owner was stopped and cannot answer; a lane starts landing only on
+its chain's parent and rebuilds when the parent moved; the status is read before every write (one
+observed fact). The gate is run before every commit, with its path, its flags and the meaning of
+each exit code, and each commit of a chain takes its own parent (the commit just landed, after the
+first), patch, tree and paths file. From the first day: one orchestrator per lane plus one queue
 owner, the queue and the lock before the first landing, a freeze point before the last version
 stamp (a starting value, uncalibrated) and a lessons slot that survives the stamp.
 
-THE SURFACE, in numbers the tests assert: 1 file; 2 opening sentences; 4 sections, 20 claims and
-34 sentences, every claim one bullet in its own section and every sentence held whole
+THE SURFACE, in numbers the tests assert: 1 file; 2 opening sentences; 4 sections, 21 claims and
+36 sentences, every claim one bullet in its own section and every sentence held whole
 (lower-cased, bold marks dropped, whitespace collapsed), occurring once in its section and fired
-at a planted removal, and each of the 25 sentences that has a clause also fired at a cut one; 1
+at a planted removal, and each of the 27 sentences that has a clause also fired at a cut one; 1
 sentence that opens the gate's section; 5 example lines, one per event word, in order; 1 command
 whose 6 flags are exactly the flags the script's `check` takes; 2 links, both resolving to the
 shared-index protocol, one of them to a section that exists there.
@@ -54,8 +56,10 @@ _OPENING = (
 )
 _GATE_SECTION = "## The gate before every commit"
 _GATE_OPENS = (
-    "run it in the real tree under the lock, before each commit of a chain, with the values "
-    "the ready line recorded:"
+    "run it in the real tree under the lock, before each commit of a chain: the first with the "
+    "parent the ready line recorded, each later one with the commit just landed (now the real "
+    "head) as `--parent`, and each with that commit's own patch, tree and paths file, which "
+    "the ready line's script or commands give:"
 )
 
 # (section heading, ((claim id, the sentences of its bullet, whole, in order), ...)). The first
@@ -135,9 +139,20 @@ _SECTIONS: tuple[tuple[str, tuple[tuple[str, tuple[str, ...]], ...]], ...] = (
                 ),
             ),
             (
+                "stopped owner",
+                (
+                    "if the old owner was stopped and cannot answer, only the operator moves "
+                    "the lock.",
+                    "a stopped session can be resumed later, and only the operator knows "
+                    "whether it will be, so the lock transferred line quotes the operator's "
+                    "ruling and the time of the owner's latest checkpoint, or says that there "
+                    "is none.",
+                ),
+            ),
+            (
                 "parent",
                 (
-                    "a lane lands only when the real head equals its chain's parent.",
+                    "a lane starts landing only when the real head equals its chain's parent.",
                     "a chain built on another commit carries trees that nobody gated.",
                 ),
             ),
@@ -411,7 +426,7 @@ def _event_problems(lines: list[str]) -> list[str]:
 
 def test_the_surface_is_stated_in_numbers() -> None:
     counts = (len(_SECTIONS), len(_CLAIMS), len(_SENTENCES), len(_WITH_CLAUSE))
-    assert counts == (4, 20, 34, 25), counts
+    assert counts == (4, 21, 36, 27), counts
     every = (*_OPENING, _GATE_OPENS, *_SENTENCES)
     assert len(set(every)) == len(every), "a sentence is listed twice"
     for sentence in every:

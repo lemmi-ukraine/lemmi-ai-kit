@@ -36,8 +36,12 @@ LOCK FREE 15:31 session-b: nothing is being landed; real HEAD <new id>, status =
   session that holds the lock lands it.
 - **Transfer the lock only after the old owner confirms that it is idle.** Waiting for that answer
   is the control, not asking for it: the LOCK TRANSFERRED line is written after the confirmation.
-- **A lane lands only when the real HEAD equals its chain's parent.** A chain built on another commit
-  carries trees that nobody gated.
+- **If the old owner was stopped and cannot answer, only the operator moves the lock.** A stopped
+  session can be resumed later, and only the operator knows whether it will be, so the LOCK
+  TRANSFERRED line quotes the operator's ruling and the time of the owner's latest checkpoint, or
+  says that there is none.
+- **A lane starts landing only when the real HEAD equals its chain's parent.** A chain built on
+  another commit carries trees that nobody gated.
 - **A lane that finds the parent moved rebuilds on the new tip and writes a new READY line.** The new
   line names the line it replaces, and nobody repairs a stopped landing by hand.
 - **Read the status before every write, not only at the start.** A session found the checkout's
@@ -46,8 +50,10 @@ LOCK FREE 15:31 session-b: nothing is being landed; real HEAD <new id>, status =
 
 ## The gate before every commit
 
-Run it in the real tree under the lock, before each commit of a chain, with the values the READY
-line recorded:
+Run it in the real tree under the lock, before each commit of a chain: the first with the parent the
+READY line recorded, each later one with the commit just landed (now the real HEAD) as `--parent`,
+and each with that commit's own patch, tree and paths file, which the READY line's script or
+commands give:
 
 ```bash
 python "${CLAUDE_SKILL_DIR}/scripts/landing_gate.py" check --repo <tree> --parent <parent id> \
