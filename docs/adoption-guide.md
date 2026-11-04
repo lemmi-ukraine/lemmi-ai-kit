@@ -420,8 +420,8 @@ PYTHONPATH=plugins/core/src PYTHONDONTWRITEBYTECODE=1 uv run --no-project python
 Against a project that already has an `AGENTS.md`, that prints:
 
 ```text
-[dry-run] lemmi-ai-kit 0.2.0 scaffold -> /path/to/your/project
-[dry-run] written: 9  seeded: 4  overwritten: 0  unchanged: 0
+[dry-run] lemmi-ai-kit <version> scaffold -> /path/to/your/project
+[dry-run] written: 10  seeded: 4  overwritten: 0  unchanged: 0
 
 [dry-run] kept 1 project-owned seed file(s) (use --reseed to overwrite):
   - AGENTS.md
