@@ -11,6 +11,9 @@ Add the entry's knowledge as a convention or anti-pattern rule in project config
 - The entry has been validated by at least one real task (not theoretical)
 - The knowledge applies across features, not just one specific file
 - The entry is not already covered in AGENTS.md or skill files
+- The entry's Impact, taken as advice, breaks no standing policy of the project (its AGENTS.md
+  rules and recorded rulings): advice a policy forbids is not promoted, and only its measured
+  figures are kept, as data
 
 **Target selection** (a sample; the homes the project's own AGENTS.md names replace it):
 
@@ -593,6 +596,48 @@ how the work was conducted?), not on the assumption that placement was deliberat
 the before/after entry-count delta; back up the file first. Botched edits to an append-log are silent
 (entries vanish or malform with nothing failing).
 
+## Buffer Copies and Parked Lessons
+
+The cadence guard and Phase 1 read the checked-out buffer, and a drain that starts from that file
+alone misses an entry only another copy holds: the entry stays out of every plan until that copy is
+merged or popped. Before reading the buffer, list its other copies and fold each entry only a copy
+holds into the one intake, so the plan covers it. A dry run lists the copies and appends nothing.
+
+- **Stashes.** `git stash list` names them. Each stash holds its own copy of the buffer: read it
+  and count its entries.
+- **Branches ahead of the trunk.** `git branch --no-merged <trunk>` names the branches that carry
+  commits the trunk lacks, and any of them can carry another buffer: read it and count its entries.
+- **Backups and snapshots.** Any other copy the project keeps, an earlier drain's byte copy among
+  them. The byte copy stays the operator's ([§ Pre-Drain Snapshot](#pre-drain-snapshot-phase-5)):
+  this section reads copies and never makes or moves one.
+
+```
+git stash list
+git branch --no-merged <trunk>
+git show '<ref>:<path>' > <scratch file>
+```
+
+Reading a copy's bytes is an operator step, by the route of [§ Operator Steps](#operator-steps): in
+their own terminal the operator writes the copy to a scratch file outside the buffer's folder, one
+file per copy (`<ref>` is `stash@{N}` or a branch, `<path>` the buffer's path), and the session
+never names the buffer on a shell line. The session reads each scratch file, compares its `### `
+heading lines with the buffer's own, and appends each entry only the copy holds with Edit under its
+own `## ` category section (the placement rule of `task-learnings`), never at the file end; an
+entry both hold is never added twice. A copy made before the last drain also holds entries that
+drain removed: Phase 2's Steps 1 and 2 archive them again (stale or superseded in Step 1, already
+covered in Step 2), so they cost a plan row and no promotion.
+
+**Record the drain on the branch that merges.** Write the run's `CONSOLIDATION` entry in
+`.ai/ai-changelog.md` on the branch that will merge. The cadence guard (Phase 1, step 0) reads the
+checked-out changelog, so a drain recorded on a branch that never merges reads as no drain, and the
+next session finds the buffer overdue again.
+
+**Parked lessons.** If the project's hand-off format has a section for lessons not yet recorded as
+intake, read that section of the project's hand-off notes in Phase 1 and list each lesson in the
+inventory as an intake candidate. The kit's hand-off contract requires no such section, so this
+applies only where the project's format has one. A candidate is analysed like an entry, and none is
+copied into the buffer before the operator approves the plan.
+
 ## Verifying Parked Patterns
 
 **Parked patterns rot mechanism-first**: a grep proves a pattern still EXISTS, but any claim about
@@ -607,8 +652,9 @@ only a post-promotion symbol sweep caught it.
 
 ## Operator Steps
 
-Three steps need bytes of the buffer that no Grep, Read or Edit call delivers: the previous drain's
-heading count at its commit (Phase 1), the restore-point commit and the local byte copy (Phase 5)
+Four steps need bytes of the buffer that no Grep, Read or Edit call delivers: the previous drain's
+heading count at its commit (Phase 1), every other copy of the buffer (Phase 1), the restore-point
+commit and the local byte copy (Phase 5)
 and the critic's recovery read of the buffer's last committed contents (check C1 of
 `consolidation-critic`). No kit script makes these commits, copies or reads (the `lint learnings`
 subcommand reads the buffer to check it, and copies nothing). **In every project the operator makes
@@ -629,6 +675,7 @@ them, and **Edit appending after the last entry** to add one.
 | Step | The operator, in their own terminal | The session, afterwards |
 |---|---|---|
 | Previous drain's count (Phase 1, step 0) | reads the buffer's `### ` heading count at the drain's commit | compares it with the post-drain count the drain reported |
+| Copies of the buffer (Phase 1, step 1) | writes each copy to its own scratch file outside the buffer's folder, with the command in [§ Buffer Copies and Parked Lessons](#buffer-copies-and-parked-lessons) | reads each scratch file, then appends the entries only the copy holds under their own category sections |
 | Restore point and byte copy (Phase 5) | commits the buffer as it stands in its own commit, copies it to the byte copy's path, confirms the copy is byte-identical, and writes the buffer at that commit to a scratch file for Step 6 | confirms with Grep in count mode that the byte copy and the buffer hold the same number of entries, then cites the commit id |
 | Recovery read (C1, no snapshot exists) | writes the buffer's last committed contents to a scratch path that is NOT the byte copy's path | audits against it and states the coverage as partial: a reconstruction is not evidence |
 

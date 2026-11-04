@@ -154,7 +154,9 @@ occurs is a ledger that grows while nothing closes: in one measured case a ledge
 52 PENDING entries against 1 verdict in six weeks, because the pass that would have noticed
 was never run, and nothing in the design reported the backlog. Size was never the problem;
 an unreported backlog was. If you adopt this skill, do not reintroduce an archive — you
-would be re-solving the wrong failure and re-hiding this one.
+would be re-solving the wrong failure and re-hiding this one. The line also runs from
+`ai-improvement-tracker` Step 5, after every recorded entry: an alarm inside its own pass
+cannot report that pass stopping.
 
 ### Step 8: Verify
 

@@ -66,7 +66,8 @@ You verify each entry against the current codebase before deciding its fate.
    against the post-drain count, plus `git merge-base --is-ancestor <sha> HEAD`. With no commit
    naming that drain, re-verify each promotion at its **named target** and treat still-present
    entries as un-drained rather than duplicates.
-1. Read `.ai/learnings.md` in full.
+1. List every other copy of the buffer, then read `.ai/learnings.md` in full
+   ([§ Buffer Copies and Parked Lessons](references/consolidation-actions.md#buffer-copies-and-parked-lessons)).
 2. **Deferred-work pickup** — check `tasks/TECH-deferred-consolidation-*.md` and the most
    recent `.ai/consolidation-plan-*.md` for open/deferred items. Carry each still-open item
    into this run's consolidation plan (re-verify it against the live skill/codebase first —

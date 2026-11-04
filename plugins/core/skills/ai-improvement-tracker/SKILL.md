@@ -183,6 +183,10 @@ status vocabularies, and required fields for new entries. Fix any finding before
 `--project` takes the absolute project root: a relative path resolves inside the plugin, so
 the lint exits 2 for a ledger that exists.
 
+Then report the ledger state, the three counts `hypothesis-validator` Step 7 lists, as
+`N PENDING · M terminal · last verdict <date>`, after every recorded entry and not only when a
+validation pass runs: this step runs when that one does not.
+
 ## Integration Points
 
 Called by the same workflows as `ai-changelog`, immediately after the changelog step:
@@ -258,9 +262,13 @@ There is no archive file — do not create one, and do not delete an entry to sa
 The file is therefore expected to grow, and that is not the failure mode to guard. The real
 one is a ledger that grows while nothing closes: the lint's `meta-synthesis due` NOTE (≥10
 unsynthesized terminal verdicts, computed from the header's `Last meta-synthesis` marker)
-triggers the aggregate read that turns verdicts into design rules, and
-`hypothesis-validator` Step 7 reports `N PENDING · M terminal · last verdict <date>` at the
-close of every pass so the backlog cannot silently accumulate again.
+triggers the aggregate read that turns verdicts into design rules.
+
+An alarm that runs inside the process it watches cannot report that process stopping. Place a
+staleness alarm in a step that runs for an unrelated reason (a session start, a commit check, a
+CI job, the step that records the next entry), and ask of each check: if the thing it detects
+stops happening, does this alarm still run? A gate that reads a file its design removed can
+invert instead of going quiet.
 
 ## Anti-Patterns
 
