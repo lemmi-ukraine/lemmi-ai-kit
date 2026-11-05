@@ -273,10 +273,13 @@ _CLAIMS: tuple[_Claim, ...] = (
         ),
     ),
     _Claim(
-        "completeness-test-timeout-is-neutral",
+        "completeness-test-levels-seams-and-waits-are-neutral",
         _DIMENSIONS,
         "## Dimension 5",
-        carries=("timeout guard the project's testing conventions require",),
+        carries=(
+            "each at the level (or profile) the project's testing conventions assign",
+            "bounded waits rather than fixed sleeps",
+        ),
     ),
     # Two review lines that only some projects' conventions hold. The repository line says so,
     # and the line that asked for dependency-override mocking is gone: the line above it already
@@ -294,7 +297,7 @@ _CLAIMS: tuple[_Claim, ...] = (
         "dependency-override-mocking-line-is-gone",
         _DIMENSIONS,
         "## Dimension 5",
-        carries=("timeout guard the project's testing conventions require",),
+        carries=("faked only at the project's sanctioned seams",),
         absent=(
             "mocked via DI overrides",
             "not patched directly",

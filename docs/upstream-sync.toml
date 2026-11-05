@@ -405,7 +405,7 @@ note = "Local override, 2026-10-30: the skill runs at the close of every task, w
 name = "test-conventions"
 upstream = "lemmi-test-conventions"
 direction = "upstream-origin"
-note = "Renamed on extraction to drop the org prefix. The upstream directory keeps the old name. Local override, 2026-11-02: the description's Use-when sentence says Python test files. Re-apply on the next sync."
+note = "Renamed on extraction to drop the org prefix. Upstream deleted `lemmi-test-conventions` at 4356d6e0cb392830f5eb0c146ee2a7815c1ed259 when it moved its skills into a native plugin, and replaced the mock-based suite that skill described with Testcontainers integration tests. On 2026-10-15 this skill's content was replaced by a generalisation of that model: upstream's `testcontainers-testing` skill, its harness README and its harness spec, as observed at upstream 12295deaec31271a230c070db458837a59697431. Upstream-specific names survive only as labelled examples. The next sync compares against `testcontainers-testing`, not this row's `upstream` directory, which no longer exists. Local override, 2026-11-02, re-applied on 2026-11-05 to the rewritten description: the description's Use-when sentence says Python tests. Re-apply on the next sync."
 
 [[skills]]
 name = "test-planner"

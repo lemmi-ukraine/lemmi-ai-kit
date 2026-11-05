@@ -134,13 +134,15 @@ Two rules:
    name the levels you excluded and why — one clause is enough. Silence reads as "nobody
    considered it" to the next reader.
 
-**The project's own testing conventions come first.** Use its level names, its base-class rules
-and its required timeout decorators in the plan, so the plan and the suite agree. Where the
-project ships a language pack with its own test-type decision table, read the pack's testing
-conventions reference as well, but it applies only where it matches the code under test: one
-written for another language never overrides the project's own conventions. Do not
-hardcode any pack skill's name here; route by role, so the plan stays correct in a project with a
-different language pack or none at all.
+**The project's own testing conventions come first.** Use its level names, the seams it allows for
+faking an external dependency, and its rules for waits, deadlines and required markers in the
+plan, so the plan and the suite agree. Where the project ships a language pack with its own
+test-type decision table, read the pack's testing conventions reference as well, but it applies
+only where it matches the code under test: one written for another language never overrides the
+project's own conventions. A pack that runs every behaviour test against real dependencies names
+**profiles** instead of levels: default downward then means the narrowest profile that proves the
+assertion. Do not hardcode any pack skill's name here; route by role, so the plan stays correct in
+a project with a different language pack or none at all.
 
 Level names, the default-downward decision tree, the exclusion phrasing and the style column:
 [references/level-assignment.md](references/level-assignment.md)

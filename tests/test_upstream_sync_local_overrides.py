@@ -261,7 +261,7 @@ _EDITED: dict[str, tuple[str, ...]] = {
         "a language-neutral entry",
         "the buffer-pressure check dates the last drain",
     ),
-    "test-conventions": ("the description's Use-when sentence says Python test files",),
+    "test-conventions": ("the description's Use-when sentence says Python tests",),
     "vertical-slice": ("scoped to a Python repository laid out by feature",),
 }
 # Wording a note must not carry: it described an edit more broadly than the edit went (every step

@@ -96,7 +96,8 @@ Services receive dependencies through constructor injection:
 - Repositories, HTTP clients, loggers, other services
 - Factory functions in `features/{feature}/dependencies.py` resolve via FastAPI Depends
 - Required dependencies have no default; optional use `| None = None`
-- Tests mock at the DI boundary using protocol overrides
+- Tests never replace these factories; an external client is faked only at its sanctioned seam
+  (provider leaf, mock-server base URL, emulator) — see the pack's testing conventions
 
 ```python
 async def get_order_task_service(

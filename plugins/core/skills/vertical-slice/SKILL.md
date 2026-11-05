@@ -35,7 +35,7 @@ description: |
 backend/app/features/{feature_name}/
 ├── __init__.py
 ├── README.md                          # Feature docs (keep in sync with onboarding)
-├── dependencies.py                    # FastAPI DI overrides
+├── dependencies.py                    # FastAPI dependency providers
 ├── constants.py                       # Feature constants
 ├── prompts/                           # Prompt templates (if LLMs used)
 │   └── {template_name}/

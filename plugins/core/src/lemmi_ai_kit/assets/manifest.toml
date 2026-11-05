@@ -222,7 +222,7 @@ summary = "Vertical slice architecture patterns for feature-oriented codebases"
 name = "test-conventions"
 profile = "python"
 invocation = "auto"
-summary = "Testing conventions: integration-first, DI-based mocking, timeout decorators"
+summary = "Testing conventions: Testcontainers integration tests, fakes only at sanctioned seams, test-first red then green"
 
 [[skills]]
 name = "analyze-logs"

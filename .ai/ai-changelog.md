@@ -274,6 +274,22 @@
 - **Files:** `tests/test_skill_script_tests.py`, `tests/test_ci_gates_documented.py`, `tests/test_gate_learnings_drain.py`, `tests/test_session_retrospective_text.py`, `tests/test_pack_isolation.py`, `tests/test_flow_mapping.py`, `plugins/core/hooks/gate_learnings_drain.py`, `plugins/core/skills/session-retrospective/` (SKILL.md, the schema reference, the extractor, the sweep and their tests), `AGENTS.md`, `CONTRIBUTING.md`, `docs/faq.md`, `docs/working-on-the-kit.md`, `docs/syncing-from-upstream.md`, `.ai/ai-changelog.md`, `.ai/improvement-hypotheses.md`, `.ai/learnings.md`.
 - **Affected workflows:** Every pull request's CI run; `learning-consolidator` and `task-learnings` (the guard); `session-retrospective` (the extractor, the sweep and the report-folder wording). Pass K-1 of the 2026-10 consolidation; its operator-input, replay, sub-agent-file, session-folder and key-shape requests are deferred to the pass's continuation.
 
+## 2026-10-18
+
+### RULE-ADDED: Record the kit's own testing model in AGENTS.md
+- **What:** A `#### Testing model` block under `### Project rules`: this repository's suite is not ported to the Testcontainers model (nothing to containerise; tests drive the real CLI against real temp dirs and `git`), and `monkeypatch` sets process state, replacing code only to prove a guard bites, simulate a missing tool, or keep a test off the machine's real state, with a comment saying which. Never `unittest.mock`.
+- **Why:** The rewritten `test-conventions` skill auto-loads here when the Python pack is enabled at user scope, and bans `monkeypatch` of app code; it defers to the project's AGENTS.md, which did not yet state a model. Operator-approved wording.
+- **Files:** `AGENTS.md`, `.ai/ai-changelog.md`.
+- **Affected workflows:** writing and reviewing tests in this repository.
+
+## 2026-10-15
+
+### SKILL-MODIFIED: Replace the Python test conventions with the Testcontainers model
+- **What:** Rewrote `test-conventions` around Testcontainers integration tests (sanctioned seams, test-first, profiles, observable outcomes, generated ids, bounded waits, quiesce, diagnostics); split its gotchas into model-independent and legacy-mock references; aligned `test-planner`, `plan-critic`, `post-task-review`, `pr-review-concise`, `python-conventions`, `vertical-slice`, the seeded AGENTS.md rule and the test-plan template; bumped the Python, Core and Orchestration build suffix.
+- **Why:** The kit taught the mock-based model its source project had deleted, so that project had to override it.
+- **Files:** see the 2026-10-15 entries in `CHANGELOG.md`.
+- **Affected workflows:** Python test writing and review, verification planning, plan and PR review, `kit-setup`.
+
 ## 2026-09-23
 
 ### INFRA-MODIFIED: Run the Core learnings hook through uv

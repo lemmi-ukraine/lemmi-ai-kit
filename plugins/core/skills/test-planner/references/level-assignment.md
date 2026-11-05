@@ -14,10 +14,16 @@ which is what this document is for.
 ## Level names
 
 The project's own testing conventions come first: use the level names the project already uses,
-with its base-class rules and any required timeout or marker decorators, verbatim, so the plan
-and the suite agree. Where the project ships a language pack with its own test-type decision
-table, read it as well, but it applies only where it matches the code under test: one written
-for another language never overrides the project's own conventions.
+with the seams it allows for faking an external dependency and its rules for waits, deadlines and
+required markers, verbatim, so the plan and the suite agree. Where the project ships a language
+pack with its own test-type decision table, read it as well, but it applies only where it matches
+the code under test: one written for another language never overrides the project's own
+conventions.
+
+A pack whose model runs every behaviour test against real dependencies in containers has no unit
+level to default down to. Its **profiles** (for example a database-only profile and a full-app
+profile) are the levels: default downward means the narrowest profile that can prove the
+assertion, and the generic table below does not apply.
 
 Route to the pack **by role, not by name**: "the language pack's testing conventions reference". A
 core skill that hardcodes a specific pack skill's name breaks in projects using a different pack or
