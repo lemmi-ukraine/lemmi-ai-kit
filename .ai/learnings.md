@@ -45,6 +45,421 @@ to its home above and removed here.
 - **Verify-at**: tests/test_flow_mapping.py
 - **Scope**: durable
 
+### [2026-10-27] A guard pinned only by its own table of shapes ships defects that a replay of real recorded input finds
+- **Context**: Rebuilding the learnings drain guard's shell arm against a table of 27 shapes.
+- **Finding**: The table passed while a replay of 1,216 real commands that name the file found a regular expression that took 11 seconds on a 25 KB line, a `py` word matching inside `.py` file names, and three new false denials of read-only PowerShell. An execution oracle that ran about 1,000 commands in sandboxes then found a dozen shapes the regular expressions could not see, such as a `;` inside a sed script and the word `rm` used as text.
+- **Impact**: Before trusting a guard, replay recorded real input through the old and the new version and diff the verdicts, and run the commands for real in a sandbox to measure their effect. A table written from the same mental model as the code shares its blind spots.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: prose
+- **Verify-at**: tests/test_gate_learnings_drain.py
+- **Scope**: durable
+
+### [2026-10-27] Tests that CI collects for the first time can fail on the other operating system
+- **Context**: Making CI run the session-retrospective extractor's tests, which lived outside the collected test folder.
+- **Finding**: 9 of the extractor's 38 tests failed on Linux though they pass on Windows: the extractor rejects an output folder under /tmp, and pytest's tmp_path is under /tmp on Linux.
+- **Impact**: When a change makes CI collect tests that already exist, run them on the CI operating system first (a docker image is enough) and fix them in the same change, or the first pull request goes red for a reason nobody recently touched.
+- **Category**: pitfall
+- **Home**: comment:plugins/core/skills/session-retrospective/scripts/test_extract_sessions.py:_run
+- **Enforce-via**: test
+- **Verify-at**: tests/test_skill_script_tests.py
+- **Scope**: durable
+
+### [2026-10-28] A line number that Grep and Read must confirm needs bytes split on LF: universal newlines and `splitlines` each drift on their own
+- **Context**: Making the session-retrospective corrections sweep cite the lines Grep and Read show, over digests the extractor had written on Windows.
+- **Finding**: Windows text mode wrote a CRLF inside a message as CR CR LF. `Path.read_text` (universal newlines) turns that into two line breaks, and `str.splitlines` breaks at a lone CR, at CR then CR LF, at a form feed and at seven more separators. Of 206 digests from a sample of real sessions, 152 held a CR CR LF and 144 numbered some `USER:` line differently from Grep (1,209 lines in all). Replacing only `splitlines` (read_text, then split on LF) or only `read_text` (bytes, then `splitlines`) left the same 144 digests and the same 1,209 lines wrong; only bytes split on LF matched, and the old sweep cited a line Grep does not show for 84 of its 136 citations.
+- **Impact**: A script that prints `file:line` for a reader who will check it with Grep or Read reads bytes, splits on `\n` and writes with `newline="\n"`. Pin it with a fixture set that holds a CR CR LF, a lone CR, a form feed and an LF-only control, plus a test that the old reader drifts on every fixture but the control: an LF-only fixture passes under every reader.
+- **Category**: pitfall
+- **Home**: comment:plugins/core/skills/session-retrospective/scripts/sweep_user_corrections.py:digest_lines
+- **Enforce-via**: test
+- **Verify-at**: plugins/core/skills/session-retrospective/scripts/test_sweep_user_corrections.py
+- **Scope**: durable
+
+### [2026-10-29] On Python 3.11 an option before the positional FILE of `lint handoffs` makes argparse refuse FILE, while 3.12 and later accept either order
+- **Context**: Giving `lint handoffs` a FILE argument and printing it in the skills.
+- **Finding**: CPython 3.11, the version CI pins, exits 2 with "unrecognized arguments" for `lint handoffs --project P FILE`; 3.12 and 3.13 accept it, so a run on a newer interpreter cannot show the defect. A printed command with FILE first parses on all three.
+- **Impact**: Print FILE before the options, and test the order of a printed command's arguments, not only that the host's parser accepts it.
+- **Category**: pitfall
+- **Home**: comment:plugins/core/src/lemmi_ai_kit/cli.py:_FILE_POSITION_HINT
+- **Enforce-via**: test
+- **Verify-at**: tests/test_printed_commands.py
+- **Scope**: durable
+
+### [2026-10-29] A replica of CI must copy the workflow's job env, not only its run lines
+- **Context**: Running CI's gates in a Linux container to check a change before a push.
+- **Finding**: ci.yaml sets PYTHONDONTWRITEBYTECODE once for the whole job, not in a step. A container that ran the same steps without it left `.pyc` files in the plugin payload after the bare pytest, and publish-check blocked on them; with it set, every gate exited 0.
+- **Impact**: Build a CI replica from the whole job, its env block included. A publish-check block that names only `__pycache__` files after a bare pytest points at a missing bytecode setting, not at the change.
+- **Category**: pitfall
+- **Home**: doc:docs/working-on-the-kit.md
+- **Enforce-via**: none
+- **Verify-at**: .github/workflows/ci.yaml
+- **Scope**: durable
+
+### [2026-10-29] A lint run with no --project from the plugin's own folder measures that folder and passes
+- **Context**: Giving every printed support-CLI command `--project` and running the printed forms from a foreign working directory.
+- **Finding**: `find_project_root` returns its starting directory when no ancestor holds a project marker, and a printed command runs under `uv --directory <plugin root>/src`, so without `--project` the working directory is the plugin's own folder. `lint all`, `lint`, `lint handoffs` and `audit-skills` then exit 0 with "LINT PASSED (0 finding(s))" over nothing, while `lint changelog` and `lint learnings` exit 2 ("no such file"). A relative `--project .` resolves inside the plugin the same way.
+- **Impact**: Read a clean lint as evidence only when the run named an absolute project root, and never from a printed form that lacks one. Failing closed in the CLI (cannot measure is never a pass) is an open decision, not a built change.
+- **Category**: pitfall
+- **Home**: comment:plugins/core/src/lemmi_ai_kit/checks.py:find_project_root
+- **Enforce-via**: test
+- **Verify-at**: tests/test_printed_commands.py
+- **Scope**: durable
+
+### [2026-10-30] A wording test that reads one physical line of a wrapped item breaks on a re-wrap, and every new test file carries its own fold helper
+- **Context**: Verifying the two packages of prose edits whose new tests assert sentences in skills and templates.
+- **Finding**: Re-wrap mutations turned a wording test red in 9 of 77 runs (1 of 23 in one package, 8 of 54 in the other): each such test located its sentence by the first physical line of a long list item or table row, so re-wrapping unchanged words failed it. Each of the 8 new test files defines its own fold helper (`_fold` in 4, `_folded` in 4), because each package owned only its own files.
+- **Impact**: Assert a sentence only after slicing the whole item or section and folding line breaks, never on one physical line; when the next wording tests are written, move the helpers into one shared test module so a fix lands once.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: test
+- **Verify-at**: tests/test_completion_trigger_wording.py
+- **Scope**: durable
+
+### [2026-11-01] Folding line breaks does not make a wording test re-wrap-proof: the locators and needle helpers around the fold are code nobody tests
+- **Context**: Verifying four packages of prose edits whose new wording tests all folded line breaks before searching.
+- **Finding**: Three of the four packages still failed a verifier's or a sweep's re-wrap of unchanged prose, through the code that cuts a place out of the file and not through the search: a list-item locator that took the first physical line, planted-case builders that matched exact whitespace, and a printed command re-wrapped with a backslash. A sweep that re-wrapped every prose line the rounds added found four variants still red after the first fix commit. The helpers were untested too: a fix round's own sweep of further `all`/`any` flips in needle helpers found most of them surviving until a planted case held only some of the needles. The fold itself is copied, not shared: 27 test files now hold `re.sub(r"\s+", " ", ...)` against 10 at the base, and no shared test module exists.
+- **Impact**: Write the fold and the slicers (section, list item, table row, continuation join, planted-case builder) once in a shared test module, in a first commit before the packages that need them start, because file-disjoint packages cannot create one; give that module one self-test file that flips each operator on planted text. Until then give each private helper a planted case that fails when its operator flips, and sweep re-wrap robustness by breaking every added line at every space, not by trying the one re-wrap you thought of.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: test
+- **Verify-at**: tests/test_content_proof_wording.py
+- **Scope**: durable
+
+### [2026-11-01] A SKILL.md near its line cap is a budget the next pass draws on, so a first build spends pointer lines and leaves the detail in a reference
+- **Context**: Adding review, orchestration, cleanup and spec text to skills that already sat close to the audit's cap.
+- **Finding**: `audit-skills` fails a SKILL.md at more than 500 lines counted as `text.count("\n") + 1`, so a `wc -l` of 499 is the last passing size. The first build of the review skill went from 489 to 497, mostly a four-line limits bullet that repeated a row the same build had put in a reference; a fix round replaced the bullet with one pointer line and got 3 lines back (494). `initiative-cleanup` stands at 499, so every later edit there replaces lines. `parallel-session-safety` stands at 498 and its section 12 pointer must list every `### 12x.` subsection id, which a test enforces, so each new subsection costs a SKILL.md edit as well as a reference edit.
+- **Impact**: Treat the cap as a budget shared with the passes still to come: state each skill's spare lines (`git show HEAD:<path> | wc -l` against 499) in the plan, put the detail where a reference row already holds it and leave one pointer line, and add no line-count pin to a test, because it would block the passes the headroom is kept for.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: tests/test_shared_index_protocol.py
+- **Scope**: durable
+
+### [2026-11-02] An emptied parametrize table collects no case, so a size check inside the parametrized test never runs
+- **Context**: Fixing the plan-critic package's wording tests, whose planted forms and change rows are parametrized tables.
+- **Finding**: With a table emptied, pytest reports the parametrized test as one skip (an empty parameter set) and the suite stays green. On the earlier test file, dropping a planted form, dropping a change row, dropping a kept row and emptying the kept table each passed (the last as 60 passed, 1 skipped), and a count written inside the parametrized test could not see any of them, because it runs once per row. A separate test that asserts each table's stated size failed on all four. Two neighbouring blind spots remain: renaming the whole parametrized test away, and a duplicated row key that keeps every size.
+- **Impact**: Give every parametrized table a stated size asserted by a test of its own, never by the parametrized test; read an unexpected skip in a wording-test run as a possibly empty table; assert unique row keys where rows are keyed.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_plan_critic_neutrality.py::test_the_planted_forms_and_the_rows_keep_their_stated_number
+- **Scope**: durable
+
+### [2026-11-02] A replay of real commands with no false denial says nothing about whether the tests would notice a rule change
+- **Context**: Verifying the shell-prefix hook, whose table (446 shapes when the mutants were run, 468 after the fix rounds) and a replay of about 75,000 recorded commands both passed.
+- **Finding**: The replay checked verdicts: every denial was a true positive of its stated rule, and the old and the new hook agreed on every recorded command. A verifier's own 293 mutants of the hook and its launcher then left 48 survivors: 9 on plausible shapes (a backslash before `cd`, a heredoc body that names `cd`, a backtick inside a PowerShell command name, a launcher entry that is not a command hook, among others), 15 on odd shapes only, and 24 with no verdict difference on any input tried. A fix round gave each plausible survivor its own row or assertion, and the next round's 20 mutants all died.
+- **Impact**: Treat a replay as evidence about behaviour and a mutation run as evidence about the tests; a guard needs both before its table is called coverage. Generate mutants per rule branch, keep a planted kill and a planted no-op as controls, and give each survivor on a plausible shape a row that fails without its branch.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_gate_shell_prefix.py::test_the_hook_decides_each_shape
+- **Scope**: durable
+
+### [2026-11-02] A brief's counts and quoted phrases can be wrong while its rows are right, so a probe at the start commit decides each test's premise
+- **Context**: Four portability packages, each built from a brief that quoted the old text it rewrites and counted its places.
+- **Finding**: In three packages a brief's facts did not reproduce: "seven phrases in four files" was six occurrences of four shapes in three files; a phrase said to appear twice read "the full" at one site and "the whole" at the other; and one file a row rewrote never held the row's quoted phrase, so its test could not go red on that phrase. A probe that counted each old string by occurrence and by file at the start commit, before any test was written, caught all three.
+- **Impact**: Before writing a wording test, probe every old string the row names at the start commit, by file and by occurrence, and record the counts; where a quoted phrase is absent from a file the row rewrites, pin that file's own old clause instead, or its guard is green on the old text.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: prose
+- **Verify-at**: tests/test_planner_pack_scope.py
+- **Scope**: durable
+
+### [2026-11-02] A guard that asserts a bare phrase passes any sentence that says it, so the subject goes into the pattern and the check is fired at look-alikes
+- **Context**: Verifying the wording tests of the test-guidance and skill-authoring packages.
+- **Finding**: A guard that required "come first" passed a look-alike first sentence ("Tests come first.") planted in four files; asserted with its subject, "project's own testing conventions come first", the same look-alikes failed. A probe for a false claim that read one "sentence" of folded markdown flagged a true sentence appended after a bullet with no full stop, until the claim was written as a pattern that holds the skill's name.
+- **Impact**: Assert a required phrase together with its subject, and a banned claim as a pattern that holds the name it is about; fire each check at look-alikes of its phrase and at a true sentence beside it before a green run is trusted.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_planner_pack_scope.py::test_a_look_alike_of_a_new_phrase_does_not_stand_in_for_it
+- **Scope**: durable
+
+### [2026-11-02] A mutation harness that reads only exit codes counts a test that never ran as a killed mutant
+- **Context**: Running mutants of the log-analysis package's tests from a Python driver on Windows.
+- **Finding**: A bare `bash` started from a Python subprocess resolved to the WSL launcher stub on the PATH, not Git Bash, so no test ran and the launcher still exited 1, which a classifier reading exit codes counts as a kill. The harness's own controls (an unmutated copy must pass, a known mutant must fail) exposed it before any verdict was used.
+- **Impact**: Classify each mutant from pytest's own summary line, never from the exit code alone; run the controls before the mutants; start a shell from a subprocess by its full path.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: prose
+- **Scope**: durable
+
+### [2026-11-03] An emptied GIT_CONFIG_GLOBAL does not isolate a git test: git still reads its default excludes file
+- **Context**: The local-only folder tests ask git, in a fixture repository, which files it ignores.
+- **Finding**: With GIT_CONFIG_GLOBAL pointed at an empty file, git still read its default excludes file under the user's config home: an XDG `git/ignore` holding `*.md` made the fixture ignore AGENTS.md, so the test answered for the machine and not for the scaffold. Naming an empty `core.excludesFile` in the fixture's own global config isolated it, and the same planted excludes file then left every case green.
+- **Impact**: In a test that asks git what it ignores, set `core.excludesFile` to an empty file as well as emptying GIT_CONFIG_GLOBAL, and run the test once under a planted global excludes file before trusting it.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_scaffold_local_only_folders.py::git_repo
+- **Scope**: durable
+
+### [2026-11-03] ruff and basedpyright exclude plugins/*/skills, so a skill script given to ruff by path is reformatted in lines nobody changed
+- **Context**: Two packages edited Python under `plugins/*/skills/` (the session extractor and its tests, the drain audit).
+- **Finding**: pyproject.toml's `extend-exclude` keeps `plugins/*/skills` out of ruff and basedpyright, so those files were never formatted, and those two gates stay green whatever those files hold. A file passed to ruff by path is read anyway: `ruff format` on the extractor's test file rewrote 11 old lines no edit touched, and `ruff format --check` on that file and the drain audit reports both as files it would reformat, while `--force-exclude` skips them.
+- **Impact**: For a skill script, check only the added hunks for what ruff would change, or pass `--force-exclude`; never run `ruff format` on the file by path, and never read the ruff or basedpyright result as evidence about code under `plugins/*/skills/`; pytest does run those scripts' tests (tests/test_skill_script_tests.py and the drain audit's own test file).
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: pyproject.toml
+- **Scope**: durable
+
+### [2026-11-03] git pathspecs and Path.glob read a plain file glob alike and a directory shape differently
+- **Context**: The drain audit reads one glob list through git's `:(glob)` pathspecs in its base-ref scan and through Path.glob in its current-contents fallback.
+- **Finding**: Measured on Python 3.11, the two agree on `notes/**/*.md`, `notes/*.md`, `notes/*`, `**/n.md` and `./notes/*.md`, and part on `notes/**`, `notes/` and a bare folder name (git takes every file below, Path.glob none), on an empty value or an absolute or drive path (Path.glob raises) and on `../x` (git refuses, Path.glob leaves the project), and, unrefused, on letter case (a case-insensitive file system), a `[^...]` class and a `**` inside a name on Python 3.11. Mirroring git's rule in the fallback would have let `notes/*` take `notes/a/m.md`, which git does not.
+- **Impact**: Before one glob value feeds two matchers, measure both on the same tree for each shape you accept, and refuse the shapes they read differently with a stated reason rather than mirroring one matcher in the other.
+- **Category**: pitfall
+- **Home**: comment:plugins/core/skills/learning-consolidator/scripts/drain_audit.py:surface_glob
+- **Enforce-via**: test
+- **Verify-at**: tests/test_drain_audit.py::test_a_surface_the_two_scans_would_read_differently_exits_two
+- **Scope**: durable
+
+### [2026-11-03] Two patches that each fit a skill's line cap can break it together
+- **Context**: Two changes to one SKILL.md were planned against the same baseline: a wording patch that adds 1 line and a later request that adds 2.
+- **Finding**: `post-task-review/SKILL.md` was 497 lines by `wc -l`. The audit counts newlines plus one and fails above 500, so 499 is the most `wc -l` may show. One patch took the file to 498 and the other to 499 alone; applied together they reach 500 and `audit-skills --fail-on major` fails, with each patch green on its own.
+- **Impact**: Before a second patch lands on a file with under three lines of headroom, apply every pending patch to one export in landing order and read the combined file's line count; give the later patch the headroom that is left.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: lint
+- **Verify-at**: MAX_SKILL_LINES
+- **Scope**: durable
+
+### [2026-11-03] A count that stays equal does not show that a line was left alone
+- **Context**: A review note said a wording patch had left a bullet untouched, because `grep -c '@fast_test'` read 2 before and after.
+- **Finding**: The patch had edited the bullet. The edited line still names the decorator, so the count could not move. The diff of the line shows the edit; the count of a token cannot see an edit that keeps the token.
+- **Impact**: To say a line is unchanged, read its diff or compare its text before and after; use a count only to say how many lines hold a token.
+- **Category**: pitfall
+- **Home**: skill:post-task-review
+- **Enforce-via**: prose
+- **Verify-at**: plugins/core/skills/post-task-review/references/claim-boundaries.md
+- **Scope**: durable
+
+### [2026-11-03] A recipe that passes in the case it was measured can still miss the case it exists for
+- **Context**: The kit's stacked-PR document was extended from a consumer's longer copy, and each of its recipes was run on one host before it shipped.
+- **Finding**: A base re-read check passed after the remote had moved, because it read the local ref and never fetched, so it could not see the failure it exists to catch; a tar comment copied from one observation held for `-C` with a forward-slash drive path and not for `-f`, where `C:` read as a host. The runs corrected four statements of the copied text: the tar comment, the reflog's attribution, the base re-read and the delivery recipe's write set.
+- **Impact**: Before a recipe line ships, run it against the failure it names (move the remote, then run the check) and run every flag its sentence names; a pass in the measured case is no evidence for the other.
+- **Category**: pitfall
+- **Home**: skill:post-task-review
+- **Enforce-via**: prose
+- **Verify-at**: plugins/core/src/lemmi_ai_kit/assets/ai/git-stacked-pr-workflow.md
+- **Scope**: durable
+
+### [2026-11-03] A planted variant that the unchanged code also reads proves nothing, so each plant is asserted to need the step it tests
+- **Context**: Wording tests for the delegated-session rules, plan-critic's fix pass and the stacked-PR document plant re-wrapped or wrapped variants to show that a reader survives a re-wrap.
+- **Finding**: A review found the same gap in three test files. A re-wrap helper replaced by an identity function left every re-wrap case green, because nothing asserted that the plant differed from the text; a citation plant that broke next to the section sign was read by the bare pattern's own `\s*`, so removing the fold under test changed no verdict; and a helper that read one physical line missed a bold lead that wraps until a plant wrapped one. Each was closed by an assertion that the plant differs from the original, and by a control that the bare reader cannot read it.
+- **Impact**: For each planted variant, assert in the test that it differs from the original and that the reader without the step under test (no fold, no wrap handling) cannot read it, so that a mutant which removes the step turns a node red.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_stacked_pr_workflow_asset.py::test_a_citation_name_wrapped_across_lines_resolves_to_its_heading
+- **Scope**: durable
+
+### [2026-11-03] A list in one file that names the sections of another can be pinned only where both exist, so the seam is checked at integration
+- **Context**: One package added section 5 to the worker preamble while another made the three lists of the preamble's topics (two in the brief template, one in the orchestrate brief contract) end with "size, stop and close"; each package's clone held only its own half.
+- **Finding**: Each package passed its own tests, and the second one's fixer wrote that a pin on the preamble's headings was impossible in its clone, which held sections 0 to 4. Derived from the assembled preamble's six headings, the check showed that the three lists name sections 1, 2, 4 and 5 and none names section 0 (host rules) or 3 (write the report file early), a gap the lists had before either package; a renamed section 5 was flagged in all three lists and a dropped clause in the one list it left.
+- **Impact**: Where two packages edit the two ends of a seam, name the seam in both briefs and run a check derived from the assembled headings at integration, fired at a planted rename and a dropped clause; report a gap that predates the packages as a finding, not as a regression.
+- **Category**: pitfall
+- **Home**: skill:orchestrate
+- **Enforce-via**: prose
+- **Verify-at**: plugins/orchestration/skills/orchestrate/references/brief-template.md
+- **Scope**: durable
+
+### [2026-11-03] A text pin on a sentence inside a blockquote must drop the quote marks first, or a wrap hides the sentence
+- **Context**: The worker preamble's section 0 became one blockquote, and its wording test had to find the retired instruction "replace this block" wherever it sits in the file.
+- **Finding**: Folding whitespace leaves a ">" between the words of a sentence that a blockquote wraps over two rows, so a pin written on the folded text never sees it. The same sentence planted wrapped over two quoted rows was missed by the plain fold and found only after the quote marks were dropped; the scan of the whole file now reads the text that way.
+- **Impact**: When a pin reads text inside a blockquote, drop the leading quote marks before folding, and plant the phrase wrapped over two quoted rows to see that the plain fold misses it and the dropped-marks read does not.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_worker_preamble_wording.py::test_no_instruction_to_replace_a_block_is_left_anywhere_in_the_preamble
+- **Scope**: durable
+
+### [2026-11-03] A test that pins a skill file's line count blocks the next legitimate edit, so the pin names the audit's cap
+- **Context**: Adding one pointer line to post-task-review's SKILL.md, which stood a line or two under the audit's cap.
+- **Finding**: tests/test_review_core.py held `assert len(lines) <= 498`, a bound set at the file's length of an earlier pass plus three lines. Against the 499-line file it was the one test of its file that went red (1 failed, 20 passed). The audit's real cap is 499 by `wc -l`; the bound moved to 499 with a message that says where the number comes from, and the file now has no room left.
+- **Impact**: Before sizing an addition to a skill file, search the tests for a bound on its length (`len(lines) <=`) as well as the audit's cap, and write such a bound as the cap with its source, not as the length the file had that day.
+- **Category**: pitfall
+- **Home**: comment:tests/test_review_core.py:test_the_skill_points_at_the_script_in_at_most_three_added_lines
+- **Enforce-via**: test
+- **Verify-at**: tests/test_review_core.py::test_the_skill_points_at_the_script_in_at_most_three_added_lines
+- **Scope**: durable
+
+### [2026-11-03] A `git archive` export proves a new test red then green, not the suite
+- **Context**: Two patches were checked on fresh `git archive` exports of the tip: the new tests, then the existing tests that name the changed files, pristine against patched, with the main checkout's venv.
+- **Finding**: 7 of 103 and 23 of 869 of the existing tests failed on both sides because an export has no git, so the comparison could say only that nothing new failed among the tests that can run. A clone of the tip with its own `uv sync --dev` venv ran the whole suite with no failure (2552 passed and 29 skipped in 2.5 minutes).
+- **Impact**: Use an export for the red-then-green of a new test; run the gates in a clone with its own venv. The whole suite is cheap enough to run there.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
+### [2026-11-03] A sentence that restates another file's rule, list or promise goes stale when that file changes, and no test notices
+- **Context**: Eleven small polish rows of one pass, five of which corrected a sentence that described what another file or mechanism does.
+- **Finding**: The safety skill's backup rule restated the drain's old snapshot routine after the drain changed; six callers of plan-critic kept "resolve all findings" through two changes of the critic's rules; initiative-planner said the critic does not run a check that the critic's Step 3 had started to ask; two adopter docs promised that no `.ai/` file is updated after kit-managed files were added; and the schema reference's redaction lists missed a token class the extractor's table had gained. Reviews found all five; no test did, because nothing tied a restatement to its source.
+- **Impact**: Point at the source instead of restating it. Where a restatement must stay, pin it with a test that derives its expectation from the source (the redaction lists are now held to the extractor's table), and sweep the callers of a changed rule by heading as well as by name.
+- **Category**: pitfall
+- **Home**: skill:post-task-review
+- **Enforce-via**: prose
+- **Verify-at**: plugins/core/skills/post-task-review/references/review-checklist.md
+- **Scope**: durable
+
+### [2026-11-03] A guard is shown to work only by a planted fixture for each behaviour it relies on
+- **Context**: The verifiers of the same pass mutated the helpers of each new wording test.
+- **Finding**: A re-wrap check failed on the day the shipped text was already wrapped like its plant, because it asserted that the re-wrap changed something; a lead match could be loosened from `startswith` to `in` with every test still green; a table-shape guard passed a fourth column until a mutation round; a section cutter's heading scope had no fixture, so a mutant that returned the whole text stayed green. Each guard passed while a behaviour it relied on went untested.
+- **Impact**: For each behaviour a guard depends on (scope, order, a count, a lead match), plant a fixture that only that behaviour rejects, and assert the property the guard needs (every line fits, two wraps differ) rather than "something changed"; a mutant that survives names the fixture that is missing.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: prose
+- **Verify-at**: plugins/python/skills/test-conventions/SKILL.md
+- **Scope**: durable
+
+### [2026-11-03] A rule pasted into every brief must work for every kind of worker the brief goes to
+- **Context**: The Close block of the brief contract is pasted into every brief, and its step 2 told the worker to run the completion review through the Skill tool.
+- **Finding**: A worker run by an external agent CLI has no Skill tool, so the step could not be done as written there, and nothing in the block said what such a worker does until one sentence was added to step 2; step 3 still names the skill the same way.
+- **Impact**: Beside a rule that every brief carries, list the kinds of worker the brief goes to (a native sub-agent, each external CLI) and ask of each whether it can follow the rule as written; put the fallback in the rule itself.
+- **Category**: pitfall
+- **Home**: skill:orchestrate
+- **Enforce-via**: test
+- **Verify-at**: tests/test_brief_close_block_wording.py
+- **Scope**: durable
+
+### [2026-11-03] A line-based census of inline code undercounts in hard-wrapped markdown, so a count is taken per paragraph and checked against a second instrument
+- **Context**: Building the test that finds shipped commands which open with an assignment.
+- **Finding**: A census that scanned line by line missed a real occurrence whose inline code span wrapped across two lines; scanning per paragraph found it, and the two instruments disagreed until the second one was written.
+- **Impact**: Count inline code per paragraph, not per line, in wrapped markdown, and let two independent instruments agree before a count decides that a scan is complete.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_assignment_led_commands.py
+- **Scope**: durable
+
+### [2026-11-03] A count written into a heading outlives the sections it counted
+- **Context**: Adding two sections to the dispatch-gates reference.
+- **Finding**: The reference's title said six while the file held eight sections, so a test that rejects any digit or number word in the title is cheaper than keeping the count true.
+- **Impact**: Do not write a count of sections into a title; let a test reject a digit or a number word there.
+- **Category**: pitfall
+- **Home**: skill:test-conventions
+- **Enforce-via**: test
+- **Verify-at**: tests/test_amendment_sweep_wording.py
+- **Scope**: durable
+
+### [2026-11-03] A wave of agents spends the account's usage window faster than the disk or the machine limit it, and an agent the limit kills has often written its report already
+- **Context**: One release day on one account: a ten-commit review by six readers with about twenty skeptics, a lane of twelve builders with their verifiers, a second lane, and three integration and fix builders.
+- **Finding**: The 5-hour usage limit stopped agents three times in under three hours: every opus and fable agent at about 18:30 (the 28-agent review workflow had spent about 3.5 million sub-agent tokens in 28 minutes, by its notice in an untracked checkpoint), the opus agents again at about 20:44, 32 minutes after the limit had reopened, and the sonnet alias at about 21:14. The reset time it printed moved later each time (22:50, 01:10, 01:40), the sessions stalled without a message (mine for 1 h 50 min), and an agent died after it had written a complete 15 KB report, so its structured result was lost while the file survived; a second run of the same reader two hours later reached the same two blockers.
+- **Impact**: Size a wave from the usage window as well as from the disk and the machine (the AGENTS.md sub-agent rule's last sentence names only those two), prefer a cheaper model for mechanical rows and probe each model with a one-word agent before a wave; find out what a dead agent did from its report file, not from its returned value, and copy a report aside before a re-run overwrites it.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
+### [2026-11-03] A watcher armed on a phrase fires at once when the text that describes the signal already contains the phrase
+- **Context**: Waiting in the background for a peer session to write one hand-over line into a shared queue file.
+- **Finding**: A loop that ended when the file contained the hand-over phrase ended on its first check, because the file's own instruction line quoted the phrase; only a read of the file's last lines showed that no hand-over had been written. The corrected watcher anchors the phrase at the start of a line, said no on the present file and yes on a planted copy.
+- **Impact**: Before arming a watcher, run its condition on the present state (it must say no) and on a planted positive (it must say yes), and anchor the pattern to the signal's own form (a line start, a field name), not to a phrase that the surrounding text may quote.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
+### [2026-11-03] After a stall the machine clock says what time it is
+- **Context**: A finisher session that waited for background results while the account's usage limit and an operator question stalled its own session and a peer session.
+- **Finding**: The session's last clock reading was 18:21 and the next was 20:12; its plan and the times it had given peers were 1 h 50 min stale, and a peer session had the same gap (it was blocked on an operator question).
+- **Impact**: Read `date` at every wake-up and before every estimate, state times to peers from that reading, and re-derive a deadline plan (what can still finish before a cutoff) from it instead of from the last plan.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
+### [2026-11-04] A shared list file that another tool rewrites on Windows can carry carriage returns, and a shell loop that reads it makes them part of every name
+- **Context**: Building a chain of scratch commits from a package list that another session rewrites while the chain is being built.
+- **Finding**: The list was rewritten with CRLF line endings between two runs (the file grew from 42 to 60 bytes). `read -r id` kept the carriage return, so every patch name read `<name><CR>.patch` and the build stopped with a message naming a file that exists. The Python readers of the same file split on whitespace and were not affected.
+- **Impact**: Strip carriage returns at every shell read of a file another tool may rewrite (`${id//$'\r'/}` or `tr -d '\r'`), read such lists with a whitespace split in Python, and fire the loader once at a CRLF copy before trusting it.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
+### [2026-11-04] A replace-once edit whose old text is the first words of its new text applies again on every run
+- **Context**: Writing a re-runnable script that applies a review's 16 exact text replacements to a record, three ledgers and a test docstring.
+- **Finding**: One item replaced a sentence with the same words plus a new sentence, so the old text was still present after the edit and the first version of the script appended the new sentence again on the second run (it printed 1 applied and 15 already applied). An item whose old text is not inside its new text does not do this, and only a second run showed it.
+- **Impact**: Test whether the new text is already present before testing the old text, and run every edit script twice before it is committed, expecting it to say nothing to do the second time.
+- **Category**: pitfall
+- **Home**: agents-rule
+- **Enforce-via**: prose
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
+### [2026-11-04] A stale sentence in a file outside every package's owned set has no owner, so the integration step carries one final coherence row
+- **Context**: Integrating packages that were built in parallel, each forbidden to edit a file outside its own set, and reading the merged chain once as a single reader.
+- **Finding**: Five sentences, made stale by four different packages, sat in files the stale-making package was not allowed to touch (a grep note, a flag description, a route list repeated in a hook's denial text, a test header, a hook count): two were contradictions of major weight and three were smaller. Three rounds of verifiers and the integration agent each reported them as not owned and built no text, so the chain would have shipped them; two coherence packages cut from the review's fix list closed them, each pinned by a test that reads the sentence together with the page it contradicted.
+- **Impact**: Give the integration step one last coherence row of one-clause fixes taken from the verdict notes, for the files no package owns, and have each verifier list those notes under a heading of their own so the row can be cut from them; pin each fix with one test over the pair of pages, not one pin per side.
+- **Category**: pitfall
+- **Home**: skill:orchestrate
+- **Enforce-via**: prose
+- **Verify-at**: plugins/orchestration/skills/orchestrate/SKILL.md
+- **Scope**: durable
+
+## Convention Clarifications
+
+### [2026-10-30] A skill's step list restated outside the skill goes stale when the skill grows
+- **Context**: Widening the review's trigger to every completion event, which the kit's own AGENTS.md, the seeded template, the README and a delegation skill each describe in their own words.
+- **Finding**: The review has had Steps 0 and 9 for a while, yet the Post-task review bullets of the kit's own AGENTS.md and of the template still list Steps 1 to 8 beside a checklist line that says Steps 0 to 9; a README row describes a narrower trigger than the skill, and a delegation skill paraphrases a rule the brief contract has since changed: 4 stale places, found by a verifier after the edit.
+- **Impact**: Point at the skill instead of restating its steps or its count in AGENTS.md, a template or a README row, and when a skill's steps or trigger change, sweep those four kinds of file for the retired wording.
+- **Category**: convention
+- **Home**: agents-rule
+- **Enforce-via**: test
+- **Verify-at**: AGENTS.md
+- **Scope**: durable
+
+### [2026-11-01] A default that encodes one project's stack decides the verdict for every other project, so it needs a switch or a NO VERDICT answer
+- **Context**: Fixing the initiative-cleanup audit script and adding a check to the flow-mapping validator, both of which ship to every consumer.
+- **Finding**: Four defaults each read one stack's facts as everyone's. `evidence` searched HEAD, so a symbol present only on the ref the roadmap had verified read ABSENT, and an unresolvable ref read ABSENT too, and so did a symbol git could not read as a pattern (`byte[]`), because the wrapper swallowed git's failure and printed nothing, while a dotted symbol matched a different word. `evidence` counted code by a suffix allowlist (`.py`, `.ts`, `.sql` and a few more), so a C# deliverable scored DOC-ONLY. `refs` opened only documentation, code and JSON suffixes, so a C# comment citing a spec folder was never listed. And the first build of the `quantifiers` check failed the default run, which turned maps that passed at the base red on that check alone: the kit's conformant fixture and every old test stayed green, so only a read-only run over a real consumer's maps showed the cost.
+- **Impact**: Give a default that classifies, searches or blocks a way out before it ships: a ref the caller names and that must resolve, a symbol searched as fixed text, exit 2 when the search could not run (never ABSENT), NO VERDICT for a file type the script does not count with a flag that counts it, every non-binary file for a reference sweep, and report-only for a new check until the maintainers rule on blocking (`--check <name>` selects it and then it fails the run). Measure a new default-run check over a real consumer's files, not only the kit's fixtures.
+- **Category**: convention
+- **Home**: agents-rule
+- **Enforce-via**: test
+- **Verify-at**: plugins/orchestration/skills/initiative-cleanup/scripts/audit_cleanup_targets.py
+- **Scope**: durable
+
+## External Service Quirks
+
+### [2026-10-28] A resumed or compacted session repeats a span of events under the same top-level uuid, and no repeat is byte-identical to its original
+- **Context**: Making the session-retrospective extractor count each event once, checked over 206 real sessions.
+- **Finding**: One of the 206 sessions held 1,423 repeated events (29% of its 4,971 lines) in a single run of consecutive lines, in a session with two compactions: the same `uuid` and message, but a re-stamped `slug` (all 1,423), `gitBranch` (863), `promptId` (326), `toolUseResult` (278) and `cwd` (66), so none equals its original line and a whole-line key finds nothing. Counted as written, the session read 930 tool calls for 608 real ones and 33 user messages for 22, which put it in the deep-dive selection of its folder; the other 205 sessions had no repeat.
+- **Impact**: Read transcript events through `iter_jsonl`, which keeps the first occurrence of each top-level `uuid` per file, and make any new script that counts raw transcript lines do the same. Compare a report with an older one knowing that a replayed session now reads lower, and that a replay can move a session across the deep-dive cap because the rule ranks by `toolUse`.
+- **Category**: external-api
+- **Home**: readme:plugins/core/skills/session-retrospective/references/extractor-output-schema.md
+- **Enforce-via**: test
+- **Verify-at**: plugins/core/skills/session-retrospective/scripts/test_extract_sessions.py
+- **Scope**: durable
+
+### [2026-10-28] The question tool's answer is an operator turn that no typed record carries, and only the record's structure tells it
+- **Context**: Defining one operator-turn predicate for the session-retrospective extractor, measured over 206 real sessions.
+- **Finding**: Besides typed records, the operator's words reach a main transcript as a `queued_command` attachment typed while the model was working (142 in the sample) and as the answer to the question tool (250 results, 358 answers, 74 of them free text the operator typed). An answer record has no `origin`, `turnOrigin`, `promptSource` or `isMeta` key (0 of 250) and its text comes in two harness wordings (181 and 69 results), so neither a stamp nor the wording tells it; only the call (the question tool, paired by tool-use id) plus an `answers` dict in the record's `toolUseResult` does. The old interaction-digest list held 973 operator turns where the new rule lists 1,347, and the header's number (`counts.userMsgs`, which counts injected text) differed from the operator-turn count in 199 of 206 sessions.
+- **Impact**: Identify an operator turn by record structure (a human origin stamp on a user record, a human `queued_command`, an `answers` dict from the question tool), never by wording, `promptSource` or `turnOrigin`, and never read `counts.userMsgs` as how much the operator said.
+- **Category**: external-api
+- **Home**: comment:plugins/core/skills/session-retrospective/scripts/extract_sessions.py:operator_turn_text
+- **Enforce-via**: test
+- **Verify-at**: plugins/core/skills/session-retrospective/scripts/test_extract_sessions.py
+- **Scope**: durable
+
+### [2026-10-28] Hook denials in sub-agent transcripts outnumber the main thread's, so the extractor's per-session count is a floor
+- **Context**: Adding `hookDenials` to the session-retrospective extractor, which counts the harness's `PreToolUse:<Tool> hook error:` prefix on error results.
+- **Finding**: Over 206 real sessions the main-thread count is 347 (the aggregate and an independent scan of the raw files agree), while the sub-agent transcripts of the same sessions hold 569 results with the same prefix: 62% of the 916 sit where the count does not look. A hook that denies by JSON leaves no prefix, so it is in neither number (the schema reference says why).
+- **Impact**: Quote `errorTaxonomy.hookDenials` as "at least N main-thread denials", never as a guard's total or as a rate per tool call; a total needs the same prefix rule run over the `agent-*.jsonl` files.
+- **Category**: external-api
+- **Home**: readme:plugins/core/skills/session-retrospective/references/extractor-output-schema.md
+- **Enforce-via**: test
+- **Verify-at**: plugins/core/skills/session-retrospective/scripts/test_extract_sessions.py
+- **Scope**: durable
+
+## Common Pitfalls
+
 ### [2026-10-15] The commit-message hygiene test reads every local ref, so a stale tag fails it locally
 - **Context**: Running the four checks in a worktree while rewriting the Python testing conventions.
 - **Finding**: `test_no_commit_message_leaks_the_source_project` walks `git rev-list --all`. A local tag `v0.1.0-preview.1` still points into pre-rewrite history whose initial commit names the source project, so the suite reported 1 failed locally while that commit is reachable from neither HEAD nor `origin/main` (`git for-each-ref --contains 002dadde` lists only the tag). A fresh CI checkout never sees it.

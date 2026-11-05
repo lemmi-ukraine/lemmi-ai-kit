@@ -4,10 +4,10 @@ user-invocable: false
 metadata:
   type: reference
 description: |
-  Enforce vertical slice architecture for Python backend features.
-  Covers feature directory scaffolding, layer separation (API/Service/Storage),
-  one-class-per-file convention, prompt-as-view pattern, enum placement, import rules,
-  and anti-patterns. Use when: creating new backend features, adding files to existing
+  Enforce vertical slice architecture for Python backend features. Covers feature directory
+  scaffolding, layer separation (API/Service/Storage), one-class-per-file convention,
+  prompt-as-view pattern, enum placement, import rules, and anti-patterns. Use when, in a Python
+  repository laid out by feature: creating new backend features, adding files to existing
   features, reviewing feature structure, or troubleshooting circular imports between features.
 ---
 
@@ -232,7 +232,7 @@ settings = {Feature}Settings()
 
 When decomposing an if/elif churn axis (event dispatch, action dispatch, ordered phases) into
 registries/pipelines, drive them from **append-only ordered registration modules** (one list-literal
-per axis, e.g. `event_behavior_registrations.py`) — adding a feature = new file + one list append;
+per axis, e.g. `event_handler_registrations.py`) — adding a feature = new file + one list append;
 no existing handler/router is touched, so merge conflicts vanish by construction. Two contracts make
 it work:
 
@@ -264,8 +264,8 @@ assumption, whereas the `current_position_seconds()` stamp it replaced would hav
 clock skew. Watch especially for **two-implementation seams**, where one strategy routinely
 populates a shared model field the other ignores: grep the shared dataclass's fields against each
 consumer. At the time of the fix `batch.turn_boundaries` was read only by the MONO assembler —
-that asymmetry was the whole finding. It now has readers in both (`stereo_transcript_assembly.py`
-and `transcript_assembly.py`), so grepping it today shows a healthy seam; the lesson is the
+that asymmetry was the whole finding. It now has readers in both (`dual_channel_assembly.py`
+and `single_channel_assembly.py`), so grepping it today shows a healthy seam; the lesson is the
 diagnostic, not the current count.
 
 ## Composition-Root Facades Are Exempt from Line-Count NFRs

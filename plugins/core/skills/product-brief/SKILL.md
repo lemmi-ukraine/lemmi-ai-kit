@@ -32,8 +32,9 @@ Do NOT activate for:
 
 Before any discussion, research the current state relevant to the user's idea:
 
-1. **Find the affected user flow** — read the onboarding docs and backend services
-   that the feature touches. Understand the current UX and data flow.
+1. **Find the affected user flow** — read the architecture and flow documents named
+   in AGENTS.md, then the backend services that the feature touches. Understand the
+   current UX and data flow.
 2. **Find existing constraints** — check for validation rules, configuration values,
    business logic, and AI token costs that are relevant.
 3. **Find adjacent features** — identify related functionality that the user may not

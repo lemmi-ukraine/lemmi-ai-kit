@@ -7,8 +7,8 @@ Each dimension is scored 0 (small), 1 (medium), or 2 (large). Sum all scores for
 | Total Score | Size | Workflow |
 |-------------|------|----------|
 | 0–2 | Small | Direct implementation |
-| 3–6 | Medium | Lightweight spec (single doc) |
-| 7+ | Large | Full spec (requirements + design + tasks) |
+| 3–6 | Medium | Lightweight spec (spec + tasks + test plan) |
+| 7+ | Large | Full spec (requirements + design + tasks + verification plan) |
 
 ## Concrete Examples
 
@@ -108,7 +108,7 @@ Each dimension is scored 0 (small), 1 (medium), or 2 (large). Sum all scores for
 
 The user can override the classification at any time:
 - "This is small, skip the spec" → proceed directly
-- "Make this a full spec" → create all three documents regardless of score
-- "Just do a lightweight spec" → create single combined document
+- "Make this a full spec" → create the four Large documents (requirements, design, tasks, verification plan) regardless of score
+- "Just do a lightweight spec" → create the three Medium documents (spec, tasks, test plan)
 
 Always accept overrides without argument.

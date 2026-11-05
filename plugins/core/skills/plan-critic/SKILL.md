@@ -22,7 +22,7 @@ You are an AI Platform Architect performing a self-review of a plan you just wro
 - **Verification-first**: "Can I prove this claim from evidence in the document, or am I assuming?"
 - **Pipeline-aware**: "Does every stage in the flow have an input contract, an output contract, and a failure contract?"
 
-**Your domain:** AI-integrated backend systems — LLM integration, real-time streaming (e.g., WebSocket voice/audio pipelines), prompt safety, async job processing. You know AI services fail in ways traditional services don't — hallucination, latency variance, rate limits, model drift, partial responses.
+**Your domain:** AI-integrated backend systems — LLM integration, real-time streaming, prompt safety, async job processing. You know AI services fail in ways traditional services don't — hallucination, latency variance, rate limits, model drift, partial responses.
 
 **Your constraint:** Approval must be earned through evidence. Vague criticism is as useless as blind approval. When you reject something, propose a concrete alternative.
 
@@ -40,11 +40,16 @@ Do NOT run this skill after implementation. The post-task-review skill covers th
 **Self-challenge is per-ARTIFACT, not per-task.** A second proposal written after the first one was
 challenged needs its own pass — the earlier challenge does not cover it, and treating one
 per-session run as satisfying the gate is how an unreviewed plan reaches the operator. The same
-applies to a revision: **re-run this skill on the revised document**, because a fix pass introduces
-defects at roughly the rate it resolves them. Measured on a churn-forensics plan — the second pass
-found three errors and *all three were introduced by the first pass's own correction* — so Step 4's
-resolution loop must re-derive every figure a fix touched rather than carrying the pre-fix number
-forward.
+applies to a revision, with a cap: **at most two runs per document**. **Re-run this skill once on
+the revised document**, because a fix pass introduces defects at roughly the rate it resolves
+them. Measured on a churn-forensics plan — the second pass found three errors and *all three were
+introduced by the first pass's own correction* — so Step 4's resolution loop must re-derive every
+figure a fix touched rather than carrying the pre-fix number forward. That re-run is the second
+and last run, because further runs mostly add churn: a later run edits only for a factual error,
+a contradiction, a missing item or an unsafe statement — not for wording, order or taste. The
+full re-read of the document belongs to that same run, not to an extra one, and a fresh-reader
+re-review counts as the second run, within the limits the post-task-review skill sets for a
+fresh reader.
 
 ---
 
@@ -52,15 +57,16 @@ forward.
 
 ### Step 1 — Orient and Run DoR Pre-Flight
 
-Read the document end to end. Identify:
+Read the document end to end. For a plan that orders work across initiatives, branches or pull
+requests, Step 2.7 also sends you to the documents its steps depend on. Identify:
 - The stated problem being solved
 - The affected layers (API / Service / Storage / Frontend / Infra)
 - New vs. modified components
-- Any external dependencies (DB, AI provider APIs, WebSocket, JWT, Cloud services)
+- Any external dependencies (DB, AI provider APIs, streaming channels, auth providers, Cloud services)
 
 Then run the DoR pre-flight from [references/dor-tables.md](references/dor-tables.md).
 
-### Step 2 — Run the Five Dimensions
+### Step 2 — Run the Seven Dimensions
 
 **Load and WALK the reference files — never review from a mental summary of them.** For
 high-blast-radius plans (production-wide behavior, shared contracts, data), an inline from-memory
@@ -79,6 +85,7 @@ Work through each dimension from [references/review-dimensions.md](references/re
    every other document. Dimension 5's testing bullets are about the *implementation's* tests and
    do not substitute for this pass, so a verification plan reviewed without Dimension 6 has been
    checked against nothing that applies to it.
+7. Quantified Claims — **only when a plan states attempts, retries, charges or a per-record field**.
 
 For every issue found, record it using the finding format from [references/finding-format.md](references/finding-format.md).
 
@@ -111,9 +118,20 @@ citation is exactly what survives a reading pass.
 
 Skip this step for every other document type.
 
+### Step 2.7 — Sequencing Check (plans that order work across initiatives, branches or pull requests)
+
+When reviewing a plan that orders work across initiatives, branches or pull requests, read the
+documents its steps depend on, not only the plan: each initiative's plans and prompts, the topology,
+the project's rules. List the preconditions they state: a clean tree, a pin or settle check against
+the trunk, a file deleted only after its work ships, a file with one editor, a trigger that expires.
+Test each step, in plan order, against them at the point where it runs. A step that runs before its
+precondition can hold is Major; one that loses work or breaks another initiative's gate is a Blocker.
+
+Skip this step for a single-slice spec.
+
 ### Step 3 — Apply the Universal Challenge Questions
 
-After the five dimensions, answer these six questions regardless of scope.
+After the dimensions, answer these six questions regardless of scope.
 Each question must produce either a confident answer or a finding:
 
 1. **Simplicity**: What is the simplest version of this that solves the stated problem?
@@ -129,7 +147,7 @@ Each question must produce either a confident answer or a finding:
    If the answer is "unknown" or "system goes down," that is a Blocker unless failure handling is already covered.
 
 3. **Rollback**: What is the rollback plan if this deploys with a bug?
-   If none is stated and this touches DB schema, API contracts, or WebSocket events, flag as Major Impact.
+   If none is stated and this touches DB schema, API contracts, or message and event formats, flag as Major Impact.
 
 4. **Problem evidence**: Does the document state — in operator-plain language, before any solution —
    WHAT problem it solves, HOW OFTEN it occurs (a measured figure with its window and source), and
@@ -142,7 +160,7 @@ Each question must produce either a confident answer or a finding:
 
 5. **Inherited framing**: which claims did this plan **inherit rather than measure**? This is the
    one question the other four cannot reach, because a premise every section shares reads as
-   coherence, not as a defect — and coherence is what the five dimensions check. Measured failure
+   coherence, not as a defect — and coherence is what the dimensions check. Measured failure
    (2026-08-15): this skill ran on an initiative plan and passed it, and the operator then found
    **three** scope gaps it had missed — prior shipped work, a substance-vs-delivery mis-framing, and
    an already-fixed row — each an unexamined inheritance rather than an inconsistency. One of them
@@ -163,10 +181,11 @@ Each question must produce either a confident answer or a finding:
      the frame by a human is not measurement.
    - Flag as **Major Completeness** when a scoping claim carries no provenance. This is the plan-time
      twin of question 6 below: 6 asks who chose the sample, this asks who chose the frame.
-   - **A review pass cannot audit its own framing.** This skill reads the plan against itself, so a
-     premise the plan and its source document share is invisible to every question above except this
-     one — which is why the checks here are phrased as "produce the provenance list", not "does it
-     look consistent". Where a plan overrode an inherited claim, make it record what it overrode.
+   - **A review pass cannot audit its own framing.** Apart from the cross-document checks (Steps 2.5
+     to 2.7), this skill reads the plan against itself, so a premise the plan and its source document
+     share is invisible to every question above except this one — which is why the checks here are
+     phrased as "produce the provenance list", not "does it look consistent". Where a plan overrode
+     an inherited claim, make it record what it overrode.
 
 6. **Evidence provenance**: for every load-bearing "all N instances have property P" claim, ask
    **who chose the N**. When the population came from a detector, scan, or grep the author also
@@ -222,13 +241,21 @@ For each finding:
      - No → revise the fix, re-apply, re-evaluate (one more iteration)
   4. If the fix requires information only the user has after 2 iterations: mark `[UNRESOLVED]`
 
+In a later run (the run cap in When This Skill Activates), resolve only the classes the run cap
+names; drop every other finding, a Minor included, without fixing or surfacing it.
+
+After the last fix pass, diff the document against its version before the first fix pass: every
+changed line must be a fix you made on purpose, and any other change is reverted.
+Copy the document before the first fix pass and diff against the copy; a tracked document may use
+git instead when git holds that version.
+
 ### Step 5 — Determine Output
 
 - If **any Blockers or Questions remain `[UNRESOLVED]`**: the document is **NOT APPROVED**.
   Present the document with all unresolved findings listed prominently at the top.
 - If **all Blockers and Questions are resolved**: the document is **APPROVED**.
   Present it normally. Mention resolved findings only if they changed the document significantly.
-- **Minor findings** are always fixed silently and never surfaced to the user.
+- **Minor findings** are never surfaced to the user: they are fixed silently, or dropped in a later run (Step 4).
 
 See [references/finding-format.md](references/finding-format.md) for severity definitions and output format.
 
@@ -236,15 +263,7 @@ See [references/finding-format.md](references/finding-format.md) for severity de
 
 ## Project-Specific Context
 
-When reviewing plans in this project, keep in mind:
+Read the project's own architecture, conventions and Do-not sections (its AGENTS.md) and review the plan against what they state; a convention the project does not state is not a finding. Two AI checks hold in every project:
 
-- **Vertical slice**: every new component must fit into `features/<feature>/{api,services,storage}`. Plans that place business logic in `core/` or cross-feature imports are architectural violations.
-- **One-class-per-file**: each new file must contain exactly one class, enum, or model. Plans that propose "combined" files need justification.
-- **WebSocket events**: any change to the core WebSocket event enums (e.g., client-event or outbound-event enums) affects the wire protocol. Stale-client behavior must be addressed.
-- **Alembic only**: schema changes without a migration are a Blocker. `ALTER TABLE` on tables with >10k rows needs a note on locking strategy.
-- **JWT auth**: internal endpoints use `BaseInternalClient` with JWT. Plans that call internal services without this are a Security Blocker.
-- **Prompt sanitization**: any plan that builds LLM prompts must reference the sanitization step. Raw string concatenation is a Security Blocker.
-- **Config, not env**: reading `os.getenv()` directly in services is a convention violation. Settings must come from `core/config.py`.
-- **Test seams and waits**: tests fake an external dependency only at the seam the project's testing conventions sanction (never by patching application code), and wait for asynchronous outcomes with bounded polling, never fixed sleeps. Plans whose tests patch application code, or leave the seam or the wait unspecified, are a Minor finding.
-- **AI failure modes**: any plan involving AI provider API calls (e.g., OpenAI) must address rate limits, timeouts, and unexpected response formats. Missing failure contracts are a Major finding.
-- **AI model facts must be doc-verified**: any plan that states a model ID, event name, session parameter, audio format, or capability limit must have that fact verified against the official docs via `WebFetch` (see the `ai-docs-lookup` skill). Unverified AI provider facts are a Major finding — in-memory knowledge is unreliable for this project.
+- **AI failure modes**: any plan involving AI provider API calls must address rate limits, timeouts, and unexpected response formats. Missing failure contracts are a Major finding.
+- **AI model facts must be doc-verified**: any plan that states a model ID, event name, session parameter, audio format, or capability limit must have that fact verified against the official docs via `WebFetch` (see the `ai-docs-lookup` skill). Unverified AI provider facts are a Major finding — in-memory knowledge is unreliable for these facts.

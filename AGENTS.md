@@ -2,8 +2,10 @@
 
 ## Commands
 
-Run from the repository root. The four CI gates are `ruff check`, `ruff format
---check`, `basedpyright` and `pytest`; all four must be green.
+Run from the repository root. Every command below except `uv sync --dev` is a CI gate:
+CI runs each as its own step, in this order, and every one must be green.
+`.github/workflows/ci.yaml` is the authority on which gates exist and what each runs,
+so none is counted here, and `tests/test_ci_gates_documented.py` fails if one goes missing.
 
 ```bash
 uv sync --dev
@@ -13,14 +15,22 @@ uv run basedpyright
 
 # ALWAYS pass --basetemp. A bare `pytest` and a bare `ruff format --check .` both
 # trip on an unreadable .pytest-tmp/ — ruff exits 2 while printing "already
-# formatted", which reads as a pass. Say which invocation you ran.
+# formatted", which reads as a pass. Say which invocation you ran. CI itself runs a
+# bare `uv run pytest`.
 T=$(mktemp -d); uv run pytest -q --basetemp "$T"; rm -rf "$T"
 
-# Before publishing or installing anything an adopter will consume.
+# The skill audit. Its 500-line SKILL.md cap can be crossed by an ordinary edit while
+# every gate above stays green.
+uv run python -B -m lemmi_ai_kit audit-skills --fail-on major
+
+# Before publishing or installing anything an adopter will consume, and as a CI gate.
 # -B is not optional: this package lives inside the plugin payload, so without it
 # the import writes .pyc into the tree being measured and the check blocks on
 # files it created itself. Exit 0 clean, 1 blocked, 2 could-not-measure — gate on
 # `!= 0`, because 2 means the answer is unknown, not good.
+# Run in a fresh clone of the tip, it is the push gate: it sees only what git holds.
+# Run in the real checkout, it is the install gate: an install copies the working
+# tree, so this run also sees untracked, ignored and modified files in the payload.
 uv run python -B -m lemmi_ai_kit publish-check
 ```
 
@@ -114,9 +124,9 @@ SKILL CREATION                          PERIODIC (weekly/biweekly)
 
 ### Task completion checklist (mandatory)
 When a task is complete, ALWAYS perform these steps before considering it done:
-1. **Post-task review** (major tasks: 3+ files, new feature, spec completion) — Run the full 8-step review: code review (1–6), documentation impact (7), learnings extraction (8). See the `post-task-review` skill.
+1. **Post-task review** (every completion event: a finished task of any size, a precondition stop, a gate report, a hand-off) — Run the full review, Step 0 through Step 9: blast radius (0), code review (1–6), documentation impact (7), learnings extraction (8), close self-challenge (9). See the `post-task-review` skill.
 2. **Learnings extraction** (all tasks) — Extract project-level findings and append to `.ai/learnings.md`. See the `task-learnings` skill.
-3. **Documentation updates** — If any modified files affect docs (per `references/doc-impact-matrix.md` in the `post-task-review` skill), update the affected documentation.
+3. **Documentation updates** — If any modified files affect docs (per the project's own code-to-docs matrix, else the sample in `references/doc-impact-matrix.md` in the `post-task-review` skill), update the affected documentation.
 4. **Rebuild/restart** — not needed. This repository runs no long-lived services; it ships a plugin and a support CLI, both of which take effect on the next invocation.
 
 ### Learnings system
@@ -135,9 +145,9 @@ Uses: product-brief (task)
 ### Spec-driven development
 Uses: spec-driven-dev (workflow), test-planner (task), plan-critic (review)
 - Auto-detect task size before implementation using scope analysis.
-- Small tasks (1–3 files, single concern): implement directly.
-- Medium tasks (4–10 files, new components): create a lightweight spec in `.specs/{task-name}/spec.md`.
-- Large tasks (10+ files, multi-feature, architectural): create full spec (requirements.md, design.md, tasks.md, test-cases.md + test-plan.md) in `.specs/{task-name}/`.
+- Small tasks (score 0 to 2, single concern): implement directly.
+- Medium tasks (score 3 to 6, new components): create three documents (spec, tasks, test plan) in `.specs/{task-name}/`; a design document is added only when the Technical Approach runs past about 60 lines.
+- Large tasks (score 7 or more, multi-feature, architectural): create full spec (requirements.md, design.md, tasks.md, test-cases.md + test-plan.md) in `.specs/{task-name}/`.
 - Large tasks: present requirements → approval → design → approval → then tasks and the verification plan **in parallel**, each with its own approval → implement.
 - Verification planning (`test-planner`) runs for Medium and Large tasks whose design touches executable code; skip it otherwise and say so. It harvests conditions by id from requirements rather than restating scenarios, gives every case exactly one owning test level, and assigns each NFR a verification method (automated / observability / manual / accepted-unverified).
 - Because tasks and the verification plan are written in parallel, reconcile them before implementing: every `TC-` needs an implementing task, and every task's `Test requirements` field cites `TC-` ids rather than prose.
@@ -148,15 +158,17 @@ Uses: spec-driven-dev (workflow), test-planner (task), plan-critic (review)
 
 ### Post-task review
 Uses: post-task-review (workflow), task-learnings (task), commit-message (task)
-- Run the 8-step review for all major tasks (3+ files modified, new features, spec completions).
+- Run the full post-task review at every completion event: a finished task of any size, a precondition stop, a gate report, a hand-off. A close with no changed files still runs every step, reading the report's claims where there is no diff, and always Step 9. Inside a workflow skill, run it as its own top-level step after that workflow ends (a workflow skill is never invoked from inside another).
+- Step 0: dependency and blast radius — list the dependents of every changed symbol and mark each checked or unknown, before the code review (see the `post-task-review` skill).
 - Steps 1–6: code review and convention compliance (see the `post-task-review` skill).
 - Step 7: documentation impact analysis — check and update affected docs.
 - Step 8: learnings extraction — capture and record project knowledge.
+- Step 9: close self-challenge — run last, before any hand-off or report; ask what the work did not look at and state the findings, or none (see the `post-task-review` skill).
 
 ### Plan self-review (plan-critic)
 Uses: plan-critic (review) — **universal, not limited to spec-driven-dev**
 - **Before presenting ANY plan, spec, or design document to the user**, run the plan-critic self-review. This applies to bug-fix plans, feature specs, refactoring plans, and any other structured plan.
-- Invoke the `plan-critic` skill after writing: `spec.md` (medium tasks), `design.md` (large tasks), `tasks.md` (large tasks, completeness-only), `test-cases.md` / `test-plan.md` (Dimension 6 plus the citation check), or any bug-fix/task plan.
+- Invoke the `plan-critic` skill after writing: a medium task's three documents (spec, tasks, test plan), together in one full review, `design.md` (large tasks), `tasks.md` (large tasks, completeness-only), `test-cases.md` / `test-plan.md` (Dimension 6 plus the citation check), or any bug-fix/task plan.
 - Resolve all Blocker and Major findings silently before presenting. Minor findings are fixed without mention.
 - If any Blockers or Questions cannot be resolved without user input, surface them prominently at the top of the presented document — do not suppress them.
 
@@ -170,6 +182,14 @@ Uses: orchestrate (workflow), agent-delegate (task)
 - A worker's summary is a claim: verify the actual output against the definition of done before
   merging. For high-stakes decisions, task independent workers in parallel without showing them
   each other's answers, then synthesize.
+- A session or worker that may write files, on a task that may outlive its turn or usage window (a wave, a delegated
+  task, a hand-off), writes a checkpoint to the file its brief or hand-off names at each milestone and at the latest
+  every hour (starting value, uncalibrated): what is done, what is left, where the results are, and the next wake
+  condition. One stopped by a usage limit, a network error or a crash resumes from its latest checkpoint, re-checked
+  by command, and loses only the work since (Orchestration pack: `agent-delegate` worker preamble, section 3).
+- Pass an explicit `model` on every sub-agent call, because a call that names none inherits its
+  parent's model, and size a wave in tokens rather than agents before you start it; see
+  `references/limit-recovery.md` in the `orchestrate` skill.
 - Keep single-agent when judgment is the work or the subtasks can't be crisply named.
 - With Core alone, work in one agent. If the user requests an Orchestration workflow,
   report `lemmi-ai-kit-orchestration@lemmi` as a prerequisite before that workflow starts.
@@ -249,14 +269,14 @@ cost attached is the first one dropped.
   inside a document about not hand-writing counts. Derive it, or state the command that
   answers it and no number at all.
 
-#### The four checks
+#### The CI gates
 
-- **Run all four — `ruff check`, `ruff format --check`, `basedpyright`, `pytest` — not
-  just the suite.** They are separate CI steps, so a green suite is evidence about the
-  suite. A formatting failure sat on `main` for five commits because sessions ran only
-  the tests, and four of those commits were the author of this rule.
-- **Prefix every `uv run` with `PYTHONDONTWRITEBYTECODE=1`.** All four import the package
-  and write `__pycache__` under `plugins/core/src/`, which is inside the pack payload —
+- **Run every gate in Commands — not just the suite.** They are separate CI steps, so a
+  green suite is evidence about the suite. A formatting failure sat on `main` for five
+  commits because sessions ran only the tests, and four of those commits were the author
+  of this rule.
+- **Prefix every `uv run` with `PYTHONDONTWRITEBYTECODE=1`.** Every gate imports the package,
+  and an import writes `__pycache__` under `plugins/core/src/`, which is inside the pack payload —
   so running the checks is enough to make `publish-check` refuse afterwards, with a
   failure naming files you never wrote. `export` is bash; PowerShell needs
   `$env:PYTHONDONTWRITEBYTECODE = "1"`, and getting that wrong sets nothing silently.
@@ -297,6 +317,33 @@ worktrees; concurrency is bought with disjoint paths and nothing else.
   correctly, asked whether a file was contested, and wrote it before the answer arrived.
   Path partition has no defence against that, or against one path set assigned twice, or
   against a rename sweep that crosses every file at once.
+
+#### Sub-agents with their own context
+
+A sub-agent never writes in this tree, so it adds no writer to the shared checkout: "disjoint
+paths and nothing else" above is about sessions that write here.
+
+- **Hand crisp, independent pieces to sub-agents instead of asking the operator to open another
+  session.** Four sessions in a row found nothing they could build and ended at "waiting on the
+  operator"; the fourth then used sub-agents and came back with an audit and two verified
+  patches. A worker's report is a claim: read the file it wrote, not its summary.
+- **A sub-agent that writes works in a `git archive` export of one pinned commit and delivers a
+  patch; only the main session applies and commits it.** Make the export with `mktemp -d`, because
+  the deepest tracked path was 134 characters at `b723236` and a long scratch root breaks the
+  Windows path limit. Never `git init` in a tree you deliver: a worker's `.git` and `.ruff_cache`
+  went into one diff, 183,227 bytes and 3,281 lines, before the patch was built from the named
+  files.
+- **Check a patch on fresh copies before it is applied.** An export shows a new test red on the old
+  text and green on the patch; the gates need a clone with its own `uv sync --dev` venv, because an
+  export has no git and fails tests on both sides (7 of 103 and 23 of 869 existing tests did).
+- **Read the usage window before a wave, and have every worker and session save a checkpoint to a
+  file at each milestone and at the latest every hour.** A checkpoint says what is done, what is
+  left and where the results are (commit ids, report files), so a worker or session stopped by a
+  usage limit is resumed from its latest checkpoint and loses only the work since. Two of three
+  workers died to usage-limit and access errors mid-wave, and a worker that dies returns exactly
+  what one that found nothing returns. A wave has no fixed width: it is sized in tokens against
+  the usage window first, then held to what the disk and the machine allow (see
+  `references/limit-recovery.md` in the `orchestrate` skill).
 
 #### Documents
 

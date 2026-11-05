@@ -3,7 +3,10 @@
 Verified invocation shapes for the external workers. CLIs evolve — on first use in a session,
 sanity-check against `<cli> --help` before relying on a flag. All three read the current working
 directory as the workspace; `cd` to the repo (or worktree) before invoking. Run long calls via
-Bash `run_in_background: true` and write output to a log file you read afterwards.
+Bash `run_in_background: true` and write output to a log file you read afterwards. The completion
+notice carries the exit code of the LAST command of the chain, so a gate followed by an `echo`
+reports 0 whatever the gate did: end the chain with the gate, or write its exit code to a file, and
+read the log.
 
 ## codex (OpenAI Codex CLI)
 

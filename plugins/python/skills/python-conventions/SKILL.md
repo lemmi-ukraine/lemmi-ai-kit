@@ -166,6 +166,9 @@ Where to put constants:
 - Feature-scoped: `features/{feature}/constants.py`
 - Core-scoped: `core/{module}/constants/{name}.py` (e.g. `core/jobs/constants/timing.py`)
 - Module-level in the consuming file is acceptable for single-consumer constants
+- Before adding a module-level constant to an existing module, run `grep -n '^<NAME>' <file>`: Python
+  rebinds a name silently, so the new constant can replace an older one that another check still
+  reads. A probe of the new check shows that it can see; only the suite shows that nothing else broke.
 
 ## basedpyright Compliance Patterns
 
@@ -461,10 +464,10 @@ never a parent directory — directory-scoped autofix silently reformats unrelat
 in that tree and folds them into your changeset. At review time, `git status` every change and revert
 edits to files outside the task's scope.
 
-**The verdict depends on the scope you pass**: `ruff check backend` (the canonical gate) exits 0
-while `ruff check backend tests` exits 1 on 35 pre-existing violations across 25 files. Always
-REPORT ruff with its scope spelled out, and confirm violations outside `backend` predate your branch
-before treating them as yours.
+**The verdict depends on the scope you pass**: the project's lint command (AGENTS.md § Commands)
+can exit 0 over its own scope while a wider scope exits 1 on pre-existing violations. Always
+REPORT ruff with its scope spelled out, and confirm violations outside that scope predate your
+branch before treating them as yours.
 
 ## Hot Paths & Logging Boundaries
 

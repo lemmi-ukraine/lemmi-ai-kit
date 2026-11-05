@@ -169,4 +169,4 @@ scaffold no-regression re-checked.
    now rather than estimated later.
 4. **Leave both gates as reports.** The criteria are written down; three of four are open for
    the drift gate and all five findings are open for the audit gate.
-5. `usage-guard` stays deferred. Unchanged this session.
+5. `quota-guard` stays deferred. Unchanged this session.

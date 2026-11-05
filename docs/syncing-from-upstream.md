@@ -181,13 +181,17 @@ three-way merge will attribute it to you.
 6. **Check the command forms an adopter can actually reach.** A skill that names
    `lemmi-ai-kit <sub>` names a console script from `[project.scripts]`, which exists
    only after a pip or uv install of the distribution. A plugin install places skills and
-   never installs the package. The reachable form is
-   `PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit <sub>`. This defect
+   never installs the package. The reachable form sets nothing before the command and
+   names the project (a skill of another pack prints `${KIT_CORE_PLUGIN_ROOT}`):
+   `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit <sub> ... --project "<absolute project root>"`.
+   `tests/test_printed_commands.py` parses every line a shipped file prints. This defect
    reached 16 call sites across 10 skills once, and it resolved in testing only because
    the development environment had the package installed. **When a skill names a command,
    check it against the install path the adopter uses, not the one the developer has.**
-7. **Run the four checks:** `uv run ruff check .`, `uv run ruff format --check .`,
-   `uv run basedpyright`, `uv run pytest`. If a vocabulary test in `test_checks.py` goes
+7. **Run every CI gate:** `uv run ruff check .`, `uv run ruff format --check .`,
+   `uv run basedpyright`, `uv run pytest`,
+   `uv run python -B -m lemmi_ai_kit audit-skills --fail-on major` and
+   `uv run python -B -m lemmi_ai_kit publish-check`. If a vocabulary test in `test_checks.py` goes
    red because upstream added a changelog type or a learnings category, that is the alarm
    working — extend the constant in `plugins/core/src/lemmi_ai_kit/checks.py`. Do not loosen the test
    to keep a refresh green.
@@ -208,13 +212,13 @@ that check, and a half-updated manifest blocks every other session working on th
 Seven upstream skills are declined, each with its reason recorded in the
 `[[unported]]` rows of [upstream-sync.toml](upstream-sync.toml). In summary:
 
-- **`feedback-audit`, `interview-transcript-analysis`** — the source project's interview
+- **`rubric-audit`, `session-record-analysis`** — the source project's interview
   product. Same coupling class this pack removed four prompt-engineering skills for.
-- **`prompt-domain-reviewer`, `prompt-eng-reviewer`, `prompt-engineering-conventions`,
-  `review-prompts`** — removed as product-coupled. This repo was measurably *ahead* of
+- **`prompt-topic-reviewer`, `prompt-craft-reviewer`, `prompt-writing-conventions`,
+  `check-prompts`** — removed as product-coupled. This repo was measurably *ahead* of
   upstream on two of them, which is evidence of extraction-time generalization rather
   than neglect.
-- **`usage-guard`** — deferred, not rejected. Generically valuable, but 12,509 words of
+- **`quota-guard`** — deferred, not rejected. Generically valuable, but 12,509 words of
   which 9,049 are PowerShell, tied to a scheduled task and a statusline feed. It needs a
   cross-platform pass, as its own task, never inside a sync.
 
@@ -231,9 +235,11 @@ They are **correct** diffs:
   falls back to the current directory.
 - **Upstream's `.cursor/` and `.kiro/` thin references** are out of scope for a Claude
   Code plus Codex plugin.
-- **No hooks.** Upstream enforces some rules with a `PreToolUse` hook; this kit ships
-  none, so a rule whose enforcement is a hook arrives as a suggestion. Port the rule
-  knowing that, or leave it.
+- **Only the kit's own hooks.** Upstream enforces some rules with a `PreToolUse` hook; the
+  kit ships just the hooks registered in `plugins/core/hooks/hooks.json` (a gate on
+  learnings drains, and a shell-prefix gate that does nothing until a project switches it
+  on), so a rule whose enforcement is any other hook arrives as a suggestion. Port the
+  rule knowing that, or leave it.
 
 ## 6. Known outstanding debt
 
@@ -284,7 +290,7 @@ Both of the kit's upstream-facing checks ship as reports and are promoted only o
 evidence. Recording the criteria here is what stops "promote it later" from meaning
 "never".
 
-**The drift check → a CI gate.** Promote when all four hold:
+**The drift check → a CI gate.** Promote when each of these holds:
 
 1. Two consecutive syncs have run where the report's `BEHIND` set matched the set of
    skills the maintainer independently intended to carry — no false positives from the

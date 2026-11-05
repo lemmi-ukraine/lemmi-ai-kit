@@ -12,12 +12,14 @@ Pattern: `tasks/{PREFIX}-{slug}.md`
 
 ## Prefix Selection
 
+Use the prefixes the project's own task conventions define; its AGENTS.md names them. The rows below are the usual ones.
+
 | Prefix | When to Use | Example |
 |--------|-------------|---------|
 | `BUG-` | Confirmed bug with clear reproduction path from logs | Exception in handler, wrong status code returned |
 | `PROD-` | Runtime/operational issue (performance, resources, flaky behavior) | Timeout spikes, memory growth, intermittent 503s |
 | `TECH-` | Design issue that needs refactoring to prevent recurrence | Missing error handling pattern, tight coupling |
-| `FEATURE-` | Missing functionality that caused the error | No retry logic, missing validation |
+| the project's own prefix, if any | Missing functionality that caused the error; some projects reserve the new-work prefix for product work, so file none by default | No retry logic, missing validation |
 
 ## Template
 

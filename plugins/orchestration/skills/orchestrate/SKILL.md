@@ -81,7 +81,8 @@ Every delegation gets a written brief. A good brief has exactly:
    [references/brief-template.md](references/brief-template.md)).
 5. **The completion gates ride in the DoD, run BEFORE the handoff, and operator questions are
    self-addressed.** An implementation brief's definition of done includes the AGENTS.md
-   task-completion checklist (post-task-review for 3+ files, learnings extraction) — **and the brief
+   task-completion checklist (post-task-review at every completion event: a finished task of any
+   size, a precondition stop, a gate report, a hand-off; and learnings extraction) — **and the brief
    must state that it runs before the worker writes its return handoff, not after.** The handoff is
    the only thing you will read; one written first carries whatever the review would have corrected,
    and you inherit it as fact (measured 2026-08-15: a pre-review handoff shipped a false gate claim
@@ -98,10 +99,16 @@ Every delegation gets a written brief. A good brief has exactly:
    **The completion checklist is ALWAYS in scope, whatever the declared file set says.** A worker
    closed with *"learnings extraction — still deferred because `.ai/learnings.md` sits outside my
    declared file set"*, and 12 sessions in the window never ran the review at all. The disjoint-file
-   partition exists to stop destructive write collisions; `.ai/learnings.md` and
-   `.ai/ai-changelog.md` are append-only, do not collide destructively, and `python -m lemmi_ai_kit lint`
-   catches the merge artifacts that do occur. State this exemption in the brief — a scope
-   rule that does not name its own exceptions gets read as exempting the obligations too.
+   partition exists to stop destructive write collisions; `.ai/learnings.md`, `.ai/ai-changelog.md`
+   and, for appends only, `.ai/improvement-hypotheses.md` are append-only, do not collide
+   destructively, and the kit's data-file lint catches the merge artifacts that do occur. A worker
+   appends a new hypothesis entry; a Status or marker edit stays with the validator's run, outside
+   this rule, so the exemption's append-only reason stays true. State this exemption in the brief —
+   a scope rule that does not name its own exceptions gets read as exempting the obligations too.
+   If the project or the plan bars workers from these files, the brief names one writer for each
+   entry (the worker in its own branch, the session that receives the return, or the next
+   consolidation) and adds the files to that writer's set; any other worker returns its drafts and
+   lists each as not done, with the writer's name (under `## Status` in a hand-off).
 
 6. **The target branch, as an assertion the worker runs — not as prose.** The brief carries its
    layer's branch from `.specs/{initiative}/topology.md`, and the worker asserts
@@ -116,13 +123,12 @@ Every delegation gets a written brief. A good brief has exactly:
    branches"), then **the orchestrator owns placement** and must say, in the brief, where the
    worker's output will be committed and by whom.
 7. **Every list in the brief is a starting set written before the mechanism was known — say so in
-   the brief.** Three of its lists fail the same way, and the worker cannot tell which sentences
-   aged:
-   - **The file set.** A brief's declared files are a scope boundary drawn before anyone knew where
-     the fix lives; the required file was the one it omitted. The worker must derive its sweep from
-     the *claim* (2–3 phrasings, grepped tree-wide) and report **"N named / M actually carried it /
-     K found outside the list"** — over-inclusion is caught free by grepping before editing, but
-     under-inclusion is invisible unless someone deliberately searches outside the list.
+   the brief.** Three of its lists fail the same way, and the worker cannot tell which sentences aged:
+   - **The file set.** A brief's declared files are a scope boundary drawn before anyone knew where the fix lives;
+     the required file was the one it omitted. The worker must derive its sweep from the *claim* (2–3 phrasings,
+     grepped tree-wide, untracked files included: `git grep --untracked` or a working-tree grep) and report **"N
+     named / M actually carried it / K found outside the list"** — over-inclusion is caught free by grepping
+     before editing, but under-inclusion is invisible unless someone deliberately searches outside the list.
    - **The governing documents.** A brief is not a complete statement of what governs the task:
      search `.specs/` by the **symbol you are about to change**, not by the brief's doc list. One
      dispatch missed four `tasks.md` items and two use-cases that constrained the exact function
@@ -135,28 +141,36 @@ Every delegation gets a written brief. A good brief has exactly:
    that inherited claims are to be verified rather than adopted — the one time that instruction was
    present, it is what caught a wrong figure before it propagated.
 
-8. **Point the worker at the preamble FILE — do not restate the rules inline, and require the
-   report to be written incrementally.** Two clauses, both measured:
+8. **Point the worker at the preamble FILE — do not restate the rules inline (the two harness
+   limits excepted), and require the report written incrementally if it may write.** Two clauses, both measured:
 
    - *Point, don't paste.* Give the worker the path to
      [`../agent-delegate/assets/worker-preamble.md`](../agent-delegate/assets/worker-preamble.md)
-     (evidence discipline, working-tree discipline, how to return a result). Across 59 sub-agent
-     transcripts, prompts that restated the rules verbatim were violated at **32/32 (100%)** versus
-     **25/27 (93%)** for prompts that did not — restating inline has **no measurable effect**. The
-     only transcripts with zero violations were pointed at a rules *file*. One condition in a small
-     corpus, so: current best practice with a named test (re-measure the violation rate), not a law.
-     It costs one line either way.
-   - *Write the report file EARLY and INCREMENTALLY.* State this in the brief. **22% of one measured
-     sub-agent corpus was killed mid-run by the usage window and returned nothing at all** — and a
-     worker that dies returns exactly what a worker that found nothing returns, so you cannot tell a
-     missing gate from a passing one. In the one recorded controlled contrast, the worker given this
-     clause survived the window that killed its sibling. Also treat it as a hypothesis with a test:
-     re-measure the no-return rate.
+     (evidence discipline, working-tree discipline, how to return a result, and the size, stop and
+     close rules). Across 59 sub-agent transcripts, prompts that restated the rules verbatim were
+     violated at **32/32 (100%)** versus **25/27 (93%)** for prompts that did not — restating inline
+     has **no measurable effect**. The only transcripts with zero violations were pointed at a rules
+     *file*. One condition in a small corpus, so: current best practice with a named test
+     (re-measure the violation rate), not a law. It costs one line either way.
+   - *Write the report file EARLY and INCREMENTALLY — if the worker may write.* State this in the
+     brief. **22% of one measured sub-agent corpus was killed mid-run by the usage window and
+     returned nothing at all** — and a worker that dies returns exactly what a worker that found
+     nothing returns, so you cannot tell a missing gate from a passing one. In the one recorded
+     controlled contrast, the worker given this clause survived the window that killed its sibling.
+     Also treat it as a hypothesis with a test: re-measure the no-return rate. A harness may refuse a
+     sub-agent's write of a report file: such a sub-agent returns its findings as text, so "write your
+     report early" applies only to workers allowed to write.
 
    Both clauses exist because **a prose rule does not bind, and a seam binds only the exact shape it
    matches.** When you add a guard, match the resulting *state*, not a leading token: guards that
    match a token are routinely reached by a rephrasing, and the violation counter then reads zero
    for a worker that violated throughout.
+
+   **Two harness limits are the exception to "point, don't paste"** — the template restates both,
+   because a worker meets them on its first command and its last write. A leading `NAME=value`
+   assignment before a command can be denied by a shell hook: put the value inline, write multi-step
+   logic to a script file, or use the interpreter's UTF-8 mode flag instead of an environment
+   variable. The other limit is the refused report file, in the clause above.
 
 9. **The close block — paste it verbatim into every brief.** The single largest behavioural finding
    in the measured corpus: an operator hand-pasted an adversarial self-challenge in **114 of 303
@@ -172,27 +186,37 @@ Every delegation gets a written brief. A good brief has exactly:
    > **Close — run in this order, do not wait to be asked.**
    > 1. Self-challenge: is it detailed enough? Have you missed something? Say what it changed,
    >    including "nothing".
-   > 2. Then the task-completion review, if you have not already run it. Both run BEFORE the
-   >    handoff.
-   > 3. Save everything into the handoff.
-   > 4. Then write a short summary for whoever reads it next: bullets, ≤10 lines, plain language,
-   >    no internal ids.
+   > 2. Then the completion review: run `lemmi-ai-kit-core:post-task-review` through the Skill tool,
+   >    whatever the size of the task (a hand-written review does not replace it), if you have not
+   >    already run it. Both run BEFORE the handoff. A worker without the Skill tool reads the
+   >    skill's steps and says so in its closing message.
+   > 3. Lessons: run `lemmi-ai-kit-core:task-learnings`. If your brief bars the learnings
+   >    buffer, put the lesson drafts in your handoff and say so in your closing message.
+   > 4. Save everything into the handoff (the report file or return note your brief names).
+   > 5. Then write a short summary for whoever reads it next: bullets, at most 10 lines, plain
+   >    language, no internal ids, with the review's step list and the lessons result in it, and say
+   >    in plain words that the session may be closed.
+   >
+   > Write the hand-off from `.ai/templates/handoff.md`: line 1 stays
+   > `<!-- handoff-contract: v2 -->`, and `## Continue` and `## Orchestrator summary` stay in it;
+   > run the one-file hand-off lint on it before step 5.
 
-   Plus three operator-interface rules, which apply to **every turn addressed to a human**, not just
-   to briefs:
+   Step 4 writes a file: a sub-agent whose harness refuses the write returns the handoff content as
+   text (item 8).
+
+   Plus three operator-interface rules, for **every turn addressed to a human**, not just briefs:
 
    - **Answer your own question first.** Escalate only what you genuinely cannot settle. One measured
      window recorded 284 clarifying calls across 62 sessions, the largest cluster being "scope / what
      next"; two sessions dispatched into work a peer already owned while holding the tool that would
      have told them. Asking is free to you and expensive to the reader, and that asymmetry is
-     invisible from inside a session.
-   - **Expand every internal id, board code, metric name and acronym on first use.** Sessions
-     repeatedly produced questions the operator could not parse ("I used internal IDs instead of
-     plain language"). This clause has recurred across four consecutive measured windows — the test
-     is not "is the brief self-contained" but whether *any* turn addressed to a human is readable.
-   - **The human-facing summary is a separate artifact from the handoff.** The handoff is written for
-     the next agent; nothing specified a shape for the message a person actually reads. Keep it to
-     ≤10 plain-language bullets.
+     invisible from inside a session. To ask without blocking the work that does not depend on the answer: [references/operator-questions.md](references/operator-questions.md).
+   - **Expand every internal id, board code, metric name and acronym on first use.** A term of art
+     needs one defining clause, and a decision question states your recommendation first, then the
+     options (both from one recorded case). Questions the operator could not parse recurred across
+     four consecutive measured windows, so the test is whether *any* turn to a human is readable.
+   - **The human-facing summary is the hand-off's `## Orchestrator summary`, said again as the
+     closing message.** The rest is for the next agent; keep this to ≤10 plain-language bullets.
 10. **Any rule a close-time lint enforces by EXACT MATCH goes in the brief's close section
     verbatim — never by pointing at the template that carries it.** Measured: every first-draft
     handoff in one day failed the same two exact-match rules, because the briefs said "use
@@ -211,8 +235,7 @@ both in [references/dispatch-gates.md](references/dispatch-gates.md) §1–§2.
 ### 1. Plan first, then execute
 Decompose the goal into briefs. Present the plan — subtasks, routing, parallel groups, what you
 keep for yourself — before dispatching (run the plan-critic self-review first, per AGENTS.md).
-Keep coupled, load-bearing pieces in your own thread; parallelize only independent, well-bounded
-ones.
+Keep coupled, load-bearing pieces in your own thread; parallelize only independent, bounded ones.
 
 **First, is this an initiative rather than a task?** If the work has more than one deliverable, AND
 will outlive this session, AND has an operator gate before it is done — **stop and run
@@ -246,11 +269,18 @@ Three rules, enforced at this step because dispatch is where the choice exists:
 
 - **Preflight the usage window before every wave.** Check the remaining usage window (whatever
   your client exposes — a statusline rate-limit feed, or the provider's console) before any
-  fan-out of ≥3 workers. Past the warn threshold: do not start the
-  wave — checkpoint first (continuation notes + workflow `resumeFromRunId` lines), then wait or hand
-  off. A wave that dies at the wall costs re-dispatch AND duplicate-dispatch races: every resume
-  message must state who else is on the item ("two workers ran this assignment" was found by the
-  worker, not the orchestrator).
+  fan-out of ≥3 workers, and note how old the reading is: a reading older than a few minutes is
+  stale during a fan-out, and every other live session draws on the same window. Past the warn
+  threshold: do not start the wave — checkpoint first (continuation notes; a workflow
+  `resumeFromRunId` line only for a resume in this session, a standalone stage script for a hand-off to another session; see [runtime hazards](../agent-delegate/references/runtime-hazards.md)), then wait or hand off. **If the project's AGENTS.md or its override
+  documents say the usage window is not a gate**, report the reading and its age, if one exists,
+  and never defer, shrink or skip verification on a wave because of it. The kit ships no usage
+  guard, so never presume a reading exists; a project that opts out accepts the risk the gate
+  protects against (waves killed at the limit, duplicate dispatch after a re-run). Such a project
+  still states its own cap on simultaneous agents and counts every live session on the account
+  toward it; the kit sets no number and no default cap. A wave that dies at the wall costs
+  re-dispatch AND duplicate-dispatch races: every resume message must state who else is on the
+  item ("two workers ran this assignment" was found by the worker, not the orchestrator). Size the wave in tokens, probe each model and wait out a printed reset with [limit-recovery](references/limit-recovery.md).
 - **Epic implementation slices leave the session by default** — the plan-time rule, now owned by
   `initiative-planner` (step 3 assigns each slice a session; step 4 derives what may run at once).
   What still binds you at run time: the orchestrator thread keeps plan, briefs, verification and
@@ -305,13 +335,15 @@ choosing a worker.**
 > you touch the plan.
 
 **Default 1 — auto-dispatch (§2a), not a brief for the operator to paste.** Emitting a brief the
-human carries into a new terminal (§2b) is the *fallback*, for work that genuinely needs the
-operator's own approval loop — not the normal path. Measured: **56 of 129 sessions (43%) opened
-with a hand-pasted brief**, 26 on one day, with the operator acting as transport. One orchestrator
-had already proved the alternative — 7 headless launches, four concurrent — and the **next
-orchestrator on the same initiative used none**, because the practice lived in that session
-instead of in this file. If you are about to write "paste this into a new session", first say why
-§2a's launcher will not do.
+human carries into a new terminal (§2b) is the unasked fallback, for work that needs the operator's
+own approval loop. Measured: **56 of 129 sessions (43%) opened with a hand-pasted brief**, 26 on
+one day, with the operator acting as transport. One orchestrator had already proved the alternative
+— 7 headless launches, four concurrent — and the **next orchestrator on the same initiative used
+none**, because the practice lived in that session instead of in this file. A pasteable prompt the
+operator asks for by name is written, not argued: a request by name measures what the launch costs,
+it is not a lapse to correct. A `pasted` plan row the operator will drive is that request made at
+plan time: write it, no reason needed; any other `pasted` row says why in `Blocked by`. Unasked, if
+you are about to write "paste this into a new session", first say why a §2a launch will not do.
 
 **Default 2 — parallel, up to the cap; serialize only on a *named* contended file.** Dispatch
 every unblocked session at once, bounded by the concurrency cap `initiative-planner` derived at
@@ -326,8 +358,8 @@ inherit a previous wave's serialization.
 - External CLIs: run via Bash with `run_in_background: true` so you can keep working; you are
   re-invoked when they exit. Cap parallel **writers** at what the workspace tolerates — parallel
   writers must be isolated by **declared disjoint file sets** (never new git worktrees — standing
-  user rule 2026-08-07, see `parallel-session-safety` §11; overlap ⇒ sequential); opinion/analysis
-  workers run read-only and can fan out freely.
+  user rule 2026-08-07, see `parallel-session-safety` §11; overlap ⇒ sequential; execution lanes:
+  `spec-driven-dev` reference); opinion/analysis workers run read-only and can fan out freely.
 - **Partition by inventory, not by batch.** Enumerate the FULL file inventory first and assert
   every file class has an owner — or an explicit not-in-scope entry. A fix fan-out partitioned by
   audit batch left `workflows/*.md` belonging to no batch, so two live dead references survived all
@@ -336,8 +368,8 @@ inherit a previous wave's serialization.
   through per-scope owners is exactly as global as the union of the scopes.
 - Safety: prefer read-only/plan modes for opinion tasks (`codex exec` default sandbox,
   `cursor-agent --mode plan`, `grok --permission-mode plan`). Grant write access only for
-  implementation briefs, only workspace-scoped, never bypass/danger modes. Ensure `git status`
-  is clean (or checkpoint) before any worker may write.
+  implementation briefs, only workspace-scoped, never bypass/danger modes. Ensure `git status` is clean, or
+  checkpoint the dirty set by content ([12g](../parallel-session-safety/references/shared-index-protocol.md)), before any worker may write.
 - **Before auto-dispatching into a cleared blocker, read
   [references/dispatch-gates.md](references/dispatch-gates.md) §3–§6** — the forward plan as a
   wave-boundary deliverable, the staging-list intersection a comment-only branch needs, one dispatch
@@ -346,24 +378,23 @@ inherit a previous wave's serialization.
 ### 2a. Launching a headless `claude -p` session — measured mechanics
 
 Whether fan-out is *economic* is a plan-time question (`initiative-planner` step 5.1 and its
-`../initiative-planner/references/dispatch-economics.md`). These are the
-run-time facts, all verified on CLI **2.1.224**, 2026-08-15:
+`../initiative-planner/references/dispatch-economics.md`). These run-time facts, verified on CLI
+**2.1.224**, 2026-08-15, are applied by `${CLAUDE_SKILL_DIR}/scripts/launch_session.py` (`--help`):
 
 - **`-p` and `--bg` are mutually exclusive.** The CLI rejects the pair naming the conflict —
   *"--print never starts the interactive session that `claude agents` attaches to."* Launch under the
   Bash tool's `run_in_background` instead; same outcome, different mechanism.
-- **Always append `< /dev/null`.** Without it every launch prints *"no stdin data received in 3s"*
-  and stalls three seconds — thirty wasted seconds across a ten-session wave.
+- **Always append `< /dev/null`.** Without it a launch stalls 3 s: *"no stdin data received in 3s"*.
 - **Pass repo-relative paths, never absolute POSIX ones.** Measured: a `/nonexistent-probe.md`
   argument reached the CLI rewritten to sit under the Git Bash install root. MSYS rewrites
   `/abs/path` that way, so `--append-system-prompt-file /abs/…` silently loads the wrong file.
 - **`--append-system-prompt-file` exists but is absent from `--help`'s flag list.** Confirmed by
   differential probe: it returns `Error: Append system prompt file not found` where an invented flag
-  returns `error: unknown option`. Use it to inject
-  `.claude/preambles/spawned-session-host-rules.md` — spawned sessions do **not** inherit `AGENTS.md`.
-- **`--effort` is a real flag** with a validated enum (`low·medium·high·xhigh·max`). The `Agent`
-  tool has no effort parameter, so `/effort` inside a prompt string remains the fallback for native
-  subagents only.
+  returns `error: unknown option`. Use it to inject the project's own host-rules file, if it keeps
+  one — spawned sessions do **not** inherit `AGENTS.md`.
+- **`--effort` is a real flag** (`--help` lists `low·medium·high·xhigh·max`); on CLI **2.1.316** an
+  unknown value only warns and the default effort runs. The `Agent` tool has no effort parameter, so
+  `/effort` inside a prompt string remains the fallback for native subagents only.
 - **Validate a launch table before dispatching it, at zero API cost:** append a sentinel flag
   (`--zzz-sentinel`) to each row; `unknown option '--zzz-sentinel'` proves every real flag parsed.
   **This checks flag names and syntax only** — `--model` has no enum (`--help`: *"Provide an alias …
@@ -372,11 +403,11 @@ run-time facts, all verified on CLI **2.1.224**, 2026-08-15:
 - **Background subagents inside a `-p` run are cut off at ten minutes** by default, which would
   **silently truncate** a long research session. Raise it with
   `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS` (`0` removes the cap) — set it in settings `env`, not as an
-  inline shell prefix, which defeats this host's prefix-anchored permission rules.
+  inline shell prefix, which defeats this host's prefix-anchored permission rules. A scripted run has hazards of its own: [runtime hazards](../agent-delegate/references/runtime-hazards.md).
 
 ### 2b. Dispatching to a peer session (cross-session)
 A peer session is not a tool call: you emit a brief, the user carries it, and the result comes back
-as a file. Three rules make that survivable — the full contract is in `agent-delegate`
+as a file. These rules make that survivable — the full contract is in `agent-delegate`
 (dispatch-brief shape) and `parallel-session-safety` (handoff artifact schema):
 
 - **Preconditions are commands, not prose.** Write every state claim as something the delegate
@@ -395,12 +426,24 @@ as a file. Three rules make that survivable — the full contract is in `agent-d
   `parallel-session-safety` §10. Delegates never run stack surgery or outward actions
   (`gh stack sync`/`rebase`/`modify`/`merge`/`submit`, any push) — those are user-authorized at
   session boundaries, where layer PRs open as drafts.
+- **The first step finds a duplicate.** The first write is the hand-off stub at the return path, made
+  only if the path is absent: that is the done check (the return note exists; `git log -1` on its own
+  paths). A live-peer check follows it (the host's live-session list, else files changed in 30 minutes
+  at its target paths). The delegate stops on either, and a live peer sets the stub `blocked`; the
+  [paste line](references/brief-template.md) carries state, repository folder and branch.
 
 ### 3. Review before merging — results are claims
-A worker's summary is a claim, not verification. For every returned result: read the actual
-diff/files, run the brief's definition-of-done check yourself (or have fast-worker run it), and
-reconcile against the plan. If something's off, **rewrite the brief and spin another worker** —
-don't silently patch over it yourself unless the fix is trivial.
+A worker's summary is a claim, not verification. For every returned result: read the actual diff/files, run the brief's
+definition-of-done check yourself (or have fast-worker run it), and reconcile against the plan. If something's off,
+**rewrite the brief and spin another worker** — don't silently patch over it yourself unless the fix is trivial. Prove no path
+outside the declared set changed by equal hashes ([12g](../parallel-session-safety/references/shared-index-protocol.md)).
+**A verifier is an instrument too.** Give it one to three controls: real claims with one fact changed, planted unmarked by the
+dispatcher or invented by the pass. Trust its confirmations only if it rejected every control; a return without control
+results is unverified. Keep the key out of the artifact. A fresh reader (a new agent that re-derives each claim from the
+pinned source) gets a brief with at most four claims per pass, a tool-call budget stated in the brief and, from the
+repository, the counting traps its AGENTS.md lists, if any; the author re-runs every finding it cites.
+A note's status line and update time, and a workflow's findings, are claims too: [references/reading-returns.md](references/reading-returns.md).
+To check a returned note's Verification commands: [references/return-note-verification.md](references/return-note-verification.md).
 
 **The review loop has three skills and none is optional:**
 
@@ -439,8 +482,7 @@ against `git grep -l <symbol> <ref>` — **not** `--is-ancestor`, which answers 
 after a squash-merge and produced three consecutive "nothing is merged" verdicts when all twelve PRs
 had merged — write the forward plan **before** deleting anything, partition every deletion target
 per file into tracked vs untracked (untracked is recoverable by nothing), retire parked specs with
-their revival triggers instead of deleting them, and run the comment pass over what the initiative
-added.
+revival triggers instead of deleting them, and run the comment pass over what the initiative added.
 
 Skipping this is why two board rows read `UNCOMMITTED` after their work was committed, and why an
 entire measurement corpus was deleted with no copy anywhere.

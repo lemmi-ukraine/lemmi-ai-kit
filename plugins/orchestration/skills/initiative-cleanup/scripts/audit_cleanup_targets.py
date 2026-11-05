@@ -47,14 +47,19 @@ Subcommands
             record. A brief with no other home is not spent, whatever its session's status.
   fundep    Is a path read by an executable (shell array, python literal)? Then it is a
             FUNCTIONAL dependency, not a citation, and moving it breaks a program.
-  evidence  Classify a symbol as CODE / DOC-ONLY / ABSENT, and flag it if it is shared
-            across several spec directories (a shared symbol proves nothing about any one).
-  refs      Inbound-reference sweep for a deletion target, using a working-tree walk --
-            `git grep` reads the index and cannot see untracked files.
+  evidence  Classify a symbol as CODE / DOC-ONLY / ABSENT in a ref (--ref, default HEAD),
+            and flag it if it is shared across several spec directories on disk (a shared
+            symbol proves nothing about any one). The symbol is searched as a fixed string,
+            never as a pattern. A hit in a file type counted as neither code nor
+            documentation is NO VERDICT; --code-suffix counts a type as code.
+  refs      Inbound-reference sweep for a deletion target, using a working-tree walk of
+            every non-binary file -- `git grep` reads the index and cannot see untracked
+            files.
   coverage  Assert that every FILE under a root is dispositioned by the plan document, so a
             partial audit cannot present itself as a complete one.
 
-Exit codes: 0 = gate passed, 1 = gate failed, 2 = usage error.
+Exit codes: 0 = gate passed, 1 = gate failed, 2 = usage error, or a search that could not run
+(a ref that does not resolve, a `git grep` that failed): never read a 2 as ABSENT or as a pass.
 """
 
 from __future__ import annotations
@@ -64,13 +69,20 @@ import subprocess
 import sys
 from pathlib import Path, PurePosixPath
 
-# Extensions treated as CODE for implementation evidence. A hit anywhere else -- above all
-# in a README -- is documentation OF the thing, not the thing. A 2026-08-09 run scored 34
-# specs "implemented" and 14 of those hits were in README.md files.
+# Extensions treated as CODE for implementation evidence. A hit in a documentation file --
+# above all a README -- is documentation OF the thing, not the thing. A 2026-08-09 run
+# scored 34 specs "implemented" and 14 of those hits were in README.md files. The list stays
+# an allowlist on purpose: a list derived as "everything but documentation" would count data
+# and generated files as code. A hit in a type on neither list (a C# file, say) is NO VERDICT
+# until the caller names that type with --code-suffix.
 CODE_SUFFIXES = frozenset(
     {".py", ".ts", ".tsx", ".js", ".sql", ".toml", ".yaml", ".yml"}
 )
 DOC_SUFFIXES = frozenset({".md", ".txt", ".rst"})
+
+# git treats a file as binary when a NUL byte shows up in this many leading bytes; the
+# reference sweeps below skip such files exactly as `git grep -I` does.
+BINARY_SNIFF_BYTES = 8000
 
 # Reference sweeps skip these: archives and scratch, where a stale pointer is expected and
 # rewriting one would falsify a historical record.
@@ -207,6 +219,64 @@ def git(root: Path, *args: str) -> list[str]:
         errors="replace",
     )
     return [line for line in proc.stdout.splitlines() if line.strip()]
+
+
+def _resolves_to_commit(root: Path, ref: str) -> bool:
+    """Does `ref` name a commit? `git()` swallows failures, so `git grep` against a ref git
+    cannot resolve would print nothing and read as ABSENT -- the one verdict that must never
+    come from a command that did not run. A leading dash is refused as an option, not a ref."""
+    if not ref or ref.startswith("-"):
+        return False
+    proc = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            f"{ref}^{{commit}}",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    return proc.returncode == 0
+
+
+def _git_grep_files(root: Path, symbol: str, ref: str) -> tuple[list[str], str | None]:
+    """(`ref:path` rows for the files of `ref` whose text holds `symbol`, why git could not search).
+
+    The symbol is a fixed string. `-F` keeps a dot, a star or a bracket from being pattern
+    syntax (a dotted symbol matched a different word, and a bracketed one made git fail), and
+    `-e` keeps a symbol that begins with dashes from being read as an option. `git grep` exits 0
+    on a hit and 1 on none; any other status means it did not search. `git()` would turn that
+    into an empty list and `cmd_evidence` into ABSENT, the one verdict that must never come
+    from a command that did not run, so the reason is returned instead.
+    """
+    proc = subprocess.run(
+        ["git", "-C", str(root), "grep", "-l", "-I", "-F", "-e", symbol, ref, "--"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if proc.returncode not in (0, 1):
+        message = " ".join(proc.stderr.split())[:200] or "no message"
+        return [], f"exit {proc.returncode}: {message}"
+    return [row for row in proc.stdout.splitlines() if row.strip()], None
+
+
+def _read_text_unless_binary(path: Path) -> str | None:
+    """The file's text, or None when it is unreadable or `git grep -I` would skip it as binary."""
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    if b"\0" in data[:BINARY_SNIFF_BYTES]:
+        return None
+    return data.decode("utf-8", errors="replace")
 
 
 def _partition(root: Path, target: str) -> tuple[set[str], set[str], set[str]]:
@@ -461,7 +531,7 @@ def cmd_extraction(root: Path, target: str, records: list[str]) -> int:
       1. The file's own text says its work has not happened yet (PENDING_MARKERS).
       2. No decision record cites it, so archiving it is the only copy leaving the repo.
 
-    Measured 2026-08-19: several briefs in `feedback-relevance-and-realism` carry traps
+    Measured 2026-08-19: several briefs in `ranking-relevance-study` carry traps
     recorded nowhere else, and one (`DG1-run-the-deferred-gates.md`) is a brief for a session
     scheduled ~2 weeks out. "The session returned" is not the test; "the reasoning has
     another home" is.
@@ -552,7 +622,7 @@ def cmd_fundep(root: Path, target: str) -> int:
 
     A citation goes stale silently and is fixed by an edit. A functional dependency BREAKS,
     and no amount of re-annotation repairs it. `regenerate-prompt-packet.sh` in
-    `feedback-relevance-and-realism` holds 9 capture paths in a `FILES=()` array; each is an
+    `ranking-relevance-study` holds 9 capture paths in a `FILES=()` array; each is an
     argument to a running program, not a reference in prose. Crossing that line without
     noticing is how a documentation sweep silently becomes a code change.
     """
@@ -615,27 +685,75 @@ def cmd_fundep(root: Path, target: str) -> int:
     return 0
 
 
-def cmd_evidence(root: Path, symbol: str, spec_root: str) -> int:
-    """Classify implementation evidence for a symbol.
+def _spec_dirs_naming(root: Path, spec_root: str, symbol: str) -> list[str]:
+    """Names of the folders directly under the spec root whose files mention the symbol.
+
+    Read from the working tree, never from a ref: spec folders are routinely untracked, so a
+    ref's `git grep` could not see them and a symbol named by several would never be SHARED.
+    """
+    base = root / spec_root
+    if not base.is_dir():
+        return []
+    owning: list[str] = []
+    for folder in sorted(p for p in base.iterdir() if p.is_dir()):
+        for path in folder.rglob("*"):
+            rel = path.relative_to(base).as_posix()
+            if not path.is_file() or any(m in f"/{rel}" for m in ARCHIVE_MARKERS):
+                continue
+            text = _read_text_unless_binary(path)
+            if text is not None and symbol in text:
+                owning.append(folder.name)
+                break
+    return owning
+
+
+def cmd_evidence(
+    root: Path,
+    symbol: str,
+    spec_root: str,
+    ref: str = "HEAD",
+    code_suffixes: tuple[str, ...] = (),
+) -> int:
+    """Classify implementation evidence for a symbol in `ref`.
 
     Two failure modes this exists to stop, both measured on 2026-08-09:
       1. An unscoped `git grep <symbol>` matches README.md and scores documentation as
          implementation (14 of 34 verdicts in one run).
       2. A symbol owned by a DIFFERENT spec matches and scores the wrong spec as shipped
-         (`transcript_gradeability` belongs to the eligibility work, not to the STT spec
+         (`shared_scoring_rules` belongs to the eligibility work, not to the STT spec
          whose own header says "no code written").
+
+    A hit in a file type on neither list is NO VERDICT, not DOC-ONLY: the gate has not seen
+    what that file is. `code_suffixes` adds types to the code list for this run only. The ref
+    must resolve to a commit (exit 2 otherwise), and the spec folders that decide SHARED are
+    the ones on disk under `spec_root`, tracked or not. The symbol is searched as a fixed
+    string, and a `git grep` that fails exits 2 too: an empty answer from a command that did
+    not run is not ABSENT.
     """
-    hits = git(root, "grep", "-l", "-I", symbol, "HEAD")
+    if not _resolves_to_commit(root, ref):
+        print(f"FAIL  ref does not resolve to a commit: {ref}")
+        return 2
+
+    hits, failure = _git_grep_files(root, symbol, ref)
+    if failure is not None:
+        print(f"FAIL  git grep failed while searching {ref} ({failure})")
+        return 2
     paths = [h.split(":", 1)[1] for h in hits if ":" in h]
 
-    code = [p for p in paths if Path(p).suffix in CODE_SUFFIXES]
-    docs = [p for p in paths if Path(p).suffix in DOC_SUFFIXES]
+    counted = CODE_SUFFIXES | frozenset(code_suffixes)
+    code = [p for p in paths if Path(p).suffix in counted]
+    docs = [p for p in paths if p not in code and Path(p).suffix in DOC_SUFFIXES]
     other = [p for p in paths if p not in code and p not in docs]
 
-    print(f"EVIDENCE  symbol={symbol!r}")
+    print(f"EVIDENCE  symbol={symbol!r}  ref={ref}")
     if code:
         verdict = "IMPLEMENTED"
-    elif docs or other:
+    elif other:
+        uncounted = ", ".join(sorted({Path(p).suffix or "(no suffix)" for p in other}))
+        verdict = (
+            f"NO VERDICT: hits in uncounted file types ({uncounted}); see --code-suffix"
+        )
+    elif docs:
         verdict = "DOC-ONLY  (documentation of the thing, NOT the thing)"
     else:
         verdict = "ABSENT -- NO VERDICT (this is NOT 'not implemented')"
@@ -648,9 +766,9 @@ def cmd_evidence(root: Path, symbol: str, spec_root: str) -> int:
             print(f"  {label:<6}: ... +{len(group) - 5} more")
 
     if not paths:
-        # Measured 2026-08-09: `ai-driven-interview-end` was recorded "not implemented" from an
+        # Measured 2026-08-09: `auto-session-close` was recorded "not implemented" from an
         # ABSENT result. The spec had shipped; the probe used EndProposalBehavior when the real
-        # symbols were ai_end_settings / ai_end_debug_propose_action / end_proposed. ABSENT is
+        # symbols were close_settings / close_debug_action / end_proposed. ABSENT is
         # far more often a bad guess than a missing feature, so the tool refuses to let a single
         # miss read as a negative verdict.
         print()
@@ -671,13 +789,7 @@ def cmd_evidence(root: Path, symbol: str, spec_root: str) -> int:
         print("       another repo) -- this tool can only see this working tree")
         print("  If no symbol resolves, the verdict is NO VERDICT and the spec STAYS.")
 
-    owning = sorted(
-        {
-            p.split("/")[1]
-            for p in paths
-            if p.startswith(f"{spec_root}/") and "/" in p[len(spec_root) + 1 :]
-        }
-    )
+    owning = _spec_dirs_naming(root, spec_root, symbol)
     if len(owning) > 1:
         print()
         print(
@@ -699,15 +811,17 @@ def cmd_refs(root: Path, target: str) -> int:
     `git grep` reads the index and cannot see untracked files. Measured 2026-08-04: after a
     real retirement `git grep` returned 0 inbound references while a working-tree walk
     returned 10+, all in a live hand-off whose preconditions then silently failed.
+
+    The walk opens every file of every type, ignored or not. It skips the archive markers
+    and binary files, the one filter `git grep -I` also applies: a suffix list cannot know
+    which language cites the target (a C# comment naming a spec folder was never opened).
     """
     needle = target.rstrip("/")
     live: list[tuple[str, int, str]] = []
     archived = 0
 
     for path in root.rglob("*"):
-        if not path.is_file() or path.suffix not in (
-            DOC_SUFFIXES | CODE_SUFFIXES | {".json"}
-        ):
+        if not path.is_file():
             continue
         rel = path.relative_to(root).as_posix()
         if rel.startswith(needle):
@@ -715,11 +829,8 @@ def cmd_refs(root: Path, target: str) -> int:
         if any(m in f"/{rel}" for m in ARCHIVE_MARKERS):
             archived += 1
             continue
-        try:
-            text = path.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        if needle not in text:
+        text = _read_text_unless_binary(path)
+        if text is None or needle not in text:
             continue
         for lineno, line in enumerate(text.splitlines(), 1):
             if needle in line:
@@ -834,8 +945,25 @@ def main() -> int:
     p_ev = sub.add_parser(
         "evidence", help="classify a symbol as CODE / DOC-ONLY / ABSENT"
     )
-    p_ev.add_argument("--symbol", required=True)
+    p_ev.add_argument(
+        "--symbol",
+        required=True,
+        help="text to find, searched as a fixed string: no pattern syntax, no escaping",
+    )
     p_ev.add_argument("--spec-root", default=".specs")
+    p_ev.add_argument(
+        "--ref",
+        default="HEAD",
+        help="commit-ish to search (default HEAD); pass the ref the roadmap step verified",
+    )
+    p_ev.add_argument(
+        "--code-suffix",
+        action="append",
+        default=[],
+        dest="code_suffixes",
+        metavar="SUFFIX",
+        help="count this file suffix as code, e.g. .cs (repeatable)",
+    )
 
     p_refs = sub.add_parser("refs", help="working-tree inbound-reference sweep")
     p_refs.add_argument("--target", required=True)
@@ -893,7 +1021,10 @@ def main() -> int:
     if args.cmd == "fundep":
         return cmd_fundep(root, args.target)
     if args.cmd == "evidence":
-        return cmd_evidence(root, args.symbol, args.spec_root)
+        suffixes = tuple(
+            s if s.startswith(".") else f".{s}" for s in args.code_suffixes
+        )
+        return cmd_evidence(root, args.symbol, args.spec_root, args.ref, suffixes)
     if args.cmd == "refs":
         return cmd_refs(root, args.target)
     if args.cmd == "coverage":

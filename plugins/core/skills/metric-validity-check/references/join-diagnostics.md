@@ -161,3 +161,28 @@ Skip the nearest-match join and say so if any of these hold:
 
 In those cases the fallback is an aggregate before/after comparison, which is far weaker but honest.
 Say which you used and why.
+
+## Counting recorded commands, and reading a zero
+
+A count of commands in recorded sessions (how many runs used a tool, how many sessions touched a
+path) goes wrong in four ways that none of the seven diagnostics above can see:
+
+- **The counter counts the investigator's own probes.** They are recorded in the same store being
+  searched. Count per session, and report the figure that predates the investigating session's own
+  probes ("0 before the investigating session's own probes"), with the matching lines as samples.
+- **A zero is not a finding until the probe has seen something.** Test it on a fixture pair built
+  from real output: one copy as it is (expect 0) and one with a single planted matching row (expect
+  1). A probe that reads 0 on both cannot see.
+- **A fixed-string grep whose pattern holds both quote kinds can return a silent 0.** The shell
+  resolves the quotes before grep runs, so the string searched for is not the one typed. Count with a
+  search tool that takes the pattern as data, or from a script file.
+- **In a command that a probe runs through a shell, a bare `|` is a pipe**, not part of the
+  pattern: it splits the command, so the probe measures a different command from the one meant.
+  Quote it, or keep the pattern in a script file.
+
+**A sum of two presence counts is not their union.** "Sessions that used tool A" plus "sessions
+that used tool B" counts a session that used both twice: say 6 sessions used A, 5 used B and 4
+used both, and the sum is 11 where the union is 7. Take the union from the per-session records,
+counting a session once when either is present, or subtract the overlap and report it beside the
+figure. The same holds for any per-entity presence count: files touched, users affected, runs
+that hit a signal.

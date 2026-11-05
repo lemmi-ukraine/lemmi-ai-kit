@@ -41,17 +41,21 @@ cd lemmi-ai-kit
 uv sync --dev
 ```
 
-## The four checks
+## The CI gates
 
-These four are the gates: CI runs exactly them, in this order, on every pull request,
+These are the gates: CI runs exactly them, in this order, on every pull request,
 and there is no `branches:` filter on the `pull_request` trigger, so your PR gets the
-full job whatever it is based on. Run them locally first:
+full job whatever it is based on. `.github/workflows/ci.yaml` is the authority on what
+each one runs, and `tests/test_ci_gates_documented.py` fails if this list falls behind
+it. Run them locally first:
 
 ```bash
 uv run ruff check .            # lint
 uv run ruff format --check .   # formatting
 uv run basedpyright            # types, strict mode
 uv run pytest                  # tests
+uv run python -B -m lemmi_ai_kit audit-skills --fail-on major   # skill audit
+uv run python -B -m lemmi_ai_kit publish-check                  # payload matches the git tree
 ```
 
 `ruff format .` (without `--check`) fixes formatting in place. `basedpyright`
@@ -59,7 +63,7 @@ runs in strict mode over `plugins/core/src/` and `tests/` only — the asset tre
 and all packs' skills trees are excluded, since they are prose, not code.
 
 **Prefix every one of them with `PYTHONDONTWRITEBYTECODE=1`, or export it once for
-the session.** All four import the package, and each import writes `__pycache__/*.pyc`
+the session.** Every gate imports the package, and each import writes `__pycache__/*.pyc`
 under `plugins/core/src/` — inside the pack payload. `publish-check` refuses to publish
 while the payload carries anything git does not track, so running the checks is enough
 to block a publish afterwards, with a failure naming files you never wrote:
@@ -74,7 +78,7 @@ $env:PYTHONDONTWRITEBYTECODE = "1"        # PowerShell
 
 **Do not skip the PowerShell form if that is your shell.** `export` is not a PowerShell
 command: it errors and **the variable is not set**, and nothing downstream tells you.
-The four checks still pass, and `git status` still reports a clean tree — the stray
+The gates still pass, and `git status` still reports a clean tree — the stray
 bytecode is gitignored, so the usual "am I clean?" reflex answers yes while the publish
 path is already blocked. Measured on a fresh clone: six `.pyc` files written, then
 `PUBLISH BLOCKED (1 of 3 probe(s) non-empty)`.
@@ -89,8 +93,8 @@ git clean -Xdf -- plugins/core plugins/research plugins/orchestration plugins/sk
 
 Gate on `!= 0`, not on `== 1`: exit 2 means the check could not measure and is **not** a pass.
 
-**Run all four, not just `pytest`.** They are separate CI steps, so a green suite says
-nothing about the other three — a formatting failure sat on `main` for five commits
+**Run every gate, not just `pytest`.** They are separate CI steps, so a green suite says
+nothing about the others — a formatting failure sat on `main` for five commits
 because the sessions touching it ran only the tests.
 
 **CI runs one more step that is not a gate.** *Upstream drift report* is marked
@@ -183,7 +187,7 @@ you did.
    Put anything long in `references/` and link to it, rather than growing one
    file — the loader reads `SKILL.md` first and follows links only when needed.
 2. Register it in `plugins/core/src/lemmi_ai_kit/assets/manifest.toml` with a
-   `name`, `profile`, `invocation` and `summary`. All four are validated. The
+   `name`, `profile`, `invocation` and `summary`. Each is validated. The
    manifest lives in the core pack and registers the skills of **every** pack.
    - `profile` must be one of the values in `PROFILES` in
      [`plugins/core/src/lemmi_ai_kit/manifest.py`](plugins/core/src/lemmi_ai_kit/manifest.py)
@@ -289,7 +293,7 @@ anything else. It is one person's attention, not a gate: no named standard a pac
 must clear, no sign-off, no audit. Nothing in that section entitles a reader to
 treat a merged pack as checked.
 
-What does run on every pull request is [the four checks](#the-four-checks), and
+What does run on every pull request is [the CI gates](#the-ci-gates), and
 what they enforce is **shape, not substance**:
 
 - the manifest and the skill directories agree in both directions, so nothing
@@ -358,5 +362,5 @@ Two things specific to packs:
 - **Prose gets read closely.** In a skills pack the prose *is* the product, so
   expect line-level comments on wording. That is not nitpicking — a skill is
   instructions a model follows literally.
-- **Green CI is necessary, not sufficient.** The four checks catch portability
+- **Green CI is necessary, not sufficient.** The CI gates catch portability
   and structure. They cannot tell whether a skill's advice is correct.

@@ -32,7 +32,8 @@ base advanced from one OID to another mid-review, which is what makes three-dot 
 
 ### 2. Gates — with exit codes AND scope
 
-The most valuable line in the source report was an admission:
+The most valuable line in the source report was an admission (the gate commands below are one
+repository's examples):
 
 ```markdown
 **Gates run:** `.venv/Scripts/ruff.exe check backend` → exit 0, "All checks passed!" ·
@@ -40,8 +41,9 @@ The most valuable line in the source report was an admission:
 **pytest was NOT run** — no test verdict in this document is an executed result.
 ```
 
-- **Scope is part of the result.** `ruff check backend` exits 0 while `ruff check backend tests` exits
-  1 on pre-existing violations. A gate name without its scope is not a result.
+- **Scope is part of the result.** The project's lint command (AGENTS.md § Commands) can exit 0
+  over its own scope while a wider scope exits 1 on pre-existing violations. A gate name without
+  its scope is not a result.
 - **Name the gates that did NOT run.** Silence reads as "passed" to every later reader.
 - A gate whose output you did not read is `UNREAD`, never `passed` — including one exiting 1 for
   reasons in files you did not touch. Attribute by filename and say so.
@@ -191,7 +193,7 @@ a complete result recording real coverage. **A missing report is not the same th
 
 ## Note on the worked example
 
-`tasks/TECH-interview-stabilization-review.md` is the run this format generalises from and is worth
+`tasks/TECH-release-stabilization-review.md` is the run this format generalises from and is worth
 reading for its header and its corrections discipline — but it **predates this format** and does not
 conform: it uses the older Critical/High severity scale, has no Confidence or Disposition columns, and
 folds corrections inline rather than into § 7. Read it for shape, not as a template.

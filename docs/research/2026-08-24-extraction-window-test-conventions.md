@@ -25,7 +25,7 @@ the real unit of judgement was two, not sixteen.
 
 The decisive evidence was already in the shipped file: **the kit had genericized this exact file
 before.** Upstream's `InterviewFactory` ships as `OrderFactory`, `interview_factory` as
-`order_factory`, "Lemmi backend" as "Python backend". The file's DI factories are already named on
+`order_factory`, "Consumer backend" as "Python backend". The file's DI factories are already named on
 a `get_*` convention (`get_openai_client`, `get_cloud_storage_service`, `get_http_client_factory`),
 and it already establishes both `tests/fixtures/` (an auth-token builder) and `AsyncMock`.
 

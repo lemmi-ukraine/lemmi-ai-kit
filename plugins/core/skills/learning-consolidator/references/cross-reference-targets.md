@@ -4,6 +4,10 @@ When the learning-consolidator promotes entries to rules, skills, or conventions
 files across the project may need corresponding updates. This reference maps each promotion
 target to its dependent files.
 
+> **A sample.** The files below are one project's layout: its editor-rule mirrors (`.cursor/`,
+> `.kiro/`), its README paths and its onboarding docs. The project's own AGENTS.md names its homes
+> and replaces this map; copy the shape, not the paths.
+
 > **Extension note:** `.cursor/rules/` may mix `.md` and `.mdc` files.
 > Check the actual on-disk extension before creating/editing a cursor rule —
 > assuming `.md` can create a divergent duplicate.

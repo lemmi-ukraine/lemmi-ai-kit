@@ -208,8 +208,9 @@ fixing to verify content quality.
 
 **Bounds:** at most 2 re-review cycles — if findings persist after the second, surface the
 remainder to the user instead of iterating further. After ANY fix round, re-run the mechanical
-structural subset (Phase 5 checklist / `python -m lemmi_ai_kit audit-skills`): content fixes can push SKILL.md past
-500 lines or add unlinked files.
+structural subset (Phase 5 checklist / `uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit audit-skills --project "${KIT_PROJECT_ROOT}" --skills-dir "${KIT_SKILLS_DIR}"`,
+with the three variables set as the pack README says): content fixes can push SKILL.md past 500
+lines or add unlinked files.
 
 ### Phase 8 — Validate (one real run)
 

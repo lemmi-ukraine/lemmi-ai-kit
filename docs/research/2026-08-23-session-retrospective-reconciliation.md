@@ -94,10 +94,10 @@ base or the shipped file, so all merge-introduced. Six tripped the DoD-4 asset g
 
 | Site | Was | Now |
 |---|---|---|
-| `SKILL.md` ×3, `report-template.md`, `extractor-output-schema.md` | `ai_files_lint.py` | `PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint learnings --list-entries` |
+| `SKILL.md` ×3, `report-template.md`, `extractor-output-schema.md` | `data_files_lint.py` | `PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint learnings --list-entries` |
 | `SKILL.md` | `audit_skills.py` | `… python -m lemmi_ai_kit audit-skills` |
 | `SKILL.md`, `extractor-output-schema.md` | `.claude/skills/<name>/scripts/…` | `"${CLAUDE_SKILL_DIR}/scripts/…"` |
-| `extractor-output-schema.md`, `extract_sessions.py` | names `interview-transcript-analysis` as a live consumer | "any downstream analysis skill" (the kit does not ship that skill) |
+| `extractor-output-schema.md`, `extract_sessions.py` | names `session-record-analysis` as a live consumer | "any downstream analysis skill" (the kit does not ship that skill) |
 
 Consistent with the standing decision that the kit ships neither upstream linter and same-skill
 sites use the CLI too.

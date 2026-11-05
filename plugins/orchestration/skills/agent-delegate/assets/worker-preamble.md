@@ -17,14 +17,19 @@ inline has no measured benefit to trade against it.
 
 ---
 
-## 0 · Host rules (project-specific — fill this in)
+## 0 · Host rules (project-specific — kept in the project's host-rules file)
 
-> **Adopters: replace this block** with your environment's hard constraints — shell and path
-> rules, forbidden directories, interpreter names, redirection requirements. Keep it to
-> constraints a worker can *violate*, not general advice.
->
-> Leave the heading in place even if the block is empty: a worker that finds the section missing
-> cannot tell "no host rules" from "the preamble was truncated".
+> The project's own host rules — shell and path rules, forbidden directories, interpreter names,
+> redirection requirements — live in the project's own host-rules file, if it keeps one, not in
+> this file: an edit to an installed plugin copy does not survive an update. Point every brief at
+> that file as well as at this preamble, and never edit this copy. Keep that file to constraints a
+> worker can *violate*, not general advice. A worker reads the host-rules file its brief names; a
+> brief that names none means there are no host rules.
+
+**Shell hooks (a kit default).** A leading `NAME=value` assignment before a command can be denied
+by a shell hook. Put the value inline in the command, write multi-step logic to a script file, or
+use the interpreter's UTF-8 mode flag (`python -X utf8` for Python) instead of an environment
+variable.
 
 ---
 
@@ -62,7 +67,8 @@ Each rule below is a measured failure mode, not a style preference. The unifying
 - **On conflicting sources return UNKNOWN with both quotes.** Do not silently pick one.
 - **Verify a path exists before reading it.** Do not read a conventional path you assume is there.
 - **Treat your brief's file list as a starting set, not a boundary.** Derive the sweep from the
-  *claim*, grep tree-wide, and report `N named / M actually carried it / K found outside the list`.
+  *claim*, grep tree-wide, untracked files included (`git grep --untracked` or a working-tree grep),
+  and report `N named / M actually carried it / K found outside the list`.
   Over-inclusion is caught free by grepping before you edit; under-inclusion is invisible unless you
   deliberately search outside the list.
 
@@ -107,11 +113,28 @@ Assume this checkout is shared and that other sessions are writing to it right n
 - **A suite or gate verdict over a tree others are editing is void.** Snapshot the changed-file
   list before and after any run you will report, and discard the result if the set changed.
 
+**Durable state.** Work held only in a scratch clone or in your context is lost when you are
+stopped. Keep it where a stop or a cleanup cannot reach it:
+
+- **Cut a patch into a git-excluded folder after each verified commit.** A clone can be lost or
+  damaged, and the patch is what the work is rebuilt from.
+- **Do no overnight work in a clone under the OS temp folder.** The system can empty that folder on
+  a schedule or at a restart, and the clone goes with it.
+- **Run `git fsck` and back up the pack when you make a clone.** Objects can go missing from a
+  clone later: the check shows it started whole, and the backup is what you restore from.
+- **Create and delete a test run's temporary folder (pytest's `--basetemp`) inside one command.** A
+  delete left for a later step is the one a stopped worker skips, and the folders left behind fill
+  the disk.
+- **Check free disk space against the floor your brief names before you start a wave.** A full disk
+  stops every agent at once, in the middle of a write.
+
 ---
 
 ## 3 · Write your report file EARLY and INCREMENTALLY
 
-Write the deliverable as you go, not at the end.
+Write the deliverable as you go, not at the end — **but only if you are allowed to write.** A harness
+may refuse a sub-agent's write of a report file. If yours does, do not retry or route around the
+refusal: return your findings as text in your final message (section 4) and say the write was refused.
 
 Workers are killed mid-run by usage limits often enough to matter — **22% of one measured
 sub-agent corpus returned nothing at all**. A worker that dies returns exactly what a worker that
@@ -121,11 +144,37 @@ In the one recorded controlled contrast, a worker told to write its report early
 survived the same usage window that killed its sibling, and delivered. One occurrence — so this is
 a practice with a named test (re-measure the no-return rate after adopting it), not a law.
 
+**Checkpoints.** The report holds what you found; a checkpoint holds where the work stands, so a
+successor can pick it up if you are stopped before the report or the continuation prompt of section
+5 is written. These rules bind the orchestrating session as much as every worker it starts.
+
+- **If you may write files, write a checkpoint at each milestone and at the latest every hour
+  (starting value, uncalibrated).** A milestone is a verified step, a commit, a finished sub-task or
+  a hand-off to another worker. A worker that may not write files writes none and returns its
+  findings as text (section 4).
+- **A checkpoint says what is done, what is left and where the results are.** Name the commit ids,
+  the report files and paths, and the state of anything shared that you hold, such as a lock.
+- **A checkpoint names its next wake condition: the event or the time that resumes the work, with
+  the command that reads it.** A successor that cannot tell what you were waiting for starts over.
+- **Write it where your brief says.** That is the hand-off file it names, in its Status, "Not done"
+  and Continue sections, or the checkpoint file it names, with the newest block first. A brief that
+  names neither asks for no checkpoint.
+- **A worker or session stopped by a usage limit, a network error or a crash is resumed from its
+  latest checkpoint.** The resumer re-reads it and re-checks each claim in it by command before
+  acting, and only the work since that checkpoint is lost.
+
+**Publish before extras.** Write the result (or create the branch or ref your brief names) before
+any optional verification, and keep the evidence on disk: a session limit stops every agent at
+once, and a resume starts from that state.
+
 ---
 
 ## 4 · Returning your result
 
 - **Your final message *is* the return value** — data for the orchestrator, not a status report.
+- **If the harness refused your report file, your final message is the report:** return the
+  findings as text, in the report format your brief gave, and say the write was refused (section 3).
+  Without that, the refusal reads as a worker that found nothing.
 - **Results are claims.** State what you ran and what it output. If you could not verify something,
   say UNKNOWN and name what would settle it.
 - **Report your own error history — it is part of the result, not noise.** Killed commands, crashed
@@ -138,3 +187,36 @@ a practice with a named test (re-measure the no-return rate after adopting it), 
 - **If your brief turns out to be wrong, say so explicitly and early.** A brief premise that does
   not reproduce is the single most common defect in delegated work (measured at roughly half of
   sessions). Report the discrepancy as a finding; do not quietly work around it.
+- **A stop at an action only the operator can take opens your return with that action and its
+  owner.** Say what stays blocked until then, before any state or table. A bare "proceed" in reply
+  to such a stop is unresolved: it names no action and is not consent to bypass the gate, so
+  re-check the gate with the command that reads it and, while it is closed, ask one question with
+  explicit options.
+- **Return acceptance criteria as a table.** If your brief points at a task file or lists acceptance
+  criteria, return them as a table before the rest of your report: one state each (met, not met,
+  superseded or operator-owned) and one evidence pointer each. Your brief names who ticks the boxes
+  and who writes the Status line; with no such line, edit no task file you do not own.
+
+---
+
+## 5 · Size, stop and close
+
+- **Size the work first.** Size it against your context before you start. If it will not fit one
+  session, say so and split it into staged sessions with a prompt each. Set a stop line in the unit
+  your host shows you (transcript size, tool calls or tokens); your brief or the project's host
+  rules may give it. Starting values, uncalibrated defaults and not measured limits: about 5 MB of
+  transcript or about 250 tool calls.
+- **Plan the close.** At the stop line, or at a compaction notice, start no new work: run the Close
+  block of your brief and write a continuation prompt for what remains. Do not carry on through a
+  compaction.
+- **Run the Close block of your brief**, in its order, without waiting to be asked. A read-only
+  sub-agent that returns text is exempt.
+- **Sessions are the operator's to open.** Never start a successor or peer session yourself (a
+  terminal window or a headless run of the agent CLI): propose it, name its prompt and folder, and
+  ask first. A sub-agent your brief lets you launch is not one.
+- **No external call by default.** Make no call to an external service (a payment provider, a cloud
+  API, an AI provider) and start no local stack unless your brief names that one call as approved by
+  the operator. A ban that names a few services leaves every other one callable, so allow by name
+  instead. Record a check you could not run as UNKNOWN with its command.
+- **If you run `lemmi-ai-kit-core:plan-critic` on a document, run it within its own run cap**,
+  and no more often.

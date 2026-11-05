@@ -8,9 +8,10 @@ description: >
   ledger lifecycle: terminal entries stay in the ledger permanently (there is no archive),
   marks event-starved windows DORMANT, and runs the meta-synthesis when the lint's
   synthesis-due NOTE fires (~every 10 verdicts). Invoked from learning-consolidator
-  Phase 6.5 (~weekly, approval-gated) and offered by session-retrospective when its data
-  settles a signal. Use when the user says "validate hypotheses", "check pending
-  hypotheses", or "close the hypothesis loop".
+  (Steps 1 to 4 at the end of its Phase 2, Steps 6 and 8 in its Phase 6.5; ~weekly,
+  approval-gated) and offered by session-retrospective when its data settles a signal.
+  Use when the user says "validate hypotheses", "check pending hypotheses", or "close
+  the hypothesis loop".
 metadata:
   type: task
 ---
@@ -26,13 +27,23 @@ One owner, multiple callers — the ai-changelog / ai-improvement-tracker preced
 
 ## When This Skill Activates
 
-- `learning-consolidator` Phase 6.5 invokes it on the ~weekly consolidation run — **this is the
-  designated caller and it is the one that failed.** In the six-week window Step 7 describes, three
-  drains ran and none invoked this skill, because Phase 6.5 delegates by prose reference and degrades
-  to "done inline, by hand" (four consecutive retrospective windows recorded it at zero invocations).
-  If you are running Phase 6.5, load this file and run its steps; do not improvise a shortened version.
+- `learning-consolidator` invokes it on the ~weekly consolidation run — **this is the designated
+  caller and it is the one that failed.** In the six-week window Step 7 describes, three drains ran
+  and none invoked this skill, because Phase 6.5 delegates by prose reference and degrades to "done
+  inline, by hand" (four consecutive retrospective windows recorded it at zero invocations). If you
+  are running either of its two calls, load this file and run its steps; do not improvise a
+  shortened version.
 - `session-retrospective` offers it at its ending when §4g evidence settles a signal mid-window
 - The user asks directly ("validate hypotheses", "close the hypothesis loop")
+
+**Called from `learning-consolidator`, the eight steps split around its Phase 3 approval gate.**
+Steps 1 to 4 and the ledger-state line of Step 7 run at the end of its Phase 2 and produce a
+verdict table for the Phase 3 plan; Step 5's approval gate is that plan's gate, so there is no
+second prompt. Before that gate nothing is written: Step 2's interim `Validation notes:` and
+DORMANT marks are rows of the table too, and Step 6 writes them with the verdicts once the plan
+is approved (a dry run, which stops at the gate, writes none). Phase 6.5 keeps Steps 6 and 8,
+run after the approval. Called directly or by `session-retrospective`, run all eight steps in
+order.
 
 ## Process
 
@@ -75,8 +86,8 @@ against:
   occurrences" signals
 - `.ai/learnings.md` intake (did the predicted entries stop/continue appearing?)
 - `.ai/ai-changelog.md` history (was the artifact since replaced? → SUPERSEDED candidate)
-- Where the signal is a fleet property: a fresh
-  `python -m lemmi_ai_kit audit-skills` run (if available)
+- Where the signal is a fleet property: a fresh run of the `audit-skills` subcommand
+  (if available)
 - Session evidence the caller supplies (the consolidator's current-run analysis)
 
 **Record disconfirming evidence with equal weight — never confirm by default.** If you find
@@ -143,24 +154,28 @@ occurs is a ledger that grows while nothing closes: in one measured case a ledge
 52 PENDING entries against 1 verdict in six weeks, because the pass that would have noticed
 was never run, and nothing in the design reported the backlog. Size was never the problem;
 an unreported backlog was. If you adopt this skill, do not reintroduce an archive — you
-would be re-solving the wrong failure and re-hiding this one.
+would be re-solving the wrong failure and re-hiding this one. The line also runs from
+`ai-improvement-tracker` Step 5, after every recorded entry: an alarm inside its own pass
+cannot report that pass stopping.
 
 ### Step 8: Verify
 
-Run the data-file lint:
+Run the data-file lint (`--project` takes the absolute project root: a relative path resolves inside the plugin, so the lint exits 2 for a ledger that exists):
 
 ```
-PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint hypotheses
+uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint hypotheses --project "<absolute project root>"
 ```
 
 Zero findings required (statuses must be exactly in-vocabulary; heading structure intact).
 The lint may also print `NOTE: meta-synthesis due` — a NOTE is not a finding; it schedules
-the Meta-Synthesis below (run it this pass or explicitly carry it to the next).
+the Meta-Synthesis below (run it this pass or explicitly carry it to the next). Its other two
+marker NOTEs, an unreadable marker and one ahead of the ledger, ask for a corrected marker line
+instead; the Meta-Synthesis below says what each means.
 
 ## Meta-Synthesis (~every 10 terminal verdicts)
 
 Individual verdicts close single loops; the synthesis is where they compound into design
-rules for future changes. Trigger: `PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint hypotheses` prints
+rules for future changes. Trigger: the lint of Step 8 prints
 `NOTE: meta-synthesis due` — computed by comparing the ledger's terminal-verdict count
 against its `**Last meta-synthesis:**` marker, so it fires for whoever runs the lint, with
 no memory required. Both numbers come from the one file; there is no archive to add in.
@@ -171,6 +186,19 @@ is how this loop stalls in the first place — the failure this skill exists to 
 is absent, compute the same two numbers with Step 7's greps and schedule the synthesis
 yourself.
 
+**The marker the lint reads** is the first line outside a code fence that opens with
+`**Last meta-synthesis:**` (a leading `> ` is fine: the ledger header is a blockquote). Its
+count is the number in `N terminal verdicts covered` after that label, and the terminal count
+it is compared with is file-wide. What the lint does with the marker, each case a NOTE, never a
+finding:
+
+- **Missing:** counts as 0 covered, so the due NOTE fires once the ledger's terminal verdicts
+  alone reach the threshold, and it says no marker was found.
+- **Unreadable** (the line is there, the count is not): a NOTE naming the expected shape, and
+  the due check does not run until the line is corrected.
+- **Above the count** (it covers more verdicts than the ledger holds): a NOTE that the marker is
+  ahead of the ledger; correct the count, or the due check means nothing.
+
 1. Read every terminal entry resolved since the last synthesis — all of them are in
    `.ai/improvement-hypotheses.md`, because terminal entries are never moved out.
 2. Cluster by MECHANISM (prose rule / mechanical check / skill / doc-home / permission),
@@ -180,8 +208,11 @@ yourself.
    satisfied by the system's own operation (cheap confirms that measure nothing)?
 4. Promote the lessons through normal channels behind the same approval gate as verdicts —
    tracker signal-design rules, consolidator routing guidance, AGENTS.md.
-5. Update the header marker (`**Last meta-synthesis:** {date} — {N} terminal verdicts
-   covered`) and record the findings in the run's changelog entry.
+5. **Add** the marker line to the ledger header when the header has none, and update it when it
+   has one — one line inside the header's blockquote, in exactly this shape:
+   `> **Last meta-synthesis:** {YYYY-MM-DD} — {N} terminal verdicts covered`, N being the
+   ledger's terminal-verdict count now (Step 7's second number). Record the findings in the
+   run's changelog entry.
 
 Calibration — run #1 (2026-08-02, n=22: 13 CONFIRMED / 3 REFUTED / 6 INCONCLUSIVE): all
 3 REFUTED shared one mechanism — the change relied on a session *electing to act*
@@ -231,6 +262,6 @@ overwriting the lifecycle field. Correct form: Status stays `PENDING`, the evide
 
 | Caller | When | What the caller provides |
 |--------|------|--------------------------|
-| `learning-consolidator` | Phase 6.5, ~weekly | Current-run learnings analysis; folds proposals into its plan approval gate |
+| `learning-consolidator` | End of Phase 2 (Steps 1 to 4, the Step 7 line) and Phase 6.5 (Steps 6 and 8), ~weekly | Current-run learnings analysis; its Phase 3 plan approval gate covers the verdicts |
 | `session-retrospective` | Ending, when §4g settles a signal | The retro report's evidence (§4g + health table); offers the run to the user |
 | User direct | On request | — |

@@ -34,8 +34,34 @@ MARKERS = re.compile(
     re.I,
 )
 
-# USER blocks that are injected machinery, not the human speaking.
-SKIP_PREFIX = ("<", "Base directory for this skill", "[Request interrupted", "Caveat:", "ARGUMENTS:")
+# USER blocks that are injected machinery, not the human speaking. Mirrors HARNESS_USER_PREFIXES
+# in extract_sessions.py: the two lists must move together, and test_sweep_user_corrections.py
+# imports both by path and fails when they differ as sets.
+SKIP_PREFIX = (
+    "<",
+    "Base directory for this skill",
+    "[Request interrupted",
+    "Caveat:",
+    "ARGUMENTS:",
+    "# Workflow authoring reference",
+    "This session is being continued from a previous conversation",
+    "Another Claude session sent a message",
+    "Your response above was stopped by a safety classifier",
+)
+
+
+def digest_lines(path: Path) -> list[str]:
+    """The lines of a digest, numbered the way ripgrep and the Read tool number them: by LF alone.
+
+    Both `read_text` and `splitlines` break lines at more than LF. Universal newlines ends a line
+    at a lone CR and again at the CR of a CR CR LF (the shape an older extractor wrote on Windows
+    for a CRLF inside a message), and `splitlines` also breaks at a form feed and at the other
+    Unicode separators. A citation counted through either points at a different line than a Grep or
+    a Read of the same file, so read the bytes and split on LF. A CR left at the end of a line is
+    stripped, so a digest written with CRLF line endings reads cleanly as well.
+    """
+    raw = path.read_bytes().decode("utf-8", errors="replace")
+    return [ln.rstrip("\r") for ln in raw.split("\n")]
 
 
 def sweep(retro_dir: Path) -> list[str]:
@@ -45,7 +71,7 @@ def sweep(retro_dir: Path) -> list[str]:
     results: list[str] = []
     for f in sorted(root.glob("*.md")):
         sid = f.name[:8]
-        lines = f.read_text(encoding="utf-8", errors="replace").splitlines()
+        lines = digest_lines(f)
         blocks: list[tuple[int, str]] = []
         cur_start, cur_buf = None, []
         for i, ln in enumerate(lines, 1):
@@ -63,7 +89,8 @@ def sweep(retro_dir: Path) -> list[str]:
             blocks.append((cur_start, " ".join(cur_buf)))
 
         for start, text in blocks:
-            t = text.strip()
+            # a CR inside a line (an older digest) would break the one-line citation below
+            t = text.replace("\r", " ").strip()
             if not t or t.startswith(SKIP_PREFIX):
                 continue
             if MARKERS.search(t):
@@ -79,7 +106,8 @@ def main(argv: list[str]) -> int:
         print(str(exc), file=sys.stderr)
         return 2
     out_path = retro_dir / "user_corrections_sweep.txt"
-    out_path.write_text("\n".join(results), encoding="utf-8")
+    # bytes, so the file holds LF only: write_text would turn each line break into CR LF on Windows
+    out_path.write_bytes("\n".join(results).encode("utf-8"))
     print(f"{len(results)} candidate USER messages with correction/change markers -> {out_path}")
     return 0
 

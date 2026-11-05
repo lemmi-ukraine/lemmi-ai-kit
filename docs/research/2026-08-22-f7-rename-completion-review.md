@@ -51,11 +51,11 @@ package and org names are lowercase and the prose brand is capitalised:
 
 | Site | Text |
 |---|---|
-| `python-conventions/SKILL.md:7` | frontmatter `description`: "for the Lemmi backend" |
-| `python-conventions/SKILL.md:15` | H1: "Python Convention Examples — Lemmi Backend" |
-| `python-conventions/references/coding-patterns.md:1` | H1: "Coding Patterns Reference — Lemmi Backend" |
-| `vertical-slice/SKILL.md:14` | H1: "Vertical Slice Architecture - Lemmi Backend" |
-| `templates/AGENTS.md:19` | "The shared Lemmi conventions live in the …" |
+| `python-conventions/SKILL.md:7` | frontmatter `description`: "for the consumer backend" |
+| `python-conventions/SKILL.md:15` | H1: "Python Convention Examples — Consumer Backend" |
+| `python-conventions/references/coding-patterns.md:1` | H1: "Coding Patterns Reference — Consumer Backend" |
+| `vertical-slice/SKILL.md:14` | H1: "Vertical Slice Architecture - Consumer Backend" |
+| `templates/AGENTS.md:19` | "The shared consumer conventions live in the …" |
 
 The first and the last are the ones that matter. The frontmatter `description` is the
 text a model reads when deciding whether to load the skill, and `templates/AGENTS.md`
@@ -67,7 +67,7 @@ gives as its reason for existing.
 commits earlier.** I rewrote `# Fable Orchestrate` to `# Orchestrate` on the reasoning
 that an H1 is body text the model reads, then left four comparable sites alone. The
 distinction I drew: `Fable Orchestrate` was the skill's *own name*, title-cased, and
-renaming the skill without it would have left the rename half-done. `— Lemmi Backend`
+renaming the skill without it would have left the rename half-done. `— Consumer Backend`
 is a *scope qualifier* — a factual claim about what these conventions are for — and
 replacing it needs a decision about what the public pack's conventions are scoped to
 instead. That decision is OQ-2's pack axis, and it is a one-way door.

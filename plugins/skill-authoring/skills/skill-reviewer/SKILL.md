@@ -38,9 +38,10 @@ You have two modes:
 > agentskills.io/specification — re-fetch BOTH before editing budget numbers, field
 > semantics, or override rules here.
 >
-> The mechanical subset of Steps 2, 5, and parts of 8 is automated: run
-> `python -m lemmi_ai_kit audit-skills` (read-only, fleet-wide) and fold its findings in; the tables
-> below define the severities. Add `--fail-on major` to make it gate rather than report.
+> The mechanical subset of Steps 2, 5, and parts of 8 is automated: run (read-only, fleet-wide)
+> `uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit audit-skills --project "${KIT_PROJECT_ROOT}"`
+> (`KIT_CORE_PLUGIN_ROOT` and `KIT_PROJECT_ROOT` as the pack README says) and fold its findings in;
+> the tables below define the severities. Add `--fail-on major` to make it gate rather than report.
 >
 > **The audit only scans the directory it is pointed at.** By default that is the project's
 > `.claude/skills/`, so a skill living anywhere else — a shareable kit, a scaffold, a vendored
@@ -93,7 +94,7 @@ Evaluate the description against the formula: `[WHAT] + [WHEN] + [keywords]`
 | Trigger phrases | Includes 2+ specific phrases users would say (in quotes) | Project convention |
 | Specificity | Not vague ("helps with projects" = FAIL) | Agent Skills spec |
 | Negative triggers | Clarifies what NOT to trigger on (for broad skills) | Best practice |
-| Name neutrality | The NAME carries no model/tool/vendor qualifier unless the skill cannot function without it — the name is routing metadata read BEFORE the body, so a qualifier silently scopes the skill to matching sessions (`fable-orchestrate`: zero invocations in 47 sessions while model-agnostic in content; renamed `orchestrate` → immediate re-registration) | Project convention (2026-08-02) |
+| Name neutrality | The NAME carries no model/tool/vendor qualifier unless the skill cannot function without it — the name is routing metadata read BEFORE the body, so a qualifier silently scopes the skill to matching sessions (`fable-orchestrate`: zero invocations in 47 sessions while model-agnostic in content; renamed `orchestrate` → immediate re-registration) | Kit convention |
 
 Rate: GOOD / NEEDS IMPROVEMENT / POOR
 
@@ -102,11 +103,11 @@ Rate: GOOD / NEEDS IMPROVEMENT / POOR
 Determine the correct invocation model and check if the skill implements it:
 
 ```
-Decision tree (project policy 2026-06-21 — validate against the FLEET, not only theory):
+Decision tree (kit recommendation — validate against the FLEET, not only theory):
 1. Is the action OUTWARD/DESTRUCTIVE and timing-critical?
-   (commit, push, deploy, branch mutation, external sends)
+   (commit, push, deploy, branch mutation without a backup gate, external sends)
    → disable-model-invocation: true
-   (fleet: only commit-message + branch-switch. The flag also removes the description
+   (kit example: commit-message. The flag also removes the description
    from context and blocks subagent preloading + scheduled-task prompts, v2.1.196+.)
 
 2. Repo-internal writes (learnings, changelog, reports) or orchestration?
@@ -189,7 +190,7 @@ Check if the skill leverages relevant Claude Code features:
 | `model` field | Skill needs specific model | Would a model override improve quality? |
 | `hooks` field | Skill has lifecycle events | Could hooks automate pre/post actions? |
 | `ultrathink` keyword | Skill involves complex reasoning | Would extended thinking improve output? |
-| `when_to_use` field | Trigger phrases crowd the description | Project policy (D1): new skills put trigger phrases here (1,536-char combined listing cap) |
+| `when_to_use` field | Trigger phrases crowd the description | Kit recommendation: new skills put trigger phrases here (1,536-char combined listing cap) |
 | `paths` field | Reference skill scoped to a subsystem | Would glob-scoped auto-loading cut noise? |
 | `disallowed-tools` field | A tool must never run while the skill is active | Is a hard restriction warranted (vs prose)? |
 | `effort` field | Reasoning depth mismatched to the task | Would an effort override improve quality/cost? |

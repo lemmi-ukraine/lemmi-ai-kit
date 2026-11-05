@@ -7,13 +7,13 @@ Applies when the plan introduces: new endpoints, new auth flows, new service int
 **Auth & Access**
 - Is authentication explicitly stated — not just inherited by assumption?
 - Are authorization boundaries defined per operation (not just at the entry point)?
-- Are new service-to-service calls using JWT auth via `BaseInternalClient`?
+- Is authentication between services stated for every new service-to-service call, in the form the project's conventions require?
 - Are internal endpoints excluded from public OpenAPI docs?
 
 **Input & Data**
 - Where does untrusted input enter the system? Is it validated before use?
 - Is sensitive data masked in logs, error responses, and API payloads?
-- Are secrets read from `core/config.py` — not hardcoded or read via `os.getenv()` in services?
+- Are secrets loaded through the project's own configuration mechanism — not hardcoded, and not read ad hoc inside business logic?
 
 **Surface Area**
 - Are new public endpoints accompanied by a threat model or at least a note on rate limiting?
@@ -47,7 +47,7 @@ Applies when the plan introduces: new endpoints, new auth flows, new service int
 - Does the feature degrade gracefully, or does it fail completely?
 
 **Concurrency & Data Integrity**
-- Are there race conditions in the proposed flow (e.g., concurrent WebSocket events, parallel task creation)?
+- Are there race conditions in the proposed flow (e.g., concurrent events or messages, parallel task creation)?
 - Is idempotency required and designed for where operations may be retried?
 - Are DB transactions scoped correctly — not too broad (locking hot rows), not too narrow (partial writes)?
 
@@ -62,21 +62,21 @@ Applies when the plan introduces: new endpoints, new auth flows, new service int
 ## Dimension 4 — Impact & Affected Areas
 
 **Breaking Changes**
-- Does this modify an existing API contract (request shape, response shape, HTTP status, WebSocket event type)?
+- Does this modify an existing API contract (request shape, response shape, HTTP status, message or event type)?
 - Are there consumers of changed interfaces outside the stated scope? (frontend, other backend features, internal clients)
-- Does this change the wire format of any WebSocket event? Stale-client behavior must be defined.
+- Does this change the wire format of any message or event its consumers parse? Stale-client behavior must be defined.
 
 **Database & Data Layer**
-- Does this add, modify, or remove schema elements? Is there an Alembic migration?
+- Does this add, modify, or remove schema elements? Is there a migration?
 - Is the migration reversible? Will it lock tables under production load (e.g., `ALTER TABLE` on a large table)?
-- Are queries going through repositories — not called directly from services?
+- If the project's conventions require it, are queries going through repositories — not called directly from services?
 
 **Deployment & Rollout**
 - Does this require infrastructure changes not captured in the plan (env vars, secrets, Docker, cloud deployment config)?
 - Is there a rollback path? (migration downgrade, feature flag, old endpoint preserved?)
 
 **Performance**
-- Does this add latency or query overhead to existing hot paths (e.g., WebSocket message handlers, real-time streams)?
+- Does this add latency or query overhead to existing hot paths (e.g., message handlers, real-time streams)?
 - Are performance assumptions backed by evidence?
 
 > Challenge trigger: "What existing behavior changes — even unintentionally?"
@@ -137,11 +137,15 @@ substitute for this pass.
   citation — Blocker. Check by grep, not by reading.)
 
 **Vacuous passes**
-- Can any case pass without proving anything? Three shapes: it iterates a population that may be
-  empty and is not guarded; its expected result is a falsy value (`None`, `False`, `[]`,
-  "rejected") that more than one code path produces; or its precondition cannot hold in the
-  target environment, so it is skipped rather than run. A case that passes for want of a
-  reachable precondition is indistinguishable from a correct one and never fails. Major.
+- Can any case pass without proving anything? Five shapes: (1) it iterates a population that may be
+  empty and is not guarded; (2) its expected result is a falsy value (`None`, `False`, `[]`,
+  "rejected") that more than one code path produces; (3) its precondition cannot hold in the
+  target environment, so it is skipped rather than run; (4) it is an absence check with no
+  positive precondition (the handler's own evidence that it ran), so it passes whenever nothing
+  happens; (5) it is an id-coverage check that reads a region restating the ids (a closing
+  paragraph or an index), so it passes whatever the bodies cite. Was each new checker command run
+  once where the right answer is fail, and does the plan name that tree? A case that passes for
+  want of a reachable precondition is indistinguishable from a correct one and never fails. Major.
 
 **No duplication of the requirements**
 - Is any Given/When/Then text copied from `requirements.md` rather than cited? Two copies of one
@@ -153,6 +157,9 @@ substitute for this pass.
   set? Those have no boundaries; the cases are noise displacing the rule combinations that matter.
 - Is a technique *named* but not actually applied — "Decision table" above three ad-hoc cases with
   no table? That claims a rigour the cases do not have. Major.
+- Does a command assigned to boundary rows exercise the comparison that decides accept or reject,
+  not only the threshold table it reads? Was it run once on the pre-change tree (identical output
+  before and after means it cannot see the change), and are the edges that stay review-only named?
 
 **Level assignment**
 - Does every case have exactly **one** owning level?
@@ -160,14 +167,22 @@ substitute for this pass.
   pinned on both sides? That is duplication, not thoroughness — the same assertion maintained in
   several places with no authoritative failure. Major.
 - Are upward level moves justified in writing, and are excluded levels named?
-- Where the project ships a language pack with its own test-type table, does the plan use that
-  table's level names — or has it invented a competing taxonomy? Major.
+- Does the plan let the project's own testing conventions come first for its level names? A
+  language pack's testing conventions reference applies only where it matches the code under test,
+  so a plan is not wrong for skipping one written for another language; it is wrong when it
+  invents level names that the conventions, or a matching table, already define. Major.
+- When a level has more than one test form: does every acceptance scenario that CI can verify have
+  an owner in the form the repository uses for that kind of flow, per the census? Major.
 
 **Verification method**
 - Does every NFR have a method (`automated` / `observability` / `manual` / `accepted-unverified`)?
 - Is any category the project's testing conventions **ban** assigned `automated`? Performance and
   load targets in a project that forbids those tests must get observability and a named metric.
   Producing a test the conventions require deleting on sight is a Major.
+- Does every `manual` row state which branch the operator's action normally reaches and how often
+  (a measured rate, or UNKNOWN), give one step per branch with how to force the rare one, or say
+  that only a test or review proves it? Is any value that the common, correct branch produces
+  listed as a falsifier?
 
 **Reconciliation**
 - Does every `TC-` have an implementing task or a named out-of-scope owner?
@@ -184,3 +199,22 @@ substitute for this pass.
 > Automatic flag: an expected result with no citation.
 > Automatic flag: a case listed at more than one level with no stated reason.
 > Automatic flag: a condition with no named technique.
+
+---
+
+## Dimension 7 — Quantified Claims
+
+**Applies only when a plan or spec states attempts, retries, charges, or a field present per caller
+or per record.** Skip it for every document that states no such number.
+
+- Was the set of callers or call sites taken from a full listing that was run, not from memory or
+  from a reviewer's wording? A missing row makes the count wrong.
+- Is there one executed scenario for each distinct row, with controls taken from the pinned tests?
+  A hand trace is not an execution; careful readers can trace the same wrong path.
+- Is every column that was derived rather than executed marked as derived?
+- Is a field stated per event type, not per group name? "Every record of the group carries it" is
+  a claim about each emitter call site.
+- Was a sentence copied from a reviewer's report enumerated again? Once written into the plan it is
+  the author's claim, and it needs its own listing.
+
+> Automatic flag: a count or per-caller claim with no enumerated rows beside it.

@@ -65,6 +65,12 @@ and the numbered definition of done so a gate can be run from this file alone.}
 ## 7. What has NOT been decided
 
 {Each with the gate that decides it.}
+
+## 8. Forecast log
+
+| Date | Claim | Basis | Observed |
+|---|---|---|---|
+| {YYYY-MM-DD HH:MM, read from the clock} | {the forecast: a duration, a landing time, the context a session will use, how many sessions remain} | {what it rests on, or "none"} | {what happened, when it was read, and how far from the claim; blank until the session closes} |
 ```
 
 ---
@@ -79,6 +85,14 @@ here only if removing it would change a decision in this document. Each row stat
 Recurring ones in this repo: a shared multi-session checkout (declared disjoint file sets, never a
 new worktree); untracked deployment artifacts that never appear in a diff (no PR lane, no automatic
 regression catch); external CLI workers absent from PATH; the usage window.
+
+**The usage window is a gate unless the project says otherwise.** If the project's AGENTS.md or its
+override documents say the usage window is not a gate, the row reads "usage window: not a gate
+(project opt-out)" and its consequence is the rule: report the reading and its age, if one exists, and
+never defer, shrink or skip verification on a wave because of it. The project accepts the risk the
+gate protects against: waves killed at the limit, and duplicate dispatch after a re-run.
+It still states its own cap on simultaneous agents and counts every live session on the
+account toward it; the kit sets no number and no default cap.
 
 ### §3 Operator critical path
 **External blockers no session can resolve.** A dependency between two deliverables is not one —
@@ -106,6 +120,19 @@ as "approve/reject". A gate whose only options are proceed or stop is a status u
 Put the falsifying measurement in the first phase. If the earliest gate cannot change the
 initiative's direction, the phases are ordered for comfort rather than for information.
 
+**Membership lives in one table.** Which deliverables ship in which cut or phase is written once, in
+the phase work tables; the definition of done, the assertion list and the field sets are derived
+from that table, never restated by hand, because a membership list copied into several documents
+drifts and each copy then disagrees with the others. Once ids carry letter suffixes, enumerate them:
+a range hides the suffixed ones. Certify the table's checker on a clean and a defect-injected pair
+built from one template, and state the exact finding counts each must print.
+
+**A gate that approves a spec slice records the slice's operator questions.** Each question, by its
+id in the open-questions list (§7), gets a line in the gate's approval record with its answer, or
+the words "default accepted" when the operator took the default; a gate that recorded none leaves
+the slice's tasks to assume answers nobody gave. Evidence level of this rule and the one above:
+observed in one project's notes, not yet repeated; an uncalibrated default.
+
 ### §5 Delegation contract
 State what every brief carries; **cite** `agent-delegate` and `orchestrate` for the contract itself.
 The two lines worth repeating per initiative, because they are initiative-specific:
@@ -115,11 +142,13 @@ The two lines worth repeating per initiative, because they are initiative-specif
 - **Results are claims.** Read the returned diff and run the definition-of-done check yourself. Where
   a returned finding contradicts a recorded learning, the learning wins until the contradiction is
   reproduced in the shape this codebase actually uses.
-- **The completion checklist runs BEFORE the handoff is written.** Every brief states this
-  explicitly. A handoff written first carries whatever the review would have corrected, and it is
-  the only artifact the next session reads — so the error propagates as fact rather than as a
-  claim. A session stopped by the usage wall inverts this on purpose: continuation handoff first,
-  marked `Status: incomplete — post-task-review not run`.
+- **The completion checklist runs BEFORE the handoff is written, at every completion event** (a
+  finished task of any size, a precondition stop, a gate report, a hand-off). Every brief states this
+  explicitly, naming the events and never a size threshold. A handoff written first carries whatever
+  the review would have corrected, and it is the only artifact the next session reads — so the error
+  propagates as fact rather than as a claim. A session stopped by the usage wall inverts this on
+  purpose: continuation handoff first, whose `## Status` (`parallel-session-safety` §9) reads
+  `in-progress — post-task-review not run`.
 
 ### §5.1 Testing and rollback
 Per risk class. The class that matters most is the one with **no test suite and no code review** —
@@ -146,3 +175,16 @@ Two risk classes this repo keeps rediscovering:
 Every open question with the gate that closes it. Include conflicts between the plan and a standing
 rule or a stated non-goal — **record the violation, do not hide it.** A plan that only permits clean
 answers gets abandoned at the first messy one.
+Give each question an id the gate's approval record can cite (§4).
+
+### §8 Forecast log
+One row per forecast the plan makes, written when it is made: the date and time read from the
+clock, the claim (a duration, a landing time, the context a session will use, how many sessions
+remain) and the basis it rests on, or the word "none". At each session close, fill in Observed for
+every row that session settled, with how far the result was from the claim, so the next forecast
+starts from what the last one missed by. The plan's sentence that session counts are a
+decomposition, not an estimate (`SKILL.md` step 8) stays as it is: the counts partition the work
+and say nothing about duration, so a forecast of how long or how many is a separate claim, and this
+log holds it. Estimates of a session's context, of landing times and of the sessions remaining
+missed in both directions, and none was logged against its outcome (observed, 2026-10-30 to
+2026-11-03).

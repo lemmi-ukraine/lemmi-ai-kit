@@ -61,8 +61,8 @@ Evaluate each dimension and score:
 
 **Classification:**
 - Total score 0–2 → **Small** — direct implementation, no spec needed
-- Total score 3–6 → **Medium** — lightweight spec (single combined document)
-- Total score 7+ → **Large** — full spec (requirements + design + tasks)
+- Total score 3–6 → **Medium** — lightweight spec (spec + tasks + test plan)
+- Total score 7+ → **Large** — full spec (requirements + design + tasks + verification plan)
 
 See [references/size-detection.md](references/size-detection.md) for detailed examples.
 
@@ -73,7 +73,7 @@ After detection, present the classification to the user:
 ```
 Task size: {SMALL | MEDIUM | LARGE}
 Rationale: {1-2 sentences explaining the score}
-Proceeding with: {direct implementation | lightweight spec + tasks | full spec}
+Proceeding with: {direct implementation | lightweight spec + tasks + test plan | full spec}
 ```
 
 If the user disagrees, accept their override without argument.
@@ -126,7 +126,7 @@ Skip spec creation entirely. Proceed to implementation following existing projec
 
 ### Medium Tasks — Lightweight Spec
 
-Create two documents:
+Create three documents (spec, tasks, test plan); a design document is added only when the Technical Approach runs past about 60 lines:
 
 1. Create `.specs/{task-name}/spec.md`
 2. Combine key sections from the requirements and design templates:
@@ -143,7 +143,7 @@ Create two documents:
    task, and every task's `Test requirements` field cites `TC-` ids instead of prose. Skip this step
    only when the change touches no executable code, and say so explicitly.
 6. Self-review using the Spec Quality Checklist at the bottom of this file.
-7. **Run the plan-critic self-review** (the `plan-critic` skill) — full review over spec.md + tasks.md + test-plan.md (+ design.md if split out). Resolve all findings before continuing. If any Blockers or Questions remain, surface them in the presentation.
+7. **Run the plan-critic self-review** (the `plan-critic` skill) — full review over spec.md + tasks.md + test-plan.md (+ design.md if split out), within its own run cap. If any Blockers or Questions remain, surface them in the presentation.
 8. **STOP.** Present to the user for approval. Wait for explicit approval before continuing.
 9. Only proceed to implementation after approval.
 
@@ -157,14 +157,14 @@ same approved design, and neither is an input to the other until they are reconc
    - Use `.ai/templates/requirements.md` as the starting template
    - Fill in all sections based on task analysis and codebase exploration
    - See [references/requirements-guide.md](references/requirements-guide.md) for Gherkin syntax, actor identification, adversarial scenario generation, and AI pipeline patterns
-   - **Run the plan-critic self-review** (the `plan-critic` skill) — full review. Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
+   - **Run the plan-critic self-review** (the `plan-critic` skill) — full review, within its own run cap. If any Blockers or Questions remain unresolved, surface them in the presentation.
    - **STOP.** Present to user. Wait for explicit approval before continuing.
 
 2. **Design**: Create `.specs/{task-name}/design.md` (only after requirements approved)
    - Use `.ai/templates/design.md` as the starting template
    - Reference the requirements document for acceptance criteria
    - See [references/design-guide.md](references/design-guide.md) for writing guidance
-   - **Run the plan-critic self-review** (the `plan-critic` skill) — full review. Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
+   - **Run the plan-critic self-review** (the `plan-critic` skill) — full review, within its own run cap. If any Blockers or Questions remain unresolved, surface them in the presentation.
    - **STOP.** Present to user. Wait for explicit approval before continuing.
 
 3. **Tasks**: Create `.specs/{task-name}/tasks.md` (only after design approved)
@@ -190,7 +190,7 @@ same approved design, and neither is an input to the other until they are reconc
      immediately tick it against `tasks.md` — a new task, or an explicit "no task because…" — and
      re-check every instrument the spec promises against a building task. Cheap form: end every
      spec-amending turn with "does each new noun have a task?"
-   - **Run the plan-critic self-review** (the `plan-critic` skill) — completeness-only pass (Dimensions 4–5 only). Resolve all findings before continuing. If any Blockers or Questions remain unresolved, surface them in the presentation.
+   - **Run the plan-critic self-review** (the `plan-critic` skill) — completeness-only pass (Dimensions 4–5 only), within its own run cap. If any Blockers or Questions remain unresolved, surface them in the presentation.
    - **STOP.** Present to user. Wait for explicit approval before implementation.
 
 4. **Verification plan**: run the `test-planner` skill (only after design approved — **in parallel
@@ -204,8 +204,8 @@ same approved design, and neither is an input to the other until they are reconc
      from. An uncited expected value is a document defect, not a formatting nit — a model asked to
      fill an expected-result column produces something plausible, specific, and wrong, and
      plausibility is exactly what survives review
-   - **Run the plan-critic self-review** (the `plan-critic` skill) — verification pass. Resolve all
-     findings before continuing
+   - **Run the plan-critic self-review** (the `plan-critic` skill) — verification pass, within its
+     own run cap
    - **Reconcile against `tasks.md` once both exist.** Bidirectional, and it is this stage's
      completion gate: every `TC-` has an implementing task or a named out-of-scope owner, and every
      task's `Test requirements` field cites `TC-` ids instead of prose. Parallel authoring means
@@ -239,7 +239,7 @@ When the user requests a change:
 
 When a requested change is technically questionable — it conflicts with existing project architecture, reverses a decision approved in an earlier stage of this spec, removes the only mitigation for an identified risk, or would add implementation code to the spec — raise the concern before applying anything:
 
-1. **State the conflict clearly**: name the specific constraint it violates (e.g., the vertical slice rule, the earlier approved decision, the risk entry in the spec).
+1. **State the conflict clearly**: name the specific constraint it violates (e.g., one of the project's architecture conventions, the earlier approved decision, the risk entry in the spec).
 2. **Propose an alternative** if one exists.
 3. **Wait for the user to respond.** They may have context the AI lacks.
 4. **After the user responds**:
@@ -249,7 +249,7 @@ When a requested change is technically questionable — it conflicts with existi
 
 ### What the AI challenges
 
-- Changes that contradict the project's vertical slice architecture rules
+- Changes that contradict the project's architecture conventions
 - Changes that reverse an earlier stage's approved decision without explanation
 - Changes that remove the only mitigation for a risk already identified in the spec
 - Changes that add implementation code to spec documents
@@ -339,6 +339,11 @@ Each phase is executed as a semi-independent unit:
 | **Standard** | Default for most phases | Steps 1–6 of post-task-review |
 | **Full** | Final phase, or phases with cross-feature impact | Full post-task-review, every step |
 
+Every gate report is a completion event: whatever the level, Step 9 of `post-task-review` runs
+inline, as a step of the gate, before the report is written, and a step the level leaves out is
+named in the report as left to the full review; the full review runs as its own top-level step
+after the workflow ends, and that run is the one that counts for any step a gate left out.
+
 ### Context Handoff Rules
 
 - The spec documents (requirements.md, design.md, tasks.md) are the **persistent memory** across phases
@@ -354,12 +359,14 @@ When implementing from a spec (phased or non-phased):
 - Mark each task as complete in the tasks document when done
 - If implementation reveals that the spec needs changes, update the spec first and note the deviation in the Deviations Log
 - If scope grows beyond the original spec, stop and discuss with the user
+- Optional and untried: a task may run in two execution lanes, development and tests, joined by a red-then-green gate; see [references/execution-lanes.md](references/execution-lanes.md)
 
 ## Closing a Spec — self-review, then retire
 
 A spec is not finished when its last task is ticked. Two steps close it, in order:
 
-1. **Self-review — `post-task-review`** (mandatory for Medium and Large; the full pass). Its
+1. **Self-review — `post-task-review`** (mandatory at every completion event, a Small task closed
+   by direct implementation included; a spec gets the full pass). Its
    step 4 self-challenge, step 7 documentation-impact sweep and step 9 CLOSE self-challenge (a
    separate, later pass than step 4) are what catch the defects the
    implementation pass cannot see, because they check the work against the *approved scenarios* and
@@ -427,7 +434,7 @@ Before presenting a spec for approval, verify:
 - [ ] Files-to-modify and files-NOT-to-modify are explicit
 - [ ] Risk assessment identifies at least one risk
 - [ ] Alternatives section is filled in (at least one alternative considered)
-- [ ] Design follows existing vertical slice architecture
+- [ ] Design follows the project's architecture conventions
 - [ ] No implementation code in the spec documents
 - [ ] Task dependencies form a valid DAG (no circular deps)
 
@@ -449,6 +456,7 @@ Before presenting a spec for approval, verify:
 - [ ] Every case has exactly one owning level; upward moves carry a written reason and exclusions are stated
 - [ ] Every expected result cites the id it derives from — zero cases marked `[UNGROUNDED]`
 - [ ] Every NFR has a verification method, and no category the project's testing conventions ban is assigned `automated`
+- [ ] A feature that reads files its authors did not write has a real-data trial planned before any independent verifier runs, its bar set before the run (`test-planner`, Step 2)
 - [ ] Deliberate non-coverage is stated with risk bands and rationale
 - [ ] Reconciliation with `tasks.md` is complete in both directions, or explicitly marked pending
 

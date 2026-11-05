@@ -1,12 +1,12 @@
 # Design Writing Guide
 
-## Designing Within the Vertical Slice Architecture
+## Designing Within the Project's Architecture Conventions
 
-All new components must follow the project's vertical slice architecture. Reference the
-`vertical-slice` skill for the
-canonical feature directory template.
+All new components must follow the project's architecture conventions: the layout, layering and
+import rules that its AGENTS.md and installed convention skills state. Where the project states
+none, name the structure the design follows.
 
-Key constraints:
+Example, for a Python backend laid out as vertical slices (the project's own conventions replace it):
 - Feature code lives in `backend/app/features/{feature_name}/`
 - Layer flow: API → Service → Storage (never reverse)
 - No cross-feature imports — use internal APIs or shared core modules
@@ -19,7 +19,7 @@ When the design involves database changes:
 - [ ] New entities defined with all required fields and types
 - [ ] Relationships to existing entities identified (foreign keys, one-to-many, etc.)
 - [ ] Indexes identified for common query patterns
-- [ ] Enums placed correctly: `storage/enums/` for persisted, `services/enums/` for business-only
+- [ ] Enums placed where the project's architecture conventions put them (example: `storage/enums/` for persisted, `services/enums/` for business-only)
 - [ ] Migration strategy defined (additive preferred over destructive)
 - [ ] Backward compatibility considered (can the migration run while the old code is still serving?)
 
@@ -28,11 +28,11 @@ When the design involves database changes:
 When the design involves new endpoints:
 
 - [ ] Route follows RESTful conventions and existing URL patterns
-- [ ] Request/response schemas defined as separate Pydantic models (one class per file)
+- [ ] Request/response schemas defined as separate typed models, as the project's conventions require (example: Pydantic models, one class per file)
 - [ ] Authentication requirement specified (JWT, internal JWT, or public)
 - [ ] Error responses defined (which shared exceptions for which conditions)
 - [ ] Rate limiting or usage limit considerations noted
-- [ ] Route registered in the feature's `routes.py`, included via `backend/app/api/api.py`
+- [ ] Route registered where the project's architecture conventions put routes (example: the feature's `routes.py`, included via `backend/app/api/api.py`)
 
 ## Integration Point Assessment
 
@@ -54,10 +54,24 @@ Identify at least one risk per design. Use this structure:
 | Migration takes too long on production data | Low | High | Test migration on production-sized dataset first |
 | WebSocket connection drops during long operation | Medium | Medium | Implement reconnect logic with state recovery |
 
-### Common Risks in This Project
+### Common Risks (examples from a realtime AI backend; the project's own risk list replaces them)
 
 - AI provider API latency spikes or rate limits
 - PostgreSQL connection pool exhaustion under concurrent WebSocket sessions
 - Payloads (e.g., audio data) exceeding expected sizes
 - Race conditions in concurrent session state updates
-- Alembic migration conflicts when multiple branches modify schema
+- Migration conflicts when multiple branches modify the schema (example: Alembic revision heads)
+
+## Recording a Verification Command
+
+A design or spec that lists the command which re-checks each claim has to survive being copied. A
+markdown table cell must escape every pipe as `\|`, so a command stored in a cell does not
+reproduce: copied raw into `grep -E`, the escaped form reads `\|` as a literal pipe and finds
+nothing, and a form with the backslashes dropped can be another pattern again (a leading `^|` is an
+alternation whose first branch matches every line). Neither reading fails loudly.
+
+- Put any command that contains a pipe in a fenced block under the table and cite it by the row's
+  id. Repeated `-e` patterns replace an alternation and need no pipe there, but a pipe that must
+  stay literal still needs the fence: stored in a cell as `\|`, plain GNU `grep` reads it as an
+  alternation.
+- Re-run every recorded command from the raw text of the file, never from the rendered view.

@@ -6,7 +6,7 @@
 
 <!-- High-level architecture: which patterns to use, how the solution fits into the existing system. -->
 
-{Describe the overall approach. Reference the vertical slice architecture and existing patterns where applicable.}
+{Describe the overall approach. Reference the project's architecture conventions (AGENTS.md) and existing patterns where applicable.}
 
 ## Component Design
 

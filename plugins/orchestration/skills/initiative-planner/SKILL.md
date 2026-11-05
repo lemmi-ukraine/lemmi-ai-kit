@@ -122,7 +122,7 @@ decision is a slice inside it — write the ADR at level 3, not level 1.
   One 2026-07-30 audit of a doc in this state found **4 load-bearing conclusions false**, including
   a prescribed fix that crashes on a unique constraint; measuring inverted the priority.
 - **No** → write it: [references/charter-template.md](references/charter-template.md) carries the
-  shared fields plus the PDR-only and ADR-only blocks.
+  shared fields plus the PDR-only and ADR-only blocks. The shared block ends with the operator rules in force: each rule, what measures it, what enforces it and who counts slips.
 
 **Both shapes carry the same four load-bearing fields**, and `/lemmi-ai-kit-core:product-brief`'s output does **not**
 include three of them — its template runs Problem · Behavior · UX Content · Out of Scope ·
@@ -220,22 +220,20 @@ concurrently at all.
 
 ### Every session ends the same way: post-task-review, **then** the handoff
 
-Whatever its type, a session's last two acts are fixed and **ordered**:
+At every completion event (a finished task of any size, a precondition stop, a gate report, a
+hand-off), a session's last two acts are fixed and **ordered**: **`post-task-review`** — the AGENTS.md
+task-completion checklist (code/artifact review, doc impact, learnings extraction) — **then** write
+`.ai/handoffs/{date}-{slug}.md`.
 
-1. **`post-task-review`** — the AGENTS.md task-completion checklist (code/artifact review, doc
-   impact, learnings extraction).
-2. **Then** write `.ai/handoffs/{date}-{slug}.md`.
-
-**The order is the whole point.** The handoff is the only thing the next session reads, so a handoff
-written first carries whatever the review would have corrected — and the next session inherits it as
-fact. Measured on 2026-08-15 in the session that built this skill: the result handoff was written
-before the review, shipped a false gate claim ("two review phases ran" when the gate had covered 2 of
-4 artifacts and emitted no report) and two stale counts, and both had to be patched afterwards. The
-review had found them; the handoff was simply already written.
+**The order is the whole point.** The handoff is all the next session reads, so one written first
+carries whatever the review would have corrected, and the next session inherits it as fact. Measured
+on 2026-08-15, building this skill: the result handoff, written before the review, shipped a false
+gate claim ("two review phases ran" when the gate had covered 2 of 4 artifacts and emitted no report)
+and two stale counts, patched afterwards. The review had found them; the handoff was already written.
 
 A session that runs out of usage window mid-task is the one exception, and it inverts deliberately:
-write a **continuation** handoff immediately, marked `Status: incomplete — post-task-review not run`,
-so the next session knows the claims inside it are unreviewed.
+write a **continuation** handoff immediately; its `## Status` (`parallel-session-safety` §9) reads
+`in-progress — post-task-review not run`, so the next session knows its claims are unreviewed.
 
 > **Research sessions: reading your own side of a contract cannot establish what the other side
 > populates.** A pass-through model proves the *keys* flow; it never proves the *values* are there.
@@ -281,7 +279,7 @@ several workstreams must edit. It reshapes the schedule more than any other inpu
 git log --format= --name-only <base>..<tip> | sort | uniq -c | sort -rn | head
 
 # Planned work: does one file host the symbols two workstreams both need?
-git grep -n "<symbolA>\|<symbolB>" -- backend/
+git grep -n "<symbolA>\|<symbolB>" -- <source-roots>
 ```
 
 In the 2026-08-15 plan, one 608-line prompt builder hosted **both** stage builders that two separate
@@ -290,13 +288,15 @@ schedule was reordered to run the second stack *during the spec phase*, when the
 payoff was a full serial stack saved and the conflict made **impossible rather than managed**. Look
 for this before writing any number.
 
-**3. The usage window.** Preflight the usage guard before any wave of ≥3 sessions. Past the warn
-threshold, do not start the wave: checkpoint continuation notes first. A wave that dies at the wall
-costs re-dispatch **plus duplicate-dispatch races** — every resume message must state who else is on
-the item.
-
-Write the cap with all three derivations visible. If a reader cannot see *why* the number is 3, the
-number will be ignored the first time it is inconvenient.
+**3. The usage window.** Preflight the usage guard before any wave of ≥3 sessions; a reading older
+than a few minutes is stale during a fan-out. Past the warn threshold, do not start the wave:
+checkpoint continuation notes first. A wave that dies at the wall costs re-dispatch **plus
+duplicate-dispatch races** — every resume message must state who else is on the item. **If the
+project's AGENTS.md or its override documents say the usage window is not a gate**, report the
+reading and its age, if one exists, and never defer, shrink or skip verification on a wave because of
+it; derivation 3 then reads `not applied: project opt-out`, the cap stays the minimum of the other
+two, and the project accepts the risk the gate protects against. Write the cap with all three
+derivations (1, 2 and 3) visible, or the number is ignored the first time it is inconvenient.
 
 ## Step 5 — Route each session: tier first, then where it runs
 
@@ -324,11 +324,11 @@ per row:
 not move together — a `judgment` session doing a routine review is `high`, while a session whose
 entire job is to **refute** a claim earns `max` regardless of how small it is. Record it per row.
 
-> **Set effort with the `--effort` flag.** It is a first-class CLI flag with a validated enum. A
-> plan that routes effort through a `/effort` slash command inside the prompt string is working
-> around a limitation that does not exist on this version — the slash-command route survives only
-> because the **`Agent` tool** has no effort parameter, so it remains the fallback for *native
-> subagents*, not for spawned CLI sessions.
+> **Set effort with the `--effort` flag.** It is a first-class CLI flag; an unknown value only warns
+> (CLI 2.1.316). A plan that routes effort through a `/effort` slash command inside the prompt
+> string is working around a limitation that does not exist on this version — the slash-command
+> route survives only because the **`Agent` tool** has no effort parameter, so it remains the
+> fallback for *native subagents*, not for spawned CLI sessions.
 
 Two corrections this encodes, both against the obvious mapping:
 
@@ -386,7 +386,7 @@ Each entry states three things, and the third is the one usually skipped:
 ## Step 7 — Phases, gates, risks, and the minimal initiative → `roadmap.md`
 
 **A gate is a decision the operator makes on evidence, not a checkpoint the planner clears.** Name
-what is presented at each gate and what decision it forces.
+what is presented at each gate and what decision it forces. The first gate also settles how the run is operated: [operating-rules](references/operating-rules.md).
 
 **Falsifier-first.** The first deliverable should be able to **kill the initiative**. State each
 falsifier with the verdict it forces if it holds — including "re-file this against another backlog".
@@ -455,7 +455,7 @@ Session-plan triggers worth carrying in every initiative:
 | A falsifier held | the killing measurement came back | Re-open the charter *that day*; the session count is now wrong |
 | Two sessions report editing the same file | any overlap outside a declared set | Stop the later one and re-partition. Do not "merge carefully" |
 | A new deliverable appeared | anything not in `topology.md` | Re-run `stacked-pr-planner`, then re-derive the cap (step 4) |
-| A wave would start below the usage floor | preflight fails | Checkpoint continuation notes; do not start the wave |
+| A wave would start below the usage floor | preflight fails | Checkpoint continuation notes; do not start the wave. If the project's AGENTS.md or its override documents say the usage window is not a gate (step 4), report the reading and its age, if one exists, and never defer, shrink or skip verification on a wave because of it |
 | A blocker in step 6 went unanswered a full wave | check the dates | Re-state what is UNKNOWN because of it; do not silently assume |
 
 **After a re-plan, mark the superseded sections explicitly — in the same edit.** A plan that
@@ -472,15 +472,15 @@ filed elsewhere. Deleting is also allowed; leaving both unmarked is not.
 
 ## Before presenting
 
-1. Run **`plan-critic`** over the artifacts (AGENTS.md requires it before *any* plan is presented).
-   Resolve Blockers and Majors silently; surface anything needing operator input at the top.
-   **Then run the inheritance check yourself, because `plan-critic` does not.** On 2026-08-15 it ran
-   and missed all three scope gaps the operator later found — prior work, substance-vs-delivery, and
-   an already-fixed row — because each was an *unexamined inheritance* rather than an internal
-   inconsistency, and a consistency checker cannot see a premise every section shares. Ask directly:
-   **which claims did this plan inherit rather than measure** (step 1.2), and **what already shipped
-   against this problem** (step 1.1)? A plan can be perfectly self-consistent and scoped by a
-   sentence nobody checked.
+1. Run **`plan-critic`** over the artifacts, its Step 2.7 sequencing check included (AGENTS.md
+   requires it before *any* plan is presented), within its own run cap; surface anything needing
+   operator input at the top. **Then run the inheritance check yourself: a review pass cannot audit
+   its own framing** (`plan-critic` Step 3). On 2026-08-15 it ran and missed all three scope gaps
+   the operator later found — prior work, substance-vs-delivery, and an already-fixed row — because
+   each was an *unexamined inheritance* rather than an internal inconsistency, and a consistency
+   checker cannot see a premise every section shares. Ask directly: **which claims did this plan
+   inherit rather than measure** (step 1.2), and **what already shipped against this problem**
+   (step 1.1)? A plan can be perfectly self-consistent and scoped by a sentence nobody checked.
 2. Confirm every deliverable from step 2 appears in exactly one session row.
 3. Confirm the concurrency cap shows its three derivations.
 4. Say the artifacts are ready to commit. **Do not stage them** — staging is the operator's call,

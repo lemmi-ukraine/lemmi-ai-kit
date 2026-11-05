@@ -23,7 +23,7 @@ now owed, and what a re-planner must not assume. The execution detail is in the 
 | **D2 (c) substitute** — cross-skill calls become CLI subcommands | `lint`, `audit-skills` | **DONE**, tested, gate green |
 | **D2 (a) ship** — skill-owned scripts arrive with their skills; 14 same-skill sites rewritten to `${CLAUDE_SKILL_DIR}` | — | **not started** — Session D's, and none of it blocked on me |
 | **D1** — ship the stacked-PR document | — | landed independently (`assets/ai/git-stacked-pr-workflow.md` is on disk) |
-| D3 (no hooks story), D4 (defer `usage-guard`), D5 (correspondence map), D6 (refresh order) | — | untouched by this session |
+| D3 (no hooks story), D4 (defer `quota-guard`), D5 (correspondence map), D6 (refresh order) | — | untouched by this session |
 
 **Deliverables:** `src/lemmi_ai_kit/checks.py` (1,440 lines), `tests/test_checks.py`
 (1,333 lines, 104 functions / 109 cases), `src/lemmi_ai_kit/cli.py` (+216/−2), plus the
@@ -34,13 +34,13 @@ three documents above.
 **Session D, immediately.** Ten cross-skill call sites across eight skills can now be
 rewritten to a shipped command instead of stripped or left dangling — the table is the
 companion's §3. Three of those are **already dangling in the shipped tree**:
-`parallel-session-safety` landed mid-session citing `ai_files_lint.py` three times, and two
+`parallel-session-safety` landed mid-session citing `data_files_lint.py` three times, and two
 of those are executable forms that DoD item 4 forbids. `lint handoffs` exists specifically
 so they can be rewritten rather than stripped.
 
 **DoD item 4 moves from blocked to achievable.** The charter's durable guarantee — *"zero
 references to infrastructure the kit does not ship"*, enforced by extending the hygiene
-contract with the `ai_files_lint` and `audit_skills` patterns — could not be written while
+contract with the `data_files_lint` and `audit_skills` patterns — could not be written while
 those were the only names for the behaviour. There is now a shipped command to point at, so
 the pattern can be added once the rewrites land. **I did not add it**: `tests/test_assets.py`
 is Session D's file this whole session, and adding the pattern before the rewrites would red
@@ -97,7 +97,7 @@ references then need another answer.
   reasons in the companion §5: `check <patterns.txt>` (a same-skill call, so (a) not (c)),
   `lint plans` (`.specs/` execution plans — no shipped contract yet), the hypotheses archive
   lint, and the buffer/synthesis pressure notes. `drain_audit.py`,
-  `test_ai_files_lint.py` and `validate_realtime_export.py` remain unaddressed, exactly as
+  `test_data_files_lint.py` and `validate_session_export.py` remain unaddressed, exactly as
   the triage's own "9 of 14" implies.
 - **`--since` replaces upstream's hardcoded cutoff *and* `--all-entries`.** Any plan that
   says "port the policy cutoff" is describing something deliberately not shipped.

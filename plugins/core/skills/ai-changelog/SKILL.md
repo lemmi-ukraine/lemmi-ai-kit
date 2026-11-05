@@ -54,7 +54,7 @@ Each entry follows this structure. Append under the current date heading in
 | `WORKFLOW-MODIFIED` | Pipeline phase added, removed, or reordered in a workflow skill |
 | `INFRA-ADDED` | New AI infrastructure file (changelog, templates, learnings structure) |
 | `INFRA-MODIFIED` | Changes to AI infrastructure files or CLAUDE.md listings |
-| `CONSOLIDATION` | Learnings promoted to rules/skills during consolidation |
+| `CONSOLIDATION` | Learnings promoted to rules/skills during consolidation. Carries `- **Drained:** N entries`, N being the entries the run removed from the learnings buffer (0 allowed); a reader dates the last drain by the newest entry whose N is above 0, and an entry without the line counts as drained |
 | `EXPERIMENT-REGISTERED` | A measurement experiment is registered: instrument/baseline built and a prediction staked. MUST pair with a dated, falsifiable `.ai/improvement-hypotheses.md` entry that includes a re-eval date |
 
 ## How to Append an Entry
@@ -104,13 +104,15 @@ Use the entry format above. Rules:
 After appending, run the data-file lint:
 
 ```
-PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint changelog
+uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint changelog --project "<absolute project root>"
 ```
 
-It checks date-heading order, the 12-type taxonomy, and required fields. Fix any
-finding before moving on.
-Fallback only if the lint cannot run: manually verify the entry is under the correct date
-heading, headings are reverse-chronological, no fields are missing, and no duplicate exists.
+It checks date-heading order, the 12-type taxonomy, required fields, and a `Drained` count
+on each `CONSOLIDATION` entry from the oldest marked one on. Fix any finding before moving
+on. `--project` takes the absolute project root: a relative path resolves inside the plugin,
+so the lint exits 2 for a ledger that exists. Fallback only if the lint cannot run: manually
+verify the entry is under the correct date heading, headings are reverse-chronological, no
+field is missing (on a `CONSOLIDATION` entry, `Drained` too), and no duplicate exists.
 
 **The lint checks the entry's SHAPE. It cannot check whether the entry is TRUE — and that is the
 failure this file is most exposed to.**
@@ -162,10 +164,11 @@ created), group them under a single `CONSOLIDATION` entry with sub-items:
 ### CONSOLIDATION: Weekly learning consolidation (N entries processed)
 - **What:**
   - Promoted 3 learnings to AGENTS.md rules (enum handling, async patterns, prompt sanitization)
-  - Created `openai-realtime-quirks` reference skill from 4 clustered entries
+  - Created `vendor-api-quirks` reference skill from 4 clustered entries
   - Archived 5 stale entries
+- **Drained:** 12 entries
 - **Why:** Weekly cadence consolidation to keep learnings lean and promote actionable knowledge
-- **Files:** AGENTS.md, .claude/skills/openai-realtime-quirks/SKILL.md, .ai/learnings.md, CLAUDE.md
+- **Files:** AGENTS.md, .claude/skills/vendor-api-quirks/SKILL.md, .ai/learnings.md, CLAUDE.md
 - **Affected workflows:** None
 ```
 

@@ -17,7 +17,7 @@ dir and redden the whole suite.
 ## Using it
 
 ```bash
-uv run python -m lemmi_ai_kit new-pack <pack> --skill <skill-name>
+uv run python -B -m lemmi_ai_kit new-pack <pack> --skill <skill-name>
 ```
 
 That copies this tree to `plugins/<pack>/`, substitutes the placeholders below,

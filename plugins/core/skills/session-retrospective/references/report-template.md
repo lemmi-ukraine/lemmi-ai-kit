@@ -112,7 +112,10 @@ Volume: {stats.subAgent.files} agents, {bytes}, {msgs} msgs.}
 ### Sub-Agent Deep-Dive (top ≤6 high-signal)
 {Findings from the bounded deep-dive of emitted `sessions/sub/<id>/*.md`: errors hit, any
 WRONG/FABRICATED result returned to the orchestrator, internal thrash — each with the sub-agent
-transcript as evidence. State how many were scanned via taxonomy only (beyond the ≤6 cap).}
+transcript as evidence. State how many were scanned via taxonomy only (beyond the ≤6 cap). A
+sub-agent digest cannot show a structured returned result: a tool call's return is cut to `ok` or
+an error line and a plain-text final report to `PER_MESSAGE_TEXT_CAP` characters, so when a finding
+turns on what a helper handed back, say the digest could not show it rather than judging it.}
 
 ## Absence Sweep (Phase 4i)
 
@@ -142,7 +145,7 @@ period AND the data speaks. Report-only: statuses are the hypothesis-validator's
 
 {REQUIRED — fixed per-window trend table; consumed by hypothesis-validator and the
 learning-consolidator. Data: aggregate.json, git history of `.ai/` data files,
-`PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint learnings --list-entries`. One table — not a dashboard.}
+`uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --list-entries --project "<absolute project root>"`. One table — not a dashboard.}
 
 | Metric | This window | Prior window |
 |--------|-------------|--------------|
@@ -158,6 +161,9 @@ point out, which the extractor data already supported, is a defect in THIS skill
 fix the step that should have caught it. The 2026-08-01 run scored 2: a zero-invocation skill
 whose cause sat one join away in its own model-distribution data, and a permission-economy
 question it never asked despite measuring the friction.}
+
+{.NET build failures (MSBuild, C# compiler errors) count as `build-compile`; a report made before
+that rule had them in `test-failure` or `runtime-exit`, so its counts move against this window.}
 
 ## Recommendations
 

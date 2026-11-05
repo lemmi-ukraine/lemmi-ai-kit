@@ -5,7 +5,7 @@ description: >
   integration test that drives the real application against real dependencies in containers,
   fakes external systems only at sanctioned seams (provider leaf, mock-server base URL,
   emulator), and is written first and proven red then green. Use when writing, changing,
-  running, debugging, reviewing or planning tests, and before implementing a feature or fix.
+  running, debugging, reviewing or planning Python tests, and before implementing a feature or fix.
   Not for static checks over repository files (manifests, prompts, import boundaries).
 when_to_use: >
   "write a test", "add tests", "fix this bug", "TDD", "testcontainers", "integration test",

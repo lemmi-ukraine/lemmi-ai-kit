@@ -60,9 +60,9 @@ certain; where it is 1.0–1.1x the probe cannot discriminate and the row is mar
 | product-brief | `3dd2496d` | 2026-06-25 | 6 | 7 | 1.2x |
 | analyze-logs | `3dd2496d` | 2026-06-25 | 10 | 11 | 1.1x |
 | lemmi-test-conventions → `test-conventions` | `3dd2496d` | 2026-06-25 | 75 | 78 | 1.0x |
-| openai-realtime-quirks | `3dd2496d` | 2026-06-25 | 33 | 34 | 1.0x |
+| vendor-api-quirks | `3dd2496d` | 2026-06-25 | 33 | 34 | 1.0x |
 
-Three prompt skills (`review-prompts`, `prompt-eng-reviewer`, `prompt-domain-reviewer`, base
+Three prompt skills (`check-prompts`, `prompt-craft-reviewer`, `prompt-topic-reviewer`, base
 `9e97fffe`) are omitted from planning use — I1 deleted them.
 
 **Five skills are kit-origin with no upstream path at all:** `kit-setup`, `scout-review`,

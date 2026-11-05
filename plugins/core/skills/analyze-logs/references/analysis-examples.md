@@ -10,7 +10,7 @@ each BAD and GOOD pair is the content, not the stack they happen to be written i
 
 **Log excerpt:**
 ```
-ERROR: app.features.chat.storage.transcript_repository: Failed to save transcript
+ERROR: app.features.chat.storage.transcript_store: Failed to save transcript
 sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) server closed the connection unexpectedly
 ```
 
@@ -20,10 +20,10 @@ sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) server closed the c
 Why this is bad: describes the symptom, not the cause. Doesn't explain WHY the connection was closed or reference any code.
 
 **GOOD analysis (evidence-based):**
-> Root Cause: The `TranscriptRepository.save_transcript()` at `backend/app/features/chat/storage/transcript_repository.py:87` uses a long-running session that spans the entire chat WebSocket lifecycle. When a session exceeds the PostgreSQL `idle_in_transaction_session_timeout` (default: 30 minutes in the project's Docker Compose config), the server drops the connection. The repository acquires a session in `__init__` but only commits at session end, leaving the transaction idle during the entire audio exchange.
+> Root Cause: The `TranscriptRepository.save_transcript()` at `backend/app/features/chat/storage/transcript_store.py:87` uses a long-running session that spans the entire chat WebSocket lifecycle. When a session exceeds the PostgreSQL `idle_in_transaction_session_timeout` (default: 30 minutes in the project's Docker Compose config), the server drops the connection. The repository acquires a session in `__init__` but only commits at session end, leaving the transaction idle during the entire audio exchange.
 >
 > Evidence:
-> - `transcript_repository.py:23` — session injected via `__init__`, not per-operation
+> - `transcript_store.py:23` — session injected via `__init__`, not per-operation
 > - `docker-compose.local.yaml:45` — PostgreSQL `idle_in_transaction_session_timeout=1800000`
 > - Log timing: error occurs ~31 minutes after session start (10:15:23 start, 10:46:45 error)
 
@@ -77,3 +77,17 @@ Why this is bad: 4 "issues" that are really 1. The middleware errors are just th
 > Issue 1: Report generation failure — 2 occurrences (abc-123, def-456)
 >
 > The middleware errors are the service exception propagating through the error handling chain, not a separate problem. Both sessions fail with the same exception in `report_generator.py`, indicating a systematic issue (not session-specific).
+
+---
+
+### Example 4: An absence found by a join
+
+**Claim to check:** "None of the 21 failing requests has an application log row with the same trace id, so the application never saw them."
+
+**BAD analysis (a zero with no denominator):**
+> 0 of 21 failing requests join to an application row. The failure happened upstream of the application.
+
+Why this is bad: the same join was never tried on a request known to have an application row. It matched 0 of all 2,000 request-log rows, because the request log writes the trace as a path that ends in the id and the application writes the bare id, so no pair could ever match. The "0 of 21" says nothing about the application.
+
+**GOOD analysis (the overall match count beside the zero):**
+> The first join matched 0 of 2,000 request-log rows overall, so its "0 of 21" was void. With the trace reduced to the bare id on both sides, the join matches 1,874 of 2,000 overall, so it can see a match, and 0 of the 21 failing requests join to an application row. The absence belongs to the 21: read two of them in the request log to see what the application never received.

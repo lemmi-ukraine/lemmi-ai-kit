@@ -13,21 +13,24 @@ which is what this document is for.
 
 ## Level names
 
-Use the names the project already uses. Where the project ships a language pack with its own
-test-type decision table, **that table is authoritative** — read it for the project's level names,
-the seams it allows for faking an external dependency, and any required markers or deadlines, then
-use those names in the plan verbatim so the plan and the suite agree.
+The project's own testing conventions come first: use the level names the project already uses,
+with the seams it allows for faking an external dependency and its rules for waits, deadlines and
+required markers, verbatim, so the plan and the suite agree. Where the project ships a language
+pack with its own test-type decision table, read it as well, but it applies only where it matches
+the code under test: one written for another language never overrides the project's own
+conventions.
 
 A pack whose model runs every behaviour test against real dependencies in containers has no unit
 level to default down to. Its **profiles** (for example a database-only profile and a full-app
 profile) are the levels: default downward means the narrowest profile that can prove the
 assertion, and the generic table below does not apply.
 
-Route to it **by role, not by name**: "the language pack's testing conventions reference". A core
-skill that hardcodes a specific pack skill's name breaks in projects using a different pack or
+Route to the pack **by role, not by name**: "the language pack's testing conventions reference". A
+core skill that hardcodes a specific pack skill's name breaks in projects using a different pack or
 none, and this repo enforces that with a boundary test.
 
-Where the project provides no such table, these generic levels are a safe default:
+Where neither the project's conventions nor a matching table names the levels, these generic
+levels are a safe default:
 
 | Level | Proves | Cannot prove |
 |---|---|---|
@@ -107,3 +110,29 @@ of them, the column is ceremony: leave it out rather than filling it with the sa
 
 An unfilled ownership column is honest. A column filled with a party that does not exist makes the
 plan look like a handoff document and invites the reader to wait for someone.
+
+## Style within a level
+
+Style is optional and empty by default, like ownership.
+
+Add a `Style` column to the case table only where a level has more than one test form: plain test
+functions beside scenario or feature files, or hand-written tests beside generated or snapshot
+ones. A project with one form per level leaves the column and the census line out.
+
+The plan states its placement rule in one sentence: a case goes in the form the repository already
+uses for that kind of flow, read from the census, unless the case says why not. A case that departs
+from the rule says why on its own row.
+
+The census is one line for the feature and two sibling areas, each counting its tests by form. Take
+the counts from a listing command run now, not from memory, and name the command beside the line.
+
+```
+Census  (functions, scenarios)  <feature>: 6, 0;  <sibling area>: 4, 11;  <sibling area>: 2, 9
+        counted with: <listing command, run today>
+Rule    acceptance flows go in feature files, as both siblings do; pure logic stays in functions
+```
+
+Without a census a plan labels its cases in the form its author knows, and every review written
+against that plan inherits the omission: it checks that the cases are sound, not that their form is
+the one CI already runs for that kind of flow. Observed once; the rule is reasoned from that case,
+not measured.

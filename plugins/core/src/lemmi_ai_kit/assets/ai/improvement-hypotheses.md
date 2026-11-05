@@ -12,5 +12,7 @@
 >
 > **Status lifecycle:** PENDING → CONFIRMED | REFUTED | INCONCLUSIVE | SUPERSEDED
 > (status changes are made by the future validation skill, not this file's authors)
+>
+> **Last meta-synthesis:** none — 0 terminal verdicts covered
 
 ---

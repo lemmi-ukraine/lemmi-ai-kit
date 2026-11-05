@@ -117,3 +117,64 @@ this family is not *"is my reasoning correct?"* — it was, every time — but:
 
 Write the enumeration down next to the conclusion. If you cannot say how you know it is exhaustive,
 the conclusion is a hypothesis wearing a conclusion's grammar.
+
+---
+
+## Four shorter cases: a status word or a figure stood in for what it summarises
+
+Each of these was true of what it examined. The gap is between that and what it was taken to cover.
+
+- **A suite "stands in" for a file's verification only after you have grepped which switches its
+  tests pass.** If every test passes the same mode flag, the branch behind the other values was
+  never run, however many tests are green. List the flag's values in the tests before you write
+  "covered by the suite".
+- **A drafted commit message copies figures from the run that existed when it was written.** A
+  count of tests, files or findings belongs to one run, and the run that gates the commit is a
+  later one. Compare every figure in the draft with the final log before committing.
+- **A mutant that survives may be equivalent.** Trace why it survived before adding a test: the
+  mutated code may guard nothing the program can reach, and deleting it is then the fix. A mutation
+  runner needs, in the same run, an unmutated control (it must pass) and an old-wording control, the
+  text the change replaced (it must fail). Its "applied" line proves only that the needle occurs
+  once, so a needle that drifted onto a different construct "applies" and the mutant survives for
+  the wrong reason.
+- **A lint's pass is its summary line, not the word PASSED.** The kit's hand-off lint covers a
+  folder and prints `--- handoffs: N finding(s), M file(s) ---` and then `LINT PASSED`, and it
+  prints PASSED over zero files as well: pointed at an empty project folder it reads
+  `--- handoffs: 0 finding(s), 0 file(s) ---` and exits 0. A pass is 0 findings and M equal to the
+  number of files you meant to lint. (The ledger lints take one file, print no count, and refuse a
+  missing file with an error.)
+
+## More ways a figure, a population or a set stood in for the whole
+
+Each of these was true of what it examined, as above, and each was seen once, in a project that
+uses the kit. The gap is between that and what it was taken to cover.
+
+- **A number you worked out by reading a printout is a typed number.** A command shown beside a
+  figure is evidence only if it was run and its output is what you wrote. A sum made in your head
+  over a list of rows is typed, and so is a value copied from the wrong line of a printout that
+  shows several similar values; nothing about either looks remembered, so a review passes it. Have
+  the script print the one value you will quote, with its label, and copy that line.
+- **Probe the claims that something is there as hard as the claims that something is absent.** An
+  absence claim ("no row covers it") feels risky, so it gets probes and one-by-one reads, while the
+  presence claims of the same document get none. A false presence claim closes a gap that is still
+  open; a false absence claim reports one that is not there and costs a recheck. Say which
+  population each probe covered, because one combined number hides the asymmetry.
+- **Editing the entries stales a document's own summary, and every check that walks the entries is
+  blind to it.** Id uniqueness, required fields, row resolution and a backup-to-live diff all
+  iterate entries; a header count, a histogram or a status table above them is prose. After any
+  per-entry edit, re-derive every count and status above the entries, from the entries.
+- **A claim about what was already documented is only as good as its stated corpus.** Derive the
+  corpus from the project's own statement of where such notes live (the homes its instructions file
+  names), not from the files you happened to open, and print the corpus size beside any share or
+  novelty claim. A narrower corpus than the project's own list makes "not written down before" look
+  stronger than it is.
+- **"Every file the citations point at" is not "every file in the write set".** A check that starts
+  from what is already known to be relevant (the files a sentence cites, the files a search matched)
+  cannot ask what else lives in the directory you were told you own. When the write set is a
+  directory (a skill's tree, a fixtures folder, a references folder), list it once near the end and
+  ask of each file whether this change made it wrong.
+- **A count with no command beside it cannot be reproduced.** Write the exact command next to every
+  count: the revision, `-F` or `-E`, the path filter, the exclusions. The flags change the number:
+  under `-E` a `.` matches any character, so a dotted name also matches its underscored sibling,
+  where `-F` matches the literal only. A count written from a prose list of the symbols searched can
+  match neither form.

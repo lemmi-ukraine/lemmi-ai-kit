@@ -92,7 +92,7 @@ with *(a)* and split by mechanism rather than by "linters vs docs":
 **D3 — OQ-5: no hooks story needed for this port.** Zero skills require a hook; the four
 references are prose case studies to genericize.
 
-**D4 — OQ-2 / `usage-guard`: defer.** OP-5 admitted it against a 1,764-word estimate; it
+**D4 — OQ-2 / `quota-guard`: defer.** OP-5 admitted it against a 1,764-word estimate; it
 is 12,509 words, 72% PowerShell, writes the user's settings file, installs a scheduled
 task.
 
@@ -166,7 +166,7 @@ The triage's §12 lists ten. The four that will actively mislead a planner:
 
 | Charter says | Actually |
 |---|---|
-| Table A's "Words" column | **SKILL.md only** — understates the candidate set 2.6x (38,807 → 100,916); `usage-guard` 7.1x, `feedback-audit` 9.3x |
+| Table A's "Words" column | **SKILL.md only** — understates the candidate set 2.6x (38,807 → 100,916); `quota-guard` 7.1x, `rubric-audit` 9.3x |
 | "Rows 1–10 sum to +42,155" (twice) | its own rows sum to **+39,959**; correct post-I1 top-ten is **+42,397** |
 | "`analyge-logs` → `analyze-logs`" | **no such rename** — the kit never had the typo. Delete the work item |
 | the spec-directory convention is unshipped | the kit **already ships it** — 20 references across 8 files, 14 in `spec-driven-dev` |
@@ -190,7 +190,7 @@ counts, the three provenance findings (`scout-review` is a kit original; no
 - **Cross-platform is unverified.** The shipped scripts' tests were never run on macOS or Linux — this platform was the only one available. The charter's "must work on Windows, macOS and Linux" consequence is still open, and D2's (a) is what makes it load-bearing.
 - **The skill-directory variable's runtime resolution is assumed.** The whole same-skill/cross-skill split rests on it resolving to the *calling* skill's directory. Both the kit and upstream rely on it, but nothing here executed a skill to prove it. If it is wrong, D2's line moves and more sites go to (c).
 - **`audit_skills.py` carries a portability defect** — a hard-coded path depth instead of discovery. Ported as-is into the asset tree it resolves to `src/lemmi_ai_kit`, which is not a repository root. Fix it on the way in, using the working-directory fallback the shipped extractor already uses.
-- **The hygiene contract cannot see `.ps1`/`.sh`/`.ts`.** Unexercised today because the kit ships no such file; it becomes real the moment `usage-guard` or any shell-script skill is reconsidered.
+- **The hygiene contract cannot see `.ps1`/`.sh`/`.ts`.** Unexercised today because the kit ships no such file; it becomes real the moment `quota-guard` or any shell-script skill is reconsidered.
 - **Prose generalization is unmeasurable by pattern.** The 31-scrub figure is a floor on intentional divergence, not a total.
 
 ## 11. If I2 stops here

@@ -153,8 +153,8 @@ the rotation step
 (`ai-improvement-tracker/SKILL.md` § File Size Management). Superseded, not lost.
 
 **Deliberate strips (the large majority).** Named source-project test files
-(`tests/integration/features/feedback/...`), module paths (`core/subscription/...`,
-`features/realtime_interview/...`, `backend/app/core/{module}/README.md`), decision-record
+(`tests/integration/features/orders/...`), module paths (`core/billing/...`,
+`features/catalog/...`, `backend/app/core/{module}/README.md`), decision-record
 provenance (`Project policy (2026-06-21)`, `Project position (D2, 2026-07-02)`, `project D1
 policy`), dated project incidents (the 06-11/06-12 heading disorder, the 2026-07-16 drain's
 `ShutdownRunContext`), an unverifiable org claim ("feedback from 10+ engineers"), machine rules

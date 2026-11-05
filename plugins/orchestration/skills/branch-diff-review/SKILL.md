@@ -146,9 +146,12 @@ and the dirty-set count is deliberately unrelated to the reviewed diff.
 **Committed only.** Local uncommitted work is out of scope. Say so in the report — a tree with
 modified tracked files can produce a clean verdict on code that is about to change.
 
-**Re-snapshot `git diff HEAD --stat` after reviewing.** If the set changed, another session edited the
-tree mid-review and the verdict is void — restart, do not merge a stale verdict
-(`parallel-session-safety` § 6, which also notes `git status --short` under-reports).
+**Re-snapshot `git diff HEAD --stat` after reviewing, and compare content hashes of the dirty set, not
+only counts** (record them with the first snapshot:
+[12g](../parallel-session-safety/references/shared-index-protocol.md)): equal counts do not prove an
+unchanged tree. If the set changed, another session edited the tree mid-review and the verdict is void —
+restart, do not merge a stale verdict (`parallel-session-safety` § 6, which also notes
+`git status --short` under-reports).
 
 ## Step 2 — Map ownership before reviewing anything
 
@@ -173,6 +176,15 @@ whether findings are routable at all.
 Run the built-in **`/code-review`** with the branch target and an explicit effort level — e.g.
 `/code-review origin/dev...HEAD high`. Its dial is real: low/medium yield fewer high-confidence
 findings, high/max broaden coverage and admit uncertain ones. Pick from blast radius, not habit.
+
+**Match the fan-out to the diff.** A review that fans out to several read-only lenses (one sub-agent per
+axis) costs a multiple of the diff itself, and on a small committed diff most of that reading repeats
+what the main thread's own diff already shows. Before any fan-out, run in the main thread what needs no
+sub-agent: the base branch's drift since the fork (Step 1) and the gates. Then fan out only the lenses
+that execute something (a harness, a reproduction, a check of each documented claim against the code),
+and tell each lens which items accepted in an earlier round to re-test against the current base, not
+against the version the review started from. This rests on one sample with no control, so it is a
+calibration, not a measurement.
 
 **Confirm the diff basis before trusting the findings.** What basis `/code-review` uses for a branch
 target is **UNKNOWN** from inside this repo — its definition is not a readable file here. So compare its
@@ -287,8 +299,13 @@ not-reviewed sections is a finished review, not a failed one.
    reading, not for withholding it. Measured: a review skipped the handoff citing this clause and a
    directory count of 222 — condition 2 was genuinely unmet, but condition 3 **was** met, and the
    operator asked for the handoff in their very next message. Counting the directory is a measurement
-   that feels like evidence while being irrelevant to whether THIS work has a consumer. If written, check it with `python -m lemmi_ai_kit lint handoffs`, attributing findings **by
-   filename** — the target lints every handoff, not only yours.
+   that feels like evidence while being irrelevant to whether THIS work has a consumer. If written,
+   lint that one hand-off, with its file straight after the target, and read the anchor notes that
+   only `--resolve-anchors` prints (`<file>` is the hand-off you wrote, relative to the project
+   root; set `KIT_CORE_PLUGIN_ROOT` and `KIT_PROJECT_ROOT` as the pack README says):
+   `uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint handoffs <file> --resolve-anchors --project "${KIT_PROJECT_ROOT}"`
+   Leave `<file>` out and the target lints every hand-off in the directory, so attribute those
+   findings **by filename**.
 
 ## Example — the verification line, wrong and right
 

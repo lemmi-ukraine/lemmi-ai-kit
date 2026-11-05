@@ -138,5 +138,10 @@ Unresolved symbol notes are informational and need manual inspection.
 - **No fix proposed.**
 ````
 
-For seam triage, append a `Residue verdict` bullet naming the pair, symbol and
+For seam triage, append a `- **Residue verdict:**` bullet naming the pair, symbol and
 resolution: seamed-at-row-level, real-gap-row-written, or shared-entry-no-seam.
+When two flow documents record different verdicts for one mechanism, append a
+`- **Verdict ownership:**` bullet instead, naming the full symbol, both documents and
+the reason one of them owns the verdict. The seam detector's `--registers` run counts
+only a `-` or `*` bullet that opens with one of these two labels exactly as written (bold,
+the colon inside the bold, capitalised) and names the symbol and both documents.

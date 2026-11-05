@@ -2,7 +2,8 @@
 
 `probe_checker.py` answers one question: *given these two fixtures, can the checker see?* It cannot
 tell you whether the fixtures model anything real. Every failure below produced a **green probe** on
-a **wrong instrument**, and all of them were measured in this repo.
+a **wrong instrument**, and each was measured on a real instrument (sections 12 to 15 once each, in
+a project that uses the kit).
 
 Read this at the moment you write a checker, not at the gate that has already been driven by its
 output.
@@ -42,6 +43,12 @@ control and no resembling negative one.**
 > Applies to every redactor, linter and detector — including the ones inside our own measurement
 > instruments. This one had been corrupting the retrospective's evidence base for an unknown number
 > of runs while reporting success.
+
+**A positive must resemble the target too:** plant the defect on a line shaped like its real lines,
+ids included; a filter that drops typical lines only lowers counts, so no negative catches it. A
+`grep -v` tail over task-id prefixes such as `BUG-` or `TECH-` hides nearly every line of a log
+whose lines all carry one, and only a positive written like those lines loses its match and shows
+it.
 
 ## 2. The probe certifies the half you pointed it at — usually the wrong half
 
@@ -132,9 +139,9 @@ work, which is exactly the evidence that made the four skips look real.
 
 **Measured.** The operator said *"extend our test assistant mode"*. The search pattern was
 `test.assistant|assistant.mode|test_mode`. Measured after the fact: **0 hits** in the feature
-directory actually named `testing_assistant`, **5+** in an unrelated one named `<other>_test`.
+directory actually named `testbed_assistant`, **5+** in an unrelated one named `<other>_test`.
 
-The real feature is `testing_assistant` — "test**ing_**assistant" — so a `.` between "test" and
+The real feature is `testbed_assistant` — "test**bed_**assistant" — so a `.` between "test" and
 "assistant" could never match it, while `test_mode` happened to hit the other directory. The pattern
 did not merely miss; it **actively redirected to a plausible neighbour**, and a full round of
 analysis plus a "this is the wrong vehicle, here is what to do instead" recommendation was built on
@@ -177,16 +184,21 @@ refuses your fixtures.
 
 ## 8. The probe's counting unit is OUTPUT LINES, and a mismatch accuses the innocent party
 
-`probe_checker.py` counts your checker's **output lines**. Two very common checker shapes therefore
-probe as `UNUSABLE / OVER-MATCHING` while being perfectly correct:
+`probe_checker.py` counts your checker's **output lines**, with one exception: when the whole output
+is ONE bare integer (what `grep -c PATTERN {file}` prints), it reads that integer as the count. A
+`grep -c` checker therefore probes correctly with no flag: a clean file prints `0` and reads as 0.
+Output that is more than that one number is counted by lines, so two shapes of correct checker
+probe as `UNUSABLE / OVER-MATCHING`:
 
-- **`grep -c PATTERN {file}`** prints one count line always, so positive and negative both yield 1.
-  Measured three times independently (`positive=1 negative=1`, `positive=3 negative=2`).
 - **A checker that prints an unconditional summary** (`TOTAL: n`, a per-file header) adds a line to
-  every run, including the clean one.
+  every run, including the clean one, so the clean fixture reads 1, not 0.
+- **A checker that prints its count beside other lines** (a header, then the number) is no longer
+  one bare integer, so its lines are counted and the clean fixture reads 2, not 0.
 
-The fix is one flag — **`--count-mode grep-c`** parses a bare integer on stdout instead of counting
-lines — or make the checker print nothing when it finds nothing.
+The fix is **`--count-mode grep-c`**, which sums the bare integers on stdout instead of counting
+lines. It suits the second shape. It does not suit the first: no line is a bare integer, so the
+positive reads 0 and the verdict flips to BLIND. There, make the checker print nothing when it
+finds nothing. `--count-mode lines` forces the line reading back.
 
 **The trap is that the FAIL is a true statement about the wrong quantity, and it points at the
 innocent party**: it accuses the *pattern* of over-matching when the defect is the *counting unit*.
@@ -251,6 +263,63 @@ the *whole file*, so a script written to change two strings rewrites every line 
 rewrite hazard wearing the clothes of a fix. Normalise only the replacement text, never the document.
 And measure in BYTES: a `grep -c $'\r$'` census can degrade to a bare end-of-line anchor under some
 shells and report every file as 100% CRLF unconditionally.
+
+## 12. A probe certifies the matcher, never the region
+
+A checker that scans a span of a file (one block, one section, the lines of one command) can pass
+both fixtures and still read the wrong span. The probe saw the pattern match where the fixture put
+the defect; nothing in it asked which part of the file the checker looks at, and the green stamp is
+what stops the reader asking. Section 2 is the same failure seen from the code side.
+
+- Before probing, ask what the checker would return if it were pointed at the wrong region, and
+  choose a positive fixture that only the correct region can see.
+- End a scan region on a token the defect cannot move. A region that ends where the rule under test
+  stops holding cannot see that rule break.
+- Keep one fixture whose defect sits at the boundary of the region and whose target lies beyond it.
+
+Seen once, in a project that uses the kit: a checker ended its region at the first line without a
+trailing backslash, scanned part of a continued command, and reported a hidden comment as fine; its
+probe had passed, because the positive fixture put the defect on that first line.
+
+## 13. A checker keyed on text cannot tell a mention from a use
+
+A broken-reference checker cannot tell a live pointer from a documented absence: a line that says a
+file does not exist, or a fixture named for a path that is meant to be missing, reads as a dangling
+reference. A checker keyed on a command's text flags the comment that documents the command. In
+both, the text of the thing appears where it is being talked about, not used.
+
+- Read the citation's context before counting a hit, and set apart any hit whose surrounding text
+  asserts the absence rather than the path.
+- Put a benign mention in the negative fixture (a documented absence, a comment that names the
+  command), so a matcher that cannot tell the two apart fails its probe.
+- Prefer a structural rule (which token is the command, which line is a comment) to a text match,
+  and keep two mutation controls: one offending insertion that must be flagged and one benign
+  mention that must not.
+
+## 14. A probe tests detection, not normalisation
+
+A probe shows that the checker can see its fixtures, and the fixtures are written in the spelling
+the checker expects. A sweep that compares tokens between two sets (the names in a document against
+the names in the code) can pass its probe and still report real tokens as missing because the
+spelling differs: case, a hyphen against an underscore, a plural, a trailing mark.
+
+- Before acting on the count of the first real run, classify a sample of its findings by hand and
+  name each class. A finding that is only a spelling difference is a defect in the checker's
+  normalisation, not a token missing from the corpus.
+- Draw one fixture from the corpus itself, so that at least one case carries the corpus's own
+  spelling.
+
+## 15. Two sweeps that cannot see what they certify: the wrap and the number
+
+- **A line-at-a-time sweep cannot see a phrase the markdown wrap splits.** A stale-phrase sweep that
+  prints only benign hits can be blind to the one occurrence that matters, because a line break
+  falls inside it. Sweep paragraphs as well as lines (fold whitespace before matching), and run the
+  sweep over the pre-fix copy of the text first: the stale phrase is in that copy, so the sweep must
+  find it there, and a later fix cannot change that known positive (section 3).
+- **A presence-only sweep of tokens cannot check numbers.** A number is present whether or not it
+  is right. Set aside the numbers under three digits (they turn up in any document, so their
+  presence proves nothing), resolve each remaining number by what it counts, in which file, from
+  which command, and report "N checkable, N carried" beside the sweep, never "all resolve".
 
 ---
 

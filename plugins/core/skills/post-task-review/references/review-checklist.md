@@ -10,6 +10,7 @@ invisible to anyone working from it.
 - [ ] Ran BEFORE steps 1–6 (ideally before the change itself)
 - [ ] Produced a LIST of affected callers/callees/tests — not an opinion
 - [ ] Every item in that list either reviewed or explicitly excluded with a reason
+- [ ] Every sweep for readers of a symbol, a claim or an old name counted untracked files (`git grep -n --untracked`, with `git ls-files --others --exclude-standard` for new files) and says which form ran next to its count
 
 ## Steps 1–6: Code Review
 
@@ -19,6 +20,7 @@ invisible to anyone working from it.
 - [ ] No obvious design flaws or anti-patterns
 - [ ] Integrates well with existing system components
 - [ ] No missing pieces that prevent end-to-end functionality
+- [ ] The tests that already exist for the touched area and for two neighbouring areas are listed before the change's own tests are judged (the script's test-changes section prints how many test paths changed and how many the repository holds)
 
 ### Step 2: Detailed File-by-File Review
 - [ ] Every function reviewed for correctness
@@ -28,6 +30,8 @@ invisible to anyone working from it.
 - [ ] Proper resource cleanup (connections, files, sessions)
 - [ ] No potential memory leaks or performance issues
 - [ ] Async/await usage correct (no missing awaits)
+- [ ] Every removed or changed assertion in an edited test or shared test helper (the script's test-changes section lists them) has what covers it now and a broken version that passes the old test and fails the new one, or the word "none"; a "none" is a finding (see `claim-boundaries.md`, the paragraph on a mutant that survives)
+- [ ] The test files that changed match the plan's list of test files that may change: each changed test path the plan does not list, and each listed one left alone, is explained
 
 ### Step 3: Convention Compliance
 - [ ] Imports: global at top, proper grouping, no unused
@@ -54,7 +58,7 @@ invisible to anyone working from it.
 
 ### Step 6: Linting
 - [ ] `read_lints` run on ALL modified files
-- [ ] `ruff check --fix` run on all changed Python files
+- [ ] The project's lint command (AGENTS.md § Commands) run on all changed files
 - [ ] All remaining issues resolved
 
 ## Step 7: Documentation Impact
@@ -68,6 +72,14 @@ invisible to anyone working from it.
 - [ ] New feature has README.md if applicable
 - [ ] Results reported (updated / no change needed)
 
+### 7c-extra: checks 4 and 5
+
+Checks 4 and 5 of the prompt cross-reference sweep (SKILL.md, step 7c-extra, run when prompt files
+were modified). Checks 1 to 3 are in SKILL.md and cover a feature removed or added.
+
+4. When a rule is added or strengthened, re-read its own exceptions and every example that speaks its phrasing: sharpening a rule can turn a tolerated exception into a contradiction, and examples outweigh instructions.
+5. A pointer from one prompt part to another must contain the rule it names, not only resolve to a heading.
+
 ## Step 8: Learnings Extraction
 
 - [ ] Task reviewed for discoveries and surprises
@@ -75,6 +87,10 @@ invisible to anyone working from it.
 - [ ] Findings classified (project-level vs task-specific)
 - [ ] Project-level findings appended to `.ai/learnings.md`
 - [ ] Rules updated if convention gaps found
+- [ ] AI-infrastructure files modified: changelog entry appended to `.ai/ai-changelog.md`
+- [ ] Changelog entry written: hypothesis evaluated, and appended to `.ai/improvement-hypotheses.md` if warranted (appends only; a Status or marker edit stays with the validator's run)
+- [ ] A drafted changelog line marks each file it names as tracked, untracked or ignored (`git ls-files --error-unmatch <path>` exits 0 only for a tracked file, `git check-ignore -q <path>` exits 0 for an ignored one) and gives the tracked part of each count ("6 files, 4 tracked")
+- [ ] Brief names another writer for these entries: the learnings entry, the changelog entry and the hypothesis drafted in the return, that writer named, each listed as not done, none appended
 - [ ] Results reported (count + summary)
 
 ## Step 9: Close Self-Challenge (MANDATORY — runs LAST)
@@ -83,6 +99,7 @@ invisible to anyone working from it.
 - [ ] Asked: is it detailed enough? what was missed? what would a reviewer object to?
 - [ ] Stated what the challenge CHANGED, including "nothing" — silence is not a result
 - [ ] Ran BEFORE the handoff is written, never after
+- [ ] Finished artifact read end to end: the document, plan or report as it now stands, after the last edit (not its diff, not a checker's verdict); yes or no, with what was read
 
 ## Common Mistakes Caught in Past Reviews
 

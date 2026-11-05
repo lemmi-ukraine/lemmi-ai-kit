@@ -68,7 +68,7 @@ def _build_parser() -> argparse.ArgumentParser:
     scaffold_p.add_argument(
         "--force",
         action="store_true",
-        help="overwrite locally modified managed files (.ai/templates)",
+        help="overwrite locally modified managed files: everything placed under .ai/ except the state logs",
     )
     scaffold_p.add_argument(
         "--reseed",
@@ -100,6 +100,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="which data file to lint (default: all)",
     )
     lint_p.add_argument(
+        "file",
+        nargs="?",
+        metavar="FILE",
+        help=(
+            "with 'handoffs', check only this hand-off; write it right after the "
+            "target. A relative path resolves against the project root, not the "
+            "working directory; a README named here is checked too"
+        ),
+    )
+    lint_p.add_argument(
         "--project",
         metavar="DIR",
         help="project root (default: nearest ancestor of the working directory with .ai/ or .git/)",
@@ -118,6 +128,25 @@ def _build_parser() -> argparse.ArgumentParser:
         "--resolve-anchors",
         action="store_true",
         help="also check that hand-off 'Durable anchors' resolve in git (shells out per anchor; reported as notes)",
+    )
+    lint_p.add_argument(
+        "--list-commands",
+        action="store_true",
+        help=(
+            "with 'handoffs', print each Preconditions and Verification command with "
+            "its line, section and expected result instead of linting; runs nothing"
+        ),
+    )
+    lint_p.add_argument(
+        "--stand-in",
+        action="append",
+        default=[],
+        metavar="NAME=VALUE",
+        help=(
+            "with --list-commands, fill <NAME> in the listed commands with VALUE "
+            "(repeatable); a command with a <NAME> left unfilled is marked UNRESOLVED. "
+            "NAME may hold single spaces: quote the pair, as in 'project root=DIR'"
+        ),
     )
 
     audit_p = sub.add_parser(
@@ -270,14 +299,95 @@ class _UsageError(ValueError):
     """A bad flag combination or value: reported on stdout, exit 2."""
 
 
+def _parse_stand_ins(raw: list[str]) -> dict[str, str]:
+    try:
+        return checks.parse_stand_ins(raw)
+    except ValueError as exc:
+        raise _UsageError(str(exc)) from None
+
+
+def _handoff_file(named: str, root: Path) -> Path:
+    """The file a `lint handoffs FILE` run names.
+
+    A relative path resolves against the PROJECT ROOT, never the working directory: the
+    command form a skill prints runs with the working directory inside the plugin, where
+    no hand-off lives. An absolute path is used as is.
+    """
+    candidate = Path(named)
+    path = candidate if candidate.is_absolute() else root / candidate
+    if not path.is_file():
+        raise _UsageError(
+            checks.ascii_safe(
+                f"no such hand-off file: {checks.display_path(path, root)}"
+            )
+        )
+    return path
+
+
+def _lint_handoffs(root: Path, named: str | None, resolve_anchors: bool) -> int:
+    """One hand-off when `named`, else the whole directory; both go through one checker."""
+    if named is None:
+        findings, scanned = checks.lint_handoff_dir(
+            root, resolve_anchors=resolve_anchors
+        )
+    else:
+        path = _handoff_file(named, root)
+        findings = checks.lint_handoff_file(path, root, resolve_anchors)
+        scanned = 1
+    return _report_lint("handoffs", findings, note=f"{scanned} file(s)")
+
+
+def _list_handoff_commands(
+    root: Path, named: str | None, stand_ins: dict[str, str]
+) -> int:
+    """`lint handoffs --list-commands`: print what each hand-off asks its receiver to run.
+
+    An inventory, like `--list-entries`, so it exits 0 whatever it finds. It checks no
+    anchor and builds no subprocess: running another session's text needs a shell, and the
+    one `shell=True` this repository allows is not this one.
+    """
+    if named is not None:
+        paths = [_handoff_file(named, root)]
+    else:
+        paths = checks.handoff_files(root)
+    listed = unresolved = 0
+    for path in paths:
+        commands = checks.handoff_commands(checks.read_text(path), stand_ins)
+        where = checks.display_path(path, root)
+        for line in checks.format_handoff_commands(where, commands):
+            print(checks.ascii_safe(line))
+        listed += len(commands)
+        unresolved += sum(1 for command in commands if command.unresolved)
+    print(
+        checks.ascii_safe(
+            f"--- commands: {listed} listed, {unresolved} unresolved, "
+            f"{len(paths)} file(s) ---"
+        )
+    )
+    return 0
+
+
 def _cmd_lint(args: argparse.Namespace) -> int:
     root = _project_root(args.project)
     since = _parse_since(args.since)
     target: str = args.target
     inventory_only: bool = args.list_entries
+    named_file: str | None = args.file
+    list_commands: bool = args.list_commands
+    stand_ins = _parse_stand_ins(args.stand_in)
 
     if inventory_only and target == "handoffs":
         raise _UsageError("--list-entries needs a data file target, not 'handoffs'")
+    if named_file is not None and target != "handoffs":
+        raise _UsageError(
+            f"FILE is only valid with the 'handoffs' target, not '{target}'"
+        )
+    if list_commands and target != "handoffs":
+        raise _UsageError("--list-commands needs the 'handoffs' target")
+    if stand_ins and not list_commands:
+        raise _UsageError("--stand-in needs --list-commands")
+    if list_commands:
+        return _list_handoff_commands(root, named_file, stand_ins)
 
     targets = checks.LINT_TARGETS if target == "all" else (target,)
     total = 0
@@ -285,10 +395,7 @@ def _cmd_lint(args: argparse.Namespace) -> int:
         if name == "handoffs":
             if inventory_only:
                 continue
-            findings, scanned = checks.lint_handoff_dir(
-                root, resolve_anchors=args.resolve_anchors
-            )
-            total += _report_lint(name, findings, note=f"{scanned} file(s)")
+            total += _lint_handoffs(root, named_file, args.resolve_anchors)
             continue
 
         path = checks.target_path(name, root)
@@ -935,9 +1042,30 @@ def _cmd_new_pack(args: argparse.Namespace) -> int:
     return 0
 
 
+# Python 3.11 stops reading positionals at the first option, so it refuses `lint handoffs
+# --project DIR FILE`, which 3.12 and later read. The parse itself is not changed here
+# (intermixed parsing is an operator decision); the refusal names the order every version
+# reads.
+_FILE_POSITION_HINT = (
+    "write FILE directly after the target, as in 'lint handoffs FILE --project DIR'"
+)
+
+
+def _unrecognized_arguments(command: str, extras: list[str]) -> str:
+    """argparse's own refusal text, plus where FILE goes when `lint` has a stray word."""
+    message = f"unrecognized arguments: {' '.join(extras)}"
+    if command == "lint" and any(not extra.startswith("-") for extra in extras):
+        message += f" -- {_FILE_POSITION_HINT}"
+    return message
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
-    args = parser.parse_args(argv)
+    # `parse_args` is exactly `parse_known_args` and then a refusal of anything left over;
+    # it is spelled out only so the refusal can carry the hint. What parses is unchanged.
+    args, extras = parser.parse_known_args(argv)
+    if extras:
+        parser.error(_unrecognized_arguments(args.command, extras))
     try:
         if args.command == "scaffold":
             return _cmd_scaffold(args)

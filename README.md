@@ -82,7 +82,7 @@ remain subject to your authorization.
 
 | What you are reviewing | Start with | Result / boundary |
 |---|---|---|
-| A completed implementation | Core · [post-task-review](plugins/core/skills/post-task-review/SKILL.md) | Code and convention review, documentation impact and captured learnings |
+| Work at any completion event: a finished task of any size, a precondition stop, a gate report, a hand-off | Core · [post-task-review](plugins/core/skills/post-task-review/SKILL.md) | Code and convention review, documentation impact and captured learnings |
 | Committed work before a PR exists | Orchestration · [branch-diff-review](plugins/orchestration/skills/branch-diff-review/SKILL.md) | A durable findings document against a base ref; excludes uncommitted changes |
 | An existing PR or stack | Orchestration · [pr-review-concise](plugins/orchestration/skills/pr-review-concise/SKILL.md) | Short, actionable inline findings; posting requires authorization |
 | A change needing deeper investigation | Orchestration · [scout-review](plugins/orchestration/skills/scout-review/SKILL.md) | Parallel reviewers trace leads beyond the diff and try to disprove findings before reporting |
@@ -280,7 +280,9 @@ than plausible guesses.
 | `AGENTS.md` | AI-workflow rules, with the commands / conventions / restart / project-rules sections detected from your project | you — edit freely |
 | `CLAUDE.md` | `@AGENTS.md` plus the skill index, pre-rendered | you — edit freely |
 | `.ai/learnings.md`, `.ai/ai-changelog.md`, `.ai/improvement-hypotheses.md` | empty intake and log files the workflow writes to | your project's state — never overwritten |
-| `.ai/templates/` | spec templates (requirements, design, tasks, test cases, test plan) | kit-managed |
+| `.ai/templates/` | spec templates (requirements, design, tasks, test cases, test plan) and a hand-off template | kit-managed |
+| `.ai/git-stacked-pr-workflow.md` | reference note for the stacked-PR workflow | kit-managed |
+| `.ai/tmp/.gitignore`, `.ai/handoffs/.gitignore`, `.ai/retrospectives/.gitignore` | one self-ignoring file in each local-only folder, so git ignores the scratch files, hand-offs and retrospective reports kept there | kit-managed |
 
 Your own rules go in the `### Project rules` section of `AGENTS.md`. It sits last in
 the file, so where your rules and the kit's disagree, yours win. That seam is why

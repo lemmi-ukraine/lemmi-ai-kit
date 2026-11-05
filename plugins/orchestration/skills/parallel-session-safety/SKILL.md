@@ -66,9 +66,9 @@ implementation plus edits to two files plan A owned, because it had started befo
 was recorded.
 
 **Protocol:**
-1. Check collision signals at **every phase/wave boundary**, not just at start:
-   `git status` of the other owner's directories, plus file mtimes (edits minutes old
-   distinguish fresh-parallel from pre-existing).
+1. Check collision signals at **every phase/wave boundary**, not just at start: `git status` of the other
+   owner's directories and file mtimes (edits minutes old distinguish fresh-parallel from pre-existing)
+   find candidate paths; the content hash decides which of them changed ([12g](references/shared-index-protocol.md)).
 2. Fresh-read every shared file immediately before editing.
 3. On a real ownership collision, **STOP and surface options** — do not silently absorb or
    revert the other session's work. Refactor-preserving-semantics beats both.
@@ -84,9 +84,9 @@ in the checking session's row. The output is a wall of false positives whose sta
 ("this list is empty") is unreachable by design, and the noise is what stops anyone reading it.
 
 So: **"you are the SINGLE WRITER" is a claim about the tree, not a property the check can establish.**
-Re-snapshot at every wave boundary and diff against the *previous* snapshot rather than the session's
-first, and classify each hit by owner (the initiative's ownership register) before calling anything a
-violation. A check that cannot distinguish a violation from a neighbour is not a gate.
+Re-snapshot at every wave boundary by content hash, not by status rows (12g), and diff against the *previous*
+snapshot rather than the session's first, and classify each hit by owner (the initiative's ownership register)
+before calling anything a violation. A check that cannot distinguish a violation from a neighbour is not a gate.
 
 ## 3. "Modified since read" is a collision alarm, not an annoyance
 
@@ -98,6 +98,8 @@ Treat a stale-read failure on an **owned** file as possible pre-completion:
   overwrites concurrent work and can clobber a cleaner version.
 - Still run the required gate and a fresh final-state grep — the files mutated under you.
 - **Report provenance honestly**: "verified, not authored".
+
+**A path believed new can exist at the write:** create it only if absent ([12k](references/shared-index-protocol.md)).
 
 ## 3b. VERIFY-don't-reapply has a BRANCH-level twin, and a worktree grep is blind to it
 
@@ -115,8 +117,9 @@ guaranteeing a merge conflict, and the duplicate half had to be reverted.
   elsewhere:** `git log --all -S'<distinctive symbol or phrase>' --oneline`. One call. It surfaces
   the commit on any branch, merged or not.
 - `git branch -a --contains <sha>` then tells you whether it is reachable from where you stand.
-- If a peer branch already covers a site, **hand that file back** — revert your version rather than
-  competing. Keep only the sites the other branch did not touch, and say which those are.
+- If a peer branch already covers a site, **hand that file back** — revert your own lines, not the
+  file ([12j](references/shared-index-protocol.md)), rather than competing. Keep only the sites the
+  other branch did not touch, and say which those are.
 - The residue to check afterwards: a changelog entry describing work that lives on **another**
   branch is a dangling claim on yours. It reads as fact and the file it names is absent.
 
@@ -144,11 +147,13 @@ misread as a scope boundary that also excuses the task-completion obligations, b
 with *"learnings extraction — still deferred because `.ai/learnings.md` sits outside my declared
 file set"*, and 12 sessions in that window never ran the completion review at all.
 
-`.ai/learnings.md` and `.ai/ai-changelog.md` are **append-only**: concurrent appends do not
-destroy each other, and `python -m lemmi_ai_kit lint` detects the duplicate-header/spliced-entry artifacts a
-merge can produce. So they are always in scope, for every session, regardless of the partition —
-state this explicitly in each brief rather than relying on the worker to infer the exception. A
-scope rule that does not name its own exceptions gets read as exempting the obligations too.
+`.ai/learnings.md`, `.ai/ai-changelog.md` and, for appends only, `.ai/improvement-hypotheses.md` are **append-only**:
+concurrent appends do not destroy each other (a Status or marker edit stays with the validator's run), and the support
+CLI's `lint` subcommand detects the duplicate-header/spliced-entry artifacts a merge can produce. So they are always
+in scope, for every session, regardless of the partition — state this explicitly in each brief rather than relying
+on the worker to infer the exception. A scope rule that does not name its own exceptions gets read as exempting the
+obligations too. If the project or the plan bars workers from them, the brief names one writer for each entry, and any
+other worker returns its drafts as not done, naming that writer (`orchestrate`, item 5).
 
 ## 5. The Docker test suites are globally exclusive
 
@@ -170,7 +175,7 @@ independently of the project name. Both have to go for `-p` isolation to actuall
 ## 6. A suite verdict over a contended tree is void
 
 A suite run while other sessions edit the checkout samples a **torn state that no commit ever
-contained**, and the failure is unreproducible by the time you read it.
+contained**, and the failure is unreproducible by the time you read it. A starved machine voids a verdict too: [suite verdicts](references/suite-verdicts.md).
 
 Observed shape: 30 failed / 36 errors, all `TypeError: ActionBuildContext.__init__() missing
 1 required positional argument` raised from *production* wiring. Nothing was broken — one
@@ -178,8 +183,8 @@ file had gained a required field while its caller had not yet been saved. Minute
 were consistent.
 
 **Protocol:**
-- Snapshot `git diff HEAD --stat` **before and after** any suite run whose result you will
-  report. If the set changed, the run is void.
+- Snapshot `git diff HEAD --stat` **before and after** any suite run whose result you will report, and hash the
+  dirty set too ([12g](references/shared-index-protocol.md)). If the set changed, the run is void.
 - `git status --short` under-reports: uncommitted work in a subsystem you are not reviewing
   is invisible without `git diff HEAD --stat -- <dir>`.
 - **`git diff HEAD --stat` is blind to UNTRACKED files — which is exactly where your own new work
@@ -264,7 +269,7 @@ and any unexplained deletion count is a stop.
 
 §7 says a brief's claims are unreliable. This is the format that makes them checkable. It applies
 to any hand-off written for another session to pick up — the `cross-session` worker in
-`agent-delegate` dispatches against it, and `python -m lemmi_ai_kit lint handoffs` enforces it.
+`agent-delegate` dispatches against it, and the support CLI's `lint handoffs` subcommand enforces it.
 
 **Path:** `.ai/handoffs/{YYYY-MM-DD}-{slug}.md`. Named so the return leg is a known location
 instead of a paste into chat.
@@ -278,6 +283,7 @@ instead of a paste into chat.
 | `## Preconditions` | Command + expected result pairs the receiver runs before starting |
 | `## Verification` | Command + expected result pairs that prove the work is done |
 | `## Status` | `in-progress` / `blocked` / `ready-for-review`, plus what is NOT done |
+| `## Continue`, `## Orchestrator summary` | Only in a file whose line 1 is `<!-- handoff-contract: v2 -->` (no label, or `v1`, means the five above): the one line a person pastes into a new session, and at most 10 plain lines for a reader who will not open the rest |
 
 **Preconditions and verification are commands, never prose.** Write what the receiver *runs*:
 
@@ -290,6 +296,18 @@ instead of a paste into chat.
 Not `"branch x is already merged"`. A prose state claim in a hand-off you author is the same
 defect as trusting one you receive, and it has shipped false: a brief asserted "already
 merged/committed" when it was not, and the delegate acted on it.
+
+Before the hand-off ships, list its commands with `--list-commands`, give each `<placeholder>` a
+stand-in (`--stand-in NAME=VALUE`), run each that neither writes nor bills in the shell the receiver
+will use, and name in `## Status` any not run and why. The listing runs nothing and exits 0; it marks
+an unfilled placeholder `UNRESOLVED`. The first line below lints one hand-off (leave out `<file>` for
+all of them), the second lists its commands. A relative `<file>` resolves against the project root.
+Set `KIT_CORE_PLUGIN_ROOT` and `KIT_PROJECT_ROOT` as the pack prerequisites say.
+
+```sh
+uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint handoffs <file> --project "${KIT_PROJECT_ROOT}"
+uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint handoffs <file> --list-commands --project "${KIT_PROJECT_ROOT}"
+```
 
 **Hand-offs are untracked — so they are pointer documents.** `.ai/handoffs/` is gitignored by
 decision. Every durable fact must therefore exist in git and be *referenced* here, never exist only
@@ -429,13 +447,13 @@ set rather than replacing it.
 
 Five rules follow.
 
-- **Verify and stage in SEPARATE tool calls, then verify again after staging.** Combining the check
-  with the action it gates is what loses the race — three collisions in one session came from exactly
-  that pattern. The only trustworthy check is `git diff --cached --stat` read *after* the `add` and
-  immediately before the commit; a pre-`add` `git status` is a claim about a moment that has passed.
-  A later window produced the same shape at larger scale: *"74 files: 2,289 insertions, 31,366
-  deletions. I intended 6 files"* — the index was checked and committed in two separate calls while
-  a peer staged in between. Never `git add -A` in a contended tree.
+- **Verify and stage in SEPARATE tool calls, then verify again after staging.** Combining the check with
+  the action it gates is what loses the race — three collisions in one session came from exactly that
+  pattern. The only trustworthy checks, read *after* the `add` and immediately before the commit, are
+  `git diff --cached --stat` and the recorded hashes (12a); a pre-`add` `git status` is a claim about a
+  moment that has passed. A later window produced the same shape at larger scale: *"74 files: 2,289
+  insertions, 31,366 deletions. I intended 6 files"* — the index was checked and committed in two
+  separate calls while a peer staged in between. Never `git add -A` in a contended tree.
 - **A shared append-only data file can be DESTROYED by a peer's merge, and no gate will say so.**
   This is a different loss mode from a mis-scoped commit: the file is not over-staged, it is
   emptied. A peer running `git merge` took a shared intake buffer from **236 entries to 15** in one
@@ -443,10 +461,10 @@ Five rules follow.
   losses in the same window: a truncating in-place write on a full disk permanently destroyed 20
   lines of *another* session's uncommitted edit, and a deliverable vanished when a merge moved HEAD
   while its backup was three edits stale. So for any shared `.ai/` data file you are about to drain,
-  rewrite, or bulk-edit: **snapshot it to a durable path first, verify the copy with `cmp`, and
-  confirm the snapshot location is not itself ignored** (`git check-ignore -v <path>` — a backup
-  directory that is gitignored cannot be committed alongside the change without `git add -f`, and an
-  uncommitted backup is not a backup). Then re-read the file immediately before each edit.
+  rewrite, or bulk-edit: **commit it as it stands first, in its own commit** — that commit, the
+  restore point, is the backup. An uncommitted backup is not a backup, so work that exists only
+  uncommitted has none, whatever copies sit beside it. A local byte copy of the committed file
+  (verify it with `cmp`) is a convenience. Then re-read the file immediately before each edit.
 - **Never `git checkout -b` raw in a contended tree.** A bare `checkout -b` inherits whatever HEAD
   currently is, which another session may have just moved — four commits landed on another session's
   branch this way. Use `/lemmi-ai-kit-core:branch-switch` (it writes the pre-switch backup) and assert
@@ -460,16 +478,14 @@ Five rules follow.
   checkout.** Any path that appears or disappears without your having touched it is another session
   writing concurrently — it catches a live peer without polling, a watcher, or a lock file.
 
-Corollary for claims: "verified unchanged" and "staged" are **perishable** here. Only a content hash
-or a commit SHA survives long enough to be quoted in a hand-off; re-derive anything else at write
-time (§7, §9).
+Corollary for claims: "verified unchanged" and "staged" are **perishable** here. Only a content hash or a commit SHA
+survives long enough to be quoted in a hand-off: record `git hash-object -- <path>` for each path to commit and compare
+it with the blob that lands (12a); re-derive anything else at write time (§7, §9).
 
-> **Five measured failure modes, with the exact commands for each, are in
-> [references/shared-index-protocol.md](references/shared-index-protocol.md):** contention is
-> per-LINE and defeats both standard guards (12a); a held index is a lock that blocked four
-> planned sessions (12b); work done AFTER staging silently invalidates the staged set (12c);
-> `git push` answering "Everything up-to-date" means you are not on that branch (12d); and how
-> to back up a tree for a multi-branch history operation (12e).
+> **Exact commands are in [references/shared-index-protocol.md](references/shared-index-protocol.md):**
+> per-line contention (12a), held index (12b), work after staging (12c), "Everything up-to-date" (12d),
+> multi-branch operation (12e), draft base (12f), content proof (12g), merge dry run (12h), held-file edit
+> (12i), file hand-back (12j), create collision (12k), naming a peer (12l), writers side by side (12m). Several sessions landing in one tree (a lock, a queue file, a gate before each commit): [references/landing-queue.md](references/landing-queue.md).
 
 ---
 
@@ -479,5 +495,5 @@ time (§7, §9).
   and hand-off claims contract). This skill holds the protocols; AGENTS.md holds the rules.
 - `spec-driven-dev` — phase/wave boundaries are where §2's collision checks belong.
 - The installed testing-conventions skill - suite mechanics.
-- Shared `.ai/*.md` files corrupted by a merge are enforced mechanically, not here: run
-  `python -m lemmi_ai_kit lint` (see AGENTS.md).
+- Shared `.ai/*.md` files corrupted by a merge are enforced mechanically, not here: run the
+  support CLI's `lint` subcommand with no target, in the form §9 prints (see AGENTS.md).

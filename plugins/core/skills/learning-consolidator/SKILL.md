@@ -42,12 +42,12 @@ You verify each entry against the current codebase before deciding its fate.
 
 ### Phase 1: Inventory & Cluster Detection
 
-0. **Cadence guard** — count intake entries (`python
-   python -m lemmi_ai_kit lint learnings --list-entries`) and read the
-   newest `CONSOLIDATION` entry date in `.ai/ai-changelog.md`. Proceed when intake > 0 AND the
-   last consolidation is ≥7 days old — or whenever the user explicitly asked. Otherwise report
-   why not ("buffer empty" / "last drain {D} days ago — fresh") and stop. This is the pair of
-   `session-retrospective` Phase 0; that skill's ending also nudges THIS one when it is overdue.
+0. **Cadence guard** — the last drain is the newest `CONSOLIDATION` entry in `.ai/ai-changelog.md` whose
+   `**Drained:**` count is above 0 (one without the line counts as drained). Count intake entries (run
+   `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --list-entries --project "<absolute project root>"`).
+   Proceed when intake > 0 AND the last drain is ≥7 days old — or whenever the user explicitly asked.
+   Otherwise report why not ("buffer empty" / "last drain {D} days ago — fresh") and stop. This is the
+   pair of `session-retrospective` Phase 0; that skill's ending also nudges THIS one when it is overdue.
    Cadence: measured **~5 entries/day** (REFUTED twice — draining does not slow intake, do not
    re-predict it), so the >25 NOTE fires in ~5 days and weekly is the FLOOR; if volume is the
    concern the lever is capture-side selectivity at `task-learnings`, not more drains.
@@ -61,12 +61,13 @@ You verify each entry against the current codebase before deciding its fate.
    drain the learnings buffer 114 -> 2, promoting into rules and skills"* — the changelog *entry*
    is headed `CONSOLIDATION:` but the commit message is not, and this check reads commit messages.
    Following it literally would have re-verified 93 already-landed promotions. Settle any ambiguity
-   on the artifact rather than the message: `git show <sha>:.ai/learnings.md | grep -c '^### '`
+   on the artifact rather than the message: the buffer's `### ` heading count at that commit (the
+   operator reads it in their own terminal, [§ Operator Steps](references/consolidation-actions.md#operator-steps))
    against the post-drain count, plus `git merge-base --is-ancestor <sha> HEAD`. With no commit
-   naming
-   that drain, re-verify each promotion at its **named target** and treat still-present entries as
-   un-drained rather than duplicates.
-1. Read `.ai/learnings.md` in full.
+   naming that drain, re-verify each promotion at its **named target** and treat still-present
+   entries as un-drained rather than duplicates.
+1. List every other copy of the buffer, then read `.ai/learnings.md` in full
+   ([§ Buffer Copies and Parked Lessons](references/consolidation-actions.md#buffer-copies-and-parked-lessons)).
 2. **Deferred-work pickup** — check `tasks/TECH-deferred-consolidation-*.md` and the most
    recent `.ai/consolidation-plan-*.md` for open/deferred items. Carry each still-open item
    into this run's consolidation plan (re-verify it against the live skill/codebase first —
@@ -145,7 +146,9 @@ classify each item: **applied** (verify by grep/read, not memory) | **superseded
 open**. Still-open items enter this run's consolidation plan: P1/P2 as promotion/update
 candidates, P4 as expected intake entries (flag if the intake buffer never received them).
 Recommendations with no tracked lifecycle silently evaporate — this closes that loop from the
-consumer side.
+consumer side. When the report is not durable (gitignored scratch, expected to be lost) or is
+absent, read the retrospective's changelog entry in `.ai/ai-changelog.md` instead — a project that
+keeps P1/P2 as proposals registers them there and leaves their application to this consolidation.
 
 ### Phase 2: Entry-by-Entry Analysis
 
@@ -190,9 +193,9 @@ If `PARTIALLY_COVERED`: mark for promotion to fill the gap.
 
 #### Step 3: Promotion Classification
 
-For entries that are `CURRENT` and `NOT_COVERED` or `PARTIALLY_COVERED`, classify the
-promotion action. Use the decision criteria in
-[references/consolidation-actions.md](references/consolidation-actions.md):
+For entries that are `CURRENT` and `NOT_COVERED` or `PARTIALLY_COVERED`, classify the promotion
+action and its home: one the project's own AGENTS.md names (this skill's homes are a sample).
+Use the decision criteria in [references/consolidation-actions.md](references/consolidation-actions.md):
 
 | Action | When to use |
 |--------|-------------|
@@ -222,9 +225,13 @@ mistake jumps to the top of the `PROMOTE_TO_RULE` queue — the retrospective is
 guidance is insufficient. If a rule already exists but the mistake still recurs *after* the rule's
 date, the action is "strengthen the rule / add a worked example", not "already covered → archive".
 
+**Hypothesis verdicts (via `hypothesis-validator`)** — run its Steps 1 to 4 and its Step 7
+ledger-state line now, writing nothing, so the verdicts reach the Phase 3 gate as a table; Phase 6.5
+keeps its Steps 6 and 8. Whether a meta-synthesis is due is found now too: [§ Hypothesis Lifecycle in the Plan](references/consolidation-actions.md#hypothesis-lifecycle-in-the-plan).
+
 ### Phase 3: Consolidation Plan
 
-Before making any changes, present a consolidation plan to the user:
+Before making any changes, present a consolidation plan to the user, built on the generated triage table ([§ Generated Triage Table](references/consolidation-actions.md#generated-triage-table-phase-3)):
 
 ```
 ## Consolidation Plan
@@ -256,11 +263,17 @@ Before making any changes, present a consolidation plan to the user:
 | # | Entry Title | Reason to keep |
 |---|-------------|----------------|
 | 1 | [title]     | Too recent — needs more validation |
+
+### Hypothesis verdicts (N) — Ledger: N PENDING · M terminal · last verdict <date>
+| Hypothesis | Window | Evidence for and against | Proposed verdict |
+|------------|--------|--------------------------|------------------|
 ```
 
-**STOP and wait for user approval before proceeding.**
+**STOP and wait for user approval before proceeding.** If `--dry-run` was specified, stop here.
+Present the report and exit.
 
-If `--dry-run` was specified, stop here. Present the report and exit.
+Only after the operator approves, write the approved plan to the gate record the learnings guard
+checks before any removal (path, same-day and length rules: [references/consolidation-actions.md](references/consolidation-actions.md#gate-record)).
 
 ### Phase 4: Execute Promotions
 
@@ -290,14 +303,14 @@ For each approved promotion, execute the action:
    - References still linked correctly
 
 #### PROMOTE_TO_README
-1. Identify the owning subsystem: `backend/app/core/<module>/README.md` or
-   `backend/app/features/<feature>/README.md`.
+1. Identify the owning subsystem's README from the project's own AGENTS.md (a sample layout:
+   `backend/app/core/<module>/README.md` or `backend/app/features/<feature>/README.md`).
 2. If the README does not exist, create it with a short purpose header plus the new guidance
    (precedent: the 2026-06-23 redistribution created `backend/app/core/jobs/README.md`).
 3. Add the guidance as a concise bullet in the README's conventions/gotchas section — match the
    file's existing style; state the constraint and the "why" in 1–3 lines.
-4. Feature READMEs must stay in sync with `docs/onboarding/` (AGENTS.md rule) — check whether
-   the matching onboarding doc needs the same note.
+4. Where the project's AGENTS.md pairs READMEs with docs (the sample pairs feature READMEs with
+   `docs/onboarding/`), check whether the paired doc needs the same note.
 
 #### PROMOTE_TO_COMMENT
 1. Locate the exact code site the invariant guards (file + line) — re-verify it still exists
@@ -323,25 +336,24 @@ The full procedure -- concept presentation, the approval gate, the `skill-creato
 
 After all promotions are executed:
 
-> **Snapshot the buffer FIRST** — `cp .ai/learnings.md .ai/learnings-pre-drain-<date>.md`
-> before any deletion, `cmp`-verify it, and **commit it alongside the drain**. Step 6's landing
-> audit takes it as input, so an uncommitted or gitignored snapshot makes "zero entries deleted
-> without a home" an assertion rather than evidence. Never `.ai/tmp/` (gitignored — the 2026-08-02
-> drain's evidence is simply gone, and its two published tallies still disagree with nothing left
-> to settle it). Full rationale: [references/consolidation-actions.md](references/consolidation-actions.md)
-> § Pre-Drain Snapshot.
+> **Restore point FIRST** — before any removal the operator commits the buffer as it stands, in its
+> own commit and in their own terminal (a session never names the buffer on a shell line), and
+> keeps a byte copy (for example `.ai/learnings-pre-drain-<date>.md`) that is never committed: the
+> project's ignore file lists it and the gate-record folder. Step 6's landing audit takes the
+> pre-drain snapshot, the buffer at that commit written to a scratch file; cite the commit id in the
+> changelog entry. Rationale: [§ Pre-Drain Snapshot](references/consolidation-actions.md#pre-drain-snapshot-phase-5).
 
 1. **Remove archived entries** — entries marked `ARCHIVE` are deleted entirely.
 2. **Remove promoted entries** — entries whose knowledge is now fully captured in
    rules/skills are deleted entirely. No tombstones — the rule/skill is the authoritative
    source now, and the git history preserves the original entry.
 3. **Replace merged entries** — remove source entries, insert the merged entry.
-4. **Keep entries** — leave unchanged, but enforce the dwell limit: if an entry already
-   survived the TWO previous consolidation runs as KEEP (check its date against the two most
-   recent `CONSOLIDATION` entries in `.ai/ai-changelog.md`), KEEP is no longer available —
-   promote it to a home or drop it. A lean buffer must not silently re-accumulate.
-5. **Verify removal (structural, not eyeballed)** — run
-   `python -m lemmi_ai_kit lint learnings`
+4. **Keep entries** — leave unchanged, but enforce the dwell limit: if an entry already survived
+   the TWO previous consolidation runs as KEEP (its date predates the two most recent `CONSOLIDATION`
+   entries whose `**Drained:**` count is above 0; one without the line counts as drained), KEEP is no
+   longer available — promote it to a home or drop it. A lean buffer must not silently re-accumulate.
+5. **Verify removal (structural, not eyeballed)** — run (`--project` takes the absolute project root: a relative path resolves inside the plugin, so the lint exits 2 for a buffer that exists):
+   `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --project "<absolute project root>"`
    (zero findings required), then re-read `.ai/learnings.md` and confirm:
    - All promoted entries are removed
    - All archived entries are removed
@@ -349,11 +361,11 @@ After all promotions are executed:
    - Category sections with no entries are removed (avoid empty sections)
    - File header and instructions are preserved
 6. **Verify LANDING — mandatory, and NOT step 5's check.** Step 5 proves entries left the buffer; it
-   is blind to an entry removed whose knowledge reached no home. Run
-   `drain_audit.py <snapshot> <base-ref>` — **the ref is not optional**, and which one is correct
-   depends on whether the promotions are committed; reconcile `entries scanned` against
-   `grep -c '^### ' <snapshot>`, then adjudicate every flagged row
-   and adjudicate every flagged row: [§ Drain Landing Audit](references/consolidation-actions.md#drain-landing-audit).
+   is blind to an entry removed whose knowledge reached no home. Run (`--surface <glob>` adds a home)
+   `drain_audit.py <snapshot> <base-ref>` — **the ref is not optional** (no ref exits 2), and which
+   one is correct depends on whether the promotions are committed; reconcile `entries scanned`
+   against `grep -c '^### ' <snapshot>`, then adjudicate every flagged row (exit 1 means rows to
+   adjudicate): [§ Drain Landing Audit](references/consolidation-actions.md#drain-landing-audit).
 
 ### Phase 6: Cross-Reference Verification
 
@@ -387,38 +399,27 @@ After all changes are made, verify consistency across the project's AI infrastru
 
 ### Phase 6.5: Hypothesis Validation (via `hypothesis-validator`)
 
-Close the feedback loop on `.ai/improvement-hypotheses.md`. The validation logic lives in
-the dedicated internal task skill — read `../hypothesis-validator/SKILL.md` and
-run its process here (one owner, multiple callers):
+Close the feedback loop on `.ai/improvement-hypotheses.md`. The validator's Steps 1 to 4 and its
+Step 7 ledger-state line already ran at the end of Phase 2, and their verdict table was approved
+with the Phase 3 plan — no second prompt. Read `../hypothesis-validator/SKILL.md` and run the rest
+here (one owner, multiple callers); Phase 6.5 keeps its Steps 6 and 8:
 
-1. It enumerates `Status: PENDING` hypotheses, applies the **window guardrail** (never
-   validate younger than the signal's window; interim evidence → dated `Validation notes:`,
-   Status untouched), gathers evidence FOR and AGAINST (this run's analysis, retro §4g,
-   changelog, fleet audits), and proposes `CONFIRMED | REFUTED | INCONCLUSIVE | SUPERSEDED`.
-2. Fold its proposed status changes into the consolidation plan (Phase 3's approval gate
-   covers them — no second prompt); execute only after approval, appending the
-   `- **Resolution ({date}):** …` line per its Step 6.
-3. `REFUTED` verdicts carry its mandatory follow-up action (adjust/revert the change, or
+1. **Step 6** — write only the approved rows: each verdict with its `- **Resolution ({date}):** …`
+   line, and the interim `Validation notes:` and DORMANT marks Phase 2 held back.
+2. `REFUTED` verdicts carry its mandatory follow-up action (adjust/revert the change, or
    record why it stays) — a refuted-with-no-action row is an incomplete plan item.
-4. **Its lifecycle actions are plan items, never post-approval side effects.** **There is no
-   archive and no rotation** — terminal entries stay in `.ai/improvement-hypotheses.md`
-   permanently; do not plan a rotation and do not create an archive file. What still **writes**
-   is the Meta-Synthesis, so it is *discovered* during Phases 1–2 and carried into the Phase 3
-   plan with its target named — whether the lint's synthesis-due NOTE is currently firing.
-   Approval then covers it exactly as item 2's status changes. Also carry the ledger-state line
-   the validator's Step 7 produces (`N PENDING · M terminal · last verdict <date>`) into the
-   plan: a plan that never mentions the ledger is how a stalled ledger stays invisible.
-   **This step runs after the gate, so anything it discovers for the first time here has not
-   been approved:** if the NOTE only starts firing once this run's own verdicts land, do not
-   execute it silently — present it as a one-line delta for a second approval, or carry it to
-   the next run with a dated note. Discovery may happen late; writing may not.
+3. **Step 8** — run the data-file lint it names (zero findings required; a NOTE is not a finding).
+4. **Nothing is written here that the plan did not name.** There is no archive and no rotation, and
+   the Meta-Synthesis is a plan item, never a post-approval side effect; what to do with a NOTE that
+   only starts firing once this run's own verdicts land is in
+   [references/consolidation-actions.md](references/consolidation-actions.md#hypothesis-lifecycle-in-the-plan).
 
 ### Phase 7: Changelog & Summary Report
 
 **7a. Append changelog entry** — Read the `ai-changelog` skill and append a
 `CONSOLIDATION` entry to `.ai/ai-changelog.md` summarizing all promotions, new skills,
 rule additions, and archives from this consolidation run. Use the grouped format documented
-in the ai-changelog skill.
+in the ai-changelog skill, with its `- **Drained:** N entries` line (0 if the run drained none).
 
 **7b. Record improvement hypothesis** — Read the `ai-improvement-tracker` skill
 and evaluate whether the consolidation warrants improvement hypotheses (e.g., promoted rules

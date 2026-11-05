@@ -73,7 +73,7 @@ prose. Map common synonyms to the closed set instead of inventing near-duplicate
 | Efficiency (incl. "hot-path efficiency") | Speed |
 | Reusability / Effectiveness | Coverage |
 
-(`python -m lemmi_ai_kit lint hypotheses` flags any new violation.)
+(The hypotheses lint run in Step 5 flags any new violation.)
 
 ## Entry Format
 
@@ -112,9 +112,9 @@ Append under the current date heading in `.ai/improvement-hypotheses.md`:
   remember), say so here — all 3 REFUTED verdicts to date share exactly that mechanism.
 - **Status** — always starts as `PENDING` and its value is EXACTLY one of `PENDING`,
   `CONFIRMED`, `REFUTED`, `INCONCLUSIVE`, `SUPERSEDED`. Only the `hypothesis-validator`
-  skill (invoked from learning-consolidator Phase 6.5, approval-gated; offered by
-  session-retrospective when its data settles a signal) changes it; session-retrospective
-  §4g reports evidence but never edits statuses.
+  skill (invoked from learning-consolidator at the end of its Phase 2 and again in its Phase 6.5,
+  approval-gated; offered by session-retrospective when its data settles a signal) changes it;
+  session-retrospective §4g reports evidence but never edits statuses.
 - **Validation notes** — optional sub-field placed directly above Status. Partial or
   interim evidence (e.g. "1 supporting run") goes HERE while Status stays `PENDING` —
   never inline annotations on the Status value itself. Written by `hypothesis-validator`
@@ -175,11 +175,17 @@ Before writing, verify:
 Append the entry, then run the data-file lint:
 
 ```
-PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint hypotheses
+uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint hypotheses --project "<absolute project root>"
 ```
 
 It checks heading order, heading-vs-`Changelog ref` date consistency, the category and
 status vocabularies, and required fields for new entries. Fix any finding before moving on.
+`--project` takes the absolute project root: a relative path resolves inside the plugin, so
+the lint exits 2 for a ledger that exists.
+
+Then report the ledger state, the three counts `hypothesis-validator` Step 7 lists, as
+`N PENDING · M terminal · last verdict <date>`, after every recorded entry and not only when a
+validation pass runs: this step runs when that one does not.
 
 ## Integration Points
 
@@ -198,13 +204,13 @@ Called by the same workflows as `ai-changelog`, immediately after the changelog 
 ### Good: New skill with specific signal
 
 ```markdown
-### [SKILL-ADDED] openai-realtime-quirks reference skill
+### [SKILL-ADDED] vendor-api-quirks reference skill
 - **Category:** Consistency
 - **Hypothesis:** By codifying OpenAI Realtime API quirks into a reference skill, we expect fewer external-service-related bugs in realtime voice features because developers will consult known quirks before implementation rather than rediscovering them.
 - **Signal:** Fewer learnings entries about OpenAI Realtime surprises in the 4 weeks following skill creation.
 - **Risk:** The skill may become stale as OpenAI updates their API, creating false confidence in outdated quirks.
 - **Status:** PENDING
-- **Changelog ref:** 2026-04-01 — SKILL-ADDED: openai-realtime-quirks reference skill
+- **Changelog ref:** 2026-04-01 — SKILL-ADDED: vendor-api-quirks reference skill
 ```
 
 ### Good: Convention change with risk
@@ -256,9 +262,13 @@ There is no archive file — do not create one, and do not delete an entry to sa
 The file is therefore expected to grow, and that is not the failure mode to guard. The real
 one is a ledger that grows while nothing closes: the lint's `meta-synthesis due` NOTE (≥10
 unsynthesized terminal verdicts, computed from the header's `Last meta-synthesis` marker)
-triggers the aggregate read that turns verdicts into design rules, and
-`hypothesis-validator` Step 7 reports `N PENDING · M terminal · last verdict <date>` at the
-close of every pass so the backlog cannot silently accumulate again.
+triggers the aggregate read that turns verdicts into design rules.
+
+An alarm that runs inside the process it watches cannot report that process stopping. Place a
+staleness alarm in a step that runs for an unrelated reason (a session start, a commit check, a
+CI job, the step that records the next entry), and ask of each check: if the thing it detects
+stops happening, does this alarm still run? A gate that reads a file its design removed can
+invert instead of going quiet.
 
 ## Anti-Patterns
 
@@ -267,6 +277,6 @@ close of every pass so the backlog cannot silently accumulate again.
 - Do NOT write compound hypotheses covering multiple categories — split them
 - Do NOT record retroactive hypotheses for past changes — hindsight bias corrupts predictions
 - Do NOT modify hypothesis Status — that is reserved for the `hypothesis-validator` skill
-  (invoked via learning-consolidator Phase 6.5); interim evidence goes in `Validation notes:`
+  (run by learning-consolidator at the end of its Phase 2 and in its Phase 6.5); interim evidence goes in `Validation notes:`
 - Do NOT modify the changelog to link back to hypotheses — keep the formats independent
 - Do NOT selectively interpret signals to confirm a hypothesis — record disconfirming evidence with equal weight (confirmation bias)

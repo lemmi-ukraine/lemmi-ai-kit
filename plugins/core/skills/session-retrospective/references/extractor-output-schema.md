@@ -21,8 +21,22 @@ The extractor writes into `<output-dir>` (always repo-relative, e.g. `.ai/tmp/re
 | File | Purpose |
 |------|---------|
 | `aggregate.json` | Cross-session error taxonomy + per-session behavioral metrics + stats |
-| `sessions/<id>.md` | Per-session readable transcript, size-capped (120 KB), fully redacted — for deep reading by sub-agents |
+| `sessions/<id>.md` | Per-session readable transcript, size-capped (120 KB), fully redacted — for deep reading by sub-agents. The operator turns the cap cut off follow the capped transcript in a section of their own (see below) |
 | `sessions/sub/<id>/<agent>.md` | Redacted, size-capped transcript of a HIGH-SIGNAL sub-agent (any error, or the largest few) under parent session `<id>` — for the Phase-3b sub-agent deep-dive |
+
+**The operator section.** A session digest stops at `TRANSCRIPT_BYTE_CAP` and drops the rest, and the
+operator's last turns are in that rest. They are kept: every operator turn after the cut is appended
+as a `USER: ` line (each clipped at `PER_MESSAGE_TEXT_CAP`, redacted, outside the byte cap) under a
+heading line that starts with `---` and says how many there are. A turn before the cut stays where it
+happened, so each operator turn is in the digest exactly once. The rule line also ends the `USER:`
+block before it for `sweep_user_corrections.py`. A sub-agent digest has no such section: no operator
+speaks in a helper's transcript.
+
+**Line endings.** Every file the extractor writes (`aggregate.json`, both kinds of digest,
+`interaction-digest.md`) holds LF line endings and no carriage return at all, on every OS, and
+`sweep_user_corrections.py` writes its own output the same way. The sweep numbers digest lines by LF
+alone, as Grep and the Read tool do, so a `[session:line]` citation is the line they show — also in a
+digest an older extractor wrote on Windows, where a CRLF inside a message had become CR CR LF.
 
 ## `aggregate.json` top-level keys
 
@@ -52,7 +66,7 @@ these lists as-is; qualifiers beyond the cap are listed in `overCap` (never sile
   "overCap":  [ { "sessionId": "…", "toolUse": 21 } ]
 },
 "subAgentDeepDiveCandidates": {
-  "selectionRule": "all emitted high-signal sub-agents; rank errorCount desc, bytes desc, file; top 6",
+  "selectionRule": "all emitted high-signal sub-agents; rank errorCount desc, bytes desc, file; top 6; at most 4 per parent session while others remain",
   "selected": [ { "parentSessionId": "…", "file": "agent-x.md", "transcriptPath": "<ABSOLUTE>", "errorCount": 3, "bytes": 9001, "emittedBytes": 4200 } ],
   // `bytes` = RAW source transcript size (and the rank key). `emittedBytes` (v4, additive) = the
   // redacted, size-capped digest actually on disk — measured at 1.6–2.6% of raw. Quote
@@ -98,17 +112,41 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
     "tool-error":      { "count": 5,  "sessions": […], "samples": […] },
     "other":           { "count": 0,  "sessions": [], "samples": [] }
   },
-  "userRejected": { "count": 1, "sessions": ["0f65932c"], "samples": ["[id/Bash] The user doesn't want to proceed…"] }
+  "userRejected": { "count": 1, "sessions": ["0f65932c"], "samples": ["[id/Bash] The user doesn't want to proceed…"] },
+  "hookDenials":  { "count": 2, "sessions": ["0f65932c"], "samples": ["[id/Bash] PreToolUse:Bash hook error: …"] }   // v4 (additive)
 }
 ```
 - **`userRejected` is a SEPARATE bucket** — permission denials are *friction*, not agent mistakes.
+  A result lands here only when it is an error whose text STARTS with the harness's own denial
+  sentence (`USER_REJECTED_SENTENCE`: "The user doesn't want to proceed with this tool use."; a
+  trailing note or the user's own feedback after it is fine). A phrase found ANYWHERE in the text
+  does not count: ripgrep's own usage errors ("ripgrep rejected the pattern, glob, or file type")
+  and any error that merely quotes a denial phrase are ordinary `tool-error` / shell results.
+  `count` is the TRUE number of hits (each session's own number is `sessions[].userRejected`);
+  `samples` stay capped at 3 per session, so their length is not the count. **A report that
+  compares with one built by an older extractor must say so:** the older run filed those usage
+  errors here, so this bucket reads lower and `tool-error` higher, and a sub-agent whose only
+  error was one is now error-bearing, which can change which sub-agent digests are emitted.
+- **`hookDenials` is a count BESIDE the categories, not a category.** It is the number of error
+  results whose text STARTS with the harness's hook prefix (`PreToolUse:<Tool> hook error: `),
+  counted over the whole main-thread transcript while it is walked — not over the capped digest, so
+  a denial after the cut is counted. `count` is the TRUE number (each session's own number is
+  `sessions[].hookDenials`); `samples` stay capped at 3 per session. The result keeps the category
+  it always had (`runtime-exit` for a shell tool, `tool-error` for most others): nothing in
+  `byCategory` moved, so a hook-heavy window still inflates those buckets, and this count is how to
+  take it back out. Output that quotes the prefix mid-text, a non-error result that starts with it,
+  and a hook that did not answer in time are not denials. **Known loss:** a hook that denies by
+  JSON returns only its own reason, with no prefix, and nothing else in the record names a hook (the
+  harness's `toolDenialKind` stamp is shared with don't-ask mode, built-in safety checks and
+  protected paths), so that form is NOT counted and the count is a floor. Sub-agent transcripts are
+  not counted here; their denials stay in the sub-agent taxonomy under their ordinary category.
 - Category definitions:
   | Category | Meaning |
   |---|---|
   | `path-not-found` | Read/Edit/Write on a missing file (`does not exist` / `no such file`) |
   | `edit-stale-read` | Edit/Write rejected: file modified since read / not read yet |
-  | `build-compile` | Shell non-zero exit with ruff/basedpyright/mypy/syntax signature |
-  | `test-failure` | Shell non-zero exit with pytest/test/assertion signature |
+  | `build-compile` | Shell non-zero exit with a lint, type-check or compile signature: ruff, basedpyright, mypy, pyright, `syntaxerror` or `compileerror` (any case); or a .NET build signature (exact case): MSBuild's `Build FAILED.` stamp, or `error MSB` or `error CS` plus four digits |
+  | `test-failure` | Shell non-zero exit with a pytest/`test session starts`/`assertionerror`/`failed` signature (any case; the word `failed` alone is enough, so a .NET test summary's `Failed!` lands here) |
   | `skill-blocked` | Skill tool result errored (e.g. `disable-model-invocation`) |
   | `runtime-exit` | Shell non-zero exit, other |
   | `tool-error` | Any other non-shell tool with `is_error` — the non-shell catch-all |
@@ -119,8 +157,10 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
 
 ### `subAgentErrorTaxonomy`
 Same shape and ORIGIN-tool classifier as `errorTaxonomy`, but computed over **sub-agent** transcripts
-(`<id>/subagents/**/*.jsonl` nested under each session, including workflow agents). Sub-agent errors
-were invisible before v3.
+(`<id>/subagents/**/agent-*.jsonl` nested under each session, including workflow agents). A workflow
+run's `journal.jsonl` is its event log, not a transcript, and is not counted (an older extractor
+counted it, so its sub-agent counts read one higher per workflow run). Sub-agent errors were invisible
+before v3.
 
 ```jsonc
 {
@@ -147,10 +187,12 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
   "transcriptBytes": 0,          // size of sessions/<id>.md (use for "substantial session" ranking)
   "toolsUsed": { "Read": 12, … },
   "errorsByCategory": { "edit-stale-read": 3, … },   // per-session error counts
+  "userRejected": 0,             // v4 (additive) — per-session count of user-rejected results (see `errorTaxonomy`); kept out of errorsByCategory and NOT capped like the samples
+  "hookDenials": 0,              // v4 (additive) — per-session count of results a PreToolUse hook blocked (see `errorTaxonomy`); main thread, over the whole transcript, NOT capped; the result still counts in errorsByCategory
   "behavior": {
     "reReads": [ { "file": "~/…/learnings.md", "count": 7 } ],   // file read >=3x
     "repeatedCommands": [ { "cmd": "git diff --staged", "count": 2 } ],   // identical cmd >=2x
-    "buildTestLoops": [ … ],     // subset of repeatedCommands matching test/build
+    "buildTestLoops": [ … ],     // subset of repeatedCommands matching test/build (see below)
     "staleReadEdits": 3          // == errorsByCategory["edit-stale-read"]
   },
   "skillInvocations": [ { "skill": "plan-critic", "blocked": true }, … ],
@@ -173,13 +215,30 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
 }
 ```
 
+`behavior.buildTestLoops` is the part of `repeatedCommands` (identical text, at least twice) that
+`TEST_BUILD_RE` matches anywhere in the first 120 characters of the command, in any case: the tools
+the pattern already listed (`pytest`, `ruff`, `uv run` and the rest of its alternatives) and these
+.NET commands, which are the list the pattern's .NET half is built from: `dotnet build`,
+`dotnet test`, `dotnet restore`, `dotnet publish`, `dotnet msbuild`, `msbuild`, `nuget restore`,
+`dotnet format`. A .NET command counts as typed: the program may carry `.exe`, its words are apart
+by blanks on one line, and it stands alone as a command word (no name, dot or hyphen fused to it,
+no slash or backslash after it), so `msbuild.log`, `run-msbuild`, `tools/msbuild/bin` and
+`dotnet build-server` do not count, and neither do `dotnet run`, `dotnet new` or `dotnet --info`.
+When the pattern changes, change this paragraph with it; a test holds the two together.
+
+**Compare like with like before reading a with-and-without contrast as an effect:** sessions that
+used a skill, set against sessions that did not, can also differ in model (`models`), size
+(`counts`, `transcriptBytes`) and kind of work (`toolsUsed`), so match the two groups on those
+fields first.
+
 ## Redaction & privacy
 
 - Every emitted **content** string is redacted: `sk-`/`sk-ant-` keys, JWTs, `Authorization: Bearer`,
-  GCP `private_key`/service-account JSON, PEM blocks, Google/AWS key prefixes, generic
+  GCP `private_key`/service-account JSON, PEM blocks, Google/AWS key prefixes, GitHub tokens
+  (`ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`/`github_pat_`), generic
   `*(KEY|TOKEN|SECRET|PASSWORD|PWD|CRED)* = value`, long hex/base64, and home-dir paths → `~`.
 - `transcriptPath` is the one intentionally **unredacted absolute path** (sub-agents need it). It
-  lives only in `aggregate.json` under the gitignored temp dir and never enters the committed report.
+  lives only in `aggregate.json` under the gitignored temp dir and never enters the report.
 - Emitted sub-agent transcripts (`sessions/sub/<id>/*.md`) are redacted by the SAME `redact()` and
   `--self-check` scans them too (it rglobs `sessions/`), so they cannot leak either.
 - `--self-check` greps the artifacts for high-confidence secret shapes; exit code 3 on any hit.
@@ -194,9 +253,10 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
 ## Invocation
 
 ```bash
-# <session-dir> is auto-derived from the repo root + ~/.claude/projects/ — omit it (pass it only to
-# override, e.g. a personal-scope install). `generatedFor.sessionDir` records which dir was used.
-python scripts/extract_sessions.py \  # path relative to this skill's directory
+# <session-dir> is derived from the working directory, which must be the project root — omit it.
+# From anywhere else the run exits 1 and asks for it as the first argument.
+# `generatedFor.sessionDir` records which dir was used.
+python "${CLAUDE_SKILL_DIR}/scripts/extract_sessions.py" \
   ".ai/tmp/retro/" [--since YYYY-MM-DD] [--until YYYY-MM-DD] --self-check
 ```
 Pure stdlib (no third-party deps). The project `.venv` python or system `python` both work;
@@ -229,15 +289,40 @@ detectable by the caller** instead of silently becoming a finding about work it 
 
 `--digest` requires `--session` and writes `interaction-digest.md`: counted repetition signals
 (re-reads at or above `--rereads-min`, default `DEFAULT_REREADS_MIN` = 6), agent error classes with
-≥2 occurrences, and the session's **human turns** — harness noise (skill payloads,
-task-notifications, command wrappers) filtered by `HARNESS_USER_PREFIXES`, which is deliberately
-separate from `SYSTEM_PREFIXES` because that tuple feeds `counts.userMsgs` and therefore
-`deepDiveCandidates` selection for the whole retrospective.
+≥2 occurrences, and the session's **operator turns**: what the operator typed, what they typed
+while the model was working (a `queued_command` attachment record, which no user record
+duplicates), and the answers they gave the question tool. ONE function, `operator_turn_text`,
+decides which records those are, by structure and not by wording — `origin.kind` human on a user
+record, a human `queued_command` prompt, an `AskUserQuestion` result that carries a dict of
+answers — and the operator section of a session digest shares it with this list and its header.
+Harness noise (skill payloads, task-notifications, command wrappers, hand-backs, and the plain-text
+notices that continue a compacted session, nudge a resume, report a classifier stop or open a
+workflow-authoring reference) is not an operator turn and is not listed; neither is a slash command
+the operator typed, which `sessions[].slashCommands` captures. A record with no `origin` stamp (an
+older transcript) falls back to its machine markers and to `HARNESS_USER_PREFIXES`, which is
+deliberately separate from `SYSTEM_PREFIXES` because that tuple feeds `counts.userMsgs` and
+therefore `deepDiveCandidates` selection for the whole retrospective. `sweep_user_corrections.py`
+keeps a mirror list (`SKIP_PREFIX`); a test imports both by path and fails when the two differ.
+
+The digest's header prints `Volume: N operator turns` (the number listed, not capped at the 40
+shown) and, on a line of its own, `User-channel records: M`. `M` is `counts.userMsgs`: it counts
+injected text as well, so it is not the number of operator turns, and it stays as it is because it
+selects the deep-dive sessions.
 
 **Re-asks are deliberately NOT detected.** Corrections have lexical markers that
 `sweep_user_corrections.py` can grep; a re-ask is the same request restated in different words and
 has none, so a similarity score would false-positive on shared domain vocabulary and miss terse
 restatements. The digest emits the sequence and the reader classifies.
+
+**A message that opens with "proceed" is read against the message above it.** Classify that
+assistant message first, and do not file the "proceed" as feedback on the agent's claim until you
+have. About 90% of such messages, in the one corpus where this was measured, followed a platform stop
+or a guard wait (a session or weekly limit, an access or connector notice, a quota-guard pause): the
+operator was restarting halted work, which is neither an approval nor a correction, and counting it
+as either inflates the feedback tally. Another kind is a bare "proceed" after the agent's own
+completion report: it marks a premature completion (a local milestone presented as the end of the
+task) and belongs in the findings as such. If the message above is not in the digest, read it in the
+transcript before classifying.
 
 Threshold provenance (measured 2026-08-14, 90 sessions / 85 substantial): the extractor never
 records a re-read below **3**, so a "≥2 occurrences" filter is vacuous; a count of exactly 3 is the
@@ -259,16 +344,26 @@ parameter, not a constant.
 - **`--check-file <path>`:** standalone leak gate — runs the same `LEAK_PATTERNS` over ONE file
   (exit 3 on a hit, 0 clean). Used by the SKILL's Phase 6 to gate the draft report; no other
   arguments required in this mode.
+- **Replayed events:** a session that was resumed or compacted can write earlier events into its
+  transcript a second time (the same top-level `uuid` and message, a re-stamped `slug`). The
+  extractor reads each `uuid` once per transcript file, the first occurrence, in the main thread and
+  in sub-agent files alike; a line with no usable `uuid` (state lines, older transcripts) is always
+  read. `counts`, `behavior` and both digests therefore count each event once, so a window that held
+  such a session reads lower than a report built by an older extractor. The number left out is
+  printed once on stderr (`Replayed events: skipped N repeated event(s) in M session(s)`), only when
+  it is above zero and only for sessions in the aggregate; there is no aggregate key for it.
 
 ## Porting the extractor to another repo
 
 - **Porting this script elsewhere** — three facts none of the docs state, each verified from code:
   (a) `from datetime import UTC` pins the extractor to **Python 3.11+**; a consumer repo on 3.10
   fails at import, so any distribution must state the floor from code evidence, not assumption.
-  (b) The redaction is **SECRET-shapes only** (keys/JWTs/bearer/PEM/hex/home-paths) — there are **no
-  email or PII patterns**. For transcripts carrying customer or research content, re-evaluate that
-  scope and state it honestly rather than claiming "redacted" generically. (c) Root detection
-  differs per script: this extractor walks up to the dir containing `.claude/`, while
-  the kit's `lint` command looks for `.ai` + `.git` — so an install must create `.ai/` **before** the
-  first lint run, and a repo never opened in Claude Code has no `~/.claude/projects/<encoded>` dir
-  for the extractor to find at all.
+  (b) The redaction is **SECRET-shapes only** (keys/GitHub tokens/JWTs/bearer/PEM/hex/home-paths) —
+  there are **no email or PII patterns**. For transcripts carrying customer or research content,
+  re-evaluate that scope and state it honestly rather than claiming "redacted" generically.
+  (c) Root detection
+  differs per script: this extractor reads the working directory, which must be the project root
+  with a session folder of its own under `~/.claude/projects/`, while the kit's `lint` command
+  looks for `.ai` + `.git` — so an install must create `.ai/` **before** the first lint run, and a
+  repo never opened in Claude Code has no `~/.claude/projects/<encoded>` dir, so the extractor
+  refuses it (exit 1) and asks for the session dir.

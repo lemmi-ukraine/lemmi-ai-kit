@@ -58,7 +58,7 @@ Use these sources in priority order. Fetch the most specific source for the ques
 
 ### OpenAI
 
-> **Access status (re-verified 2026-07-27)**: `developers.openai.com/api/docs/*` **renders fine via WebFetch** — guides, model cards, the changelog, deprecations, and pricing all return full content. The older "returns empty JS/CSS" note is stale. `platform.openai.com` still 301s to developers.openai.com (changelog) or returns 403 (blog/pricing). Try the `developers.openai.com` page **first** for conceptual, model-card, pricing, and deprecation facts; keep the **SDK raw source** URLs below as the authority for exact field literals and wire shapes, and cross-check schemas there.
+> **Access status (re-verified 2026-07-27)**: `developers.openai.com/api/docs/*` **renders fine via WebFetch** — guides, model cards, the changelog, deprecations, and pricing all fetch, though the answer can be a summary of the page (see Step 2). The older "returns empty JS/CSS" note is stale. `platform.openai.com` still 301s to developers.openai.com (changelog) or returns 403 (blog/pricing). Try the `developers.openai.com` page **first** for conceptual, model-card, pricing, and deprecation facts; keep the **SDK raw source** URLs below as the authority for exact field literals and wire shapes, and cross-check schemas there.
 
 | Source | URL | Use for | Status |
 |---|---|---|---|
@@ -102,6 +102,7 @@ grep -n "version\|==" pyproject.toml | grep -i <package>     # what is pinned?
 grep -rn "<symbol>" <venv>/lib/*/site-packages/<package>/    # does the PIN have it?
 ```
 
+The pin is read wherever the project pins it; the two greps are the Python example.
 The installed source is both **authoritative for this repo** and cheaper than a fetch. Use `main`
 only when the package is not installed, or when the question really is about the current API.
 
@@ -114,17 +115,21 @@ and nothing will flag it.
 
 Classify what needs to be looked up:
 
-- **Model facts**: name, ID, context window, modality support → fetch **Models** page
+- **Model facts**: name, ID, context window, modality support → fetch **Models** page; whether a
+  model exists is checked on **that model's own page**, never inferred from the index
 - **API behavior**: events, parameters, session config → fetch the **Guide** page
 - **SDK usage**: class names, method signatures → fetch the **SDK README**
 - **Multiple aspects**: fetch 1–2 most relevant pages, not all of them
 
 ### Step 2 — Fetch the Source
 
-Use `WebFetch` with the URL from the table above.
+Use `WebFetch` with the URL from the table above, and a prompt that asks for the exact text.
 
 ```
-WebFetch(url="https://platform.openai.com/docs/guides/realtime")
+WebFetch(
+  url="https://developers.openai.com/api/docs/guides/realtime",
+  prompt="Quote verbatim every sentence that states <the fact>. If there is none, answer NOT ON THE PAGE.",
+)
 ```
 
 If the fetched content is a navigation page (table of contents, no direct content),
@@ -146,11 +151,16 @@ Limit: fetch at most **2 pages** per question. Do not crawl indefinitely.
 > follow through with a `WebFetch` of the primary URL before using any characterization. This
 > generalizes the uncited-number caution to ANY specific claim.
 
+> **A `WebFetch` answer can be a model's summary of the page, not the page:** an index summary can
+> say an item is missing when its own page exists, and a 404 speaks for that URL only. Never
+> conclude that a model, parameter or page does not exist from a summarized fetch; fetch the item's
+> own page or make a live API call, else use the Step 4 template and name the URLs read.
+
 ### Step 3 — Extract and Answer
 
 From the fetched content:
 
-1. Quote or paraphrase the relevant section directly
+1. Quote only text the fetch returned verbatim; label any paraphrase as one
 2. State the source URL
 3. Distinguish between what the docs say and any project-specific inference you make
 4. If the docs don't answer the question clearly, say so — do not fall back to memory silently
@@ -176,7 +186,7 @@ Typical concerns to cross-reference (adapt the locations to the project's actual
 | Concern | Where in codebase | What to verify |
 |---|---|---|
 | Realtime model ID | AI provider config module (e.g., `core/ai/config/`) | Match the model ID string against the current docs |
-| Session config params | Realtime session setup code (e.g., `core/realtime/session/`) | Turn detection fields, audio format fields |
+| Session config params | Realtime session setup code (e.g., `core/streaming/session/`) | Turn detection fields, audio format fields |
 | Realtime event types | The provider event router/dispatcher | Event names match current schema |
 | Chat completions model | Chat/completions client code (e.g., `core/ai/chat/`) | Model ID, response format, tool use schema |
 | Audio format | Audio handling code (e.g., `core/realtime/audio/`) | Sample rate, encoding (pcm16 vs others) |

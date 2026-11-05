@@ -42,6 +42,12 @@ defects cluster where the comparison operator lives.
 Six cases, and every one is derivable — not chosen. Note the boundary values are the exact
 integers, not "about 10 MB": a case that cannot distinguish `<=` from `<` tests nothing.
 
+**A command as the owner.** When a boundary row is assigned to a command (a checker, a validator, a
+script), the command must exercise the comparison that decides accept or reject, not only the
+threshold table it reads: printing the bar proves the bar, not the `<` that consumes it. Run it
+once on the pre-change tree; identical output before and after means it cannot see the change. Name
+the edges that stay review-only.
+
 **Trap.** Applying BVA to something with no order. See below.
 
 ---

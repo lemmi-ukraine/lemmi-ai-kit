@@ -97,7 +97,7 @@ feel too small to matter; those are the ones that historically land by accident.
 
 | Class | Contents |
 |---|---|
-| `MIGRATION` | Alembic migrations, destructive data operations, anything with a deploy hazard |
+| `MIGRATION` | Schema migrations (Alembic, EF Core), destructive data operations, anything with a deploy hazard |
 | `BACKEND` | Production runtime code and the tests that gate it |
 | `TOOLING` | Scripts, CI, dev-only utilities |
 | `DOCS` | Prose — split by lane below |
@@ -131,7 +131,7 @@ and binding vetoes exist; this repo has no CODEOWNERS and no announcement channe
 see a merged journal PR in time to veto it. Call it what it is: **review skipped, risk accepted,
 because a board row cannot be meaningfully rejected.** Merging is an outward action — the operator
 does it, not a session (`parallel-session-safety` §10). Lane J is also not free: with no `paths:`
-filter on the CI workflow, a docs-only PR still runs the full lint + typecheck + pytest job, which is
+filter on the CI workflow, a docs-only PR still runs the full CI job, which is
 a second reason to batch.
 
 **The load-bearing rule that follows:**
@@ -141,6 +141,14 @@ a second reason to batch.
 
 This is structural, not disciplinary. It makes "a comment on a changelog blocks a migration"
 impossible rather than discouraged.
+
+**A journal branch is a deletion event for the untracked files it tracks.** Those files exist only
+in the working tree; committing them on the journal branch makes them tracked there, and switching
+to a base that lacks them makes git delete them from disk (measured in a throwaway repository: 2
+present on the branch, 0 after the switch back). Take byte-exact copies first (binary copy, compare
+hashes), commit last, and compare hashes again after the switch. Do not rely on `git restore
+--source=<branch>` to return them unchanged: under `core.autocrlf` it rewrites line endings, so the
+bytes differ.
 
 **Lane policy is a team decision, recorded in one column.** If the operator wants prose reviewed, the
 `Lane` column changes and nothing else does. Do not re-litigate it per initiative; do surface it once
@@ -171,7 +179,7 @@ siblings hang off trunk.
 > every sibling** get the full run; **every non-bottom stacked layer gets none.** Put the
 > tested-critical work at the bottom or in a sibling, or name the covering run in the PR body
 > (`gh pr checks <n>`). This is a planning input, not a detail — and it is also why a Lane J docs PR
-> is not free: with no `paths:` filter, it runs the whole lint + typecheck + pytest job.
+> is not free: with no `paths:` filter, it runs the full CI job.
 
 Standalone-*reviewable* is the bar, not standalone-*shippable*. Google's guidance explicitly counts
 "a CL they've already reviewed" as available context, so a layer may depend on a reviewed layer below
@@ -256,6 +264,11 @@ fire has the same failure mode — so make them commands.**
 > another session's scratch directory is one cleanup away from deletion: copy it into the durable
 > hand-off directory byte-perfect before amending.
 
+**The sweep covers the plan too.** When a revision adds or withdraws a dependency, search every plan
+document, tracked or not, for every name of each changed pair (branch, row label, session label,
+item id), trigger commands, `Depends on (why)` cells and order rationale included. A search for the
+old wording misses a command that names the pair.
+
 Each trigger is a command **with an expected result** — the `parallel-session-safety` §9 contract
 ("preconditions and verification are commands, never prose"). Escaped pipes below are markdown table
 escapes; drop the backslash when running.
@@ -277,6 +290,7 @@ author chose. The four counters, written for portability — **no `grep -P`**, w
 lookbehind/lookahead dies where `LANG` is unset ("-P supports only unibyte and UTF-8 locales"):
 
 ```bash
+# One project's layout, as in the table above: replace these paths from the project's AGENTS.md.
 F=$(git diff --name-only <base>...<layer>)
 MIGRATION=$(printf '%s\n' "$F" | grep -cE '^backend/app/storage/migrations/')
 BACKEND=$(printf   '%s\n' "$F" | grep -E '^backend/' | grep -vcE '^backend/app/storage/migrations/')
@@ -296,16 +310,30 @@ TOOLING=$(printf   '%s\n' "$F" | grep -cE '^(\.claude|\.cursor|scripts|tests)/')
 > old it is, so a `%cr` age trigger can never fire. `%at`/`%ar` survive the replay. Compare a number,
 > not the prose `%ar` renders, or nothing consumes the result.
 
-> **Use `grep -E` with a real pipe, not `grep -i a\|b`.** Under basic regex `\|` is a literal, so the
-> naive form silently matches nothing and reports "no migration here" on a layer that has one. That
-> failure was reproduced against the very migration this skill was written about.
+> **Use `grep -E` with a real pipe, not `grep -i a\|b`.** Unquoted, a POSIX shell drops the
+> backslash, so plain GNU grep is handed `a|b` and takes the pipe as a literal: the naive form
+> silently matches nothing and reports "no migration here" on a layer that has one. Under `-E` an
+> escaped pipe is a literal (plain GNU grep reads it as alternation). Reproduced on the very
+> migration behind this skill.
 
 > **S-rows (siblings) are not in `gh stack`.** A `gh stack` chain is strictly linear — each branch is
 > based on the previous one, with no fork or sibling flag. Siblings are ordinary PRs against trunk;
 > check them with `gh pr list --base dev`, and scope the drift check to L-rows or it fires every time.
 
+> **Never order siblings by ancestry.** Siblings are not ancestors of each other until a rebase or
+> merge brings one into the other, so `git merge-base --is-ancestor` between them fails at every
+> check and holds the later merge. When a dependency is withdrawn, delete that check. If the two
+> share a file, the later one must pass `git merge-tree --write-tree <trunk> <branch>` (exit 0; git
+> 2.38 or later) and the gate on an export of the tree it prints before it merges; if their order
+> still matters, check that the earlier one's work is in trunk (Step 7).
+
 Run them at every dispatch round. **Any trigger firing re-opens the topology that day** — not at the
 end of the initiative, when the repair costs a closed PR.
+
+More triggers and the mechanics of a layer, as commands: [layer triggers](references/layer-triggers.md)
+(the declared-file guard, the counters' accepted mixed reading, a task conditional on the base, the
+target's delta) and [layer mechanics](references/layer-mechanics.md) (the fork base, where tests
+ride, committing a layer).
 
 ## Step 7 — Re-verify the table against git/gh at every dispatch round
 

@@ -77,31 +77,31 @@ python "${CLAUDE_SKILL_DIR}/scripts/extract_sessions.py" \
   ".ai/tmp/retro/" [--since YYYY-MM-DD] [--until YYYY-MM-DD] --self-check
 ```
 
-- **`<session-dir>` is auto-derived — omit it (as above).** The extractor walks up from its own
-  location to the repo root and finds THIS repo's dir under `~/.claude/projects/<encoded>`. Claude
-  Code names that dir after the repo's absolute path with every `/`, `\`, `:` replaced by `-`, so it
-  is machine-specific (drive letter, username, and clone location differ per engineer) — **never
-  hardcode one engineer's session dir.** Pass an explicit first positional ONLY to override (e.g. a
-  personal-scope install where this skill is not inside the project's `.claude/`):
-  `… extract_sessions.py "<session-dir>" ".ai/tmp/retro/" …`. The run prints `Using session dir: …`
-  to stderr — confirm it points at this repo.
+- **`<session-dir>` is derived from the working directory — omit it (as above).** Start in the
+  project root, the directory Claude Code was launched in: the extractor finds THIS project's dir
+  under `~/.claude/projects/<encoded>`. Claude Code names that dir after the project's absolute
+  path with every `/`, `\`, `:` replaced by `-`, so it is machine-specific (drive letter, username,
+  and clone location differ per engineer) — **never hardcode one engineer's session dir.** The home
+  directory, a subdirectory or a launch directory with no dir of its own is refused with exit 1:
+  pass the session dir as the first argument then, as `… extract_sessions.py "<session-dir>"
+  ".ai/tmp/retro/" …`. The run prints `Using session dir: …` to stderr — confirm it is this project.
 - `<output-dir>` is ALWAYS repo-relative (`.ai/tmp/retro/`) — never the system `/tmp`.
 - The extractor is pure stdlib. Use the project `.venv` python or system `python`; do NOT use
   `uv run` (it may trigger an environment sync that rebuilds project deps this stdlib script
   doesn't need). On Windows the venv python is `.venv/Scripts/python.exe`.
 - **Porting this script elsewhere** — it pins Python **3.11+**, redacts SECRET shapes only (no
-  email/PII patterns), and detects the repo root differently from the kit's `lint` command:
-  [references/extractor-output-schema.md](references/extractor-output-schema.md) § Porting.
+  email/PII patterns), and reads the working directory as the project root (the kit's `lint`
+  command looks for `.ai` + `.git` instead): [references/extractor-output-schema.md](references/extractor-output-schema.md) § Porting.
 - **Date default:** the extractor has NO built-in default — with no `--since/--until` it processes
   ALL history. To honor the 14-day default, THIS skill computes `--since` (today − 14 days) and
   passes it unless the user gave a range. `--since/--until` filter on date *overlap*, not strict
   containment.
 
-**Verify the run** from stderr: it prints `Using session dir: …` (confirm it points at THIS repo —
-that is the auto-derivation target), the session count, the error-by-category line, a
-**`Sub-agents:`** line (total agents, agents-with-errors, transcripts emitted), and
-`SELF-CHECK PASSED`. If self-check fails (exit 3), STOP — a secret shape leaked; do not proceed.
-If no sessions match the range, inform the user and stop.
+**Verify the run** from stderr: it prints `Using session dir: …` (confirm it names THIS project's
+folder), the session count, the error-by-category line, a **`Sub-agents:`** line (total agents,
+agents-with-errors, transcripts emitted), and `SELF-CHECK PASSED`. If self-check fails (exit 3),
+STOP — a secret shape leaked; do not proceed. If no sessions match the range, inform the user and
+stop.
 
 The output schema is documented in [references/extractor-output-schema.md](references/extractor-output-schema.md).
 
@@ -169,9 +169,9 @@ what went wrong. Read the narratives for the substantial sessions in parallel.
    - **(c)** Tell boundary-session analysts which findings the prior report already owns, so their
      slots return only NEW material.
 
-   Two standing extractor improvements this implies (candidates, not yet built): downweight sessions
-   the prior report already deep-dived (its ids are in the report), and cap sub-agent picks per
-   parent session for diversity.
+   The extractor caps sub-agent picks at 4 per parent session while others remain (an
+   uncalibrated default). One standing extractor improvement is a candidate, not yet built:
+   downweight sessions the prior report already deep-dived (its ids are in the report).
 
 ### Phase 3b — Sub-Agent Behavioral Scan (REQUIRED)
 
@@ -193,7 +193,7 @@ emits **redacted** transcripts for the high-signal ones (any error, or the large
    with errors (42%) vs 3 of 29 (10%)" reads as a 4× agent-quality regression; hand-decomposition
    showed the growth was dominated by **deny-cd hook denials** (enforcement working as designed),
    **usage-limit kills** mid-wave ("You've hit your session limit"), and **permission-stream
-   aborts** when the parent paused at the usage-guard floor ("Tool permission stream closed before
+   aborts** when the parent paused at the quota-guard floor ("Tool permission stream closed before
    response received"; "The permission handler returned updatedInput … failed schema validation")
    — the last two landing in `test-failure`/`tool-error`. Without that split, every
    orchestration-heavy window reads as an agent regression and cross-window comparisons are
@@ -295,7 +295,7 @@ preferences. Significantly more → re-check for false positives.
   a qualifier that reads as "not for you" — a model name, a tool name, a role — and does
   `stats.models` show most sessions outside that qualifier? (b) do its description's trigger
   phrases match how the user actually phrased the work this window? (c) is it blocked, or
-  buried under the listing budget (`PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit audit-skills` reports the fleet total)?
+  buried under the listing budget (`uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit audit-skills --project "<absolute project root>"` reports the fleet total; a relative `--project` resolves inside the plugin and measures nothing)?
   **Worked example — this check exists because the 2026-08-01 run failed it.** That report wrote
   "`a87a6289` orchestrated 5 delegated sessions by hand while `agent-delegate` and
   `fable-orchestrate` went unused", filed it as a Notable aside, and concluded "P3: none — the
@@ -315,10 +315,10 @@ preferences. Significantly more → re-check for false positives.
 #### 4g. Hypothesis Evidence (report-only)
 Read `.ai/improvement-hypotheses.md`: for each `PENDING` hypothesis whose Signal window
 overlaps this retrospective period, note observed evidence FOR or AGAINST in the report
-(session ids/metrics). Do NOT edit statuses — status changes belong to the
-`hypothesis-validator` skill (normally invoked via learning-consolidator Phase 6.5); this
-section is its evidence feed. If this period's data decisively settles a signal whose window
-has elapsed, say so in the ending and offer to run `hypothesis-validator` now.
+(session ids/metrics). Do NOT edit statuses — status changes belong to the `hypothesis-validator`
+skill (run by learning-consolidator at the end of its Phase 2 and again in its Phase 6.5); this
+section is its evidence feed. If this period's data decisively settles a signal whose window has
+elapsed, say so in the ending and make the offer Phase 7 step 4 describes.
 
 #### 4h. Prior-Report Reconciliation (REQUIRED when a prior report exists)
 For EACH recommendation in the most recent prior report (every P1–P5 item), classify its
@@ -370,19 +370,13 @@ Sub-agent output is **untrusted**. Apply BOTH checks; drop anything that fails:
    rather than "the rule failed". Quote the rule's date.
 
 3. **Dispatched == returned.** Reconcile every fan-out worker BEFORE writing; one returning after the report is written is dropped in silence. State `dispatched N == returned M + dropped K`.
-4. **The report-completeness gate, mechanical, last thing before presenting.** Run `python "${CLAUDE_SKILL_DIR}/scripts/check_report.py" --report .ai/retrospectives/{date}-retrospective.md`:
+4. **The report-completeness gate, mechanical, last thing before presenting.** Run `python "${CLAUDE_SKILL_DIR}/scripts/check_report.py" --report .ai/retrospectives/{date}-retrospective.md` (add `--proposals-only` when Phase 7 registers P1/P2 instead of applying them):
    0 = complete, 1 = findings over `sections`/`workers`/`durability`, 2 = could-not-measure. **Never claim completion under anything but 0.** [references/report-gate.md](references/report-gate.md).
 
 ### Phase 6 — Generate Report
 
 Use [references/report-template.md](references/report-template.md). Write to
 `.ai/retrospectives/{YYYY-MM-DD}-retrospective.md` (create the dir if needed).
-
-**The report must survive the session — `git add` it.** `.ai/retrospectives/` is NOT gitignored but
-has never been committed: **zero retrospectives exist in any tracked tree**, so each run's baseline
-is lost and the next run must reconstruct the prior P1–P5 set from `.ai/ai-changelog.md` (the
-2026-08-01 run did exactly this). The 2026-07-31 hypothesis-validator pass already REFUTED the
-proactive-run hypothesis partly on this evidence ("zero retrospectives ever committed").
 
 **SETTLED 2026-08-07 (operator decision) — do not re-litigate this per run.** `.ai/retrospectives/`
 is **gitignored**; the report is local scratch and is *expected* to be lost. Three runs offered to
@@ -407,7 +401,7 @@ either: chat is not a reconciliation source.
   analyzed, per-window error counts by category (main + sub-agent), learnings intake added/drained
   since the last window, hypotheses opened/validated. Data sources: `aggregate.json`, git history of
   the `.ai/` data files, and
-  `PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint learnings --list-entries` for intake counts. One markdown table — not a dashboard, and not a new JSON artifact.
+  `uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --list-entries --project "<absolute project root>"` for intake counts. One markdown table — not a dashboard, and not a new JSON artifact.
   **Caveat the error counts** — inflated by gates whose known-GOOD state is a non-zero exit (`ruff`
   with findings, `grep` finding nothing); name it beside the number. And when crediting a rule for a
   behaviour change, count **"carried the rule and violated it anyway"** separately (a sub-agent whose
@@ -415,7 +409,7 @@ either: chat is not a reconciliation source.
   routing) from an adherence failure (build a seam).
 - **Conditional section:** "Hypothesis Evidence" (4g) — include only when at least one PENDING
   hypothesis's window overlaps the period and the data actually speaks; no forced section.
-- **Privacy:** the committed report contains ONLY synthesized findings + redacted snippets. NEVER
+- **Privacy:** the report contains ONLY synthesized findings + redacted snippets. NEVER
   paste raw transcript dumps or `transcriptPath` values. Before saving, gate the draft with the
   extractor's leak scanner (same code path as the artifact `--self-check`):
   `python "${CLAUDE_SKILL_DIR}/scripts/extract_sessions.py" --check-file <draft-path>` — exit 3
@@ -442,18 +436,22 @@ Full report: .ai/retrospectives/{date}-retrospective.md
 ```
 
 Then COMMIT to the default — do not end on an open ask-menu (the 06-22 retro flagged exactly
-that behavior as friction; default approved 2026-07-02, D-3):
+that behavior as friction; default approved 2026-07-02, D-3). **The seam:** when the project's
+`AGENTS.md` or its override document says to keep P1/P2 as proposals, step 1 registers them
+instead of applying them and step 4 offers the consolidation; steps 2 and 3 run either way.
 
-1. **Apply the P1/P2 recommendations in-session now.** They are visible, reviewable edits
-   (AGENTS.md rules, skill updates); the momentum to land them is lost once the session ends.
-   **Then route them through the same completion gates as feature work** — an `ai-changelog`
+1. **Apply the P1/P2 recommendations in-session now** — unless the seam applies: then **register
+   them instead**, each named in the changelog entry, applying none and leaving their
+   application to `learning-consolidator`. Applied, they are visible, reviewable edits (AGENTS.md
+   rules, skill updates); the momentum to land them is lost once the session ends.
+   **Applied, route them through the same completion gates as feature work** — an `ai-changelog`
    entry, a companion improvement hypothesis, and a regression test for anything mechanical
    (hook/lint/script). Meta-work self-exempts: applying P1/P2 feels like *finishing the
    retrospective*, not *shipping an infrastructure change*, so the completion machinery that fires
    automatically for feature work never engages — the 2026-08-02 session's highest-impact changes
    (a hook + two always-loaded rules) shipped with no changelog entry, no hypothesis, and no test
    until an explicit end-of-session audit caught all three.
-   **Writing the entry is not landing it** — an uncommitted append is one `git checkout` from invisibility; assert reachability with `check_report.py --check durability`.
+   **Writing the entry is not landing it** — an uncommitted append is one `git checkout` from invisibility; assert reachability with `check_report.py --check durability`, or with `check_report.py --check durability --proposals-only` when step 1 registered instead (then no hypothesis or regression test is due, since nothing was applied; the entry still is).
 
 2. **Auto-append the P4 items to `.ai/learnings.md`** following the `task-learnings` placement
    rules (non-destructive intake; feeds `/lemmi-ai-kit-core:learning-consolidator`). Behavioral P4s take
@@ -462,11 +460,12 @@ that behavior as friction; default approved 2026-07-02, D-3):
    `task-learnings` Step 0 measures each session at completion and may already hold the in-session
    form; yours is the CROSS-session claim (say how many sessions), so merge, don't near-duplicate.
 3. **Surface the sibling cadence** (the inverse of this skill's Phase-0 guard): count intake
-   entries (`PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint learnings
-   --list-entries`) and read the newest `CONSOLIDATION` date in `.ai/ai-changelog.md`; if intake > 0
-   and the last drain is ≥7 days old, state "intake has {N} entries, last drain {D} days ago →
-   run `/lemmi-ai-kit-core:learning-consolidator`".
-4. **If 4g settled a window-elapsed signal,** offer to run `hypothesis-validator` now.
+   entries (`uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --list-entries --project "<absolute project root>"`)
+   and date the last drain by the newest `CONSOLIDATION` entry in `.ai/ai-changelog.md` whose `**Drained:**`
+   count is above 0 (one without the line counts as drained); if intake > 0 and it is ≥7 days old, state
+   "intake has {N} entries, last drain {D} days ago → run `/lemmi-ai-kit-core:learning-consolidator`".
+4. **If 4g settled a window-elapsed signal,** offer to run `hypothesis-validator` now — under the
+   seam, offer `learning-consolidator` instead, whose Phase 2 runs it.
 5. Only then offer discussion of findings and the P3/P5 items.
 
 On autonomous (model-initiated) runs, steps 1–4 ARE the behavior — no ask-menu.

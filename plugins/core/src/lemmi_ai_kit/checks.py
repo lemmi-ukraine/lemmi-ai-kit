@@ -9,7 +9,7 @@ resolves to the *calling* skill's directory, so it cannot address a sibling skil
 script, and a project-relative skills path is broken by construction under plugin
 distribution (the hygiene contract bans it outright). Those calls come here:
 
-- `lint`         <- the 6 sites that called `learning-consolidator`'s `ai_files_lint.py`
+- `lint`         <- the 6 sites that called `learning-consolidator`'s `data_files_lint.py`
 - `audit-skills` <- the 3 sites that called `skill-reviewer`'s `audit_skills.py`
 
 Both are read-only, stdlib-only, and write nothing, so they are safe to run from parallel
@@ -30,7 +30,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -192,6 +192,15 @@ HYPOTHESIS_REQUIRED_FIELDS: tuple[str, ...] = (
     "Status",
     "Changelog ref",
 )
+# A verdict is any in-vocabulary status but the open one. Derived, so a sixth status is
+# counted by existing rather than by someone remembering this line.
+TERMINAL_HYPOTHESIS_STATUSES: tuple[str, ...] = tuple(
+    status for status in HYPOTHESIS_STATUSES if status != "PENDING"
+)
+# The ledger-growth NOTE fires when this many terminal verdicts are not yet covered by the
+# header's `Last meta-synthesis` marker. `ai-improvement-tracker` states the same number
+# to the people who read the NOTE, and `tests/test_checks.py` pins the two together.
+META_SYNTHESIS_DUE_AT: int = 10
 
 LEARNINGS_SECTIONS: dict[str, str] = {
     "Architecture Decisions": "architecture",
@@ -219,6 +228,35 @@ HANDOFF_REQUIRED_SECTIONS: tuple[str, ...] = (
 HANDOFF_COMMAND_SECTIONS: tuple[str, ...] = ("Preconditions", "Verification")
 HANDOFF_STATUSES: tuple[str, ...] = ("in-progress", "blocked", "ready-for-review")
 
+# Line 1 of a hand-off may carry a version label, `<!-- handoff-contract: v2 -->`, and each
+# version names the sections it requires ON TOP OF `HANDOFF_REQUIRED_SECTIONS`. A file with no
+# label is read as version 1 and is never skipped: a folder run that skipped unlabelled files
+# would pass notes it never read.
+HANDOFF_SECTIONS_BY_VERSION: dict[int, tuple[str, ...]] = {
+    1: (),
+    2: ("Continue", "Orchestrator summary"),
+}
+_UNLABELLED_HANDOFF_VERSION = 1
+# A marker that is misplaced or mistyped is a finding only when it names the first version that
+# asks for more than the five sections, or a later one. A marker that names v1, or no version,
+# is the older kind some projects wrote of their own before the label existed: it asks for
+# nothing the five do not, and failing it would fail notes that always passed.
+_FIRST_VERSION_WITH_EXTRAS = min(
+    version for version, extras in HANDOFF_SECTIONS_BY_VERSION.items() if extras
+)
+# The label is matched exactly (a trailing blank is tolerated). The second pattern is wider on
+# purpose: a line 1 that was MEANT as the label, however its spacing, case or separators went
+# wrong. The third finds the version such a line names: a `v` that is not glued to a letter or
+# a digit, then ASCII digits, which are compared as text because `int()` refuses a run of
+# thousands of them.
+HANDOFF_LABEL_RE = re.compile(r"^<!-- handoff-contract: v(0|[1-9][0-9]*) -->$")
+HANDOFF_LABEL_LIKE_RE = re.compile(
+    r"^\s*<!--.*hand[\s_-]*off[\s_-]*contract", re.IGNORECASE
+)
+HANDOFF_NAMED_VERSION_RE = re.compile(r"(?<![a-z0-9])v\s*([0-9]+)", re.IGNORECASE)
+# How many digits of a version a message shows: a label is untrusted text of any length.
+_SHOWN_VERSION_DIGITS = 12
+
 # --- parsing ------------------------------------------------------------------------------
 
 DATE_HEADING_RE = re.compile(r"^## (\d{4})-(\d{2})-(\d{2})\s*$")
@@ -230,6 +268,12 @@ HYP_TAG_RE = re.compile(r"^\[([A-Z][A-Z-]+)\]")
 # Both bullet shapes the skills use: `- **What:** x` and `- **Context**: x`.
 FIELD_RE = re.compile(r"^- \*\*(.+?):?\*\*:?\s*(.*)$")
 REF_DATE_RE = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
+# The ledger header's marker, in every shape the validator and the seed write it: inside a
+# blockquote or not, the colon inside the bold or just after it. What follows the label is
+# searched for the count, so a date or `none`, an em dash or a hyphen, and trailing text may
+# all surround it.
+META_MARKER_RE = re.compile(r"^\s*(?:>\s*)?\*\*Last meta-synthesis:?\*\*:?(.*)$")
+META_COVERED_RE = re.compile(r"(\d+)\s+terminal\s+verdicts?\s+covered")
 # Entries legitimately quote headings inside code spans; strip those before looking for
 # splice damage, or every entry that documents the format reports itself.
 INLINE_CODE_RE = re.compile(r"`[^`]*`")
@@ -503,6 +547,76 @@ def _in_policy(entry_date: date | None, since: date | None) -> bool:
     return entry_date is not None and entry_date >= since
 
 
+# --- the drain marker ---------------------------------------------------------------------
+#
+# A `CONSOLIDATION` entry carries `- **Drained:** N entries`: the entries its run removed
+# from the learnings buffer, 0 allowed. The cadence readers take the newest entry whose N is
+# above 0 as the last drain and count an entry without the line as drained, so a ledger
+# written before the marker keeps working -- and so, once a ledger has adopted the marker,
+# an entry that leaves it out reads as a drain whatever its run did. The rule therefore
+# starts at the ledger's own oldest marked entry. No date lives here, for the reason the
+# vocabulary note gives for `--since`: a cut-off belongs to the adopter, not to the kit.
+
+DRAIN_ENTRY_TYPE: str = "CONSOLIDATION"
+DRAINED_FIELD: str = "Drained"
+# A count is digits, then a space or the end: no number, a sign or a fraction is not one.
+DRAINED_COUNT_RE = re.compile(r"^\d+(?:\s|$)")
+
+
+def _is_drain_entry(entry: Entry) -> bool:
+    tag = TYPE_TAG_RE.match(entry.title)
+    return tag is not None and tag.group(1) == DRAIN_ENTRY_TYPE
+
+
+def _first_drain_marker(blocks: list[Block]) -> date | None:
+    """The date of the oldest `CONSOLIDATION` entry with a `Drained` line, or `None`.
+
+    Only that type marks a ledger, because the readers look for the line nowhere else; a
+    line with no count marks it too, so the typo is reported instead of switching the rule
+    off. File-wide, like the hypotheses ledger's verdict count: whether a ledger has adopted
+    the marker is a property of the whole file, not of the entries `--since` leaves in policy.
+    """
+    marked: list[date] = []
+    for block in blocks:
+        heading_date = block.heading_date()
+        if heading_date is not None and any(
+            _is_drain_entry(entry) and DRAINED_FIELD in fields_of(entry.body)
+            for entry in block.entries
+        ):
+            marked.append(heading_date)
+    return min(marked, default=None)
+
+
+def _drain_marker_finding(
+    entry: Entry, entry_date: date | None, marked_from: date | None, where: str
+) -> LintFinding | None:
+    """A `CONSOLIDATION` entry dated on or after the first marked one must state a count."""
+    if (
+        marked_from is None
+        or entry_date is None
+        or entry_date < marked_from
+        or not _is_drain_entry(entry)
+    ):
+        return None
+    value = fields_of(entry.body).get(DRAINED_FIELD)
+    if value is None:
+        return LintFinding(
+            where,
+            entry.line,
+            f"entry '{entry.title[:60]}' has no '- **{DRAINED_FIELD}:** N entries' line; "
+            f"this ledger marks every {DRAIN_ENTRY_TYPE} entry from {marked_from} on, and "
+            "a reader counts an unmarked one as a drain",
+        )
+    if DRAINED_COUNT_RE.match(value.strip()) is None:
+        return LintFinding(
+            where,
+            entry.line,
+            f"entry '{entry.title[:60]}' has a '{DRAINED_FIELD}' line with no entry count "
+            f"('{value[:40]}'); write '- **{DRAINED_FIELD}:** N entries' with N of 0 or more",
+        )
+    return None
+
+
 # --- per-file lints -----------------------------------------------------------------------
 
 
@@ -513,6 +627,7 @@ def lint_changelog(
     findings = check_orphan_entries(text, where)
     findings += check_date_headings(blocks, where)
     findings += check_entry_body_integrity(blocks, where, CHANGELOG_REQUIRED_FIELDS)
+    marked_from = _first_drain_marker(blocks)
     for block in blocks:
         heading_date = block.heading_date()
         for entry in block.entries:
@@ -544,7 +659,94 @@ def lint_changelog(
                             where, entry.line, f"entry missing required field '{field}'"
                         )
                     )
+            drained = _drain_marker_finding(entry, heading_date, marked_from, where)
+            if drained is not None:
+                findings.append(drained)
     return findings
+
+
+@dataclass(frozen=True)
+class MetaSynthesisMarker:
+    """The ledger header's `**Last meta-synthesis:**` line.
+
+    `covered` is `None` when the line is there but states no count the reader can use.
+    """
+
+    line: int
+    covered: int | None
+
+
+def read_meta_synthesis_marker(text: str) -> MetaSynthesisMarker | None:
+    """The first marker line outside a fence, or `None` when the file has no marker.
+
+    A fenced one is example text -- these files document their own format -- so it is
+    skipped by the same fence mask every other reader here uses.
+    """
+    lines = text.splitlines()
+    fenced = _fence_mask(lines)
+    for index, line in enumerate(lines):
+        if fenced[index]:
+            continue
+        match = META_MARKER_RE.match(line)
+        if match is None:
+            continue
+        count = META_COVERED_RE.search(match.group(1))
+        return MetaSynthesisMarker(index + 1, int(count.group(1)) if count else None)
+    return None
+
+
+def _meta_synthesis_notes(text: str, where: str, terminal: int) -> list[LintFinding]:
+    """The ledger-growth NOTE: zero or one finding, and never one that fails the run.
+
+    `terminal` is the file-wide count of resolved entries. No marker means nothing has been
+    synthesized yet, so it counts as 0 covered -- which stays silent below the threshold,
+    so a ledger that never had a marker is not nagged until it has something to synthesize.
+    A marker the reader cannot use, or one claiming more than the ledger holds, is reported
+    rather than failed: either is a stale or mistyped line, not a broken ledger.
+    """
+    marker = read_meta_synthesis_marker(text)
+    if marker is None:
+        line, covered = 1, 0
+        source = "no '**Last meta-synthesis:**' marker found"
+    elif marker.covered is None:
+        return [
+            LintFinding(
+                where,
+                marker.line,
+                "NOTE: meta-synthesis marker unreadable -- expected "
+                "'**Last meta-synthesis:** <date|none> - N terminal verdicts covered'; "
+                f"the ledger holds {terminal} terminal verdicts, so the due check "
+                "did not run",
+                note=True,
+            )
+        ]
+    else:
+        line, covered = marker.line, marker.covered
+        source = "the header marker"
+    if covered > terminal:
+        return [
+            LintFinding(
+                where,
+                line,
+                f"NOTE: meta-synthesis marker covers {covered} terminal verdicts but the "
+                f"ledger holds {terminal} -- the marker is ahead of the ledger (entries "
+                "removed, or a wrong count); correct it so the due check means something",
+                note=True,
+            )
+        ]
+    if terminal - covered >= META_SYNTHESIS_DUE_AT:
+        return [
+            LintFinding(
+                where,
+                line,
+                f"NOTE: meta-synthesis due -- {terminal} terminal verdicts, {covered} "
+                f"covered ({source}); {terminal - covered} unsynthesized, due at "
+                f"{META_SYNTHESIS_DUE_AT}. Run the meta-synthesis, then update the "
+                "header marker",
+                note=True,
+            )
+        ]
+    return []
 
 
 def lint_hypotheses(
@@ -554,10 +756,15 @@ def lint_hypotheses(
     findings = check_orphan_entries(text, where)
     findings += check_date_headings(blocks, where)
     findings += check_entry_body_integrity(blocks, where, HYPOTHESIS_REQUIRED_FIELDS)
+    terminal = 0
     for block in blocks:
         heading_date = block.heading_date()
         for entry in block.entries:
             present = fields_of(entry.body)
+            # The ledger's growth is a property of the whole file, not of the entries a
+            # `--since` cutoff leaves in policy, so this runs before that cutoff.
+            if present.get("Status", "").strip() in TERMINAL_HYPOTHESIS_STATUSES:
+                terminal += 1
             # STRUCTURAL: an entry must not be filed under a heading older than its ref.
             ref_match = REF_DATE_RE.search(present.get("Changelog ref", ""))
             if ref_match is not None and heading_date is not None:
@@ -631,7 +838,7 @@ def lint_hypotheses(
                         "'Validation notes:' sub-field with Status staying PENDING",
                     )
                 )
-    return findings
+    return findings + _meta_synthesis_notes(text, where, terminal)
 
 
 def lint_learnings(
@@ -770,10 +977,14 @@ def _git_anchor_resolves(token: str, root: Path) -> bool | None:
     """Does `token` name something git can find? `None` when undecidable.
 
     `None` covers "git is unavailable, or this is not a checkout" -- the lint has to stay
-    runnable outside a clone. A token is accepted if it resolves as a revision (SHA,
-    branch, tag) or names a path git knows at HEAD or that exists on disk; hand-offs anchor
-    on all of those. `--` guards the path form so a token containing `:` cannot be reparsed
-    as a revision, and `MSYS_NO_PATHCONV` stops a Git-for-Windows shell rewriting slashes.
+    runnable outside a clone. A token is accepted if it resolves as a commit (SHA, branch,
+    tag), if git has it as ANY object (a tree or blob id, an annotated tag, `<rev>:<path>`),
+    if HEAD holds it as a path -- a committed file deleted from the work tree is still a
+    good anchor -- or if it exists on disk; hand-offs anchor on all of those. Both
+    `cat-file` probes put the token after `--`, so a token that starts with a dash is an
+    object name and never an option, and `MSYS_NO_PATHCONV` stops a Git-for-Windows shell
+    rewriting slashes. This is at most four git calls per anchor, and only under
+    `--resolve-anchors`.
     """
     if not token:
         return None
@@ -792,10 +1003,14 @@ def _git_anchor_resolves(token: str, root: Path) -> bool | None:
         return None
     if ok(["git", "rev-parse", "--verify", "--quiet", f"{token}^{{commit}}"]):
         return True
-    if (
-        ok(["git", "ls-tree", "-r", "--name-only", "HEAD", "--", token])
-        and (root / token).exists()
-    ):
+    # The commit test cannot see a tree id, a blob id or `<rev>:<path>`: none of them
+    # peels to a commit. `cat-file -e` asks the only question that matters -- is it there.
+    if ok(["git", "cat-file", "-e", "--", token]):
+        return True
+    # HEAD is tested for real. `ls-tree` exits 0 for any path, present or not, so the old
+    # probe decided nothing and only the disk did -- which is how a committed file that
+    # was deleted from the work tree drew a "does not resolve" note.
+    if ok(["git", "cat-file", "-e", "--", f"HEAD:{token}"]):
         return True
     # A path that exists but is untracked still anchors a hand-off usefully.
     return (root / token).exists()
@@ -824,16 +1039,169 @@ def _join_wrapped_bullets(lines: list[tuple[int, str]]) -> list[tuple[int, str]]
     return [(lineno, s) for lineno, s in out if s.lstrip().startswith("- ")]
 
 
+def _arrow_outside_code(bullet: str, spans: Sequence[re.Match[str]]) -> int:
+    """Index of the first `->` that sits outside every backtick span, or -1.
+
+    A command may legitimately contain `->` (a format string, a quoted pattern); only an
+    arrow in the prose around the commands separates them from the expected result.
+    """
+    index = bullet.find("->")
+    while index != -1:
+        if not any(span.start() <= index < span.end() for span in spans):
+            return index
+        index = bullet.find("->", index + 1)
+    return -1
+
+
+def _command_spans(bullet: str) -> tuple[list[re.Match[str]], int]:
+    """A bullet's commands -- its backtick spans before the arrow -- and the arrow's index.
+
+    The arrow is the first `->` outside every span; with none (-1) every span is a
+    command. The lint and the listing both read a bullet through this, so a claim that
+    backticks only its result (check the log -> `ERROR` absent) is prose to both: a span
+    after the arrow is the result, never the command.
+    """
+    spans = list(BACKTICK_RE.finditer(bullet))
+    arrow = _arrow_outside_code(bullet, spans)
+    if arrow == -1:
+        return spans, arrow
+    return [span for span in spans if span.end() <= arrow], arrow
+
+
+def _version_at_least(digits: str, floor: int) -> bool:
+    """Whether a run of ASCII digits names version `floor` or a later one, compared as text.
+
+    The label patterns allow any number of digits and `int()` refuses thousands of them, so
+    the run is compared by length and then by digits, leading zeros set aside: 10 is later
+    than 2, and a run of zeros names no version at all.
+    """
+    have, want = digits.lstrip("0"), str(floor)
+    return (len(have), have) >= (len(want), want)
+
+
+def _declared_handoff_version(digits: str) -> int | None:
+    """The table's version that an exact label's digits name, or None when it knows none."""
+    for version in HANDOFF_SECTIONS_BY_VERSION:
+        if str(version) == digits:
+            return version
+    return None
+
+
+def _unknown_version_finding(where: str, digits: str, checked_as: int) -> LintFinding:
+    """The finding for an exact label whose version the table does not know.
+
+    A label is untrusted text: a version of thousands of digits is cut, with its length.
+    """
+    shown = digits[:_SHOWN_VERSION_DIGITS]
+    size = ""
+    if len(digits) > _SHOWN_VERSION_DIGITS:
+        shown += "..."
+        size = f"{len(digits)} digits; "
+    known = ", ".join(f"v{n}" for n in sorted(HANDOFF_SECTIONS_BY_VERSION))
+    return LintFinding(
+        where,
+        1,
+        f"unknown hand-off contract version 'v{shown}' ({size}known: {known}); "
+        f"checked as v{checked_as}",
+    )
+
+
+def _unparsed_label_names_extras(first: str) -> bool:
+    """Line 1 is shaped like the label, does not parse, and names a version with extras.
+
+    The first version the line names decides. A line that names v1, or no version, is the
+    older kind of marker and is not a finding.
+    """
+    like = HANDOFF_LABEL_LIKE_RE.match(first)
+    if like is None:
+        return False
+    named = HANDOFF_NAMED_VERSION_RE.search(first, like.end())
+    return named is not None and _version_at_least(
+        named.group(1), _FIRST_VERSION_WITH_EXTRAS
+    )
+
+
+def _handoff_version(text: str, where: str) -> tuple[int, list[LintFinding]]:
+    """The contract version line 1 declares, and what its label gets wrong.
+
+    No label is version 1, never a skip. Three label defects are findings, each read as
+    version 1 so one slip is reported once and not as a list of missing sections: a version
+    the table does not know, a line 1 shaped like the label that does not parse, and an exact
+    label below line 1 outside a fence, which would otherwise be ignored in silence. The last
+    two are findings only when the label names `_FIRST_VERSION_WITH_EXTRAS` or a later
+    version: a marker that names v1, or no version, fails nothing the five sections do not.
+    """
+    lines = text.splitlines()
+    findings: list[LintFinding] = []
+    version = _UNLABELLED_HANDOFF_VERSION
+    # `read_text` strips a byte-order mark; a caller that passes raw text gets the same.
+    first = lines[0].lstrip("\ufeff").rstrip() if lines else ""
+    label = HANDOFF_LABEL_RE.match(first)
+    if label is not None:
+        declared = _declared_handoff_version(label.group(1))
+        if declared is not None:
+            version = declared
+        else:
+            findings.append(_unknown_version_finding(where, label.group(1), version))
+    elif _unparsed_label_names_extras(first):
+        findings.append(
+            LintFinding(
+                where,
+                1,
+                "line 1 looks like a hand-off contract label but does not parse; write it "
+                f"exactly as '<!-- handoff-contract: vN -->' (checked as v{version})",
+            )
+        )
+    fenced = _fence_mask(lines)
+    for index in range(1, len(lines)):
+        below = HANDOFF_LABEL_RE.match(lines[index].rstrip())
+        if (
+            below is not None
+            and not fenced[index]
+            and _version_at_least(below.group(1), _FIRST_VERSION_WITH_EXTRAS)
+        ):
+            findings.append(
+                LintFinding(
+                    where,
+                    index + 1,
+                    "hand-off contract label below line 1 is ignored; it counts only "
+                    "on line 1",
+                )
+            )
+    return version, findings
+
+
 def lint_handoff(text: str, where: str, root: Path | None = None) -> list[LintFinding]:
-    """Lint ONE hand-off file. Pass `root` to resolve its anchors against git."""
+    """Lint ONE hand-off file. Pass `root` to resolve its anchors against git.
+
+    Line 1 may carry a version label (`HANDOFF_SECTIONS_BY_VERSION`): the version decides
+    which sections are required beyond the five, and a file with no label is held to the five.
+    A label that is misplaced or mistyped is reported only when it names v2 or a later
+    version, so a marker of the older kind, naming v1 or no version, never fails a note.
+    """
     findings: list[LintFinding] = []
     sections, duplicates = _handoff_sections(text)
+    version, label_findings = _handoff_version(text, where)
+    findings.extend(label_findings)
 
     for name in HANDOFF_REQUIRED_SECTIONS:
         if name not in sections:
             findings.append(
                 LintFinding(where, 1, f"missing required section '## {name}'")
             )
+    for name in HANDOFF_SECTIONS_BY_VERSION[version]:
+        body = sections.get(name)
+        if body is None:
+            findings.append(
+                LintFinding(
+                    where,
+                    1,
+                    f"missing required section '## {name}' "
+                    f"(line 1 declares hand-off contract v{version})",
+                )
+            )
+        elif not any(line.strip() for _, line in body):
+            findings.append(LintFinding(where, 1, f"'## {name}' has no content"))
     for name in duplicates:
         findings.append(
             LintFinding(
@@ -841,15 +1209,17 @@ def lint_handoff(text: str, where: str, root: Path | None = None) -> list[LintFi
             )
         )
 
-    # Preconditions and verification must be runnable: a backticked command AND its
-    # expected result after '->'. A prose state claim is the defect the contract exists to
-    # stop -- it is exactly the unreliable brief that made hand-offs need a contract.
+    # Preconditions and verification must be runnable: a backticked command before its
+    # '->', and the expected result after it. A prose state claim is the defect the
+    # contract exists to stop -- it is exactly the unreliable brief that made hand-offs
+    # need a contract -- and a claim that backticks only its result is still one.
     for name in HANDOFF_COMMAND_SECTIONS:
         bullets = _join_wrapped_bullets(sections.get(name, []))
         if name in sections and not bullets:
             findings.append(LintFinding(where, 1, f"'## {name}' has no entries"))
         for lineno, line in bullets:
-            if BACKTICK_RE.search(line) is None:
+            commands, _ = _command_spans(line)
+            if not commands:
                 findings.append(
                     LintFinding(
                         where,
@@ -967,6 +1337,38 @@ def lint_file(
     return lint(text, where, since)
 
 
+def handoff_files(root: Path) -> list[Path]:
+    """Every hand-off in `.ai/handoffs/`, sorted, `README.md` excluded.
+
+    Empty when the directory is missing: a project with no hand-offs yet is not an error.
+    `README.md` is the one exception to "every `*.md`", since a directory note is not a
+    hand-off.
+    """
+    directory = target_path("handoffs", root)
+    if not directory.is_dir():
+        return []
+    return [
+        path
+        for path in sorted(directory.glob("*.md"))
+        if path.name.lower() != "readme.md"
+    ]
+
+
+def lint_handoff_file(
+    path: Path, root: Path, resolve_anchors: bool = False
+) -> list[LintFinding]:
+    """Lint ONE hand-off file, labelled by its path relative to `root`.
+
+    The single place a file becomes findings: the directory run calls it once per file and
+    `lint handoffs FILE` calls it once, so the shortcut cannot report a different truth
+    than the full run does for that file. It does not skip a README -- that exclusion
+    belongs to the directory walk, and naming a file is a deliberate act.
+    """
+    return lint_handoff(
+        read_text(path), display_path(path, root), root if resolve_anchors else None
+    )
+
+
 def lint_handoff_dir(
     root: Path, resolve_anchors: bool = False
 ) -> tuple[list[LintFinding], int]:
@@ -977,22 +1379,129 @@ def lint_handoff_dir(
     it has pre-contract files on disk, whereas an adopter starts clean and a lint that
     silently passes everything is worse than none. `README.md` is the one exception, since
     a directory note is not a hand-off.
+
+    A version label on line 1 chooses which sections a note needs; it never makes this walk
+    skip one.
     """
-    directory = target_path("handoffs", root)
-    if not directory.is_dir():
-        return [], 0
     findings: list[LintFinding] = []
-    scanned = 0
-    for path in sorted(directory.glob("*.md")):
-        if path.name.lower() == "readme.md":
-            continue
-        scanned += 1
-        findings += lint_handoff(
-            read_text(path),
-            display_path(path, root),
-            root if resolve_anchors else None,
+    paths = handoff_files(root)
+    for path in paths:
+        findings += lint_handoff_file(path, root, resolve_anchors)
+    return findings, len(paths)
+
+
+# --- hand-off command listing (`lint handoffs --list-commands`) ---------------------------
+#
+# A LISTING, not a run mode. A hand-off's commands are another session's text, running one
+# needs a shell, and the content-safety suite pins `shell=True` to a single site that is not
+# this module -- so nothing below builds a process. What it gives the author is what the
+# contract asks for before a hand-off ships: every command laid out with its placeholders
+# visible, so each can be given a stand-in and the ones that neither write nor bill run by
+# hand in the shell the receiver will use.
+
+# A placeholder is a name right inside angle brackets: words of letters, digits, `_`, `.`
+# and `-`, one space between words -- the kit spells its own `<project root>`, and section
+# 9 says every placeholder gets a stand-in. A space just inside a bracket is not a name, so
+# a redirect such as `sort < in.txt > out.txt` is not a placeholder.
+_PLACEHOLDER_NAME = r"[A-Za-z_][A-Za-z0-9_.-]*(?: [A-Za-z0-9_.-]+)*"
+HANDOFF_PLACEHOLDER_RE = re.compile(rf"<({_PLACEHOLDER_NAME})>")
+_STAND_IN_NAME_RE = re.compile(_PLACEHOLDER_NAME)
+
+
+@dataclass(frozen=True)
+class HandoffCommand:
+    """One command a hand-off asks its receiver to run, as the listing reports it.
+
+    `command` and `expected` have the stand-ins applied; `unresolved` names the
+    placeholders in the command that no stand-in filled, so the command cannot be run as
+    printed. `line` is the line the bullet starts on.
+    """
+
+    line: int
+    section: str
+    command: str
+    expected: str
+    unresolved: tuple[str, ...]
+
+
+def parse_stand_ins(items: Sequence[str]) -> dict[str, str]:
+    """`NAME=VALUE` pairs from the command line as `{NAME: VALUE}`.
+
+    A repeated name keeps its last value. Raises `ValueError` on a pair that could never
+    fill a placeholder -- no `=`, an empty value, or a name that cannot be written
+    `<NAME>` -- because a stand-in that silently fills nothing leaves a command marked
+    UNRESOLVED for no visible reason.
+    """
+    stand_ins: dict[str, str] = {}
+    for item in items:
+        name, separator, value = item.partition("=")
+        if not separator or not value or _STAND_IN_NAME_RE.fullmatch(name) is None:
+            raise ValueError(
+                "--stand-in must be NAME=VALUE with a bare placeholder name, "
+                f"got {ascii(item)}"
+            )
+        stand_ins[name] = value
+    return stand_ins
+
+
+def _fill(text: str, stand_ins: Mapping[str, str]) -> str:
+    return HANDOFF_PLACEHOLDER_RE.sub(
+        lambda match: stand_ins.get(match.group(1), match.group(0)), text
+    )
+
+
+def handoff_commands(text: str, stand_ins: Mapping[str, str]) -> list[HandoffCommand]:
+    """Every command in a hand-off's Preconditions and Verification, in file order.
+
+    Read through the SAME section, bullet and command readers the lint uses, so the
+    listing shows exactly the commands the lint accepts. A bullet with no backticked
+    command before its arrow is prose: the lint reports it, and there is nothing in it to
+    list.
+    """
+    sections, _ = _handoff_sections(text)
+    found: list[HandoffCommand] = []
+    for name in HANDOFF_COMMAND_SECTIONS:
+        for lineno, bullet in _join_wrapped_bullets(sections.get(name, [])):
+            commands, arrow = _command_spans(bullet)
+            expected = (
+                _fill(bullet[arrow + 2 :].strip(), stand_ins) if arrow != -1 else ""
+            )
+            for span in commands:
+                raw = span.group(1).strip()
+                names = HANDOFF_PLACEHOLDER_RE.findall(raw)
+                unresolved = tuple(
+                    dict.fromkeys(n for n in names if n not in stand_ins)
+                )
+                found.append(
+                    HandoffCommand(
+                        lineno, name, _fill(raw, stand_ins), expected, unresolved
+                    )
+                )
+    return found
+
+
+def format_handoff_commands(
+    where: str, commands: Sequence[HandoffCommand]
+) -> list[str]:
+    """One file's listing: a header line, then one line per command.
+
+    Each entry reads `where:line: Section: [UNRESOLVED <NAME>] `command` -> result`.
+    `UNRESOLVED` leads the entry rather than trailing it, because a long command pushes a
+    trailing mark off the screen and it is the one thing the reader must not miss.
+    """
+    unresolved = sum(1 for command in commands if command.unresolved)
+    lines = [f"FILE: {where}  commands={len(commands)}  unresolved={unresolved}"]
+    for command in commands:
+        mark = ""
+        if command.unresolved:
+            names = " ".join(f"<{name}>" for name in command.unresolved)
+            mark = f"UNRESOLVED {names} "
+        expected = command.expected or "(no expected result stated)"
+        lines.append(
+            f"{where}:{command.line}: {command.section}: {mark}"
+            f"`{command.command}` -> {expected}"
         )
-    return findings, scanned
+    return lines
 
 
 # --- entry inventory (`--list-entries`) ---------------------------------------------------

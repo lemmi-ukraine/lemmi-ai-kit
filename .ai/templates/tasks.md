@@ -64,6 +64,7 @@ Task 3 (no deps) ──┘                                Task 5 (depends on 3)
 
 - **Size**: S / M / L
 - **Depends on**: None
+- **Lane** (optional, only when the plan uses execution lanes): D (development) / T (tests)
 - **Files to modify**: `backend/app/...`
 - **Files NOT to modify**: `backend/app/...`
 - **Acceptance criteria**:
@@ -76,6 +77,7 @@ Task 3 (no deps) ──┘                                Task 5 (depends on 3)
 
 - **Size**: S / M / L
 - **Depends on**: None / Task {N}
+- **Lane** (optional, only when the plan uses execution lanes): D (development) / T (tests)
 - **Files to modify**: `backend/app/...`
 - **Files NOT to modify**: `backend/app/...`
 - **Acceptance criteria**:

@@ -1,7 +1,8 @@
 # `.ai/tmp/` classification — the detail behind SKILL.md Step 4c
 
-`.ai/tmp/` is gitignored, so **nothing in it has history and nothing in it is
-recoverable.** A sweep there is final. It holds two populations that look identical from the path.
+`.ai/tmp/` is gitignored, so **no file a session puts in it has history and none is
+recoverable.** A sweep there is final, and the folder's own `.gitignore` is never swept: kit-setup manages it.
+It holds two populations that look identical from the path.
 
 | Population | Examples | Disposition |
 |---|---|---|

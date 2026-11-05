@@ -34,10 +34,10 @@ ultrathink
 6. **Never quote a raw `grep -c` as a frequency.** One job failure writes the same error string into several fields of each entry (`error_message`, `message`, `stack_trace`) *and* across more than one entry (the job-execution wrapper plus the feature-level handler). A `grep -c` returning 6 and an earlier review's "exactly 3 times" both traced to a **single** job — neither was an incident count, and both had already been quoted as frequency evidence in a task doc. Extract the correlating id first and count DISTINCT ids:
 
    ```bash
-   grep -B4 -A12 "<error string>" <file> | grep -E '"(job_id|session_id)"' | sort -u
+   grep -B4 -A12 "<error string>" <file> | grep -E '"(<id field>)"' | sort -u
    ```
 
-   State the ids next to the count so the next reader can tell an incident count from a hit count.
+   Take `<id field>` from the Correlation id row of the Step 1a field map; join several names with `|`; for an id inside the message text (`request_id=`), drop the double quotes from the pattern. State the ids next to the count so the next reader can tell an incident count from a hit count.
 7. **Never collapse buckets a source document deliberately separated.** Merging two categories that
    an upstream doc kept apart inflated one finding **5×**. Before writing any aggregate, check
    whether the source defined its own buckets — if it did, report in those buckets and state
@@ -225,6 +225,10 @@ Present timing evidence as a table:
 - **Blast radius**: one user, one feature, or system-wide?
 
 #### 3f. Propose Solution
+- Before calling a change the fix for this incident, trace which branch of the mechanism the incident
+  took (which outcome of each decision, which terminal state, which threshold was crossed) and
+  confirm that the fix acts on that branch. A fix for a branch that did not run leaves the observed
+  failure as it was; record a class-level fix as a separate item.
 - Describe the fix conceptually (what needs to change, not the code diff).
 - Reference the specific file(s) and function(s) that need modification.
 - If multiple approaches exist, list pros/cons briefly.
@@ -293,6 +297,7 @@ For each reported issue, challenge:
    Files may have changed since the log was produced.
 2. **Fix correctness**: Does the proposed fix contradict any convention in AGENTS.md or `.ai/learnings.md`?
    Cross-check fix patterns against both sources — they can conflict.
+   Does it act on the branch the incident took (Step 3f)?
 3. **Issue grouping**: Are any "separate" issues actually symptoms of the same root cause? Would fixing
    one resolve another?
 4. **Completeness**: Are there log patterns (zombie sessions, resource leaks, timing anomalies) that
@@ -310,11 +315,12 @@ For each reported issue, challenge:
 
 For each issue with severity MEDIUM or above, create a task file in `tasks/`.
 
-**Prefix rules** (from project conventions):
+**Prefix rules** (the project's own task conventions define them; its AGENTS.md names them):
 - `BUG-` — confirmed bugs with clear reproduction path
 - `PROD-` — production/runtime issues (performance, resource leaks, flaky behavior)
 - `TECH-` — design issues that need refactoring
-- `FEATURE-` — missing functionality that caused the error
+- Exception, here and in Step 4b: missing functionality that caused the error gets a task file only where
+  the project's task conventions say to. Some projects reserve the new-work prefix for product work.
 
 See [references/task-file-template.md](references/task-file-template.md) for the template.
 
@@ -343,6 +349,7 @@ See [references/analysis-examples.md](references/analysis-examples.md) for calib
 - Evidence-based root cause vs. surface-level description
 - Proper hypothesis labeling vs. unfounded speculation
 - Correct issue grouping vs. over-splitting
+- An absence found by a join, with its overall match count vs. a bare zero
 
 ## What NOT to Do
 
@@ -387,6 +394,11 @@ every backend:
    raw-text field for startup output and uncaught exceptions
 4. **Validate the query against a downloaded sample first** when one exists, so that a zero-result
    query can be told apart from a wrong-field query
+5. **Name the environment in every query, and run it once per environment.** Two deployments can
+   share a service name and a region, so a filter or command that names the service alone reads
+   whichever environment the tool points at. Put the project, account or cluster in the filter and
+   in every command that takes one, label each result with the environment it came from, and read
+   the identifiers from the deploy manifests, not from memory.
 
 [references/gcp-query-templates.md](references/gcp-query-templates.md) works this through in GCP
 Cloud Logging's query dialect — a worked example to translate, not the required backend.

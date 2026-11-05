@@ -4,9 +4,10 @@ Skills are NOT copied here — they ship with the Claude Code plugin and load fr
 the plugin cache. This module places only the files a project owns and edits:
 
 - **managed** — owned by the kit and safe to update on upgrade. Overwritten only
-  with `force`. Defined by rule rather than by a path list: everything shipped under
-  `.ai/` that is not one of the stateful logs below. Today that is `.ai/templates/`
-  **and** `.ai/git-stacked-pr-workflow.md` — which is why naming the templates
+  with `force`. Defined by rule rather than by a path list: everything placed under
+  `.ai/` that is not one of the stateful logs below. Today that is `.ai/templates/`,
+  `.ai/git-stacked-pr-workflow.md` **and** the self-ignoring `.gitignore` in each
+  local-only folder (`_LOCAL_ONLY_FOLDERS`) — which is why naming the templates
   directory alone was wrong, and why a downstream document repeated it as
   "`--force` refreshes the templates only".
 - **seeds** — written once, then owned by the project: `AGENTS.md`, `CLAUDE.md`
@@ -15,7 +16,7 @@ the plugin cache. This module places only the files a project owns and edits:
 
 No counts here on purpose. `plan()` is the authority: a number in this docstring
 goes stale the moment a template ships, which is how a downstream document came to
-promise nine files when eleven are planned.
+promise nine files when eleven were planned.
 """
 
 from __future__ import annotations
@@ -46,6 +47,17 @@ _SEED_STATE_FILES: tuple[str, ...] = (
     "ai-changelog.md",
     "improvement-hypotheses.md",
 )
+
+# The local-only folders the skills call gitignored. Each gets ONE self-ignoring
+# `.gitignore` -- a star, then an exception for the file itself -- so git ignores every
+# note in the folder but not the rule, and the rule travels with the folder. Where the
+# project's own ignore rules already cover the folder, git ignores the rule too, which
+# is harmless: the notes stay ignored. Generated here rather than shipped under
+# `assets/ai/`: a star in a payload folder would also ignore every other file put there
+# in the kit's own tree. No other ignore file is ever written; the project's root
+# `.gitignore` is not touched.
+_LOCAL_ONLY_FOLDERS: tuple[str, ...] = ("tmp", "handoffs", "retrospectives")
+_SELF_IGNORING = b"*\n!.gitignore\n"
 
 _CLAUDE_PLACEHOLDERS: dict[str, Literal["user", "auto", "internal"]] = {
     "{{SKILLS_USER}}": "user",
@@ -149,6 +161,11 @@ def plan(manifest: Manifest) -> list[PlannedFile]:
         rel_inside = path.relative_to(ai_root).as_posix()
         kind: Kind = "seed" if rel_inside in _SEED_STATE_FILES else "managed"
         planned.append(PlannedFile(f".ai/{rel_inside}", path.read_bytes(), kind))
+
+    for folder in _LOCAL_ONLY_FOLDERS:
+        planned.append(
+            PlannedFile(f".ai/{folder}/.gitignore", _SELF_IGNORING, "managed")
+        )
 
     agents = _with_attribution((root / "templates" / "AGENTS.md").read_bytes())
     planned.append(PlannedFile("AGENTS.md", agents, "seed"))

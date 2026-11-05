@@ -4,7 +4,8 @@
 Reads a project's Claude session directory and emits TWO artifacts into <output-dir>:
 
   aggregate.json    cross-session error taxonomy + per-session behavioral metrics
-  sessions/<id>.md  per-session readable, size-capped, redacted transcript (for deep reading)
+  sessions/<id>.md  per-session readable, size-capped, redacted transcript (for deep reading); the
+                    operator's turns the cap cut off follow it in a section of their own
 
 Design (see references/extractor-output-schema.md):
   * tool_result is paired to its originating tool_use by id; errors are classified by ORIGIN
@@ -13,16 +14,23 @@ Design (see references/extractor-output-schema.md):
     substring-on-content false-positive class — do NOT reintroduce substring matching on it.
   * Secret redaction is applied to every emitted string; --self-check greps outputs with the
     same high-confidence patterns to prove nothing leaked.
+  * Each event is counted once: a resumed or compacted session can write earlier events into its
+    transcript again, and iter_jsonl keeps the first occurrence of each uuid (a run that left any
+    out says how many on stderr).
   * Robust: streams line by line, guards malformed lines / huge files / unknown types, skips
     sessions with zero real user messages, never aborts the whole run on one bad file.
 
 Usage:
   python extract_sessions.py [<session-dir>] <output-dir> [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--self-check]
 
-<session-dir> is OPTIONAL — when omitted it is auto-derived from this script's location plus
+<session-dir> is OPTIONAL — when omitted it is derived from the working directory plus
 ~/.claude/projects/ (see _derive_session_dir), so the skill works for any engineer on any machine
-without a hardcoded path. Pass it explicitly only to override (e.g. a personal-scope install where
-the skill is not inside the project's .claude/). <output-dir> MUST be repo-relative
+without a hardcoded path. The working directory must be the project root, the directory Claude
+Code was launched in, and that project must have a session folder of its own. The script's own
+location says nothing about the project (an installed plugin sits under the home directory's
+.claude/), so it is not used. From anywhere else (a subdirectory, the home directory, a folder
+Claude Code never ran in) the run is refused and <session-dir> is required as the first argument:
+no corpus is ever guessed. <output-dir> MUST be repo-relative
 (e.g. .ai/tmp/retro/), never the system /tmp (shells and platforms resolve /tmp inconsistently).
 """
 
@@ -73,6 +81,8 @@ SCHEMA_KEYS = {
         "slashCommands",  # v4 (C-2): user-typed /skill invocations
         "models",  # v4 (C-4a): assistant model ids seen -> msg count
         "compactions",  # v4 (C-4b): context-compaction boundary count
+        "userRejected",  # v4 (additive): TRUE count of user-rejected results (samples are capped)
+        "hookDenials",  # v4 (additive): TRUE count of results a PreToolUse hook blocked, main thread
     ],
 }
 
@@ -98,8 +108,49 @@ CONTENT_TOOLS = {
     "NotebookRead",
 }
 SHELL_TOOLS = {"Bash", "PowerShell"}
+# The .NET commands that count as a build or a test run, with the restore, publish and format runs
+# around them, beside the tools TEST_BUILD_RE already listed. This list builds the .NET half of
+# the pattern, and extractor-output-schema.md names the same commands where it says what
+# buildTestLoops holds, so a command is added here and in that sentence together. What else the
+# program does (run, new, tool, pack, clean, --info) is no build or test run and stays out.
+DOTNET_BUILD_TEST_COMMANDS = (
+    "dotnet build",
+    "dotnet test",
+    "dotnet restore",
+    "dotnet publish",
+    "dotnet msbuild",
+    "msbuild",
+    "nuget restore",
+    "dotnet format",
+)
+
+
+def _command_pattern(command):
+    """The pattern for one command as it is typed, never as a word inside another name.
+
+    The program may carry ".exe", its words are apart by blanks on ONE line (a newline ends a
+    command), and no word character, dot or hyphen sits before it, nor one of those, a slash or
+    a backslash after it. So "msbuild.log", "nuget.config", "tools/msbuild/bin" and
+    "dotnet build-server" are no runs, while "MSBuild.exe", "nuget.exe restore" and
+    "/usr/share/dotnet/dotnet test" are.
+    """
+    program, *words = command.split()
+    return (
+        r"(?<![\w.-])"
+        + re.escape(program)
+        + r"(?:\.exe)?"
+        + "".join(r"[ \t]+" + re.escape(word) for word in words)
+        + r"(?![\w.\\/-])"
+    )
+
+
 TEST_BUILD_RE = re.compile(
-    r"(pytest|docker compose.*test|ruff|basedpyright|mypy|alembic|npm test|uv run)",
+    "|".join(
+        [
+            r"(pytest|docker compose.*test|ruff|basedpyright|mypy|alembic|npm test|uv run)",
+            *map(_command_pattern, DOTNET_BUILD_TEST_COMMANDS),
+        ]
+    ),
     re.I,
 )
 
@@ -117,6 +168,10 @@ SYSTEM_PREFIXES = (
 
 PER_MESSAGE_TEXT_CAP = 2000
 TRANSCRIPT_BYTE_CAP = 120 * 1024
+# Opens the section of operator turns a session digest keeps after the byte cap (outside it). It
+# starts with a rule on purpose: sweep_user_corrections.py ends a USER block at a line that begins
+# with "---", so the block before the section does not absorb the heading.
+OPERATOR_SECTION_RULE = "--- Operator turns after the cut ({n}): outside the byte cap, in transcript order ---"
 SAMPLES_PER_CATEGORY = 3
 RE_READ_THRESHOLD = 3
 REPEAT_CMD_THRESHOLD = 2
@@ -125,6 +180,11 @@ REPEAT_CMD_THRESHOLD = 2
 # can't explode the output; emitted-vs-total is logged (no silent truncation).
 SUBAGENT_TOP_BYTES_EMIT = 2
 MAX_SUBAGENT_EMIT_PER_SESSION = 8
+# A helper's transcript is agent-<id>.jsonl, directly under <session>/subagents/ or under
+# <session>/subagents/workflows/wf_<run>/. Nothing else under subagents/ is one: each workflow run
+# leaves a journal.jsonl there too, the run's event log (no message, no uuid). The sidecar
+# agent-<id>.meta.json is NOT part of the test, because real agent transcripts exist without one.
+SUBAGENT_GLOB = "agent-*.jsonl"
 
 # Deep-dive candidate selection (v4, C-1): the Phase-3/3b ranking used to be done by the model
 # (LLM arithmetic/sorting is a known error class; the 06-22 run hand-wrote an ad-hoc script for
@@ -133,6 +193,10 @@ DEEP_DIVE_TOOLUSE_MIN = 15
 DEEP_DIVE_USERMSGS_MIN = 6
 DEEP_DIVE_CAP = 8
 SUBAGENT_DEEPDIVE_CAP = 6
+# A soft limit on one parent session's share of those sub-agent picks: its later candidates wait
+# while any other candidate remains, and a slot still free after that pass is filled from the
+# ones that waited, so one busy parent still fills every slot. A starting value, not calibrated.
+SUBAGENT_DEEPDIVE_PER_PARENT_CAP = 4
 
 # Slash-command capture (v4, C-2): user-typed "/skill" runs surface as <command-name> pseudo-user
 # messages, which SYSTEM_PREFIXES filters out of user text — previously making the primary
@@ -148,6 +212,28 @@ PRESCAN_TAIL_BYTES = 64 * 1024
 TIMESTAMP_RE = re.compile(r'"timestamp"\s*:\s*"(\d{4}-\d{2}-\d{2}[^"]*)"')
 
 # --- redaction -------------------------------------------------------------------------------
+# GitHub tokens are matched by SHAPE. The KEY/TOKEN assignment pattern below masks a token only
+# right after such a name and "=" or ":", so one after a flag ("-p <token>") or in an
+# "Authorization: token <token>" header was emitted as it was, and the leak gate could not see it
+# either. REDACTIONS and LEAK_PATTERNS hold the same compiled pattern, so the gate looks for
+# exactly what the redaction masks. Shapes: "GitHub's token formats" in "About authentication to
+# GitHub" (docs.github.com), and "Behind GitHub's new authentication token formats" (github.blog).
+#   * ghp_ gho_ ghu_ ghs_ ghr_: base62, 30 random characters plus a 6-character checksum. The
+#     bound is 36 or more with no maximum, because GitHub says lengths will likely grow. The class
+#     holds no "_", "-" or ".", so "ghs_installation_token" and "fix/ghp_rotation-fix" are not
+#     tokens.
+#   * github_pat_: GitHub states no length. "_" is in its alphabet, so a snake_case name that
+#     starts with the prefix would pass; the lookahead demands an uppercase letter, which such a
+#     name never has and a random 36-character base62 body lacks about 3 times in a billion.
+#   * The stateless ghs_ token (a ghs_-prefixed JWT) needs no pattern: the JWT pattern runs before
+#     these and masks it.
+# Same left-boundary guard as the sk- patterns below: a letter or digit before the prefix means
+# the tail of a word.
+GITHUB_PREFIXED_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9])gh[pousr]_[A-Za-z0-9]{36,}")
+GITHUB_FINE_GRAINED_PAT_RE = re.compile(
+    r"(?<![A-Za-z0-9])github_pat_(?=[A-Za-z0-9_]*[A-Z])[A-Za-z0-9_]{36,}"
+)
+
 REDACTIONS = [
     (
         re.compile(
@@ -174,6 +260,15 @@ REDACTIONS = [
     # below, deliberately as an exact-literal allow-list rather than a further regex relaxation.
     (re.compile(r"(?<![A-Za-z0-9])sk-ant-[A-Za-z0-9_\-]{12,}"), "[REDACTED_KEY]"),
     (re.compile(r"(?<![A-Za-z0-9])sk-[A-Za-z0-9_\-]{16,}"), "[REDACTED_KEY]"),
+    # Stripe: secret and restricted API keys (sk_ or rk_, then test or live) and webhook signing
+    # secrets (whsec_), then a run of letters and digits. Stripe keys hold nothing else, so the
+    # class is narrower than the sk- one: with `_` in it, an identifier such as
+    # `sk_live_flag_enabled_in_checkout` would be redacted whole. Same left-boundary guard as the
+    # sk- patterns, for the same reason: "ta|sk_test_..." is the tail of a word, not a key.
+    (
+        re.compile(r"(?<![A-Za-z0-9])(?:[sr]k_(?:test|live)|whsec)_[A-Za-z0-9]{16,}"),
+        "[REDACTED_KEY]",
+    ),
     (
         re.compile(r"eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{6,}"),
         "[REDACTED_JWT]",
@@ -185,6 +280,8 @@ REDACTIONS = [
     (re.compile(r"(?i)\bbearer\s+[A-Za-z0-9_\-\.]{12,}"), "Bearer [REDACTED]"),
     (re.compile(r"AIza[A-Za-z0-9_\-]{20,}"), "[REDACTED_GOOGLE_KEY]"),
     (re.compile(r"AKIA[A-Z0-9]{12,}"), "[REDACTED_AWS_KEY]"),
+    (GITHUB_PREFIXED_TOKEN_RE, "[REDACTED_GITHUB_TOKEN]"),
+    (GITHUB_FINE_GRAINED_PAT_RE, "[REDACTED_GITHUB_TOKEN]"),
     (
         re.compile(
             r"(?i)\b([A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|PWD|CRED)[A-Z0-9_]*)\s*[=:]\s*([^\s,;\"']{4,})"
@@ -212,9 +309,12 @@ REDACTIONS = [
 # High-confidence shapes whose presence in OUTPUT means a redaction miss (used by --self-check).
 LEAK_PATTERNS = [
     re.compile(r"(?<![A-Za-z0-9])sk-[A-Za-z0-9_\-]{16,}"),
+    re.compile(r"(?<![A-Za-z0-9])(?:[sr]k_(?:test|live)|whsec)_[A-Za-z0-9]{16,}"),
     re.compile(r"eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{6,}"),
     re.compile(r"AIza[A-Za-z0-9_\-]{20,}"),
     re.compile(r"AKIA[A-Z0-9]{12,}"),
+    GITHUB_PREFIXED_TOKEN_RE,
+    GITHUB_FINE_GRAINED_PAT_RE,
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r'"private_key"\s*:\s*"[^"\]]{8,}"'),
 ]
@@ -241,7 +341,7 @@ DOC_EXAMPLE_ALLOWLIST = frozenset(
 )
 # Note: home-dir paths are masked in all emitted CONTENT via REDACTIONS (home -> ~). The only
 # unredacted absolute path is the functional `transcriptPath` field in the gitignored
-# aggregate.json (sub-agents need it); it is never part of the committed report, so the leak gate
+# aggregate.json (sub-agents need it); it is never part of the report, so the leak gate
 # below targets true secret shapes only, not the home username.
 
 
@@ -252,6 +352,26 @@ def redact(text):
     for pattern, repl in REDACTIONS:
         text = pattern.sub(repl, text)
     return text
+
+
+# --- line endings ----------------------------------------------------------------------------
+# Every file this script writes holds LF line endings and no carriage return at all. Text mode
+# turns each LF into CR LF on Windows, and a CR LF already inside a message then reached the file
+# as CR CR LF, so a reader that numbers lines as ripgrep and the Read tool do (LF only) and one
+# that does not (universal newlines) cited different lines. Normalise the text, and write it with
+# newline="\n" so that nothing translates it back.
+_CR_LF_RE = re.compile(r"\r\n?")
+_LINE_BREAK_RE = re.compile(r"\r\n|\r|\n")
+
+
+def _lf(text):
+    """`text` with every CR LF and every lone CR turned into LF."""
+    return _CR_LF_RE.sub("\n", text)
+
+
+def _write_lf(path, text):
+    """Write `text` to `path` as UTF-8 with LF line endings, on every OS."""
+    Path(path).write_text(_lf(text), encoding="utf-8", newline="\n")
 
 
 # --- helpers ---------------------------------------------------------------------------------
@@ -285,22 +405,193 @@ def result_text(content):
     return ""
 
 
+# --- operator turns --------------------------------------------------------------------------
+# The operator's own words reach a main-session transcript by three carriers, and only structure
+# tells them from the text the harness injects on the same channel (skill bodies, task
+# notifications, hand-backs, compaction summaries, resume nudges). This is the ONE definition of an
+# operator turn: the section of operator turns after the byte cap and the interaction digest's list
+# and header all read it, so the three cannot disagree.
+#   * a user record the operator typed: origin.kind is "human" and no block is a tool_result;
+#   * an attachment record of type queued_command, for a message typed while the model was working
+#     (commandMode "prompt", origin.kind "human"). The text is attachment.prompt, never the
+#     `rendered` copy of it, which sits in a system-reminder frame;
+#   * the question tool's answer: a tool_result whose call was AskUserQuestion, with no is_error and
+#     a record-level toolUseResult holding a dict `answers`. The result's own sentence repeats
+#     every question, so the answer values are the operator's words and that sentence is not.
+# Not carriers: queue-operation and last-prompt records, which only copy text one of the above
+# already holds. Not operator flags: promptSource (a prompt a program sent carries it too),
+# turnOrigin "human" (compaction summaries carry it) and the wording of an answer (it comes in two
+# forms).
+# A slash command the operator typed stays with sessions[].slashCommands: its wrapper is dropped
+# with the other system-prefixed blocks.
+ASK_TOOL = "AskUserQuestion"
+ANSWER_SEPARATOR = " | "
+# turnOrigin values of prompts a program or the harness sent. Consulted only for a record with no
+# origin stamp, which is how a transcript written before the harness stamped one looks.
+MACHINE_TURN_ORIGINS = frozenset(
+    {"sdk", "system", "peer", "task_notification", "scheduled"}
+)
+
+
+def _record_blocks(content):
+    """The blocks of a message content: a list as it is, a plain string as one text block."""
+    if isinstance(content, list):
+        return content
+    if isinstance(content, str):
+        return [{"type": "text", "text": content}]
+    return []
+
+
+def _message_content(obj):
+    """The content of a record's message, or None when there is no message or it is not a dict."""
+    message = obj.get("message")
+    return message.get("content") if isinstance(message, dict) else None
+
+
+def _typed_text(blocks):
+    """The operator's words in a record's text blocks: each block cleaned, a block that is only an
+    IDE note dropped, pasted bodies kept, the blocks joined with a newline. Not yet redacted."""
+    parts = []
+    for b in blocks:
+        if (
+            isinstance(b, dict)
+            and b.get("type") == "text"
+            and isinstance(b.get("text"), str)
+            and is_real_user_text(b["text"])
+        ):
+            cleaned = clean_user_text(b["text"])
+            if cleaned:
+                parts.append(cleaned)
+    return "\n".join(parts)
+
+
+def _is_human_origin(origin):
+    return isinstance(origin, dict) and origin.get("kind") == "human"
+
+
+def _answer_text(obj, blocks, id_to_tool):
+    """The answers the operator gave the question tool, or '' for any other tool result. The call
+    must have been the question tool AND the record must carry the answers: structure alone would
+    admit any tool whose result happens to hold an `answers` dict."""
+    result = obj.get("toolUseResult")
+    answers = result.get("answers") if isinstance(result, dict) else None
+    if not isinstance(answers, dict):
+        return ""
+    for b in blocks:
+        if (
+            isinstance(b, dict)
+            and b.get("type") == "tool_result"
+            and b.get("is_error") is not True
+            and isinstance(b.get("tool_use_id"), str)
+            and id_to_tool.get(b.get("tool_use_id")) == ASK_TOOL
+        ):
+            values = [v.strip() for v in answers.values() if isinstance(v, str)]
+            return ANSWER_SEPARATOR.join(v for v in values if v)
+    return ""
+
+
+def operator_turn_text(obj, id_to_tool):
+    """The operator's own words carried by ONE transcript record, redacted, or '' when the record
+    is not an operator turn. `id_to_tool` maps tool_use ids seen so far to their tool names (it
+    pairs an answer with its question call). The text is not clipped: callers clip.
+
+    A record that holds a tool_result block is read for that block alone: typed text beside an
+    answer in the same record is not an operator turn, and process_session leaves it out of the
+    digest as well. No transcript measured so far mixes the two, so this is a stated limit and not
+    a handled case."""
+    otype = obj.get("type")
+    if otype == "attachment":
+        att = obj.get("attachment")
+        if (
+            isinstance(att, dict)
+            and att.get("type") == "queued_command"
+            and att.get("commandMode") == "prompt"
+            and _is_human_origin(att.get("origin"))
+        ):
+            return redact(_typed_text(_record_blocks(att.get("prompt"))))
+        return ""
+    if otype != "user":
+        return ""
+    blocks = _record_blocks(_message_content(obj))
+    if any(isinstance(b, dict) and b.get("type") == "tool_result" for b in blocks):
+        return redact(_answer_text(obj, blocks, id_to_tool))
+    origin = obj.get("origin")
+    if origin is not None:
+        return redact(_typed_text(blocks)) if _is_human_origin(origin) else ""
+    # No origin stamp: the record is the operator's unless something marks it as machine text, and
+    # the injected-text prefixes still apply (they are all that tells such records apart).
+    if (
+        obj.get("isMeta")
+        or obj.get("isCompactSummary")
+        or str(obj.get("turnOrigin")) in MACHINE_TURN_ORIGINS
+    ):
+        return ""
+    text = _typed_text(blocks)
+    return redact(text) if _is_human_turn(text) else ""
+
+
+def iter_operator_turns(jsonl_path):
+    """Yield the text of every operator turn of one main-session transcript, in file order.
+
+    The interaction digest and the session identity call this outside main()'s per-file guard, so a
+    record of an unexpected shape is read as "not an operator turn" and never raised on. A tool_use
+    id is taken only when it is a string: it becomes a dict key, and an id of any other type must
+    not stop the run."""
+    id_to_tool = {}
+    for obj in iter_jsonl(jsonl_path):
+        if obj.get("type") == "assistant":
+            content = _message_content(obj)
+            for b in content if isinstance(content, list) else []:
+                if (
+                    isinstance(b, dict)
+                    and b.get("type") == "tool_use"
+                    and isinstance(b.get("id"), str)
+                    and b["id"]
+                    and b.get("name")
+                ):
+                    id_to_tool[b["id"]] = b["name"]
+            continue
+        text = operator_turn_text(obj, id_to_tool)
+        if text:
+            yield text
+
+
+# The harness's own sentence when the user refuses a tool call, written at the START of the
+# tool_result. What follows it differs by build (a trailing note, "To tell you how to proceed,
+# the user said:", an older "provided the following reason"), so only the opening sentence is
+# the anchor. It is anchored, never a substring: ripgrep's own usage errors say "rejected the
+# pattern, glob, or file type", and any error that merely QUOTES a denial phrase (a log line, a
+# commit message) carries it mid-text — a substring match filed both as a permission denial.
+# The cancellation sentence ("... doesn't want to take this action right now") is the harness's
+# stamp for a cancelled call, not a denial, and is deliberately not matched.
+USER_REJECTED_SENTENCE = "The user doesn't want to proceed with this tool use."
+
+# .NET build output counts as a build error, the class a ruff or mypy failure gets: MSBuild's
+# "Build FAILED." stamp, its own errors ("error MSB" and four digits) and the C# compiler's
+# ("error CS" and four digits, with or without the "file(line,col): " prefix in front). They are
+# matched case-sensitively on the raw text and read BEFORE the generic "failed" rule, because the
+# stamp itself holds the word "failed": read after it, a failed build that prints the stamp would
+# file as a test failure. The dotnet test summary line ("Failed!  - Failed: ...") matches none of
+# them and stays a test failure.
+DOTNET_BUILD_SIGNATURES = (
+    re.compile(r"\bBuild FAILED\."),
+    re.compile(r"\berror MSB\d{4}\b"),
+    re.compile(r"\berror CS\d{4}\b"),
+)
+
+
 def classify_error(origin, is_error, text):
     """Return an error category, 'user-rejected', or None. Classifies by ORIGIN tool.
 
     Content tools are never errors unless is_error is set. Shell tools may also error via a
-    non-zero exit code surfaced in the result body.
+    non-zero exit code surfaced in the result body. 'user-rejected' is USER_REJECTED_SENTENCE at
+    the start of an is_error result and nothing looser; leading whitespace is tolerated because
+    a list-of-blocks result joins an empty first block into a leading newline.
     """
-    low = text.lower()
-    if is_error and (
-        "user doesn't want" in low
-        or "user rejected" in low
-        or "the user doesn't want to proceed" in low
-        or "rejected the" in low
-        or "user has chosen not to" in low
-    ):
+    if is_error and text.lstrip().startswith(USER_REJECTED_SENTENCE):
         return "user-rejected"
 
+    low = text.lower()
     is_shell = origin in SHELL_TOOLS
     nonzero_exit = bool(re.search(r"exit code:?\s*[1-9]", low))
     if not (is_error or (is_shell and nonzero_exit)):
@@ -318,6 +609,7 @@ def classify_error(origin, is_error, text):
         if (
             re.search(r"\b(ruff|basedpyright|mypy|pyright|syntaxerror)\b", low)
             or "compileerror" in low
+            or any(signature.search(text) for signature in DOTNET_BUILD_SIGNATURES)
         ):
             return "build-compile"
         if re.search(r"\b(pytest|test session starts|failed|assertionerror)\b", low):
@@ -328,6 +620,24 @@ def classify_error(origin, is_error, text):
     # Non-shell catch-all. ("other" in ERROR_CATEGORIES is a reserved/forward-compat bucket and is
     # never produced here — tool-error and runtime-exit are the real catch-alls.)
     return "tool-error"
+
+
+# A hook that blocks a tool call comes back as an error result that starts with the harness's own
+# prefix, "PreToolUse:<Tool> hook error: ", and then whatever the hook wrote. It is anchored at
+# the start and counted only on an error result: shell output, a log line or a quoted message
+# carries the same words mid-text, and a hook that never answered says "did not respond" instead.
+# The count sits BESIDE the error categories (the result keeps its category). A hook that denies by
+# JSON returns only its own reason, with no prefix, and nothing else in the record names a hook:
+# the harness's denial stamp is shared with don't-ask mode, built-in safety checks and protected
+# paths, so that form is deliberately not counted. extractor-output-schema.md says so too.
+# (Two literals, so that no colon sits right before a backslash: the asset hygiene scan reads
+# letter-colon-backslash-letter as a drive path.)
+HOOK_DENIAL_RE = re.compile("PreToolUse:" r"\S+ hook error: ")
+
+
+def is_hook_denial(is_error, text):
+    """True for an error result carrying the harness's hook-error prefix at its start."""
+    return bool(is_error) and HOOK_DENIAL_RE.match(text.lstrip()) is not None
 
 
 def tool_input_summary(name, inp):
@@ -348,12 +658,26 @@ def tool_input_summary(name, inp):
         s = f"{len(inp.get('todos', []))} todos"
     else:
         s = inp.get("description") or inp.get("prompt") or inp.get("query") or ""
-    return redact(str(s).replace("\n", " "))[:100]
+    return redact(_LINE_BREAK_RE.sub(" ", str(s)))[:100]
 
 
 # --- per-session processing ------------------------------------------------------------------
-def iter_jsonl(path):
-    """Yield parsed objects from a JSONL file; skip malformed lines without aborting."""
+def iter_jsonl(path, left_out=None):
+    """Yield parsed objects from a JSONL file; skip malformed lines without aborting.
+
+    Each event is yielded once. A session that was resumed or compacted can write earlier events
+    into its transcript a second time: the repeat has the same top-level `uuid` (and the same
+    message, parent and timestamp) as the original but a re-stamped slug and, usually, a shorter
+    toolUseResult, so it is not the same line byte for byte, and counted as written every tool call
+    in the replayed span counts twice. The key is the `uuid` alone, remembered per call, and the
+    FIRST occurrence is the one kept. Other keys fail on measured transcripts: one API message is
+    written as several lines that each carry a uuid of their own (a message-id key loses events),
+    two real turns can read alike (a text key folds them), and a whole-line key never matches a
+    repeat while it folds the state lines that have no uuid. A line whose uuid is absent, empty or
+    not a string is always yielded: state lines and the rows of an older transcript carry none.
+    When `left_out` is a list, the uuid of each repeat that was left out is appended to it, so that
+    the caller can say that it happened."""
+    seen = set()
     try:
         with open(path, encoding="utf-8", errors="replace") as fh:
             for line in fh:
@@ -364,15 +688,26 @@ def iter_jsonl(path):
                     obj = json.loads(line)
                 except (ValueError, json.JSONDecodeError):
                     continue
-                if isinstance(
-                    obj, dict
-                ):  # skip valid-but-non-object lines (bare strings/numbers)
-                    yield obj
+                if not isinstance(obj, dict):
+                    continue  # valid-but-non-object lines (bare strings/numbers)
+                uid = obj.get("uuid")
+                if isinstance(uid, str) and uid:
+                    if uid in seen:
+                        if left_out is not None:
+                            left_out.append(uid)
+                        continue
+                    seen.add(uid)
+                yield obj
     except OSError as exc:
         print(f"  ! cannot read {path}: {exc}", file=sys.stderr)
 
 
-def process_session(jsonl_path, sessions_dir):
+def process_session(jsonl_path, sessions_dir, replays=None):
+    """Walk one main-session transcript and the transcripts of its helpers.
+
+    `replays`, when given, is a dict that receives {session id: number of repeated events left out}
+    for a session that had any (see iter_jsonl; a helper's repeats count for the session that ran
+    it). The caller reports the number: it is not part of the returned session."""
     sid = jsonl_path.stem
     sess = {
         "sessionId": sid,
@@ -415,10 +750,13 @@ def process_session(jsonl_path, sessions_dir):
         "slashCommands": [],
         "models": defaultdict(int),
         "compactions": 0,
+        "userRejected": 0,  # every user-rejected result; `user_rejected` below is a capped sample
+        "hookDenials": 0,  # every hook-blocked result; `hook_denials` below is a capped sample
     }
     # cross-session error samples collected by the caller; here we collect locally then return
     local_errors = defaultdict(list)  # category -> [redacted sample]
-    user_rejected = []  # [redacted sample]
+    user_rejected = []  # [redacted sample], capped at SAMPLES_PER_CATEGORY — NOT the count
+    hook_denials = []  # [redacted sample], capped at SAMPLES_PER_CATEGORY — NOT the count
 
     id_to_tool = {}
     skill_ids = {}  # tool_use_id -> skill name
@@ -427,20 +765,32 @@ def process_session(jsonl_path, sessions_dir):
     transcript = []
     transcript_bytes = 0
     truncated = False
+    operator_tail = []  # operator turns the byte cap cut off: kept outside it, in a section
+    left_out = []  # uuids of the repeated events iter_jsonl dropped, here and in the helpers
 
     def emit(line):
+        """Add a line to the capped transcript; False when the cap kept it out."""
         nonlocal transcript_bytes, truncated
         if truncated:
-            return
+            return False
+        line = _lf(line)
         b = len(line.encode("utf-8", "replace")) + 1
         if transcript_bytes + b > TRANSCRIPT_BYTE_CAP:
             transcript.append("\n[...transcript truncated at 120 KB...]")
             truncated = True
-            return
+            return False
         transcript.append(line)
         transcript_bytes += b
+        return True
 
-    for obj in iter_jsonl(jsonl_path):
+    def emit_operator(text):
+        """An operator turn goes where it happened; one the cap has already cut off is kept in
+        `operator_tail` instead, so the byte cap never costs the operator's own words."""
+        line = f"USER: {text[:PER_MESSAGE_TEXT_CAP]}"
+        if not emit(line):
+            operator_tail.append(_lf(line))
+
+    for obj in iter_jsonl(jsonl_path, left_out):
         otype = obj.get("type")
         ts = obj.get("timestamp")
         if ts:
@@ -522,6 +872,7 @@ def process_session(jsonl_path, sessions_dir):
                     else []
                 )
             )
+            operator = operator_turn_text(obj, id_to_tool)
             had_user_text = False
             for b in blocks:
                 if not isinstance(b, dict):
@@ -531,7 +882,8 @@ def process_session(jsonl_path, sessions_dir):
                     cleaned = clean_user_text(b["text"])
                     if cleaned:
                         had_user_text = True
-                        emit(f"USER: {redact(cleaned)[:PER_MESSAGE_TEXT_CAP]}")
+                        if not operator:  # injected text rides along as it always did
+                            emit(f"USER: {redact(cleaned)[:PER_MESSAGE_TEXT_CAP]}")
                 elif bt == "text":
                     # v4 (C-2): user-typed slash invocations surface as <command-name>
                     # pseudo-user messages (filtered from user text; still not a userMsg).
@@ -549,7 +901,14 @@ def process_session(jsonl_path, sessions_dir):
                     is_err = b.get("is_error") is True
                     txt = result_text(b.get("content"))
                     cat = classify_error(origin, is_err, txt)
+                    if is_hook_denial(is_err, txt):
+                        sess["hookDenials"] += 1
+                        if len(hook_denials) < SAMPLES_PER_CATEGORY:
+                            hook_denials.append(
+                                f"[{sid[:8]}/{origin}] {redact(txt)[:160]}"
+                            )
                     if cat == "user-rejected":
+                        sess["userRejected"] += 1
                         if len(user_rejected) < SAMPLES_PER_CATEGORY:
                             user_rejected.append(
                                 f"[{sid[:8]}/{origin}] {redact(txt)[:160]}"
@@ -569,11 +928,21 @@ def process_session(jsonl_path, sessions_dir):
                         )
                     status = "ok" if not cat else f"ERROR({cat}): {redact(txt)[:120]}"
                     emit(f"    -> {status}")
+            if operator:
+                emit_operator(operator)
             if had_user_text:
                 sess["counts"]["userMsgs"] += 1
             continue
-        # other entry types (last-prompt, queue-operation, file-history-snapshot, attachment, mode)
-        # are intentionally ignored for behavioral analysis.
+
+        if otype == "attachment":
+            # a message the operator typed while the model was working: not a user record, so
+            # not a userMsg either, but the operator's words all the same
+            operator = operator_turn_text(obj, id_to_tool)
+            if operator:
+                emit_operator(operator)
+            continue
+        # other entry types (last-prompt, queue-operation, file-history-snapshot, mode) are
+        # intentionally ignored for behavioral analysis.
 
     # behavioral aggregates
     sess["behavior"]["reReads"] = [
@@ -593,7 +962,9 @@ def process_session(jsonl_path, sessions_dir):
 
     # sub-agents (nested per parent session): aggregate metrics + an error taxonomy, and emit
     # redacted transcripts for the high-signal ones so they can be deep-dived without raw .jsonl.
-    walk_subagents(jsonl_path.parent / sid, sess, sessions_dir)
+    walk_subagents(jsonl_path.parent / sid, sess, sessions_dir, left_out)
+    if replays is not None and left_out:
+        replays[sid] = len(left_out)
 
     # finalize types
     sess["toolsUsed"] = dict(sess["toolsUsed"])
@@ -604,20 +975,32 @@ def process_session(jsonl_path, sessions_dir):
     if sess["counts"]["userMsgs"] > 0:
         header = f"# Session {sid}\nTitle: {redact(sess['title'] or '(none)')}\nBranch: {sess['gitBranch']}\n{sess['startTime']} -> {sess['endTime']}\n\n"
         body = header + "\n".join(transcript)
+        if operator_tail:
+            # The rule line ends the USER block before it for the corrections sweep, which would
+            # otherwise absorb the section's title line into that candidate. A blank line precedes
+            # the rule so the section reads apart from the truncation marker above it.
+            body += (
+                "\n\n"
+                + OPERATOR_SECTION_RULE.format(n=len(operator_tail))
+                + "\n"
+                + "\n".join(operator_tail)
+            )
+        body = _lf(body)
         out = sessions_dir / f"{sid}.md"
-        out.write_text(body, encoding="utf-8")
+        _write_lf(out, body)
         sess["transcriptPath"] = str(out.resolve())
         sess["transcriptBytes"] = len(body.encode("utf-8", "replace"))
 
-    return sess, local_errors, user_rejected
+    return sess, local_errors, user_rejected, hook_denials
 
 
-def render_subagent(jf):
+def render_subagent(jf, left_out=None):
     """Parse one sub-agent transcript .jsonl → (redacted_text, msgs, errorsByCategory, samples).
 
     Mirrors process_session's message walk but lighter: no behavior metrics, just the readable
     redacted narrative + an error taxonomy (same classify_error, by ORIGIN tool). `samples` is a
     list of (category, redacted_sample) tuples. Errors inside sub-agents were previously invisible.
+    `left_out` is the list iter_jsonl appends the uuid of each repeated event to.
     """
     id_to_tool = {}
     lines = []
@@ -631,6 +1014,7 @@ def render_subagent(jf):
         nonlocal nbytes, truncated
         if truncated:
             return
+        line = _lf(line)
         b = len(line.encode("utf-8", "replace")) + 1
         if nbytes + b > TRANSCRIPT_BYTE_CAP:
             lines.append("\n[...sub-agent transcript truncated at 120 KB...]")
@@ -639,7 +1023,7 @@ def render_subagent(jf):
         lines.append(line)
         nbytes += b
 
-    for obj in iter_jsonl(jf):
+    for obj in iter_jsonl(jf, left_out):
         otype = obj.get("type")
         if otype in ("user", "assistant"):
             msgs += 1
@@ -695,17 +1079,20 @@ def render_subagent(jf):
     return "\n".join(lines), msgs, dict(errs), samples
 
 
-def walk_subagents(session_dir, sess, sessions_dir):
-    """Aggregate nested sub-agent transcripts (<id>/subagents/*.jsonl and
-    .../workflows/wf_*/*.jsonl), build a per-session sub-agent error taxonomy, and emit redacted
-    transcripts for the HIGH-SIGNAL ones (any error, or the largest few) so they can be deep-dived
-    without ever reading raw .jsonl. Uses agent-*.meta.json sidecars for type/goal. Mutates `sess`."""
+def walk_subagents(session_dir, sess, sessions_dir, left_out=None):
+    """Aggregate nested sub-agent transcripts (<id>/subagents/agent-*.jsonl and
+    .../workflows/wf_*/agent-*.jsonl: see SUBAGENT_GLOB), build a per-session sub-agent error
+    taxonomy, and emit redacted transcripts for the HIGH-SIGNAL ones (any error, or the largest
+    few) so they can be deep-dived without ever reading raw .jsonl. A workflow run's journal.jsonl
+    is an event log, not a transcript, and is not counted. Uses agent-*.meta.json sidecars for
+    type/goal (an agent without one is typed "?"). Mutates `sess`. `left_out` collects the repeated
+    events the transcripts held (see iter_jsonl)."""
     sub_root = session_dir / "subagents"
     if not sub_root.is_dir():
         return
     sid8 = sess["sessionId"][:8]
     parsed = []
-    for jf in sorted(sub_root.rglob("*.jsonl")):
+    for jf in sorted(sub_root.rglob(SUBAGENT_GLOB)):
         sess["subAgents"]["count"] += 1
         size = 0
         with contextlib.suppress(OSError):
@@ -718,7 +1105,7 @@ def walk_subagents(session_dir, sess, sessions_dir):
                 m = json.loads(meta.read_text(encoding="utf-8", errors="replace"))
                 atype = m.get("agentType")
                 goal = m.get("description")
-        text, msgs, errs, samples = render_subagent(jf)
+        text, msgs, errs, samples = render_subagent(jf, left_out)
         sess["subAgents"]["msgs"] += msgs
         if len(sess["subAgents"]["agents"]) < 30:
             sess["subAgents"]["agents"].append(
@@ -794,7 +1181,7 @@ def walk_subagents(session_dir, sess, sessions_dir):
                 f"  msgs: {p['msgs']}  errors: {p['errs'] or 'none'}\n\n"
             )
             outp = sub_dir / safe
-            outp.write_text(header + p["text"], encoding="utf-8")
+            _write_lf(outp, header + p["text"])
             sess["subAgents"]["highSignal"].append(
                 {
                     "file": safe,
@@ -810,11 +1197,14 @@ def walk_subagents(session_dir, sess, sessions_dir):
     sess["subAgents"]["transcriptsEmitted"] = len(sess["subAgents"]["highSignal"])
 
 
-# --- session-dir auto-derivation -------------------------------------------------------------
+# --- session-dir derivation -------------------------------------------------------------------
 # Claude Code stores a project's sessions under ~/.claude/projects/<encoded>, where <encoded> is the
 # project's ABSOLUTE path with every "/", "\" and ":" replaced by "-". That name is machine-specific
 # (drive letter, username, clone location all differ per engineer), so it MUST be derived at runtime,
 # never hardcoded — a hardcoded path is portable to exactly one person.
+# Not measured: whether Claude Code replaces other characters too (a dot, an underscore, a space).
+# If it does, a working directory whose path holds one is not found by this encoding, and the
+# derivation refuses and asks for the session dir, as it does for every directory it cannot match.
 def _encode_repo_path(root):
     """Encode an absolute repo path the way Claude Code names its ~/.claude/projects/<dir>."""
     return re.sub(r"[/\\:]", "-", str(root))
@@ -837,30 +1227,56 @@ def _find_session_dir(repo_root, projects_base):
     return None
 
 
-def _derive_session_dir():
-    """Auto-derive THIS repo's Claude session dir from the script location + the user's home.
+def _is_same_dir(a, b):
+    """True when two paths name the same directory (case, links and short names aside)."""
+    try:
+        return a.samefile(b)
+    except OSError:  # one of them does not exist: compare the paths as written
+        return a == b
 
-    Walks up from this file to the repo root (the dir containing `.claude/`), encodes it, and looks
-    under ~/.claude/projects/. Pure runtime derivation (Path(__file__) / Path.home()) so it works for
-    any engineer on any machine; exits with a hint (pass the dir explicitly) if it cannot resolve —
-    e.g. a personal-scope install where this skill does not live in the project's `.claude/`.
+
+def _derive_session_dir(cwd=None, home=None):
+    """Derive the Claude session dir of the project this run was started in, from the WORKING
+    DIRECTORY.
+
+    The working directory must be the project root (the directory Claude Code was launched in) and
+    must have a session folder of its own under ~/.claude/projects/, found by _find_session_dir:
+    the folder is the proof that Claude Code ran there. The script's own location is not used. An
+    installed plugin sits under the home directory's .claude/, so a walk up from it ends at the home
+    directory and either finds no folder or finds the home directory's, which holds everything ever
+    started there and is not one project's corpus. Refused, with exit status 1 and a message that
+    asks for the session dir as the first argument, and never guessed:
+      * the home directory, even when a session folder for it exists;
+      * a directory with no folder of its own: below the project root, beside it, a launch
+        directory that is not the project root, or a folder Claude Code never ran in.
+    CLAUDE_PROJECT_DIR is not set in tool calls, so it cannot stand in for the working directory.
+    `cwd` and `home` default to the process's own; they exist so that a test patches neither.
     """
-    here = Path(__file__).resolve()
-    repo_root = next((p for p in here.parents if (p / ".claude").is_dir()), Path.cwd())
-    projects_base = Path.home() / ".claude" / "projects"
-    found = _find_session_dir(repo_root, projects_base)
+    cwd = Path.cwd() if cwd is None else Path(cwd)
+    home = Path.home() if home is None else Path(home)
+    projects_base = home / ".claude" / "projects"
+    is_home = _is_same_dir(cwd, home)
+    found = None if is_home else _find_session_dir(cwd, projects_base)
     if found is None:
         avail = (
             sorted(p.name for p in projects_base.iterdir() if p.is_dir())
             if projects_base.is_dir()
             else []
         )
+        why = (
+            "it is the home directory, and a session folder for the home directory is never "
+            "used silently"
+            if is_home
+            else "no session folder is named for it (looked for "
+            f"{projects_base / _encode_repo_path(cwd)}); it must be the project root, the "
+            "directory Claude Code was launched in"
+        )
         raise SystemExit(
-            "ERROR: could not auto-derive the Claude session dir.\n"
-            f"  repo root:  {repo_root}\n"
-            f"  looked for: {projects_base / _encode_repo_path(repo_root)}\n"
-            f"  available:  {avail or '(none)'}\n"
-            "  Pass the session dir explicitly as the first argument to override."
+            "ERROR: could not derive the Claude session dir.\n"
+            f"  working dir: {cwd}\n"
+            f"  why:         {why}\n"
+            f"  available:   {avail or '(none)'}\n"
+            "  Pass the session dir explicitly as the first argument."
         )
     return found
 
@@ -932,7 +1348,13 @@ def select_deep_dive(sessions):
 
 
 def select_subagent_deep_dive(sessions):
-    """Deterministic Phase-3b selection over emitted high-signal sub-agent transcripts."""
+    """Deterministic Phase-3b selection over emitted high-signal sub-agent transcripts.
+
+    Candidates are taken in rank order with a soft limit per parent session: a parent's
+    candidates past SUBAGENT_DEEPDIVE_PER_PARENT_CAP wait while any other candidate remains, and
+    a slot still free after that pass is filled from the ones that waited, in rank order. Both
+    lists come out in rank order, so the limit decides who is picked, not how the lists read.
+    """
     pool = []
     for s in sessions:
         for hs in s["subAgents"].get("highSignal", []):
@@ -950,15 +1372,30 @@ def select_subagent_deep_dive(sessions):
                 }
             )
     ranked = sorted(pool, key=lambda p: (-p["errorCount"], -p["bytes"], p["file"]))
+    taken_per_parent = defaultdict(int)
+    picked, waiting = [], []  # positions in `ranked`
+    for position, p in enumerate(ranked):
+        if len(picked) == SUBAGENT_DEEPDIVE_CAP:
+            break
+        parent = p["parentSessionId"]
+        if taken_per_parent[parent] >= SUBAGENT_DEEPDIVE_PER_PARENT_CAP:
+            waiting.append(position)
+        else:
+            taken_per_parent[parent] += 1
+            picked.append(position)
+    picked += waiting[: SUBAGENT_DEEPDIVE_CAP - len(picked)]
+    chosen = set(picked)
     return {
         "selectionRule": (
             f"all emitted high-signal sub-agents; rank errorCount desc, bytes desc, file; "
-            f"top {SUBAGENT_DEEPDIVE_CAP}"
+            f"top {SUBAGENT_DEEPDIVE_CAP}; at most {SUBAGENT_DEEPDIVE_PER_PARENT_CAP} per "
+            f"parent session while others remain"
         ),
-        "selected": ranked[:SUBAGENT_DEEPDIVE_CAP],
+        "selected": [p for position, p in enumerate(ranked) if position in chosen],
         "overCap": [
             {k: p[k] for k in ("parentSessionId", "file", "errorCount")}
-            for p in ranked[SUBAGENT_DEEPDIVE_CAP:]
+            for position, p in enumerate(ranked)
+            if position not in chosen
         ],
     }
 
@@ -1043,44 +1480,45 @@ DIGEST_USER_MSG_CHARS = 220
 DIGEST_MIN_OCCURRENCES = 2
 
 # Injected machinery that arrives on the USER channel but is not the human speaking: skill
-# bodies, task notifications, command wrappers. Measured on a live session, 4 of 10 "user
-# messages" were this noise (two skill payloads, one task-notification, one more skill payload)
-# — enough to make the re-ask read useless, since a reader would be scanning skill prose.
+# bodies, task notifications, command wrappers, plain-text harness notices. Measured on a live
+# session, 4 of 10 "user messages" were this noise (two skill payloads, one task-notification,
+# one more skill payload) — enough to make the re-ask read useless, since a reader would be
+# scanning skill prose.
 #
 # Deliberately SEPARATE from SYSTEM_PREFIXES rather than widening it: that tuple feeds
 # is_real_user_text(), which drives counts.userMsgs and therefore deepDiveCandidates selection
 # for the WHOLE retrospective — widening it would silently shift every session's metrics and
 # change which sessions get deep-dived. This layer applies to the digest only.
 #
+# Which records are the operator is decided by operator_turn_text: a record with an origin stamp is
+# told apart by the stamp, because a prefix cannot do it (the blanket "<" below also matches a
+# pasted block the operator sent). This list still decides for a record with no stamp, and the
+# sweep reads the same prefixes off the digest it is given.
+#
 # Mirrors SKIP_PREFIX in the sibling sweep_user_corrections.py (same skill, same noise class).
 # The two lists must move together; they are duplicated because the scripts are invoked as
 # stand-alone files from the repo root and cannot import each other without path juggling.
+# test_sweep_user_corrections.py imports both by path and fails when they differ as sets.
 HARNESS_USER_PREFIXES = (
     "<",
     "Base directory for this skill",
     "ARGUMENTS:",
     "[Request interrupted",
     "Caveat:",
+    # Plain-text events the harness injects on the user channel. In real transcripts each is
+    # machine-marked (isMeta, isCompactSummary or a non-human origin), never operator typing:
+    # the workflow-authoring reference header, the notice that a compacted session continues,
+    # a message relayed from a peer session, and the stop notice a safety classifier leaves.
+    "# Workflow authoring reference",
+    "This session is being continued from a previous conversation",
+    "Another Claude session sent a message",
+    "Your response above was stopped by a safety classifier",
 )
 
 
 def _is_human_turn(text):
     """True if this user-channel text is the human speaking, not injected machinery."""
     return bool(text) and not text.lstrip().startswith(HARNESS_USER_PREFIXES)
-
-
-def _user_text(obj):
-    """Redacted, cleaned text of one user record — '' if it is not real user input."""
-    content = (obj.get("message") or {}).get("content")
-    if isinstance(content, list):
-        content = " ".join(
-            b.get("text", "")
-            for b in content
-            if isinstance(b, dict) and b.get("type") == "text"
-        )
-    if not isinstance(content, str) or not is_real_user_text(content):
-        return ""
-    return redact(clean_user_text(content))
 
 
 def _session_identity(path):
@@ -1090,13 +1528,7 @@ def _session_identity(path):
     never sent knows immediately that the wrong session was measured.
     """
     mtime = datetime.fromtimestamp(path.stat().st_mtime, UTC)
-    first = ""
-    for obj in iter_jsonl(path):
-        if obj.get("type") == "user":
-            first = _user_text(obj)
-            if _is_human_turn(first):
-                break
-            first = ""
+    first = next(iter_operator_turns(path), "")
     return {
         "sessionId": path.stem,
         "lastActivity": mtime.isoformat(timespec="seconds"),
@@ -1182,13 +1614,7 @@ def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
         for cat, n in (sess.get("errorsByCategory") or {}).items()
         if n >= DIGEST_MIN_OCCURRENCES
     }
-    msgs = [
-        t
-        for t in (
-            _user_text(o) for o in iter_jsonl(jsonl_path) if o.get("type") == "user"
-        )
-        if _is_human_turn(t)
-    ]
+    msgs = list(iter_operator_turns(jsonl_path))
 
     signal_count = (
         len(rereads)
@@ -1205,8 +1631,14 @@ def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
     L.append(f"- Last activity: {ident['lastActivity']}")
     L.append(f"- Branch: {sess.get('gitBranch') or 'unknown'}")
     L.append(
-        f"- Volume: {sess['counts']['userMsgs']} user msgs, "
+        f"- Volume: {len(msgs)} operator turns, "
         f"{sess['counts']['toolUse']} tool calls, {sess.get('compactions', 0)} compaction(s)"
+    )
+    # counts.userMsgs is every user-channel record that carries text, injected text included, so it
+    # is not the number of operator turns above; it stays, labelled, because it drives selection.
+    L.append(
+        f"- User-channel records: {sess['counts']['userMsgs']} (counts.userMsgs; includes skill, "
+        "hand-back and compaction text, so it is not a count of operator turns)"
     )
     L.append(
         f"- Re-read threshold applied: >={rereads_min} (see DEFAULT_REREADS_MIN provenance)"
@@ -1255,6 +1687,12 @@ def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
         "marker exists, which is why this is a sequence to read and not a detector's output."
     )
     L.append("")
+    L.append(
+        "Operator turns only: typed messages, messages typed while the model was working, and "
+        "the answers given to the question tool. Skill bodies, task notifications, hand-backs "
+        "and compaction text are not listed."
+    )
+    L.append("")
     for i, t in enumerate(msgs[:DIGEST_USER_MSG_CAP], 1):
         flat = " ".join(t.split())[:DIGEST_USER_MSG_CHARS]
         L.append(f"{i}. {flat}")
@@ -1276,10 +1714,10 @@ def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
     L.append("")
 
     path = Path(output_dir) / "interaction-digest.md"
-    path.write_text("\n".join(L), encoding="utf-8")
+    _write_lf(path, "\n".join(L))
     print(
         f"Wrote {path} — gate={'SIGNAL' if signal_count or errors else 'NO SIGNAL'}, "
-        f"{signal_count} repetition signal(s), {len(errors)} error class(es), {len(msgs)} user msgs",
+        f"{signal_count} repetition signal(s), {len(errors)} error class(es), {len(msgs)} operator turns",
         file=sys.stderr,
     )
     return path
@@ -1309,7 +1747,10 @@ def main():
     ap.add_argument(
         "session_dir",
         nargs="?",
-        help="Claude session dir under ~/.claude/projects/; auto-derived from the repo root if omitted",
+        help="Claude session dir under ~/.claude/projects/. When omitted it is derived from the "
+        "working directory, which must be the project root (the directory Claude Code was "
+        "launched in) with a session folder of its own; anywhere else the run is refused and "
+        "this argument is required",
     )
     ap.add_argument(
         "output_dir", help="repo-relative output dir (e.g. .ai/tmp/retro/), never /tmp"
@@ -1387,6 +1828,8 @@ def main():
     sessions = []
     tax = {c: {"count": 0, "sessions": [], "samples": []} for c in ERROR_CATEGORIES}
     user_rejected = {"count": 0, "sessions": [], "samples": []}
+    hook_denials = {"count": 0, "sessions": [], "samples": []}
+    replays = {}  # session id -> repeated events left out of it: for stderr, not the aggregate
 
     prescan_skipped = 0
     for f in files:
@@ -1401,7 +1844,9 @@ def main():
                 prescan_skipped += 1
                 continue
         try:
-            sess, local_errors, rejected = process_session(f, sessions_dir)
+            sess, local_errors, rejected, hooked = process_session(
+                f, sessions_dir, replays
+            )
         except Exception as exc:  # never abort the whole run on one file
             print(f"  ! error processing {f.name}: {exc}", file=sys.stderr)
             continue
@@ -1420,12 +1865,20 @@ def main():
             for s in samples:
                 if len(tax[cat]["samples"]) < 8:
                     tax[cat]["samples"].append(s)
-        if rejected:
-            user_rejected["count"] += len(rejected)
+        if sess["userRejected"]:
+            # the TRUE number: `rejected` is a capped sample list, so its length undercounts
+            user_rejected["count"] += sess["userRejected"]
             user_rejected["sessions"].append(sess["sessionId"][:8])
             for s in rejected:
                 if len(user_rejected["samples"]) < 8:
                     user_rejected["samples"].append(s)
+        if sess["hookDenials"]:
+            # the TRUE number again: `hooked` is a capped sample list
+            hook_denials["count"] += sess["hookDenials"]
+            hook_denials["sessions"].append(sess["sessionId"][:8])
+            for s in hooked:
+                if len(hook_denials["samples"]) < 8:
+                    hook_denials["samples"].append(s)
 
     sessions.sort(key=lambda s: s["startTime"] or "")
 
@@ -1503,7 +1956,11 @@ def main():
             "generatedAt": datetime.now(UTC).isoformat(),
         },
         "stats": stats,
-        "errorTaxonomy": {"byCategory": tax, "userRejected": user_rejected},
+        "errorTaxonomy": {
+            "byCategory": tax,
+            "userRejected": user_rejected,
+            "hookDenials": hook_denials,
+        },
         "subAgentErrorTaxonomy": {"byCategory": sub_tax, **sub_totals},
         "deepDiveCandidates": deep_dive,
         "subAgentDeepDiveCandidates": sub_deep_dive,
@@ -1513,9 +1970,7 @@ def main():
     # validate schema contract before writing
     _validate_schema(out)
 
-    (output_dir / "aggregate.json").write_text(
-        json.dumps(out, indent=2), encoding="utf-8"
-    )
+    _write_lf(output_dir / "aggregate.json", json.dumps(out, indent=2))
     print(
         f"Wrote aggregate.json ({len(sessions)} sessions) + {len(list(sessions_dir.glob('*.md')))} transcripts to {output_dir}",
         file=sys.stderr,
@@ -1525,7 +1980,7 @@ def main():
         + ", ".join(
             f"{c}={tax[c]['count']}" for c in ERROR_CATEGORIES if tax[c]["count"]
         )
-        + f" | user-rejected={user_rejected['count']}",
+        + f" | user-rejected={user_rejected['count']} | hook-denials={hook_denials['count']}",
         file=sys.stderr,
     )
     sub_cat = ", ".join(
@@ -1538,6 +1993,17 @@ def main():
         + (f" | {sub_cat}" if sub_cat else ""),
         file=sys.stderr,
     )
+    # Never silent: the counts above read each replayed event once, so a run over a replayed
+    # transcript reads lower than one built before the extractor dropped repeats. Only the
+    # sessions that reached the aggregate are counted, and only when there is something to say.
+    kept = {s["sessionId"] for s in sessions}
+    replayed = {sid: n for sid, n in replays.items() if sid in kept}
+    if replayed:
+        print(
+            f"Replayed events: skipped {sum(replayed.values())} repeated event(s) in "
+            f"{len(replayed)} session(s); each event is counted once, by its uuid",
+            file=sys.stderr,
+        )
     if since or until:
         print(
             f"Pre-scan skipped {prescan_skipped} out-of-range session file(s) before parsing",

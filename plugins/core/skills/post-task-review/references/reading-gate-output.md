@@ -94,9 +94,12 @@ manually re-running a single unambiguous redirect.
 
 ## 5. Comparing a git blob to a working-tree file is a LINE-ENDING test, not a content test
 
-`git show <ref>:<path>` returns the blob **as stored** (LF under this repo's `.gitattributes`); the
-working-tree copy is **CRLF**. A `sha256sum` of the two therefore *always* differs for any text file,
-whatever the content.
+`git show <ref>:<path>` returns the blob **as stored**. What is stored follows `.gitattributes` or
+`core.autocrlf` and can differ per file (`git ls-files --eol` prints each file's index and
+working-tree endings). The working-tree copy is in the checkout form, and so is a `git archive`
+export, so an export is a disk side like the working tree. A `sha256sum` of blob and disk copy
+therefore differs for the files whose line endings were converted, whatever their content, and not
+for the rest.
 
 **Measured**: verifying 22 archived files were byte-identical to what git held reported
 **0 identical / 22 problems**. The archive was perfect. The same false alarm fired **three times in
@@ -105,10 +108,17 @@ one session** — on an archive, on a PR body repair, and on a `git show`-based 
 The verdict reads as catastrophic — *every* file wrong — which is exactly the shape that prompts a
 panicked re-do of correct work.
 
-> Normalise before comparing (`tr -d '\r'`) whenever one side comes from git and the other from disk,
-> and **treat an all-files-differ result as an instrument fault until proven otherwise.** The
-> strongest content proof needs no hashing at all: `git apply --check --reverse <patch>` against the
-> tree (passed for 23 uncommitted files across five rebases).
+> **Compare blob ids, two hashes per file**, each against `git rev-parse <tree-ish>:<path>`:
+> `git hash-object --path=<path> <file>` (the input filter the repository applies to that path) and
+> `git hash-object --no-filters <file>` (the raw bytes). The file equals the blob when either id
+> matches. A blob stored with LF matches the first; one stored with CRLF can match only the second,
+> because `hash-object` converts line endings that git leaves alone in a file already stored with
+> CRLF (`git ls-files --eol` shows which). Print the denominator.
+>
+> To compare text instead, normalise (`tr -d '\r'`) whenever one side comes from git and the other
+> from disk, and **treat an all-files-differ result as an instrument fault until proven otherwise.**
+> The strongest content proof needs no hashing at all: `git apply --check --reverse <patch>` against
+> the tree (passed for 23 uncommitted files across five rebases).
 
 ---
 
@@ -157,6 +167,7 @@ Measured instances. Every row below produced a confident wrong answer that drove
 | `git grep 'def name\b'` | word-boundary match | plain `git grep` is BRE and does not know `\b` — reported **29 real tests ABSENT**. Use `-E` |
 | `git grep <pat> HEAD` | searches your fix | searches the **commit**, so your just-applied worktree fix reads as still-broken |
 | `git grep <pat>` (no rev) | searches the committed tree | searches the **worktree**, so a "has it landed?" gate passes on a peer's uncommitted edit |
+| `git grep -n "<symbol>"` or `git diff --name-only HEAD` as the sweep of a task's files | every reader, every changed file | **tracked** files only: a file the task created and has not added is invisible to both, so the sweep is silent about the files you wrote. `git grep -n --untracked` adds them and still skips ignored files; `git ls-files --others --exclude-standard` lists them. Git refuses `--untracked` with a revision, so a ref-based "did it land?" grep stays as it is. Every sweep for readers of a symbol, a claim or an old name counts untracked files (the Untracked-dependency check reads the tracked tree on purpose). Say which form ran next to the count |
 | `grep -r -- "$p" DIR --include='*.md'` | restricts to the glob | the `--include` after the path is ignored; it searches **everything**. The giveaway is on **stderr** |
 | `git diff --stat` (one number) | insertions | that number is **added + removed**. Use `--numstat` for any count you write down |
 | `git diff --stat` (paths) | full paths | long paths are **abbreviated** with `...`, so grepping its output for a directory reports "only READMEs changed" for exactly the deep files you were looking for |
@@ -166,6 +177,7 @@ Measured instances. Every row below produced a confident wrong answer that drove
 | `ls <path> 2>&1 \| grep <pat>` in a DoD | proves presence | the *error text* contains the path, so absence reports as success |
 | `str.index("## Heading")` | finds the heading | matches the **prose that mentions** the heading first — silently duplicated a 166 KB document |
 | a `\b` written into generated file **content** | a regex boundary | arrives at the next reader as the **BACKSPACE escape** (`0x08`), putting invisible bytes into a committed file |
+| a syntax-only check of SQL that another person will run (a parser, an EXPLAIN that plans but never executes, a dry run) | the query is validated | it is syntax-clean, not validated: the engine decides what a pattern means. In a PostgreSQL regular expression `\b` is a backspace and `\y` is the word boundary, so a query written with `\b` parses, runs and matches nothing. SQL handed to someone else is validated only by executing it, as written and then widened, on a throwaway database of the target's major version, with known-positive and known-negative rows |
 | an italic-span regex over markdown | italics | swallows every **bold** span too, so a citation audit can report a whole document as uncited |
 | a single-quoted heredoc holding `\\` | literal backslashes | the Bash tool still mangles them, so a Python script silently stops matching. Write the script to a **file** |
 | `grep` on a wide table row | the whole line | the harness may print `[Omitted long matching line]`; read the span with one file read rather than one read per line |

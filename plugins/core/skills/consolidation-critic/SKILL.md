@@ -45,9 +45,10 @@ already written into always-loaded rules. Both were invisible until checked.
 
 | Input | Why it is needed |
 |---|---|
-| The pre-drain snapshot (`.ai/learnings-pre-drain-<date>.md`) | C1 cannot run without it |
+| The pre-drain snapshot: a scratch file written from the buffer at the restore-point commit | C1 cannot run without it |
 | `git diff HEAD` over the promotion targets | The actual change under review — not your memory of it |
 | The consolidation plan (`.ai/consolidation-plan-*.md`) | Promotions the plan promised but the drain never made |
+| The gate record (`.ai/consolidation-gates/<date>-plan-approved.md`) | The plan as recorded approved before any removal: a written claim C1 checks against the plan the operator saw |
 
 ---
 
@@ -58,26 +59,39 @@ Run all eight. Each names the failure it has actually caught.
 ### C1 — Landing audit (mechanical, non-negotiable)
 
 Removal verification proves entries left the buffer. It is **structurally blind** to the opposite
-failure: an entry removed whose knowledge reached no home.
+failure: an entry removed whose knowledge reached no home. Run the audit that fits the state of the
+promotions, with the same `--surface` values as the consolidator's Phase 5 audit (`--surface <glob>`
+adds a home). It takes the pre-drain snapshot, a scratch file written from the buffer at the
+restore-point commit, and a base ref, which is mandatory (no ref exits 2):
 
 ```bash
+# Promotions still UNCOMMITTED: HEAD is the pre-promotion state.
 python "${CLAUDE_PLUGIN_ROOT}/skills/learning-consolidator/scripts/drain_audit.py" \
-  .ai/learnings-pre-drain-<date>.md
+  <pre-drain-snapshot>.md HEAD
+
+# Promotions ALREADY COMMITTED: the commit before the promotion commit, never HEAD.
+python "${CLAUDE_PLUGIN_ROOT}/skills/learning-consolidator/scripts/drain_audit.py" \
+  <pre-drain-snapshot>.md <promo-commit>~1
 ```
 
-Adjudicate **every** `[LOSS?]` and no-probe-token row by hand. Expected-clean: ARCHIVED entries, and
-entries whose only tokens are incidental paths from their anecdote. Anything else is deleted
-knowledge — recover it from the snapshot and promote it before proceeding.
+Exit 1 means rows to adjudicate, not a failed run. Adjudicate **every** `[LOSS?]` and no-probe-token
+row by hand. Expected-clean: ARCHIVED entries, and entries whose only tokens are incidental paths
+from their anecdote. Anything else is deleted knowledge — recover it from the snapshot and promote
+it before proceeding.
 
-**If no snapshot exists** (a drain that predates the Phase-5 snapshot requirement), reconstruct one
-from git into scratch — `git show HEAD:.ai/learnings.md > .ai/tmp/learnings-pre-drain-recovered.md`,
-deliberately NOT the committed snapshot path, because a reconstruction is not evidence — and say so
-in the report: a snapshot rebuilt from the last commit misses anything appended since, so C1's
-coverage is partial and must be stated as partial, not clean.
+**If no snapshot exists** (a drain that predates the Phase-5 restore point), reconstruct one from
+git into scratch: the operator writes the buffer's last committed contents to a scratch path in
+their own terminal (a session never names the buffer on a shell line), deliberately NOT the byte
+copy's path (the operator's local, never-committed copy of the buffer from Phase 5), so it cannot
+pass for that copy, and say in the report that it is a reconstruction: it is not evidence, and a
+snapshot rebuilt from the last commit misses anything appended since, so C1's coverage is partial
+and must be stated as partial, not clean.
 
 Then check the plan: for each promotion it promised, confirm the target file actually exists and
 carries it. *A promotion assigned in the plan and skipped in execution is the most common loss* —
-one plan named a `docs/` note that was never created, silently dropping two entries.
+one plan named a `docs/` note that was never created, silently dropping two entries. Read the gate
+record too: it is a written claim, not proof, that the operator approved this plan before the
+removals, so confirm it holds the plan approved at the Phase 3 gate and report any difference.
 
 > **Caught:** 6 of 87 entries deleted without a home, including a rule the same consolidation
 > cross-referenced from a skill as if it existed — a dangling pointer to knowledge just deleted.
@@ -140,6 +154,12 @@ home plus a consumer that must not miss it). Three or more means the drain scatt
 A promotion that corrects a fact must correct **every** statement of that fact in the same file and
 its siblings. Grep the *old* claim, not the new one — the stale copy is what you are hunting.
 
+The sweep reaches the files the batch did not edit: grep the old claim in every skill, reference and
+README that cites a promoted rule, because a contradiction sits where the diff does not look. The
+fresh reader of C6 carries the same sweep and checks that each pointer in the batch names a section
+number or a stable heading name, never only a line number or a commit id. Its return ends with what
+it did not check (`post-task-review`, fix-rounds reference, section 2a).
+
 > **Caught:** a skill whose prose was updated to "renders fine via WebFetch" while a table seven
 > rows below still said "Unreliable".
 
@@ -151,6 +171,18 @@ not verifiable", "observed once") must not become a flat assertion in an auto-lo
 Check every promoted claim for: source quality, whether *this project* measured it, and whether the
 hedge in the source entry survived. Where the evidence is thin, state it as a hypothesis and name
 the experiment that would settle it.
+
+**Fidelity read.** The checks above test where an entry landed, what its passage cites and whether
+its hedge survived; none reads the rewritten paragraph beside the entry it came from, so a
+paraphrase that changes the claim passes them all. A fresh reader carries the read, not you: the
+author of a paraphrase reads it as faithful. You spawn it, as `post-task-review` describes one for
+a fix round (section 2 of its fix-rounds reference, the planted false claim included), and brief it
+to read each promoted paragraph beside its source entry in the pre-drain snapshot and list every
+place it changes the claim: a narrative inverted, two techniques fused into one, a sentence
+addressed to the promoter left in committed text, a dropped qualifier such as "not run" or "only".
+A reader's brief carries at most four real claims, plus the planted one, so spawn one fresh reader
+per four promoted paragraphs. A promotion passes only when the read lists none. The read does not
+replace C1 to C8.
 
 > **Caught:** an undocumented provider default sourced from a single forum post whose author's
 > affiliation was explicitly unverifiable, promoted as fact into an auto-loaded skill — in a project
@@ -170,11 +202,11 @@ sessions to run a check and no session ran it, hardening the check beats re-word
 ### C8 — Re-run every gate
 
 This review **edits** — so its own output is unverified until the gates run again. Re-run all of
-them, unfiltered, and read the exit codes:
+them, unfiltered, and read the exit codes (`--project` takes the absolute project root: a relative path such as `.` resolves inside the plugin, so the lint and the audit would measure nothing and still pass):
 
 ```bash
-PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint
-PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit audit-skills
+uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint --project "<absolute project root>"
+uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit audit-skills --project "<absolute project root>"
 ```
 
 …plus the project's canonical lint gate for any code touched — use the exact invocation
@@ -194,7 +226,7 @@ trains readers to ignore it.
 | Severity | Definition | Action |
 |---|---|---|
 | **Blocker** | Deleted knowledge (C1), or a false claim already shipped into a rule (C2) | Fix before the consolidation may be reported complete |
-| **Major** | Wrong altitude, ≥3-way duplication, self-contradiction, overstated confidence, prose where a seam belongs | Resolve by revising; if it needs a decision only the user can make, surface it as `[UNRESOLVED]` |
+| **Major** | Wrong altitude, ≥3-way duplication, self-contradiction, overstated confidence, a fidelity defect (a promoted paragraph that says more or less than its source entry), prose where a seam belongs | Resolve by revising; if it needs a decision only the user can make, surface it as `[UNRESOLVED]` |
 | **Minor** | Wording, formatting, a redundant clause | Fix silently |
 
 **Blockers use a verify-fix-reverify loop:** state the defect, fix it, then *re-run the check that
@@ -208,6 +240,7 @@ found it* — not a different one. A fix asserted without re-running its own che
 **Landing audit:** N entries scanned · M candidate losses · K adjudicated as real → recovered
 **Claim verification:** N claims checked · M false → corrected
 **Always-loaded delta:** +N chars (~T tokens), was +N₀ before this review
+**Fidelity read:** N paragraphs · M changed claims → corrected · planted claim rejected: yes/no
 
 ### Blockers (N)
 | # | Finding | Where | Resolution |

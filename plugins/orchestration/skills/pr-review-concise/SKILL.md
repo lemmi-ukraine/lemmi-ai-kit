@@ -237,11 +237,12 @@ review that posts no inline comments and states its coverage is a complete revie
 ## Step 7 — Known false positives in this codebase
 
 Do not flag these. Each has cost a real round-trip.
+The gate commands and paths in this table are one repository's examples.
 
 | # | Pattern | Why it is not a defect |
 |---|---|---|
 | 1 | Gate output quoted from the PR body | A gate's verdict is its log, never its exit code — the Docker runner returned exit 0 around `1 failed, 2260 passed`. Never accept "gates green". |
-| 2 | `ruff` violations under a broader scope | `ruff check backend tests` exits 1 on ~35 pre-existing violations; `ruff check backend` is the canonical gate and exits 0. Name the scope. |
+| 2 | `ruff` violations under a broader scope | `ruff check backend tests` exits 1 on ~35 pre-existing violations; the gate, the project's lint command (AGENTS.md § Commands), exits 0. Name the scope. |
 | 3 | Type errors in `scripts/` | `pyproject.toml` scopes basedpyright to `include = ["backend", "tests"]` — `scripts/` was never in gate scope. |
 | 4 | "This prompt file is missing from the repo" | `prompts/**` are deployment artifacts (untracked; runtime reads GCS). `git ls-files prompts` is empty by design. |
 | 5 | A fake installed through the harness's sanctioned seam (a provider-leaf fake, a mock-server expectation, an emulator) | That is the testing conventions' replacement for mocks, not a mock. What IS a defect: `patch()`, `monkeypatch.setattr` on app or SDK code, or `dependency_overrides` in a test. |
@@ -250,22 +251,6 @@ Do not flag these. Each has cost a real round-trip.
 
 **True positives that look like these:**
 
-- **Bare `@fast_test` / `@integration_test` / `@websocket_test` without parentheses — ALWAYS flag**
-  in a suite that still uses these timeout decorators (a legacy mock-based suite; the integration
-  model replaces them with harness deadlines and bounded waits). They are decorator *factories*,
-  so the bare form rebinds the test to the inner `decorator(func)`.
-  **The consequence depends on the shape, and the common shape is the silent one:**
-  - On a **test method** (the dominant form in such suites — tests inherit `BaseEndpointTest`/`BaseCRUDTest`):
-    `self` binds to `func`, `decorator` returns `sync_wrapper`, and pytest **records a PASS with the
-    assertions never executed.** The only signal is a `PytestReturnNotNoneWarning` buried under a
-    green summary. One real 27-test class ran this way: exit 0, "27 passed", zero assertions.
-  - On a **module-level test function**: pytest requests `func` as a fixture and the test **ERRORS**
-    at setup — loud, and the suite catches it.
-
-  *Both verified 2026-08-04 by running the two shapes against `tests/utils/timeout_decorator.py`:
-  `1 passed, 1 warning, 1 error`. Never assume the loud case — grep the diff for bare
-  `@fast_test$`/`@integration_test$`/`@websocket_test$` at end of line, and treat `N passed` on a new
-  test class as unproven until the warning block is checked.*
 - A repository query or partial unique index missing `deleted_at.is_(None)`.
 - A cached/existing-data fast path that skips the ownership check the generation path enforces.
 

@@ -52,7 +52,7 @@ against this run is 350 blank lines; W2.4 counted insertions including blanks, t
 
 A further **901** non-blank window lines sit in files the kit ships no version of at all: the two
 linters and their tests (875), `skill-creation-workflow/references/subagent-preamble.md` (25), and
-one line in `prompt-engineering-conventions`, which I1 removed. Those are out of scope by decision,
+one line in `prompt-writing-conventions`, which I1 removed. Those are out of scope by decision,
 not by oversight.
 
 ## 2. The work list, ordered
@@ -74,7 +74,7 @@ between the two to see how much is wording drift rather than loss.
 | `lemmi-test-conventions` | `test-conventions` | yes | 21 | 5 | 16 | **16** | 0 |
 | `task-learnings` | same | yes | 56 | 37 | 19 | **15** | 2 |
 | `ai-docs-lookup` | same | yes | 2 | 0 | 2 | **2** | 0 |
-| `openai-realtime-quirks` | same | yes | 1 | 0 | 1 | **1** | 0 |
+| `vendor-api-quirks` | same | yes | 1 | 0 | 1 | **1** | 0 |
 | `hypothesis-validator` | same | **no** — fresh W2.3 port | 115 | 102 | 13 | **12** | 2 |
 | `session-retrospective` | same | **no** — correct-base merge | 598 | 587 | 11 | **8** | 3 |
 | **Total, exposed only** | | | **704** | **105** | **599** | **560** | **34** |
@@ -150,7 +150,7 @@ upstream fidelity — see the completion review §2 for what that implies for pr
 
 - `backend/app/core/<module>/README.md` and `backend/app/features/<feature>/` promotion targets
   throughout `learning-consolidator`'s reference files.
-- `python .claude/skills/learning-consolidator/scripts/ai_files_lint.py …` invocations of the
+- `python .claude/skills/learning-consolidator/scripts/data_files_lint.py …` invocations of the
   linters the kit replaced with its CLI.
 - Machine-specific rules — *"use the project venv python or plain `python`, never `uv run` on this
   Windows host"*.

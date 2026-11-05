@@ -45,7 +45,7 @@ S="${CLAUDE_SKILL_DIR}/scripts/audit_cleanup_targets.py"
 
 python "$S" census     --root .specs                       # Step 3 — per-file partition + exhaustiveness
 python "$S" kinds      --root .specs/<initiative>          # Step 3b — per-file ARTIFACT KIND + completeness
-python "$S" evidence   --symbol <SymbolTheWorkIntroduced>  # Step 4a — CODE vs DOC-ONLY vs ABSENT
+python "$S" evidence   --symbol <SymbolTheWorkIntroduced> --ref origin/dev  # Step 4a — CODE vs DOC-ONLY vs ABSENT, on the ref Step 1 verified
 python "$S" extraction --target <scaffolding file>         # Step 4a-bis — is the reasoning elsewhere?
 python "$S" fundep     --target <path being moved>         # Step 4b-bis — does a PROGRAM read this?
 python "$S" refs       --target .specs/<name>              # Step 4b — inbound refs; never exclude the target's OWN dir
@@ -107,8 +107,8 @@ repo drew exactly that wrong conclusion.
 
 Every board row reaches a **terminal state**. No row is left mid-sentence.
 
-**The board is whatever file the initiative's spec names.** For interview-realism that is
-`tasks/BACKLOG-interview-realism.md`; `tasks/BACKLOG.md` is the repo-wide index that points to it.
+**The board is whatever file the initiative's spec names.** For sample-initiative that is
+`tasks/BACKLOG-sample-initiative.md`; `tasks/BACKLOG.md` is the repo-wide index that points to it.
 Resolve it before step 1 and name it in the plan — do not assume.
 
 Whatever board it is, **it already owns its status vocabulary. Do not redefine it.** The realism board
@@ -275,13 +275,13 @@ Prove it by **content, not by ancestry** — squash-merge makes the original SHA
 the code is in `dev`:
 
 ```bash
-python "${CLAUDE_SKILL_DIR}/scripts/audit_cleanup_targets.py" evidence --symbol <Symbol>
+python "${CLAUDE_SKILL_DIR}/scripts/audit_cleanup_targets.py" evidence --symbol <Symbol> --ref origin/dev
 ```
 
 **Use the script, not a bare `git grep`.** An earlier revision of this step recommended
 `git grep -l '<symbol>' origin/dev` — and that command is itself the defect: unscoped, it matches
 `README.md`, and on 2026-08-09 it produced **14 false "implemented" verdicts out of 34**, every one
-a doc hit. The script classifies by file type and refuses to score documentation as code.
+a doc hit. The script classifies by file type and refuses to score documentation as code. `--ref` is the ref Step 1 verified (default `HEAD` answers about your checkout, not the branch), and a hit only in a type it does not count, such as `.cs`, is NO VERDICT until `--code-suffix .cs` names it.
 
 Pick the symbol from the spec's own acceptance criteria (a class, a route, a migration id, a settings
 field). **No symbol you can grep for is itself the finding**: a spec whose deliverable cannot be
@@ -293,7 +293,7 @@ named in code did not ship, whatever the board says.
 1. **A `.md` hit is DOC-ONLY, never implemented.** `ConductGovernor` appears in two specs and a task
    doc and in **no** code — the package had been reverted. An unscoped grep would have
    called it shipped and deleted the record of a deliberate removal.
-2. **A symbol shared across spec dirs proves nothing about any one.** `transcript_gradeability` is
+2. **A symbol shared across spec dirs proves nothing about any one.** `shared_scoring_rules` is
    real landed code belonging to the *eligibility* work, and it also matched
    `stt-coverage-collapse-handling`, whose own header reads *"no code written"*. On SHARED: find a
    unique symbol, or **record no verdict**.
@@ -318,15 +318,15 @@ Deleting a tracked file is cheap; leaving the citations behind is what costs. **
 silent** — no build fails over a dead pointer, and the citing doc still reads as maintained.
 
 ```bash
-# find every inbound reference across the WORKING TREE, by basename AND by path
-grep -rn '<basename>' --include='*.md' --include='*.py' . | grep -v '/\.ai/tmp/'
+# find every inbound reference across the WORKING TREE, by basename AND by path, in files of every type
+grep -rIn --exclude-dir=.git '<basename>' . | grep -v '/\.ai/tmp/'
 ```
 
 > **`git grep` is the wrong tool here and will report a clean sweep when it is not.** It reads the
 > **index**, so it cannot see untracked files, and step 3's premise is that `tasks/` and `.specs/`
 > are routinely half-untracked — measured 2026-08-04, `git grep` returned **0** where a working-tree
-> `grep -rn` returned **10+**. Use `grep -rn` (or `git grep --untracked`), and re-sweep with the same
-> command and scope: a narrower re-sweep proves nothing.
+> `grep -rn` returned **10+**. Use that command, or `git grep --untracked --no-exclude-standard -I -n '<basename>' -- ':!.ai/tmp'` (plain `--untracked` skips ignored files),
+> and re-sweep with the same command and scope: a narrower re-sweep proves nothing.
 
 Repoint each hit to whichever is true:
 
@@ -337,7 +337,7 @@ Repoint each hit to whichever is true:
 | is superseded | the superseding doc, by path |
 
 Then **re-run the grep and require zero hits** outside recovery commands. Deletion is not done when
-the file is gone; it is done when nothing points at a hole.
+the file is gone; it is done when nothing points at a hole. **A path grep cannot see ids:** after relocating content, grep the destination for the retired file's id prefixes and write what each id means where it now stands — [references/retirement-sweep.md](references/retirement-sweep.md).
 
 > **Measured live, 2026-08-04:** deleting one shipped-work spec created three dead references in the
 > same minute and **every gate stayed green**. Only a post-task reference sweep caught it. Full case:
@@ -349,14 +349,14 @@ Only once 4a and 4b both pass:
 |---|---|
 | Spec for work that **shipped** | **DELETE it** (tracked, so `git log --diff-filter=D` recovers it) after relocating anything durable to the **code-adjacent home** — feature README, test name, code comment — and leaving a changelog pointer to the landing commit. Once code ships, the code + tests are the truth and a retained spec is a second source that drifts. *Measured:* a shipped fold-split spec was 242 lines, of which ~10 (alternatives-rejected) were not already in the code, its 19 tests, the README or the task doc. Relocate those 10, delete the file. |
 | Spec for work that was **parked** | **Keeps its revival trigger.** Deleting it destroys the decision *not* to build — exactly what stops the next initiative re-deriving it |
-| Genuine scratch under `.ai/tmp/` | Go — **only after 4c below**. Gate captures, one-off scripts, intermediate JSON |
+| Genuine scratch under `.ai/tmp/` | Go — **only after 4c below**. Gate captures, one-off scripts, intermediate JSON. Never the folder's own `.gitignore`: kit-setup manages it |
 | **Anything under `.ai/tmp/` that is an INPUT, not an output** | **KEEP — never swept.** See 4c: `.ai/tmp/` is not one class |
-| Hand-offs in `.ai/handoffs/` | Go. They are pointers by contract; the durable fact is elsewhere in git |
+| Hand-offs in `.ai/handoffs/` | Go. They are pointers by contract; the durable fact is elsewhere in git. Never the folder's own `.gitignore`: kit-setup manages it |
 | Every other kind — decision record, scaffolding, rollback anchor, instrument, result | **Step 3b owns these.** Disposition is that kind's life-ending condition, not this table. Measurement corpora and raw exports in particular: keep, and move somewhere durable — they have been lost once with no copy anywhere |
 
 ### 4c. `.ai/tmp/` is NOT one class — classify by content, never by directory
 
-`.ai/tmp/` is gitignored, so **nothing in it has history and nothing in it is
+`.ai/tmp/` is gitignored, so **no file a session puts in it has history and none is
 recoverable** — a sweep there is final. It holds two populations that look identical from the path:
 **scratch** (this session made it and could remake it → sweep) and **INPUT / corpus** (production
 exports, log downloads, anything a report's numbers were computed from → **never** sweep; upstream
@@ -412,7 +412,7 @@ for brief in <every scaffolding file proposed for archive>; do
   python "$S" extraction --target "$brief"            # exit 1 = NOT SPENT, it stays
 done
 for sym in <every 4a symbol>; do
-  python "$S" evidence --symbol "$sym"                # exit 1 = DOC-ONLY, ABSENT, or SHARED
+  python "$S" evidence --symbol "$sym" --ref origin/dev  # exit 1 = DOC-ONLY, NO VERDICT, ABSENT, or SHARED; exit 2 = a git failure (the ref or git grep), never ABSENT
 done
 ```
 
@@ -492,7 +492,7 @@ something in git.**
 - `references/self-review-gate.md` — Step 5.5 detail and the measured failures behind each gate · `references/settle-lessons.md` — six measured Step 1–3 lessons (Status lines over-report openness, id-shaped orphan sweeps, handed lists as claims sheets, the tracked-but-uncommitted third state, channel-path citations, per-citation staleness)
 - `references/tmp-classification.md` · `references/comment-pass.md` — Step 4c and Step 5 detail
 - `plan-critic` (invoke at Step 5.5b — read its `references/`, do not recall them)
-- `AGENTS.md` — the deletion-sweep rule this step 3 implements; the learnings-system routing
+- `AGENTS.md` — the learnings-system routing that Step 8 follows
 - `post-task-review` — the doc-retirement gate and the `git check-ignore` durable-path check
 - `task-learnings` (invoke) · `learning-consolidator` (ask the operator to run) · `ai-changelog`
 - `stacked-pr-planner` — the topology table this settles at the end

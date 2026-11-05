@@ -20,8 +20,12 @@ rejects would otherwise turn every conforming entry into a false positive.
 """
 
 import re
+import shlex
+import subprocess
+import sys
 from datetime import date
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 from upstream_sync import (
@@ -34,7 +38,10 @@ from upstream_sync import (
 )
 
 from lemmi_ai_kit import checks
-from lemmi_ai_kit.cli import main
+from lemmi_ai_kit.cli import (
+    _build_parser,  # pyright: ignore[reportPrivateUsage]
+    main,
+)
 from lemmi_ai_kit.manifest import assets_root, shipped_skill_dirs
 
 # --- fixtures -----------------------------------------------------------------------------
@@ -105,6 +112,30 @@ The one slice. Not the rest.
 in-progress. The second half is not done.
 """
 
+# Placeholders in both command sections, a bullet that wraps (its arrow is on the second
+# line), and one bullet with no command at all -- the listing has to cope with each.
+_COMMANDS_HANDOFF = """# Hand-off
+
+## Scope
+The one slice. Not the rest.
+
+## Durable anchors
+- branch `feature/thing`
+
+## Preconditions
+- `git status --short` -> clean tree
+- `git ls-tree <TREE>` against the tree the build
+  printed -> lists d/
+
+## Verification
+- `pytest -q` -> 0 failed
+- `git diff <LOWER>..<UPPER>` -> empty
+- the diff reads well
+
+## Status
+in-progress. The second half is not done.
+"""
+
 
 def _write(path: Path, text: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -123,6 +154,61 @@ def _project(tmp_path: Path, **files: str) -> Path:
         _write(tmp_path / ".ai" / names[key], text)
     (tmp_path / ".ai").mkdir(exist_ok=True)
     return tmp_path
+
+
+_EM = "—"
+_TERMINAL_CYCLE = ("CONFIRMED", "REFUTED", "INCONCLUSIVE", "SUPERSEDED")
+
+
+def _ledger(
+    terminal: int = 0,
+    pending: int = 0,
+    marker: str | None = None,
+    header_extra: str = "",
+) -> str:
+    """A conforming hypotheses ledger: `terminal` resolved entries, `pending` open ones.
+
+    The resolved entries cycle through all four terminal statuses, so one fixture also
+    shows that every terminal status counts.
+    """
+    head = "# AI Infrastructure Improvement Hypotheses\n\n"
+    if marker is not None:
+        head += marker + "\n\n"
+    head += header_extra
+    head += "---\n\n## 2026-08-22\n\n"
+    statuses = [_TERMINAL_CYCLE[i % len(_TERMINAL_CYCLE)] for i in range(terminal)]
+    statuses += ["PENDING"] * pending
+    entries = [
+        f"### [SKILL-ADDED] entry {index}\n"
+        "- **Category:** Quality\n"
+        "- **Hypothesis:** By doing X, we expect Y because Z.\n"
+        "- **Signal:** fewer findings next month\n"
+        f"- **Status:** {status}\n"
+        f"- **Changelog ref:** 2026-08-22 - SKILL-ADDED: entry {index}\n"
+        for index, status in enumerate(statuses)
+    ]
+    return head + "\n".join(entries)
+
+
+def _git(repo: Path, *args: str) -> str:
+    """Run git in a fixture repository and return its stdout; fail loudly if it fails."""
+    done = subprocess.run(
+        ["git", "-C", str(repo), "-c", "commit.gpgsign=false", *args],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert done.returncode == 0, f"git {args}: {done.stderr}"
+    return done.stdout.strip()
+
+
+def _git_repo(path: Path) -> Path:
+    """`path` as an initialised repository with a local identity, so commits are hermetic."""
+    path.mkdir(parents=True, exist_ok=True)
+    _git(path, "init", "-q")
+    _git(path, "config", "user.name", "fixture")
+    _git(path, "config", "user.email", "fixture@example.invalid")
+    return path
 
 
 def _skill(
@@ -367,6 +453,41 @@ def test_hypothesis_statuses_match_the_shipped_seed_file() -> None:
     )
 
 
+# The tracker states the threshold as "(>=10 unsynthesized terminal verdicts" and wraps the
+# line inside it, so the gap is any whitespace.
+_THRESHOLD_RE = re.compile(r"(?:≥|>=)\s*(\d+)\s+unsynthesized\s+terminal\s+verdicts")
+
+
+def _documented_threshold(text: str) -> int | None:
+    match = _THRESHOLD_RE.search(text)
+    return int(match.group(1)) if match else None
+
+
+def test_the_meta_synthesis_threshold_matches_the_tracker_skill() -> None:
+    """The number the lint fires at and the number the skill tells people it fires at are
+    one fact stated twice; this is what stops them drifting apart."""
+    # The reader can see a number other than the code's, and can see none at all -- so a
+    # green result below means it read the skill, not that it read nothing.
+    assert (
+        _documented_threshold("the NOTE (≥12\nunsynthesized terminal verdicts)") == 12
+    )
+    assert _documented_threshold("no threshold is stated in this text") is None
+
+    text = _shipped_skill("ai-improvement-tracker", "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    documented = _documented_threshold(text)
+
+    assert documented is not None, (
+        "ai-improvement-tracker/SKILL.md no longer states the threshold in the form "
+        "'>=N unsynthesized terminal verdicts', so the pin cannot read it"
+    )
+    assert documented == checks.META_SYNTHESIS_DUE_AT, (
+        f"the tracker skill says the due NOTE fires at {documented}, checks.py at "
+        f"{checks.META_SYNTHESIS_DUE_AT}: change one so they agree"
+    )
+
+
 def test_handoff_contract_sections_match_the_shipped_skill() -> None:
     """`parallel-session-safety` defines the contract this lint enforces."""
     skill = _shipped_skill("parallel-session-safety", "SKILL.md")
@@ -382,6 +503,109 @@ def test_handoff_contract_sections_match_the_shipped_skill() -> None:
         assert status in text, _pin_message(
             f"hand-off status '{status}'", "parallel-session-safety/SKILL.md"
         )
+
+
+# The one printed form of a support-CLI command in a skill of a pack OTHER than core, which
+# finds core through its kit-setup skill. Nothing precedes the command and `--project` is
+# last: without it, `uv --directory` moves the working directory into the plugin and the
+# project cannot be discovered, so the command exits 2.
+_CANONICAL_PREFIX = (
+    'uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" '
+    "python -B -m lemmi_ai_kit "
+)
+_CANONICAL_SUFFIX = ' --project "${KIT_PROJECT_ROOT}"'
+
+
+def _printed_cli_lines(text: str) -> list[str]:
+    """Every line of `text` that names the support package's module."""
+    return [line.strip() for line in text.splitlines() if "lemmi_ai_kit" in line]
+
+
+def _is_canonical_cli_line(line: str) -> bool:
+    return line.startswith(_CANONICAL_PREFIX) and line.endswith(_CANONICAL_SUFFIX)
+
+
+def _section_nine(skill_text: str) -> str:
+    match = re.search(
+        r"^## [^\n]*The hand-off artifact contract\n(.*?)(?=^## )",
+        skill_text,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None, "parallel-session-safety has no hand-off contract section"
+    return match.group(1)
+
+
+def test_parallel_session_safety_prints_the_cli_in_the_canonical_form() -> None:
+    text = _shipped_skill("parallel-session-safety", "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    printed = _printed_cli_lines(text)
+
+    assert len(printed) >= 2, f"the scan saw {len(printed)} line(s) naming the module"
+    assert [line for line in printed if not _is_canonical_cli_line(line)] == []
+
+    # The check can fail: each form the skill used to print is exactly what it refuses.
+    assert not _is_canonical_cli_line("python -m lemmi_ai_kit lint handoffs")
+    assert not _is_canonical_cli_line(
+        'PYTHONPATH="${CLAUDE_PLUGIN_ROOT}/src" python -m lemmi_ai_kit lint'
+    )
+    assert not _is_canonical_cli_line(
+        'uv run --no-project --directory "${KIT_CORE_PLUGIN_ROOT}/src" '
+        "python -B -m lemmi_ai_kit lint handoffs x.md"
+    )
+
+
+def test_section_nine_names_list_commands_and_its_printed_lines_parse() -> None:
+    text = _shipped_skill("parallel-session-safety", "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    section = _section_nine(text)
+    printed = _printed_cli_lines(section)
+
+    assert "`--list-commands`" in section
+    assert any("--list-commands" in line for line in printed)
+    assert any(
+        "lint handoffs <file>" in line and "--list-commands" not in line
+        for line in printed
+    )
+
+    parser = _build_parser()
+    for line in printed:
+        words = shlex.split(line)
+        argv = [
+            re.sub(r"<[^>]+>", "x.md", word)
+            for word in words[words.index("lemmi_ai_kit") + 1 :]
+        ]
+        args = parser.parse_args(argv)
+        assert (args.command, args.target) == ("lint", "handoffs"), line
+        assert args.list_commands is ("--list-commands" in line), line
+
+    # The parse can fail: a flag the parser does not know is refused, not ignored.
+    with pytest.raises(SystemExit):
+        parser.parse_args(["lint", "handoffs", "x.md", "--no-such-flag"])
+
+
+def test_section_nine_states_every_clause_of_its_listing_rule() -> None:
+    """`--list-commands` is one clause of section 9's rule; the others are what make the
+    listing worth running. Each clause is asserted on its own, so a deleted one names
+    itself, and line breaks are folded first, so re-wrapping the paragraph is no change."""
+    text = _shipped_skill("parallel-session-safety", "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    flat = " ".join(_section_nine(text).split())
+
+    for clause in (
+        "give each `<placeholder>` a stand-in (`--stand-in NAME=VALUE`)",
+        "run each that neither writes nor bills in the shell the receiver will use",
+        "name in `## Status` any not run and why",
+    ):
+        assert clause in flat, f"section 9 lost the clause: {clause}"
+
+    # The flag the section names is a flag the parser takes.
+    args = _build_parser().parse_args(
+        ["lint", "handoffs", "x.md", "--list-commands", "--stand-in", "NAME=VALUE"]
+    )
+    assert args.stand_in == ["NAME=VALUE"]
 
 
 def test_the_shipped_seed_files_lint_clean() -> None:
@@ -563,6 +787,161 @@ def test_an_untagged_hypothesis_entry_is_reported() -> None:
     messages = [f.message for f in checks.lint_hypotheses(text, "x.md")]
 
     assert any("no '[TYPE]' tag" in m for m in messages)
+
+
+# --- hypotheses lint: the ledger-growth NOTE ----------------------------------------------
+#
+# The validator and the tracker both tell an author that the lint prints a `meta-synthesis
+# due` NOTE once enough terminal verdicts have piled up unsynthesized. For a long time the
+# lint printed nothing of the kind, so a ledger could grow while nothing closed and no check
+# said so. A NOTE never fails a run -- it schedules work -- so every shape below that is not
+# "due" must also produce no FAILING finding.
+
+
+def test_the_due_note_fires_at_ten_unmarked_verdicts_and_not_at_nine() -> None:
+    findings = checks.lint_hypotheses(_ledger(terminal=10), "x.md")
+
+    assert [f for f in findings if not f.note] == []
+    notes = [f for f in findings if f.note]
+    assert len(notes) == 1
+    message = notes[0].message
+    assert message.startswith("NOTE: meta-synthesis due")
+    assert message.isascii()
+    assert "10 terminal verdicts" in message and "0 covered" in message
+
+    # One fewer is below the threshold, and entries still open never count towards it.
+    # A MISSING marker alone must stay silent: the kit's own seed ledgers have none.
+    assert checks.lint_hypotheses(_ledger(terminal=9), "x.md") == []
+    assert checks.lint_hypotheses(_ledger(terminal=9, pending=5), "x.md") == []
+    assert checks.lint_hypotheses(_ledger(pending=12), "x.md") == []
+
+
+def test_the_due_count_is_file_wide_and_ignores_since() -> None:
+    """The cutoff gates per-entry FORMAT checks; the ledger's growth is not a format."""
+    findings = checks.lint_hypotheses(
+        _ledger(terminal=10), "x.md", since=date(2030, 1, 1)
+    )
+
+    assert [f.message[:24] for f in findings] == ["NOTE: meta-synthesis due"]
+
+
+def test_a_marker_discounts_the_verdicts_it_covers() -> None:
+    """Fourteen resolved entries are due or not depending only on what the marker covers."""
+    covered = "**Last meta-synthesis:** 2026-08-02 - {n} terminal verdicts covered"
+
+    five = checks.lint_hypotheses(
+        _ledger(terminal=14, marker=covered.format(n=5)), "x.md"
+    )
+    four = checks.lint_hypotheses(
+        _ledger(terminal=14, marker=covered.format(n=4)), "x.md"
+    )
+
+    assert five == [], "14 - 5 = 9 unsynthesized is below the threshold"
+    assert len(four) == 1 and four[0].note
+    assert "14 terminal verdicts, 4 covered" in four[0].message
+
+
+@pytest.mark.parametrize(
+    ("marker", "covered"),
+    [
+        pytest.param(
+            f"> **Last meta-synthesis:** none {_EM} 0 terminal verdicts covered",
+            0,
+            id="seed-shape",
+        ),
+        pytest.param(
+            "**Last meta-synthesis:** 2026-08-02 - 4 terminal verdicts covered",
+            4,
+            id="date-hyphen-no-blockquote",
+        ),
+        pytest.param(
+            f"> **Last meta-synthesis:** 2026-08-02 {_EM} 4 terminal verdicts covered "
+            "(13 CONFIRMED / 3 REFUTED / 6 INCONCLUSIVE)",
+            4,
+            id="blockquote-em-dash-trailing-text",
+        ),
+        pytest.param(
+            "**Last meta-synthesis**: 4 terminal verdicts covered",
+            4,
+            id="colon-outside-the-bold",
+        ),
+    ],
+)
+def test_the_marker_shapes_the_reader_accepts(marker: str, covered: int) -> None:
+    findings = checks.lint_hypotheses(_ledger(terminal=14, marker=marker), "x.md")
+
+    assert [f.note for f in findings] == [True]
+    assert f"14 terminal verdicts, {covered} covered" in findings[0].message
+
+
+def test_a_marker_above_the_count_is_a_note_and_never_a_failure() -> None:
+    """A marker that covers MORE verdicts than the ledger holds is stale or mistyped; the
+    operator's ruling is that it is reported, not failed."""
+    marker = (
+        f"> **Last meta-synthesis:** 2026-08-02 {_EM} 22 terminal verdicts covered "
+        "(13 CONFIRMED / 3 REFUTED / 6 INCONCLUSIVE)"
+    )
+    findings = checks.lint_hypotheses(_ledger(terminal=1, marker=marker), "x.md")
+
+    assert [f.note for f in findings] == [True]
+    message = findings[0].message
+    assert "22" in message and "holds 1" in message
+    assert "meta-synthesis due" not in message, (
+        "it is not due, it is ahead of the ledger"
+    )
+    assert message.isascii()
+
+
+def test_an_unreadable_marker_is_a_note_and_never_a_failure() -> None:
+    marker = "**Last meta-synthesis:** sometime last week"
+    findings = checks.lint_hypotheses(_ledger(terminal=3, marker=marker), "x.md")
+
+    assert [f.note for f in findings] == [True]
+    assert "unreadable" in findings[0].message
+    assert findings[0].message.isascii()
+
+
+def test_a_fenced_marker_is_example_text_not_the_marker() -> None:
+    """These files document their own format, so a fenced example is not the marker."""
+    example = (
+        "```markdown\n"
+        "**Last meta-synthesis:** 2026-08-02 - 9 terminal verdicts covered\n"
+        "```\n\n"
+    )
+    findings = checks.lint_hypotheses(
+        _ledger(terminal=10, header_extra=example), "x.md"
+    )
+
+    assert [f.note for f in findings] == [True]
+    assert "10 terminal verdicts, 0 covered" in findings[0].message
+
+
+def test_the_seed_ships_the_marker_and_still_lints_clean() -> None:
+    """The scaffold skips an existing seed, so only a NEW project gets this line; the
+    validator text carries it to everyone else. It must not look like an entry or hold a
+    date, because the seed is pinned as an empty ledger."""
+    text = (assets_root() / "ai" / "improvement-hypotheses.md").read_text(
+        encoding="utf-8"
+    )
+    expected = f"> **Last meta-synthesis:** none {_EM} 0 terminal verdicts covered"
+
+    assert [ln for ln in text.splitlines() if "Last meta-synthesis" in ln] == [expected]
+    marker = checks.read_meta_synthesis_marker(text)
+    assert marker is not None and marker.covered == 0
+    assert checks.lint_hypotheses(text, "x") == []
+
+
+def test_lint_hypotheses_on_a_due_ledger_exits_zero_and_prints_the_note(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _project(tmp_path, hypotheses=_ledger(terminal=10))
+
+    assert main(["lint", "hypotheses", "--project", str(root)]) == 0
+    out = capsys.readouterr().out
+    assert "NOTE: meta-synthesis due" in out
+    assert "--- hypotheses: 0 finding(s) ---" in out
+    assert "LINT PASSED (0 finding(s))" in out
+    assert out.isascii()
 
 
 # --- learnings lint -----------------------------------------------------------------------
@@ -761,6 +1140,72 @@ def test_anchor_resolution_is_off_unless_requested(tmp_path: Path) -> None:
     assert all(f.note for f in findings), "anchor resolution must never fail a run"
 
 
+def test_anchor_resolution_accepts_any_object_git_has_and_tests_head_for_real(
+    tmp_path: Path,
+) -> None:
+    """A tree id, a blob id and `<rev>:<path>` are objects git has, and a committed file
+    that was deleted from disk is still in HEAD -- all four used to draw a "does not
+    resolve" note because only the disk and the commit test were consulted. `deadbee` and
+    a path that exists nowhere are the negative controls: they prove the probe still runs
+    and still says no."""
+    repo = _git_repo(tmp_path / "repo")
+    _write(repo / "d" / "a.md", "a\n")
+    _write(repo / "d" / "b.md", "b\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "fixture")
+    tree = _git(repo, "rev-parse", "HEAD:d")
+    blob = _git(repo, "rev-parse", "HEAD:d/a.md")
+    (repo / "d" / "b.md").unlink()
+
+    resolving = [tree, blob, "HEAD:d/a.md", "d/b.md"]
+    dead = ["deadbee", "d/absent.md"]
+    anchors = "\n".join(f"- `{token}`" for token in [*resolving, *dead])
+    text = _GOOD_HANDOFF.replace(
+        "- branch `feature/thing`\n- charter `tasks/TECH-thing.md`", anchors
+    )
+
+    findings = checks.lint_handoff(text, "h.md", repo)
+
+    assert [f for f in findings if not f.note] == []
+    notes = [f.message for f in findings if f.note]
+    for token in resolving:
+        assert not any(f"anchor {token!r} " in m for m in notes), (token, notes)
+    for token in dead:
+        assert any(f"anchor {token!r} " in m for m in notes), (token, notes)
+
+
+def test_anchor_resolution_costs_at_most_four_git_calls_and_only_when_asked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The probe shells out per anchor, so its cost is part of the contract: one more call
+    than before at most, none unless the caller opted in -- and the token goes after `--`,
+    so an anchor that starts with a dash is an object name and never a git option. No real
+    token tells those two forms apart, which is why the recorded argv is what is checked."""
+    calls: list[list[str]] = []
+
+    def fake_run(
+        args: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[bytes]:
+        calls.append(args)
+        is_repo_check = args[1:3] == ["rev-parse", "--git-dir"]
+        return subprocess.CompletedProcess(args, 0 if is_repo_check else 1)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    text = _GOOD_HANDOFF.replace(
+        "- branch `feature/thing`\n- charter `tasks/TECH-thing.md`", "- `-x/y`"
+    )
+
+    assert checks.lint_handoff(text, "h.md") == [], "no root, so nothing is resolved"
+    assert calls == []
+
+    findings = checks.lint_handoff(text, "h.md", tmp_path)
+
+    assert [f.note for f in findings] == [True], "nothing resolved, so one note"
+    assert len(calls) == 4, [" ".join(call[1:]) for call in calls]
+    probes = [call for call in calls if call[1] == "cat-file"]
+    assert [call[-2:] for call in probes] == [["--", "-x/y"], ["--", "HEAD:-x/y"]]
+
+
 # --- lint CLI surface ---------------------------------------------------------------------
 
 
@@ -849,6 +1294,407 @@ def test_list_entries_is_rejected_for_the_handoff_directory(
 
     assert main(["lint", "handoffs", "--project", str(root), "--list-entries"]) == 2
     assert "needs a data file target" in capsys.readouterr().out
+
+
+# --- lint handoffs: one file, and the command listing --------------------------------------
+
+
+def _line_of(text: str, needle: str) -> int:
+    """1-based number of the first line of `text` that contains `needle`."""
+    return next(i for i, line in enumerate(text.splitlines(), 1) if needle in line)
+
+
+def _handoff_project(tmp_path: Path) -> Path:
+    """A git-backed project holding a README, a conforming hand-off and a broken one.
+
+    Git-backed so `--resolve-anchors` has a repository to ask: outside one, anchors are
+    undecidable and the lint reports no note at all, which would leave the notes half of
+    these comparisons empty.
+    """
+    root = _project(_git_repo(tmp_path / "project"))
+    handoffs = root / ".ai" / "handoffs"
+    _write(handoffs / "README.md", "# What lives here\n")
+    _write(handoffs / "2026-08-22-good.md", _GOOD_HANDOFF)
+    _write(
+        handoffs / "2026-08-22-bad.md",
+        _GOOD_HANDOFF.replace("- `pytest -q` -> 0 failed", "- `pytest -q`"),
+    )
+    return root
+
+
+def test_one_file_mode_reports_what_the_directory_run_reports_for_that_file(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The whole-directory run takes minutes on a large directory, so one file must be
+    checkable alone -- and it has to be the SAME check, or the shortcut reports a
+    different truth than the full run does."""
+    root = _handoff_project(tmp_path)
+    where = ".ai/handoffs/2026-08-22-bad.md"
+
+    dir_findings, scanned = checks.lint_handoff_dir(root, resolve_anchors=True)
+    expected = [f for f in dir_findings if f.where == where]
+    assert scanned == 2, "the directory run skips the README"
+    assert any(f.note for f in expected) and any(not f.note for f in expected), (
+        "the comparison must cover a failing finding AND a note"
+    )
+    assert (
+        checks.lint_handoff_file(root / where, root, resolve_anchors=True) == expected
+    )
+
+    assert main(["lint", "handoffs", "--resolve-anchors", "--project", str(root)]) == 1
+    dir_lines = [
+        ln for ln in capsys.readouterr().out.splitlines() if ln.startswith(where + ":")
+    ]
+    argv = ["lint", "handoffs", where, "--project", str(root), "--resolve-anchors"]
+    assert main(argv) == 1
+    one_run = capsys.readouterr().out
+    one_lines = [ln for ln in one_run.splitlines() if ln.startswith(where + ":")]
+
+    assert one_lines == dir_lines
+    assert len(one_lines) == len(expected)
+    assert "2026-08-22-good.md" not in one_run
+    assert "--- handoffs: 1 finding(s), 1 file(s) ---" in one_run
+    assert "LINT FAILED (1 finding(s))" in one_run
+
+
+def test_a_relative_file_resolves_against_the_project_root_not_the_working_directory(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The printed command runs with the working directory inside the plugin, so a
+    relative FILE anchored on the working directory would never find the hand-off."""
+    root = _handoff_project(tmp_path)
+    elsewhere = tmp_path / "elsewhere"
+    _write(elsewhere / "only-here.md", _GOOD_HANDOFF)
+    monkeypatch.chdir(elsewhere)
+    relative = ".ai/handoffs/2026-08-22-good.md"
+    assert not (elsewhere / relative).exists()
+
+    assert main(["lint", "handoffs", relative, "--project", str(root)]) == 0
+    assert "--- handoffs: 0 finding(s), 1 file(s) ---" in capsys.readouterr().out
+
+    absolute = str(root / relative)
+    assert main(["lint", "handoffs", absolute, "--project", str(root)]) == 0
+    capsys.readouterr()
+
+    assert main(["lint", "handoffs", "only-here.md", "--project", str(root)]) == 2
+    assert "only-here.md" in capsys.readouterr().out
+
+
+def test_a_named_readme_is_linted_though_the_directory_run_skips_it(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _handoff_project(tmp_path)
+    readme = ".ai/handoffs/README.md"
+
+    assert main(["lint", "handoffs", "--project", str(root)]) == 1
+    assert "README.md" not in capsys.readouterr().out
+
+    assert main(["lint", "--project", str(root), "handoffs", readme]) == 1
+    out = capsys.readouterr().out
+    assert f"{readme}:1: ERROR missing required section '## Scope'" in out
+
+
+def test_a_file_with_any_target_but_handoffs_is_a_usage_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _project(
+        tmp_path,
+        learnings=_GOOD_LEARNINGS,
+        changelog=_GOOD_CHANGELOG,
+        hypotheses=_GOOD_HYPOTHESES,
+    )
+    for target in ("learnings", "changelog", "hypotheses", "all"):
+        assert main(["lint", target, "x.md", "--project", str(root)]) == 2, target
+        out = capsys.readouterr().out
+        assert f"FILE is only valid with the 'handoffs' target, not '{target}'" in out
+
+
+def test_a_named_hand_off_that_does_not_exist_is_a_usage_error_naming_it(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _handoff_project(tmp_path)
+    argv = ["lint", "handoffs", ".ai/handoffs/nope.md", "--project", str(root)]
+
+    assert main(argv) == 2
+    out = capsys.readouterr().out
+    assert "no such hand-off file: .ai/handoffs/nope.md" in out
+    assert str(tmp_path) not in out, "paths are printed relative to the project root"
+
+
+def test_list_commands_prints_every_precondition_and_verification_command(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _project(tmp_path)
+    where = ".ai/handoffs/2026-08-22-x.md"
+    _write(root / where, _COMMANDS_HANDOFF)
+    text = _COMMANDS_HANDOFF
+
+    assert main(["lint", "handoffs", "--list-commands", "--project", str(root)]) == 0
+    out = capsys.readouterr().out
+
+    status = _line_of(text, "git status --short")
+    tree = _line_of(text, "git ls-tree")
+    pytest_at = _line_of(text, "pytest -q")
+    diff = _line_of(text, "git diff")
+    assert f"{where}:{status}: Preconditions: `git status --short` -> clean tree" in out
+    # The wrapped bullet is reported at the line it starts on, with the arrow's text.
+    assert (
+        f"{where}:{tree}: Preconditions: UNRESOLVED <TREE> `git ls-tree <TREE>` "
+        "-> lists d/"
+    ) in out
+    assert f"{where}:{pytest_at}: Verification: `pytest -q` -> 0 failed" in out
+    assert (
+        f"{where}:{diff}: Verification: UNRESOLVED <LOWER> <UPPER> "
+        "`git diff <LOWER>..<UPPER>` -> empty"
+    ) in out
+    assert "the diff reads well" not in out, "a bullet with no command is not a command"
+    assert "--- commands: 4 listed, 2 unresolved, 1 file(s) ---" in out
+    assert "LINT" not in out, "a listing reports, it does not lint"
+
+
+def test_a_stand_in_fills_its_placeholder_and_an_unfilled_one_is_marked_unresolved(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _project(tmp_path)
+    where = ".ai/handoffs/2026-08-22-x.md"
+    _write(root / where, _COMMANDS_HANDOFF)
+    tree = _line_of(_COMMANDS_HANDOFF, "git ls-tree")
+    base = ["lint", "handoffs", where, "--list-commands", "--project", str(root)]
+
+    assert main([*base, "--stand-in", "TREE=abc1234"]) == 0
+    out = capsys.readouterr().out
+    assert f"{where}:{tree}: Preconditions: `git ls-tree abc1234` -> lists d/" in out
+    assert "UNRESOLVED <TREE>" not in out
+    assert "UNRESOLVED <LOWER> <UPPER>" in out, "no stand-in was given for these"
+
+    both = [*base, "--stand-in", "LOWER=v1", "--stand-in", "UPPER=v2"]
+    assert main([*both, "--stand-in", "TREE=abc1234"]) == 0
+    out = capsys.readouterr().out
+    assert "`git diff v1..v2` -> empty" in out
+    assert "UNRESOLVED" not in out
+    assert "--- commands: 4 listed, 0 unresolved, 1 file(s) ---" in out
+
+
+def test_list_commands_starts_no_subprocess(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Running another session's text needs a shell, and the content-safety suite pins
+    `shell=True` to one site that is not this one. So the listing builds no process at all
+    -- shown by making every process start fail the test."""
+    root = _project(tmp_path)
+    _write(root / ".ai" / "handoffs" / "2026-08-22-x.md", _COMMANDS_HANDOFF)
+
+    def refuse(*args: object, **kwargs: object) -> NoReturn:
+        raise AssertionError("the listing must not start a process")
+
+    monkeypatch.setattr(subprocess, "run", refuse)
+    monkeypatch.setattr(subprocess, "Popen", refuse)
+
+    # The instrument can see: a git probe made under the same patch trips it.
+    probe = _GOOD_HANDOFF.replace("`feature/thing`", "`deadbee`")
+    with pytest.raises(AssertionError, match="must not start a process"):
+        checks.lint_handoff(probe, "h.md", root)
+
+    argv = ["lint", "handoffs", "--list-commands", "--resolve-anchors"]
+    assert main([*argv, "--project", str(root)]) == 0
+    assert "`git status --short` -> clean tree" in capsys.readouterr().out
+
+
+def test_list_commands_and_stand_in_misuse_is_a_usage_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _handoff_project(tmp_path)
+    where = ".ai/handoffs/2026-08-22-good.md"
+    needs_target = "--list-commands needs the 'handoffs' target"
+    shape = "--stand-in must be NAME=VALUE"
+    cases = [
+        (["lint", "all", "--list-commands"], needs_target),
+        (["lint", "learnings", "--list-commands"], needs_target),
+        (
+            ["lint", "handoffs", where, "--stand-in", "TREE=abc"],
+            "needs --list-commands",
+        ),
+        (["lint", "handoffs", where, "--list-commands", "--stand-in", "TREE"], shape),
+        (["lint", "handoffs", where, "--list-commands", "--stand-in", "=abc"], shape),
+        (
+            ["lint", "handoffs", where, "--list-commands", "--stand-in", "<TREE>=a"],
+            shape,
+        ),
+        (["lint", "handoffs", where, "--list-commands", "--stand-in", "TREE="], shape),
+    ]
+    for argv, fragment in cases:
+        assert main([*argv, "--project", str(root)]) == 2, argv
+        assert fragment in capsys.readouterr().out, argv
+
+
+def test_list_commands_with_a_file_lists_that_file_alone(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Section 9 prints `lint handoffs <file> --list-commands`, so naming a file has to
+    narrow the listing to it -- shown against a second hand-off that the whole-directory
+    listing does print."""
+    root = _project(tmp_path)
+    named = ".ai/handoffs/2026-08-22-named.md"
+    other = ".ai/handoffs/2026-08-22-other.md"
+    _write(root / named, _COMMANDS_HANDOFF)
+    _write(root / other, _GOOD_HANDOFF.replace("`pytest -q`", "`make other`"))
+
+    assert main(["lint", "handoffs", "--list-commands", "--project", str(root)]) == 0
+    everything = capsys.readouterr().out
+    assert "`make other` -> 0 failed" in everything
+    assert "--- commands: 6 listed, 2 unresolved, 2 file(s) ---" in everything
+
+    argv = ["lint", "handoffs", named, "--list-commands", "--project", str(root)]
+    assert main(argv) == 0
+    out = capsys.readouterr().out
+    assert f"FILE: {named}  commands=4  unresolved=2" in out
+    assert other not in out
+    assert "make other" not in out
+    assert "--- commands: 4 listed, 2 unresolved, 1 file(s) ---" in out
+
+
+def test_a_bullet_with_no_command_before_its_arrow_is_prose_to_the_lint_and_the_listing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Section 9: preconditions and verification are commands, never prose. A bullet that
+    states a claim and backticks only its result names nothing to run, so the lint reports
+    it as it reports any prose entry and the listing finds nothing in it to list -- where
+    it used to print the RESULT as the command."""
+    claim = "- check the log -> `ERROR` absent"
+    text = _GOOD_HANDOFF.replace("- `pytest -q` -> 0 failed", claim)
+
+    findings = checks.lint_handoff(text, "h.md")
+    assert [(f.line, f.note) for f in findings] == [(_line_of(text, claim), False)]
+    assert "'## Verification' entry is prose, not a runnable command" in (
+        findings[0].message
+    )
+
+    root = _project(tmp_path)
+    _write(root / ".ai" / "handoffs" / "2026-08-22-x.md", text)
+    assert main(["lint", "handoffs", "--list-commands", "--project", str(root)]) == 0
+    out = capsys.readouterr().out
+    assert "ERROR" not in out, "the expected result was listed as a command"
+    assert "--- commands: 1 listed, 0 unresolved, 1 file(s) ---" in out
+
+    # The same claim with its command before the arrow is a command again.
+    command_first = text.replace(
+        claim, "- `grep -c ERROR app.log` -> 0: `ERROR` absent"
+    )
+    assert checks.lint_handoff(command_first, "h.md") == []
+
+
+def test_an_arrow_inside_a_command_belongs_to_the_command(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Only an arrow outside the backticks ends a command: a jq path or a format string
+    may hold `->` itself, and splitting there lists half a command and a wrong result."""
+    command = "jq '.a -> .b' f.json"
+    text = _GOOD_HANDOFF.replace(
+        "- `pytest -q` -> 0 failed", f"- `{command}` -> prints x"
+    )
+    assert checks.lint_handoff(text, "h.md") == []
+
+    root = _project(tmp_path)
+    where = ".ai/handoffs/2026-08-22-x.md"
+    _write(root / where, text)
+    assert main(["lint", "handoffs", "--list-commands", "--project", str(root)]) == 0
+    out = capsys.readouterr().out
+    line = _line_of(text, command)
+    assert f"{where}:{line}: Verification: `{command}` -> prints x" in out
+    assert "--- commands: 2 listed, 0 unresolved, 1 file(s) ---" in out
+
+
+def test_a_placeholder_with_a_space_is_marked_and_a_stand_in_fills_it(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Section 9: give each `<placeholder>` a stand-in; an unfilled one is marked. The kit
+    spells its own placeholder `<project root>`, with a space, which a name grammar with
+    no spaces neither marked nor let a stand-in fill. The name must sit right inside the
+    brackets, so a redirect with spaces around its file is still a plain command."""
+    root = _project(tmp_path)
+    where = ".ai/handoffs/2026-08-22-x.md"
+    text = _GOOD_HANDOFF.replace(
+        "- `pytest -q` -> 0 failed",
+        "- `cat <project root>/x` -> ok\n- `sort < in.txt > out.txt` -> sorted",
+    )
+    _write(root / where, text)
+    cat = _line_of(text, "cat <project root>")
+    sort = _line_of(text, "sort < in.txt")
+    base = ["lint", "handoffs", where, "--list-commands", "--project", str(root)]
+
+    assert main(base) == 0
+    out = capsys.readouterr().out
+    assert (
+        f"{where}:{cat}: Verification: UNRESOLVED <project root> "
+        "`cat <project root>/x` -> ok"
+    ) in out
+    assert f"{where}:{sort}: Verification: `sort < in.txt > out.txt` -> sorted" in out
+    assert "--- commands: 3 listed, 1 unresolved, 1 file(s) ---" in out
+
+    assert main([*base, "--stand-in", "project root=/srv/app"]) == 0
+    out = capsys.readouterr().out
+    assert f"{where}:{cat}: Verification: `cat /srv/app/x` -> ok" in out
+    assert "UNRESOLVED" not in out
+
+
+def test_a_stand_in_fills_the_expected_result_as_well(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A result may name a placeholder too (`-> prints <SHA>`); left unfilled, the reader
+    would compare real output with the literal `<SHA>`."""
+    root = _project(tmp_path)
+    where = ".ai/handoffs/2026-08-22-x.md"
+    text = _GOOD_HANDOFF.replace(
+        "- `pytest -q` -> 0 failed", "- `git rev-parse HEAD` -> prints <SHA>"
+    )
+    _write(root / where, text)
+    argv = ["lint", "handoffs", where, "--list-commands", "--project", str(root)]
+
+    assert main([*argv, "--stand-in", "SHA=abc1234"]) == 0
+    out = capsys.readouterr().out
+    assert "`git rev-parse HEAD` -> prints abc1234" in out
+    assert "<SHA>" not in out
+
+
+def test_a_refused_file_position_names_where_file_goes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """FILE is read directly after the target. Python 3.11 stops reading positionals at
+    the first option, so `lint handoffs --project DIR FILE` is refused there and read from
+    3.12 on. How arguments are read is unchanged; what this pins is that refusing a stray
+    `lint` argument says where FILE goes."""
+    root = _handoff_project(tmp_path)
+    where = ".ai/handoffs/2026-08-22-good.md"
+    hint = "write FILE directly after the target"
+
+    # Refused on every Python version: there is one FILE.
+    with pytest.raises(SystemExit) as two_files:
+        main(["lint", "handoffs", where, where, "--project", str(root)])
+    assert two_files.value.code == 2
+    assert hint in capsys.readouterr().err
+
+    # The order the hint exists for.
+    argv = ["lint", "handoffs", "--project", str(root), where]
+    reads_file_after_an_option = sys.version_info >= (3, 12)
+    if reads_file_after_an_option:
+        assert main(argv) == 0
+    else:
+        with pytest.raises(SystemExit) as option_first:
+            main(argv)
+        assert option_first.value.code == 2
+        assert hint in capsys.readouterr().err
+
+    # Only a stray positional under `lint` gets the hint, not every refusal.
+    for other in (["list", "extra"], ["lint", "handoffs", "--no-such-flag"]):
+        with pytest.raises(SystemExit):
+            main(other)
+        err = capsys.readouterr().err
+        assert "unrecognized arguments" in err, other
+        assert hint not in err, other
 
 
 def test_every_lint_target_is_reachable_from_the_cli(tmp_path: Path) -> None:
@@ -1584,4 +2430,85 @@ def test_upstream_hypothesis_statuses_are_all_carried() -> None:
         "hypothesis statuses",
         set(_STATUS_TOKEN_RE.findall(lifecycle.group(1))),
         set(checks.HYPOTHESIS_STATUSES),
+    )
+
+
+# --- the continuation hand-off the planner tells a session to write -----------------------
+#
+# `initiative-planner` and its roadmap template each say what `## Status` a hand-off reads
+# when a session stops at the usage window with the review not run. The hand-off lint is the
+# only reader of that field, so the sentence is judged by running the lint over what it
+# prints: a status the lint rejects is an instruction to write a hand-off that fails it.
+
+_CONTINUATION_MARKER = "post-task-review not run"
+_SENTENCE_BOUNDARY_RE = re.compile(r"(?<=[.!?])\s+")
+_CODE_SPAN_RE = re.compile(r"`([^`]+)`")
+_RETIRED_CONTINUATION_STATUS = "Status: incomplete"
+_GOOD_HANDOFF_STATUS = "in-progress. The second half is not done."
+_PLANNER_FILES: tuple[tuple[str, ...], ...] = (
+    ("SKILL.md",),
+    ("references", "roadmap-template.md"),
+)
+_PLANNER_FILE_IDS = ["skill", "roadmap-template"]
+
+
+def _continuation_status(text: str) -> str:
+    """The status a file's continuation sentence prints.
+
+    It is the last backticked span of the one sentence that names the marker, read with line
+    breaks folded so a re-wrap of the paragraph changes nothing.
+    """
+    folded = " ".join(text.split())
+    sentences = [
+        s for s in _SENTENCE_BOUNDARY_RE.split(folded) if _CONTINUATION_MARKER in s
+    ]
+    assert len(sentences) == 1, (
+        f"expected one sentence naming {_CONTINUATION_MARKER!r}, found {len(sentences)}"
+    )
+    spans = _CODE_SPAN_RE.findall(sentences[0])
+    assert spans, "the continuation sentence prints its status in no code span"
+    return spans[-1]
+
+
+def _status_findings(status: str) -> list[str]:
+    """What the lint says about `_GOOD_HANDOFF` once `status` is its `## Status` body."""
+    assert _GOOD_HANDOFF_STATUS in _GOOD_HANDOFF
+    handoff = _GOOD_HANDOFF.replace(_GOOD_HANDOFF_STATUS, status)
+    return [
+        f.message for f in checks.lint_handoff(handoff, "h.md") if "Status" in f.message
+    ]
+
+
+def test_the_continuation_status_reader_sees_a_planted_positive() -> None:
+    """The lint rejects the retired wording and accepts the new, and the reader finds the span."""
+    retired = f"Status: incomplete {_EM} post-task-review not run"
+    accepted = f"in-progress {_EM} post-task-review not run"
+    assert _status_findings(accepted) == []
+    assert any("'## Status' must state one of" in m for m in _status_findings(retired))
+
+    planted = f"One sentence. Its `## Status` reads `{accepted}`, so a reader knows. Then `x`."
+    assert _continuation_status(planted) == accepted
+    with pytest.raises(AssertionError, match="expected one sentence"):
+        _continuation_status("no marker in this text.")
+
+
+@pytest.mark.parametrize("parts", _PLANNER_FILES, ids=_PLANNER_FILE_IDS)
+def test_the_continuation_status_the_planner_prints_passes_the_handoff_lint(
+    parts: tuple[str, ...],
+) -> None:
+    text = _shipped_skill("initiative-planner", *parts).read_text(encoding="utf-8")
+    status = _continuation_status(text)
+    assert _status_findings(status) == [], (
+        f"initiative-planner {'/'.join(parts)} tells a session to write `## Status` as "
+        f"{status!r}, which the hand-off lint rejects"
+    )
+
+
+@pytest.mark.parametrize("parts", _PLANNER_FILES, ids=_PLANNER_FILE_IDS)
+def test_the_planner_no_longer_prints_the_retired_continuation_status(
+    parts: tuple[str, ...],
+) -> None:
+    text = _shipped_skill("initiative-planner", *parts).read_text(encoding="utf-8")
+    assert _RETIRED_CONTINUATION_STATUS not in text, (
+        f"initiative-planner {'/'.join(parts)} still prints {_RETIRED_CONTINUATION_STATUS!r}"
     )
