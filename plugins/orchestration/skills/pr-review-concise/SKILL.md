@@ -244,16 +244,18 @@ Do not flag these. Each has cost a real round-trip.
 | 2 | `ruff` violations under a broader scope | `ruff check backend tests` exits 1 on ~35 pre-existing violations; `ruff check backend` is the canonical gate and exits 0. Name the scope. |
 | 3 | Type errors in `scripts/` | `pyproject.toml` scopes basedpyright to `include = ["backend", "tests"]` — `scripts/` was never in gate scope. |
 | 4 | "This prompt file is missing from the repo" | `prompts/**` are deployment artifacts (untracked; runtime reads GCS). `git ls-files prompts` is empty by design. |
-| 5 | Any `patch()` in a test | Only patching a **concrete external client class** violates the DI rule. `patch()` on a non-client internal at the import site is allowed. |
+| 5 | A fake installed through the harness's sanctioned seam (a provider-leaf fake, a mock-server expectation, an emulator) | That is the testing conventions' replacement for mocks, not a mock. What IS a defect: `patch()`, `monkeypatch.setattr` on app or SDK code, or `dependency_overrides` in a test. |
 | 6 | Enum form (`StrEnum` vs `class X(str, Enum)`) | **The sources contradict each other.** AGENTS.md bans `StrEnum` under its `## Do not` heading, while another AGENTS.md bullet calls `str, Enum` "the deliberate convention" and the installed language-conventions skill may show a conflicting example. Measured in `backend/`: **79 `StrEnum` to 2 legacy**. Check the file; surface the contradiction to the operator rather than picking a side. |
 | 7 | `.value` on an enum member | **Required** for the legacy `class X(str, Enum)` form (2 survive: `CandidateLiteralKey`, `TranscriptActionType`). It is banned only at AI-parse boundaries (use `str(field)` — AI may return raw strings that bypass Pydantic coercion) and in models with `use_enum_values=True`. **Read the enum's base class before flagging.** |
 
 **True positives that look like these:**
 
-- **Bare `@fast_test` / `@integration_test` / `@websocket_test` without parentheses — ALWAYS flag.**
-  These are decorator *factories*, so the bare form rebinds the test to the inner `decorator(func)`.
+- **Bare `@fast_test` / `@integration_test` / `@websocket_test` without parentheses — ALWAYS flag**
+  in a suite that still uses these timeout decorators (a legacy mock-based suite; the integration
+  model replaces them with harness deadlines and bounded waits). They are decorator *factories*,
+  so the bare form rebinds the test to the inner `decorator(func)`.
   **The consequence depends on the shape, and the common shape is the silent one:**
-  - On a **test method** (the dominant form here — tests inherit `BaseEndpointTest`/`BaseCRUDTest`):
+  - On a **test method** (the dominant form in such suites — tests inherit `BaseEndpointTest`/`BaseCRUDTest`):
     `self` binds to `func`, `decorator` returns `sync_wrapper`, and pytest **records a PASS with the
     assertions never executed.** The only signal is a `PytestReturnNotNoneWarning` buried under a
     green summary. One real 27-test class ran this way: exit 0, "27 passed", zero assertions.

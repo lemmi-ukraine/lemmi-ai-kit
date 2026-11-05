@@ -124,9 +124,9 @@ A release-version bump touches `pyproject.toml` and both manifests of every pack
 `plugins/_template/` is the exception. It carries a `{{VERSION}}` placeholder that
 `new-pack` fills from `pyproject.toml`, so writing a real version into it would
 break the template rather than release it. The two marketplace catalogs carry no
-version at all. A temporary Core payload can carry a SemVer build suffix in
-both host manifests, such as `0.2.0+codex.20260914134112`, while the package
-release remains `0.2.0`. Tests require the manifest's base release to match
+version at all. A pack whose content changed between releases can carry a SemVer
+build suffix in both host manifests, such as `0.2.0+codex.20260914134112`, so
+installed copies see a new version while the package release remains `0.2.0`. Tests require the manifest's base release to match
 `pyproject.toml` and the two host manifests to match each other exactly.
 
 The native plugin manager handles installation, enabling, disabling, and updates

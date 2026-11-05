@@ -91,9 +91,9 @@ Applies when the plan introduces: new endpoints, new auth flows, new service int
 - Does every Gherkin scenario or Use Case (including alternative and exception flows) map to at least one task?
 
 **Testing Strategy**
-- Are unit, integration, and edge case tests included?
-- Do all tests use timeout decorators (`fast_test`, `integration_test`, `websocket_test`)?
-- Are external services mocked via DI overrides — not patched directly?
+- Are happy-path, error and edge cases included, each at the level (or profile) the project's testing conventions assign?
+- Are external dependencies faked only at the project's sanctioned seams — never by patching application code?
+- Do asynchronous outcomes use bounded waits rather than fixed sleeps?
 
 **Scope Hygiene**
 - Is out-of-scope explicitly stated?

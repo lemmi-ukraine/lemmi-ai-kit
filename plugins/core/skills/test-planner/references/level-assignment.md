@@ -15,8 +15,13 @@ which is what this document is for.
 
 Use the names the project already uses. Where the project ships a language pack with its own
 test-type decision table, **that table is authoritative** — read it for the project's level names,
-its base-class rules, and any required timeout or marker decorators, then use those names in the
-plan verbatim so the plan and the suite agree.
+the seams it allows for faking an external dependency, and any required markers or deadlines, then
+use those names in the plan verbatim so the plan and the suite agree.
+
+A pack whose model runs every behaviour test against real dependencies in containers has no unit
+level to default down to. Its **profiles** (for example a database-only profile and a full-app
+profile) are the levels: default downward means the narrowest profile that can prove the
+assertion, and the generic table below does not apply.
 
 Route to it **by role, not by name**: "the language pack's testing conventions reference". A core
 skill that hardcodes a specific pack skill's name breaks in projects using a different pack or

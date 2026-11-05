@@ -171,7 +171,7 @@ Uses: research-source-planner (task), research-source-claim (task), parallel-dee
 - Use `cast(Any, ...)` to pass objects between layers with different models — perform explicit type conversion instead.
 - Use `if TYPE_CHECKING:` import guards to break an import cycle or type a back-reference — resolve the cycle structurally instead (narrow `Protocol`, neutral module, inverted dependency). See the installed coding-conventions skill for language-specific examples.
 - Use blocking I/O inside async flows.
-- Make real external API calls in tests, or patch concrete clients instead of using protocol-based DI overrides.
+- Make real external API calls in tests, or patch application or SDK code in a test (`unittest.mock.patch`, `monkeypatch.setattr`, `dependency_overrides`) — fake an external dependency only at its sanctioned seam (a provider-leaf factory, a mock server at the configured base URL, an emulator).
 
 ### Project rules
 

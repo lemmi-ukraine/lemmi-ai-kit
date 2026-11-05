@@ -355,7 +355,8 @@ def get_job_service(...) -> JobService:  # feature-specific, doesn't belong in g
 
 A FastAPI DI factory is just a callable — a pass-through wrapper in `app/dependencies.py` that only
 `return create_feature_X()` is dead indirection. `Depends(create_feature_X)` directly from the
-route, and override the factory itself in tests (`app.dependency_overrides[create_feature_X]`). Put
+route. Tests never override it: an external dependency is faked at its sanctioned seam (see the
+pack's testing conventions), and everything between the route and that seam runs for real. Put
 something in `app/dependencies.py` only when it composes feature-crossing concerns or needs FastAPI
 `Request`/`WebSocket` context.
 

@@ -32,6 +32,46 @@ rewritten except inside `kit-setup`'s own marked blocks.
 
 ---
 
+## 2026-10-15
+
+### SKILL-MODIFIED: Teach Testcontainers integration testing in the Python pack
+- **What:** `test-conventions` now teaches one model: every behaviour test drives the real
+  application against real dependencies in containers, fakes external systems only at
+  sanctioned seams (provider leaf, mock-server base URL, emulator), is written first and proven
+  red then green, declares an explicit profile, asserts observable outcomes, generates its
+  identifiers, waits with bounded polling and leaves nothing running. It replaces the unit
+  markers, timeout decorators, endpoint base classes and dependency-override mocking the skill
+  taught before. New references: the harness contract, the model-independent vacuous-coverage
+  traps, and the mock-suite traps kept only for projects still migrating a legacy suite.
+- **Why:** the source project deleted its mock-based suite for Testcontainers integration tests
+  and had to override this skill with its own. The project-agnostic part of that model now lives
+  here; the source project's names appear only as labelled examples.
+- **Files:** `plugins/python/skills/test-conventions/` (SKILL.md rewritten;
+  `references/test-doubles-gotchas.md` split into `vacuous-coverage.md` and
+  `legacy-mock-suite.md`; `harness-contract.md` added), the bundled `manifest.toml` summary,
+  `docs/upstream-sync.toml`, `README.md`, `CLAUDE.md`, `CHANGELOG.md`, `.ai/ai-changelog.md`,
+  `.ai/learnings.md`.
+- **Affected workflows:** every Python project with the Python pack enabled. **Behaviour change:**
+  a project that still relies on unit tests or mocks now receives guidance against them, and
+  should record its own testing model in `AGENTS.md`'s `### Project rules` until it migrates.
+
+### CONV-MODIFIED: Remove legacy test defaults from Core, Orchestration and Python skills
+- **What:** `test-planner` treats a pack's profiles as its levels and reads seams and deadlines
+  instead of base classes and timeout decorators; `plan-critic`, the `post-task-review` checklist
+  and `pr-review-concise` check for patched application code and fixed sleeps instead of missing
+  timeout decorators and DI overrides; `python-conventions` no longer tells tests to override
+  dependency factories; the seeded `AGENTS.md` Python rule and test-plan template name sanctioned
+  seams. Python, Core and Orchestration manifests carry a new build suffix so installed copies
+  update.
+- **Why:** these defaults contradicted the rewritten testing conventions.
+- **Files:** `plugins/core/skills/{test-planner,plan-critic,post-task-review,vertical-slice}/`,
+  `plugins/orchestration/skills/pr-review-concise/SKILL.md`,
+  `plugins/python/skills/python-conventions/`,
+  `plugins/core/src/lemmi_ai_kit/assets/{templates/AGENTS.md,ai/templates/test-plan.md}`,
+  the Python, Core and Orchestration `plugin.json` files, `docs/working-on-the-kit.md`.
+- **Affected workflows:** spec-driven verification planning, plan review, post-task review, PR
+  review, and `kit-setup` (the next seed or refresh writes the new Python rule).
+
 ## 2026-09-14
 
 ### SKILL-ADDED: Share portable flow mapping through Core
