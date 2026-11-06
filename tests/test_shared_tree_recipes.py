@@ -1,10 +1,9 @@
 """Every command that subsection 12m of the shared-index reference prints is run, in a scratch
 repository, and does what the subsection says.
 
-The wording of 12m is pinned in `test_shared_tree_rules_wording.py`. This file runs the commands
-under it, so that a recipe that reads well and does not work cannot stand. Each test builds its
-own repository with no ambient git config and `core.autocrlf` off, runs the printed commands with
-their placeholders filled, and carries a control that could fail:
+This file runs those commands, so that a recipe that reads well and does not work cannot stand.
+Each test builds its own repository with no ambient git config and `core.autocrlf` off, runs the
+printed commands with their placeholders filled, and carries a control that could fail:
 
 * a tree stamp takes `index.lock` and rewrites `.git/index` when a `git add` left the tree cache
   invalid (the control: a second stamp changes nothing), with or without `--no-optional-locks`,
