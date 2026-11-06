@@ -254,3 +254,46 @@ def test_the_console_script_pattern_covers_every_subcommand() -> None:
         "the lemmi-ai-kit repository",
     ):
         assert not pattern.search(legal), f"guard is over-broad: it matched {legal!r}"
+
+
+def test_every_forbidden_pattern_finds_its_own_plant_and_spares_near_misses() -> None:
+    """Positive control for the shared contamination contract.
+
+    One planted example per pattern, built from pieces so this file carries none of them,
+    and each pattern must find ITS OWN plant, not merely be one of several that do.
+    """
+    plants = {
+        "absolute macOS home path": "/" + "Users/someone/notes.md",
+        "absolute Linux home path": "/" + "home/someone/notes.md",
+        "Windows drive-letter path": "C"
+        + ":"
+        + chr(92)
+        + "Users"
+        + chr(92)
+        + "someone",
+        "machine-specific host rule": "Windows" + " host",
+        "machine-specific console workaround": "PYTHONIO" + "ENCODING",
+        "source-project reference": "source-project" + "-name",
+        "dated learnings citation": "learnings" + ".md 2026-10-01",
+        "dated retrospective citation": "retrospectives/" + "2026-10-01",
+        "source-project backup reference": ".ai/" + "backups/",
+        "hard-coded skill-script path (use ${CLAUDE_SKILL_DIR})": (
+            ".claude/" + "skills/demo/" + "scripts/run.py"
+        ),
+    }
+    known = {why for _, why in _FORBIDDEN}
+    assert set(plants) == known, (
+        f"the planted set drifted from the pattern set: missing {sorted(known - set(plants))}, "
+        f"extra {sorted(set(plants) - known)}. A pattern with no plant has never been shown to fire."
+    )
+    for pattern, why in _FORBIDDEN:
+        assert pattern.search(f"see {plants[why]} for it"), (
+            f"{why}: the pattern did not find its own planted {plants[why]!r}"
+        )
+    for near_miss in (
+        "a note about Windows paths and about the host's file times",
+        "the skills folder of the project, and a scripts folder",
+        "the learnings file and the retrospectives folder of a project",
+    ):
+        for pattern, why in _FORBIDDEN:
+            assert not pattern.search(near_miss), f"{why} matched {near_miss!r}"
