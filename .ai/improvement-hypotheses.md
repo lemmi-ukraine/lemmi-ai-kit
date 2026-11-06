@@ -17,6 +17,14 @@
 
 ## 2026-11-06
 
+### [RULE-ADDED] New test files check what code can check and no longer that a sentence is still there
+- **Category:** Consistency
+- **Hypothesis:** By adding the testing bullet to the kit's `AGENTS.md`, we expect the test files added in the next pull requests that touch a skill, a reference or a template to hold no test whose only assertion is that a phrase appears in, or is absent from, a markdown file, because the bullet says that a sentence is the reviewer's question and names what a test may check.
+- **Signal:** Over the next 5 pull requests that add or extend a test file, or by 2026-12-31, whichever comes first, read each added test: confirm if at most 1 of the 5 adds a test whose only assertion is a phrase present or absent in a markdown file, and that one is a row of `tests/test_pinned_rulings.py`; refute if at least 2 do; inconclusive with fewer than 5 such pull requests.
+- **Risk:** The rule is prose that a contributor or a session must choose to follow; the line between a forbidden class of text and a sentence pin is a judgement that a reviewer makes; and 5 pull requests is an uncalibrated starting value for a repository with this few contributors.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-06 — Add a test only for what code can check, never to pin that a sentence is still there
+
 ### [INFRA-MODIFIED] Wording that a reviewer accepts no longer turns the suite red, and no text that a removed pin held comes back unseen
 - **Category:** Quality
 - **Hypothesis:** By removing the 83 sentence-pin test files and keeping the tests that run code, the internal-id contract and the 4-row rulings file, we expect the next pull requests that reword a skill, a reference or a template to merge with no red test that names no defect, and no text that a removed pin held to come back in its ruled-out form unseen, because the tests that remain fail only on behaviour, on a forbidden class of text or on one of 4 ruled texts, and a reviewer judges the rest.

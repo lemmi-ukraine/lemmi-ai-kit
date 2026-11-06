@@ -333,9 +333,11 @@ paths and nothing else" above is about sessions that write here.
   Windows path limit. Never `git init` in a tree you deliver: a worker's `.git` and `.ruff_cache`
   went into one diff, 183,227 bytes and 3,281 lines, before the patch was built from the named
   files.
-- **Check a patch on fresh copies before it is applied.** An export shows a new test red on the old
-  text and green on the patch; the gates need a clone with its own `uv sync --dev` venv, because an
-  export has no git and fails tests on both sides (7 of 103 and 23 of 869 existing tests did).
+- **Check a patch on fresh copies before it is applied.** An export shows a test that the patch adds
+  red on the old tree and green on the patch (a patch to skill, reference or template text adds no
+  test that pins its wording: see Testing model); the gates need a clone with its own `uv sync --dev`
+  venv, because an export has no git and fails tests on both sides (7 of 103 and 23 of 869 existing
+  tests did).
 - **Read the usage window before a wave, and have every worker and session save a checkpoint to a
   file at each milestone and at the latest every hour.** A checkpoint says what is done, what is
   left and where the results are (commit ids, report files), so a worker or session stopped by a
@@ -367,6 +369,19 @@ paths and nothing else" above is about sessions that write here.
   bites, to simulate a missing tool, or to keep a test off the developer machine's real
   state — with a comment saying which. Never `unittest.mock`. Census:
   `git grep -n -E 'monkeypatch\.(setattr|setenv|delenv|chdir)|unittest\.mock' -- tests plugins ':!*.md'`
+- **Add a test for what code can check, never to pin that a sentence is still there.** A
+  test runs code, parses or counts, resolves a link or a path, compares two copies of one
+  fact, or matches a forbidden class of text (a request id, a machine path, a
+  project name), and a planted positive that shows the check can fire is part of it. A
+  substring test of a skill's wording proves only that the words did not move: whether a
+  sentence is right is the reviewer's question, and a rewording the reviewer accepted must
+  not turn the suite red. A ruling that a merge or an upstream sync reversed, or nearly
+  reversed, may take one row of `tests/test_pinned_rulings.py`, which forbids the ruled-out
+  text or requires the one word that carries the ruling. Deleting a test is a reviewed
+  change of its own, with a verdict per file. Cost: `906622e` added 135 test files, the
+  merge `12c92ab` had to edit two of them to accept another pull request's wording, and
+  section 22 of `docs/research/2026-10-29-python-consumer-change-request-decisions.md`
+  records what was removed.
 
 ---
 
