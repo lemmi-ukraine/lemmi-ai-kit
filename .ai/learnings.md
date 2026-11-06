@@ -113,7 +113,7 @@ to its home above and removed here.
 - **Home**: agents-rule
 - **Enforce-via**: test
 - **Verify-at**: tests/test_completion_trigger_wording.py
-- **Scope**: durable
+- **Scope**: until:the wording tests that this entry teaches are removed (they were, on 2026-11-06, by the sentence-pin removal; archive this entry, do not promote it)
 
 ### [2026-11-01] Folding line breaks does not make a wording test re-wrap-proof: the locators and needle helpers around the fold are code nobody tests
 - **Context**: Verifying four packages of prose edits whose new wording tests all folded line breaks before searching.
@@ -123,7 +123,7 @@ to its home above and removed here.
 - **Home**: agents-rule
 - **Enforce-via**: test
 - **Verify-at**: tests/test_content_proof_wording.py
-- **Scope**: durable
+- **Scope**: until:the wording tests that this entry teaches are removed (they were, on 2026-11-06, by the sentence-pin removal; archive this entry, do not promote it)
 
 ### [2026-11-01] A SKILL.md near its line cap is a budget the next pass draws on, so a first build spends pointer lines and leaves the detail in a reference
 - **Context**: Adding review, orchestration, cleanup and spec text to skills that already sat close to the audit's cap.
@@ -163,7 +163,7 @@ to its home above and removed here.
 - **Home**: skill:test-conventions
 - **Enforce-via**: prose
 - **Verify-at**: tests/test_planner_pack_scope.py
-- **Scope**: durable
+- **Scope**: until:the wording tests that this entry teaches are removed (they were, on 2026-11-06, by the sentence-pin removal; archive this entry, do not promote it)
 
 ### [2026-11-02] A guard that asserts a bare phrase passes any sentence that says it, so the subject goes into the pattern and the check is fired at look-alikes
 - **Context**: Verifying the wording tests of the test-guidance and skill-authoring packages.
@@ -173,7 +173,7 @@ to its home above and removed here.
 - **Home**: skill:test-conventions
 - **Enforce-via**: test
 - **Verify-at**: tests/test_planner_pack_scope.py::test_a_look_alike_of_a_new_phrase_does_not_stand_in_for_it
-- **Scope**: durable
+- **Scope**: until:the wording tests that this entry teaches are removed (they were, on 2026-11-06, by the sentence-pin removal; archive this entry, do not promote it)
 
 ### [2026-11-02] A mutation harness that reads only exit codes counts a test that never ran as a killed mutant
 - **Context**: Running mutants of the log-analysis package's tests from a Python driver on Windows.
@@ -272,7 +272,7 @@ to its home above and removed here.
 - **Home**: skill:test-conventions
 - **Enforce-via**: test
 - **Verify-at**: tests/test_worker_preamble_wording.py::test_no_instruction_to_replace_a_block_is_left_anywhere_in_the_preamble
-- **Scope**: durable
+- **Scope**: until:the wording tests that this entry teaches are removed (they were, on 2026-11-06, by the sentence-pin removal; archive this entry, do not promote it)
 
 ### [2026-11-03] A test that pins a skill file's line count blocks the next legitimate edit, so the pin names the audit's cap
 - **Context**: Adding one pointer line to post-task-review's SKILL.md, which stood a line or two under the audit's cap.
@@ -402,6 +402,73 @@ to its home above and removed here.
 - **Home**: skill:orchestrate
 - **Enforce-via**: prose
 - **Verify-at**: plugins/orchestration/skills/orchestrate/SKILL.md
+- **Scope**: durable
+
+### [2026-11-06] A trimmed test file keeps dead machinery when a kept test is an instrument table over removed checks
+- **Context**: Trimming 24 files to their provable tests with a script that keeps the named tests and the helpers they reach.
+- **Finding**: `tests/test_consolidation_text.py` still held 808 lines for 7 tests, because its kept planted-positive test fired controls at the checks of pins that were removed; 194 lines in 18 helpers were reached only by that test and applied to no real file. A detector (helpers reached only by tests whose names say planted, sees, spares or flags) found it, and removing the whole statements of the test that used those helpers brought the file to 463 lines. The same script also wrote a kept test's cooked docstring text into a generated module docstring, and a backslash in it raised a DeprecationWarning; escape backslashes and triple quotes when generated text goes back into a source literal.
+- **Impact**: After a trim, list the helpers that only instrument tests reach and read each flagged file; and run the trimmed files with `-W error::DeprecationWarning`.
+- **Category**: pitfall
+- **Scope**: durable
+
+### [2026-11-06] Deleting a test file breaks any kept test that names it by path, and only a scan of all tracked text shows which
+- **Context**: Before removing 83 test files, a search of every tracked text file for the removed names.
+- **Finding**: Six test files that survive the removal named a removed test at the base. Two needed a hand fix (an expected-surface floor in one kept test, which would have failed at the deletion, and a docstring sentence); four held the name only in parts that the trims dropped, and one of those four, a list of files that a kept test reads, made the first removal commit red until its trim was squashed into that commit. The scan was fired at a known positive first (a docstring that was known to name one). The dated records (the changelog, the decision record) name many removed files and are history, so they are left as written; the intake buffer also names some (see the entry on live carriers below).
+- **Impact**: Before a deletion of test files, scan all tracked text for their names with a control, split the hits into dated records and live files, and fix the live ones in the same commit as the deletion.
+- **Category**: pitfall
+- **Scope**: durable
+
+### [2026-11-06] This repository cannot take stacked pull requests: CI runs only on a pull request, and merged heads are never deleted
+- **Context**: Planning a two-stage change as stacked pull requests.
+- **Finding**: `.github/workflows/ci.yaml` runs on pull requests and on pushes to main only, so a branch push alone runs no gate; main requires no status check (the public branch API reports `required_status_checks` with enforcement `off`); and merged head branches are not deleted, so GitHub never retargets a stacked second pull request to main by itself. A stage with no pull request has no gate before the next one, and the second needs a manual retarget.
+- **Impact**: Plan one branch and one pull request in commit groups (each revertible alone) and let the merge commit keep them separable; stack only when a stage must be reviewed and merged before the next exists.
+- **Category**: pitfall
+- **Scope**: durable
+
+### [2026-11-08] A planted positive built from a real identifier leaks it through its fragments, and a contiguous-text scan cannot see it
+- **Context**: The id contract added to the content-safety test planted a host session id and a session name, split into fragments so that the file would carry none of them.
+- **Finding**: The fragments were this authoring session's own id and name. The push scans (the 35-term manifest scan and the credential shapes) match contiguous text and passed; a reader that joined the fragments found it, and the id had no earlier occurrence in history.
+- **Impact**: Build every plant from a synthetic value of the right shape (a made-up version-4 UUID, a name no session has), scan the added lines in a fragment-joined view as well as the plain one, and do not treat "built from pieces" as a privacy control.
+- **Category**: pitfall
+- **Scope**: durable
+
+### [2026-11-08] A series of removal commits can leave an intermediate commit red when a kept file reads a file that a later commit removes
+- **Context**: Reviewing a four-commit removal series commit by commit.
+- **Finding**: A static per-commit scan (the names of the files removed so far against the tree at each commit, with a control) found that at the first removal commit a kept test still listed a removed test file among the files it reads; the next commit trims that file, and every later commit had no live reference. The revert check had already shown the mirror case (restoring the later batch alone leaves 5 tests red).
+- **Impact**: Before committing a removal series, run the per-commit reference scan and move the coupled trim into the commit that removes the file (or squash the pair), so that each commit stands alone for review and bisect (here the two commits were squashed into one).
+- **Category**: pitfall
+- **Scope**: durable
+
+## Performance Insights
+
+### [2026-11-06] Removing 83 wording-test files cut the test count in half and the suite time by nothing
+- **Context**: The sentence-pin removal (83 files, 1,750 items) was expected to be partly a speed gain.
+- **Finding**: `pytest --collect-only` went from 4,782 to 2,412 items, but the six-process split's longest process went from 171 s to 181 s (the files are dealt differently to the processes), and the 83 removed files run in 11 s serially against about 560 s of process time in all. Substring and count tests cost milliseconds; the time is in the tests that start hooks, scripts and git.
+- **Impact**: Do not promise a faster suite from removing wording tests, and measure the removed files alone (`pytest <files> --durations`) before writing any time claim; the case for removal is maintenance and false reds.
+- **Category**: performance
+- **Scope**: durable
+
+## Interaction & Workflow Friction
+
+### [2026-11-08] A classifier of objective tests built from code signals misses the objective checks that live inside prose files, and only a full cold read shows how many
+- **Context**: The sentence-pin removal classified 135 test files with two code-signal detectors and independent reads of the 19 flagged files; five more files were found by chance to compare a stated count with the list it counts.
+- **Finding**: A cold re-read of all 83 removed files and of what was dropped from 24 trimmed files, by twelve independent readers, marked 63 of the 107 as holding at least one code-provable assertion that the tip leaves unguarded or half guarded (234 assertions: 64 covered, 52 partly, 118 not). The 24 refutations that ran refuted none (13 confirmed, 11 partly; 5 rated major). The kinds: counts against lists, forbidden-class scans, reachability of a reference from its SKILL.md, ids cited against headings, copies that must agree. A reachability probe found no orphan reference today; a table-shape probe found one malformed row (an unescaped pipe in a code span) in a shipped skill that no removed test covered either.
+- **Impact**: Before a bulk deletion of tests, have someone other than the classifier read every file, and restore each recurring class as one generic check (reachability, table shape, cited-heading resolution) instead of keeping per-file pins or accepting the loss silently.
+- **Category**: interaction
+- **Scope**: durable
+
+### [2026-11-08] A verdict table and the appendix that drives the script can disagree, and the script's input wins
+- **Context**: Twenty-four trims were applied by a script from a per-file keep list (an appendix) while the verdict table carried a note per file.
+- **Finding**: For one file the note said to keep the one test that derives the score bands from the skill; the appendix listed four other tests, and the trimmer followed the appendix. The kept set held two skill pins and the control of a helper that no kept test applies to the real files, and the one invariant that mattered was gone.
+- **Impact**: Generate the script's keep list from the verdict table (one source), or assert after the run that every test a note names is present at the tip.
+- **Category**: interaction
+- **Scope**: durable
+
+### [2026-11-08] A rule against a practice needs the practice's origin traced by commit and by brief, and its live carriers fixed in the same change
+- **Context**: The AGENTS.md bullet against sentence-pin tests was justified by the decision record's "named test" column prescribing a wording test per row.
+- **Finding**: The column names a wording test in 5 to 7 of 28 rows. Most pins came from the passes' build method (test first, red on the old text, a planted removal) and from an untracked kickoff brief that still says every wording test fires at a planted removal. Live carriers were left after the first version of the change: seven intake entries that anchor on removed tests, of which five teach wording-test craft and name `agents-rule` or `skill:test-conventions` as their home (the next drain would have promoted them; they were marked superseded in the same change, and the two general lessons among the seven stay), and a sub-agent line of AGENTS.md that expected "a new test red on the old text and green on the patch" (reworded in the same change).
+- **Impact**: Before writing a rule against a practice, trace its origin by commit log and by the briefs that drove it, grep the intake buffer and the always-loaded files for the practice's own instructions, and annotate or reword each carrier in the same change.
+- **Category**: interaction
 - **Scope**: durable
 
 ## Convention Clarifications

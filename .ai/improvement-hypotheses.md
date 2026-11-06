@@ -15,6 +15,16 @@
 
 ---
 
+## 2026-11-06
+
+### [INFRA-MODIFIED] Wording that a reviewer accepts no longer turns the suite red, and no text that a removed pin held comes back unseen
+- **Category:** Quality
+- **Hypothesis:** By removing the 83 sentence-pin test files and keeping the tests that run code, the internal-id contract and the 4-row rulings file, we expect the next pull requests that reword a skill, a reference or a template to merge with no red test that names no defect, and no text that a removed pin held to come back in its ruled-out form unseen, because the tests that remain fail only on behaviour, on a forbidden class of text or on one of 4 ruled texts, and a reviewer judges the rest.
+- **Signal:** After the next 10 merged pull requests that change a skill, a reference or a template, or by 2026-12-31, whichever comes first, restore the removed and the trimmed test files from `906622e` into a scratch checkout of main (the 83 removed files are listed by `git diff --name-only --diff-filter=D 906622e HEAD -- tests`, run in a checkout of the commit that adds section 22 of the decision record; the 24 trimmed files are the files that `--diff-filter=M` lists there, except `tests/test_assets.py`, `tests/test_content_safety.py` and `tests/test_shared_tree_recipes.py`) and run them against main; read every failure: confirm if each failure is a reviewed rewording and none is a defect (a ruled-out text back, a stated count that no longer matches its list, a pointer to a section that is gone) that no reviewer, remaining test or row caught; refute if at least one failure names such a defect; inconclusive with fewer than 10 such pull requests.
+- **Risk:** The reading of each failure is a judgement, and the restored files will fail in numbers for plain old-wording reasons, which makes a real defect easy to miss among them; a pin that has not yet fired cannot show that it was never needed; and 10 pull requests is an uncalibrated starting value for a repository with this few contributors.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-06 — Remove the sentence-pin tests that PR #19 added, keep the tests that run code, and add one internal-id contract and a four-row rulings file
+
 ## 2026-11-04
 
 ### [SKILL-MODIFIED] A worker or session stopped by a usage limit or a crash is resumed from a checkpoint, not re-run from the start
