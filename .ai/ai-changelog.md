@@ -10,6 +10,15 @@
 
 ---
 
+## 2026-11-08
+
+### INFRA-MODIFIED: Record the first session retrospective (2026-10-25 to 2026-11-08) and its eight learnings; register its P1 and P2 recommendations as proposals
+- **What:** The first `session-retrospective` run in this repository (41 sessions, 792 sub-agents, 8 sessions and 6 sub-agents deep-dived, 154 of 154 analyst quotes found verbatim) appended eight entries to `.ai/learnings.md`: one pitfall closing the last "Common Pitfalls" section (behaviour seen in transcripts reflects the installed build, not HEAD) and seven `interaction` entries under a new "Interaction & Workflow Friction" section (shell quoting, the sleep denial, Edit needs a Read-tool read, wait on notices instead of polling, hand off before the context runs out, a close-state line, answering "what is left and how long"). Registered as proposals, not applied: P1-1 promote the public-repo rule into AGENTS.md; P1-2 a lint-checked `Delegation:` line in the hand-off and kickoff templates; P1-3 a seam for the count rules (a planted-claim review before any READY line, ledger entry or prompt is sent); P2-1 the sleep denial in the worker preamble; P2-2 a close-state line in post-task-review's report and the hand-off template; P2-3 the extractor counts harness-injected slash commands apart and classes the known harness shapes as `environment`; P2-4 re-check the drain guard's shell arm against read-only commands that only name the buffer.
+- **Why:** In 6 of 8 deep-dived sessions a count typed from memory was later proved wrong, two months after AGENTS.md's two count rules landed; the operator asked for sub-agents 4 times after the sub-agent rule landed; the sleep denial and Edit-before-Read hit sub-agents across many sessions with no home anywhere; the buffer has never been drained and no hypothesis has ever been validated.
+- **Files:** `.ai/learnings.md` (8 entries, 1 section). The report itself stays local and untracked; this entry is its durable record.
+- **Affected workflows:** learning-consolidator (its first drain), and the task-scoped learning-capture work, which absorbs P1-2, P2-1, P2-2 and P2-3.
+- **Pipeline Health baseline for the next run:** sessions 41 (deep-dived 8 + 6 sub-agents); main-thread errors runtime-exit 80, tool-error 21, test-failure 9, build-compile 2, edit-stale-read 1, hook denials 15, user-rejected 1; sub-agents with errors 405 of 792; a brief rule carried and broken 31 times; intake +41 / drained 0; hypotheses opened 52 / validated 0; findings the user supplied that the data held: 1.
+
 ## 2026-11-04
 
 ### SKILL-MODIFIED: Ship the checkpoint rule to adopters: a Checkpoints group in the worker preamble, a checkpoint line in the brief template and a bullet in both AGENTS.md files
