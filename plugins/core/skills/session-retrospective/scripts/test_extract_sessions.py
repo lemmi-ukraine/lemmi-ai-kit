@@ -4939,13 +4939,13 @@ def test_a_command_is_the_operators_exactly_when_a_typed_turn_with_its_stamps_is
 # A task carried across a hand-off chain is measured as one: the sessions its hand-offs list, with
 # the helpers they started, native and Workflow, and nothing of a task that ran beside it. The fake
 # store holds two tasks' sessions in ONE project folder, as parallel sessions are held, and every id
-# is a made-up UUID shape. Each session's operator turn and each helper's results carry a marker of
+# is a made-up UUID layout whose version and variant groups are zero, unlike a real session id. Each session's operator turn and each helper's results carry a marker of
 # their own, so a test can ask whether anything of a session reached any file the run wrote.
-_TASK_A1 = "a1a1a1a1-0000-4000-8000-000000000001"
-_TASK_A2 = "a2a2a2a2-0000-4000-8000-000000000002"
-_TASK_B1 = "b1b1b1b1-0000-4000-8000-000000000003"
-_TASK_N0 = "c0c0c0c0-0000-4000-8000-000000000004"  # no user message at all; a helper did the work
-_TASK_M = "e9e9e9e9-0000-4000-8000-000000000009"  # listed, with no transcript anywhere
+_TASK_A1 = "a1a1a1a1-0000-0000-0000-000000000001"
+_TASK_A2 = "a2a2a2a2-0000-0000-0000-000000000002"
+_TASK_B1 = "b1b1b1b1-0000-0000-0000-000000000003"
+_TASK_N0 = "c0c0c0c0-0000-0000-0000-000000000004"  # no user message at all; a helper did the work
+_TASK_M = "e9e9e9e9-0000-0000-0000-000000000009"  # listed, with no transcript anywhere
 _ALPHA = "parallel-task-alpha"
 _BETA = "parallel-task-beta"
 # What of each session can reach a file: its id, the id's first 8 characters (the provenance tag a
