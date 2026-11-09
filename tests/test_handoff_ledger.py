@@ -9,6 +9,11 @@ That last check is strict only for a note written after the last drain: a drain 
 and the consolidator lints every note after each drain, so an older note gets a note-level message
 naming the drain instead of an error.
 
+The `Task:` line holds the task's slug, 2 to 5 words and at most 40 characters, and a v3 note
+linted as a file must be named for it: `<YYYY-MM-DD>-<slug>.md`, or `<YYYY-MM-DD>-<slug>--<part>.md`
+for a second note of the task that day. A text has no name, so linting text applies no name rule;
+the same text linted as a misnamed file is told, which shows the rule runs.
+
 WHAT KEEPS IT HONEST. Every rule fires on a planted defect beside a near miss that must stay
 quiet, and each planted note is asserted to differ from the good one, so a plant that changed
 nothing cannot pass for a quiet rule. An unlabelled, a v1 and a v2 note pass as they always did
@@ -234,6 +239,63 @@ def test_without_the_ledgers_a_lesson_title_is_judged_by_its_form_only() -> None
     assert _findings(_note({"Lessons": "[2026-11-01] not in any buffer"})) == []
 
 
+# --- the task's slug ---------------------------------------------------------------------------
+
+# Three words and 40 characters: the longest slug. One letter more is one too many.
+_FORTY = f"{'a' * 12}-{'b' * 13}-{'c' * 13}"
+_SLUGS: tuple[tuple[str, str, bool], ...] = (
+    ("one word", "task", False),
+    ("two words", "example-task", True),
+    ("five words", "one-two-three-four-five", True),
+    ("six words", "one-two-three-four-five-six", False),
+    ("40 characters", _FORTY, True),
+    ("41 characters", f"{_FORTY}c", False),
+    ("upper case", "Example-Task", False),
+)
+
+
+@pytest.mark.parametrize(
+    ("slug", "passes"),
+    [(slug, passes) for _, slug, passes in _SLUGS],
+    ids=[name for name, _, _ in _SLUGS],
+)
+def test_the_task_line_holds_a_slug_of_two_to_five_words_and_at_most_40_characters(
+    slug: str, passes: bool
+) -> None:
+    assert len(_FORTY) == 40
+    text = _note({"Task": slug})
+
+    found = _findings(text)
+
+    if passes:
+        assert found == []
+        return
+    assert len(found) == 1, found
+    assert "'Task:'" in found[0].message
+    assert not found[0].note
+    assert found[0].line == _line_of(text, "Task")
+    # The finding states the rule's numbers, whatever its words: the word counts and the limit.
+    assert all(number in found[0].message for number in ("2", "5", "40")), found[0]
+
+
+def test_a_task_value_of_many_characters_is_judged_in_linear_time() -> None:
+    """The slug's pattern runs on the whole value before the length is compared, so these values
+    time the pattern itself: a run of 40,000 spaces between two words, a word of 40,000 letters
+    that ends in a character no slug holds, and 20,000 words."""
+    spaces = " " * 40_000
+    values = (f"one{spaces}two", f"{'a' * 40_000}!", "-".join(["a"] * 20_000))
+    texts = [_note({"Task": value}) for value in values]
+
+    started = time.perf_counter()
+    found = [_findings(text) for text in texts]
+    took = time.perf_counter() - started
+
+    assert [[f.line for f in each] for each in found] == [
+        [_line_of(text, "Task")] for text in texts
+    ]
+    assert took < 1.0, f"{took:.1f} s for three task values of about 40,000 characters"
+
+
 # --- older notes -------------------------------------------------------------------------------
 
 
@@ -350,6 +412,7 @@ def test_header_lines_of_many_spaces_are_read_in_linear_time() -> None:
 
     assert parsed["Task"] == "x"
     assert {key for key in _KEYS if any(f"'{key}:'" in f.message for f in found)} == {
+        "Task",
         "Sessions",
         "Written",
         "Delegation",
@@ -410,7 +473,7 @@ def _project(
 
 def _hand_off(root: Path, written: str, lessons: str) -> Path:
     text = _note({"Written": f"{written} 14:05 by {_WRITER}", "Lessons": lessons})
-    return _write(root / ".ai" / "handoffs" / f"{written}-example.md", text)
+    return _write(root / ".ai" / "handoffs" / f"{written}-example-task.md", text)
 
 
 def test_a_title_the_buffer_holds_passes(tmp_path: Path) -> None:
@@ -552,3 +615,101 @@ def test_the_consolidation_sequence_keeps_an_older_note_green_and_fails_a_later_
     ]
     assert errors
     assert all(line.startswith(second + ":") for line in errors), errors
+
+
+# --- the file name -----------------------------------------------------------------------------
+
+_DAY = "2026-11-10"
+# The longest part of a name; one letter more is one too many.
+_PART = "abcdefghijkl"
+_NAMES: tuple[tuple[str, str, bool], ...] = (
+    ("the date and the slug", f"{_DAY}-example-task.md", True),
+    ("a part", f"{_DAY}-example-task--return.md", True),
+    ("a part of 12 characters", f"{_DAY}-example-task--{_PART}.md", True),
+    ("a part of 13 characters", f"{_DAY}-example-task--{_PART}m.md", False),
+    ("a part in upper case", f"{_DAY}-example-task--Return.md", False),
+    ("another slug", f"{_DAY}-other-task.md", False),
+    ("no date", "example-task.md", False),
+    ("not a calendar date", "2026-02-30-example-task.md", False),
+)
+
+
+def _named(root: Path, name: str, text: str) -> Path:
+    return _write(root / ".ai" / "handoffs" / name, text)
+
+
+@pytest.mark.parametrize(
+    ("name", "passes"),
+    [(name, passes) for _, name, passes in _NAMES],
+    ids=[label for label, _, _ in _NAMES],
+)
+def test_a_v3_note_linted_as_a_file_is_named_for_the_slug_on_its_task_line(
+    tmp_path: Path, name: str, passes: bool
+) -> None:
+    assert len(_PART) == 12
+    root = _project(tmp_path)
+
+    found = checks.lint_handoff_file(_named(root, name, _note()), root)
+
+    if passes:
+        assert found == []
+        return
+    assert len(found) == 1, found
+    assert not found[0].note
+    assert found[0].line == _line_of(_note(), "Task")
+    day = _DAY if name.startswith(_DAY) else "<YYYY-MM-DD>"
+    assert f"'{day}-example-task.md'" in found[0].message, (
+        "the expected name is not named"
+    )
+
+
+@pytest.mark.parametrize(
+    "text", [_UNLABELLED, _V1, _V2], ids=["unlabelled", "v1", "v2"]
+)
+def test_an_older_note_is_not_judged_by_its_file_name(
+    tmp_path: Path, text: str
+) -> None:
+    root = _project(tmp_path)
+
+    assert checks.lint_handoff_file(_named(root, "notes.md", text), root) == []
+
+
+def test_a_text_is_not_judged_by_a_name_and_the_same_text_as_a_misnamed_file_is(
+    tmp_path: Path,
+) -> None:
+    """The shipped template and stub are linted as text, under names no slug fits."""
+    root = _project(tmp_path)
+
+    as_text = checks.lint_handoff(_note(), "notes.md")
+    as_file = checks.lint_handoff_file(_named(root, "notes.md", _note()), root)
+
+    assert as_text == []
+    assert len(as_file) == 1, as_file
+    assert "'<YYYY-MM-DD>-example-task.md'" in as_file[0].message
+
+
+_FAILING_TASK_LINES: dict[str, str] = {
+    "missing": _note({"Task": None}),
+    "malformed": _note({"Task": "Example Task"}),
+    "twice": _note(extra=f"Task: {_GOOD['Task']}\n"),
+}
+
+
+@pytest.mark.parametrize("kind", sorted(_FAILING_TASK_LINES))
+def test_a_note_whose_task_line_fails_gets_no_second_finding_for_its_name(
+    tmp_path: Path, kind: str
+) -> None:
+    root = _project(tmp_path)
+    name = f"{_DAY}-other-task.md"
+
+    found = checks.lint_handoff_file(
+        _named(root, name, _FAILING_TASK_LINES[kind]), root
+    )
+    # The twin: a sound Task line in a file of the same name is told about the name.
+    twin = checks.lint_handoff_file(_named(root, name, _note()), root)
+
+    assert len(found) == 1, found
+    assert "'Task:'" in found[0].message
+    assert ".md'" not in found[0].message, "the name was judged against a failing line"
+    assert len(twin) == 1, twin
+    assert f"'{_DAY}-example-task.md'" in twin[0].message

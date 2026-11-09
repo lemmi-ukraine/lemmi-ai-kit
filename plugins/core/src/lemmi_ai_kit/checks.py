@@ -1226,7 +1226,11 @@ def _handoff_version(text: str, where: str) -> tuple[int, list[LintFinding]]:
 _LEDGER_KEYS: tuple[str, ...] = tuple(
     dict.fromkeys(key for keys in HANDOFF_LINES_BY_VERSION.values() for key in keys)
 )
-_TASK_SLUG_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+# One slug names a task everywhere: its task file, its spec folder, its hand-offs and the `Task:`
+# line. Two to five words of lowercase letters and digits, one hyphen between two words, and at
+# most 40 characters, so that it stays short enough to search for and to carry in a file name.
+_TASK_SLUG_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+){1,4}")
+_TASK_SLUG_MAX_LENGTH = 40
 _SESSION_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{7,}")
 _WRITTEN_RE = re.compile(
     r"([0-9]{4})-([0-9]{2})-([0-9]{2})\s+([0-9]{2}):([0-9]{2})\s+by\s+(\S+)"
@@ -1349,6 +1353,18 @@ def _safe_to_close_is_valid(value: str) -> bool:
     )
 
 
+def _task_slug_is_valid(value: str) -> bool:
+    """The value is a task's slug in shape and length.
+
+    The pattern runs on the whole value before the length is compared, so a test that times a
+    long value times the pattern itself; checking the length first would hide a slow pattern.
+    """
+    return (
+        _TASK_SLUG_RE.fullmatch(value) is not None
+        and len(value) <= _TASK_SLUG_MAX_LENGTH
+    )
+
+
 def _sessions_problem(value: str) -> str | None:
     """What is wrong with a `Sessions:` value, or None when every item is a session id."""
     items = [item.strip() for item in value.split(",")]
@@ -1369,8 +1385,9 @@ def _sessions_problem(value: str) -> str | None:
 # form a finding states.
 _LEDGER_FORMS: dict[str, tuple[Callable[[str], bool], str]] = {
     "Task": (
-        lambda value: _TASK_SLUG_RE.fullmatch(value) is not None,
-        "a kebab-case slug such as 'example-task'",
+        _task_slug_is_valid,
+        "the task's slug: 2 to 5 words of lowercase letters and digits joined by '-', at "
+        f"most {_TASK_SLUG_MAX_LENGTH} characters, such as 'example-task'",
     ),
     "Written": (
         lambda value: _written_by(value) is not None,
@@ -1802,6 +1819,66 @@ def read_lessons_ledgers(root: Path) -> LessonsLedgers:
     return LessonsLedgers(titles, _last_drain(parse_blocks(changelog)), unreadable)
 
 
+# A note whose version has a `Task:` line is named for its task, `<YYYY-MM-DD>-<slug>.md`, or
+# `<YYYY-MM-DD>-<slug>--<part>.md` for a second note of the task on one day, so one search for
+# the slug finds every note. A slug never holds `--`, so either name gives the slug back. Only a
+# file has a name: the shipped template and stub are linted as text, under names no slug fits,
+# so the rule lives here and not in `lint_handoff`. A name is cut with slices, and both patterns
+# are of bounded length.
+_HANDOFF_NAME_DAY_RE = re.compile(r"([0-9]{4})-([0-9]{2})-([0-9]{2})")
+_HANDOFF_NAME_PART_RE = re.compile(r"[a-z0-9]{1,12}")
+_HANDOFF_NAME_SUFFIX = ".md"
+
+
+def _handoff_name_day(name: str) -> str | None:
+    """The calendar date a hand-off's file name opens with, as written, or None."""
+    day = _HANDOFF_NAME_DAY_RE.match(name)
+    if day is None or _parse_date(*day.groups()) is None:
+        return None
+    return day.group(0)
+
+
+def _handoff_name_fits(name: str, slug: str) -> bool:
+    """`<YYYY-MM-DD>-<slug>.md`, or `<YYYY-MM-DD>-<slug>--<part>.md` with `<part>` 1 to 12
+    lowercase letters or digits."""
+    day = _handoff_name_day(name)
+    if day is None or not name.endswith(_HANDOFF_NAME_SUFFIX):
+        return False
+    rest = name[len(day) : -len(_HANDOFF_NAME_SUFFIX)]
+    if rest == f"-{slug}":
+        return True
+    part = rest.removeprefix(f"-{slug}--")
+    return part != rest and _HANDOFF_NAME_PART_RE.fullmatch(part) is not None
+
+
+def _handoff_name_findings(text: str, name: str, where: str) -> list[LintFinding]:
+    """A finding when a note's file name does not carry the slug of its `Task:` line.
+
+    Only a version that asks for a `Task:` line is judged, so an older note keeps its name. A
+    `Task:` line that is missing, repeated or malformed has its own finding already, and the
+    name is not judged against it: one slip is one finding.
+    """
+    version, _ = _handoff_version(text, where)
+    if "Task" not in HANDOFF_LINES_BY_VERSION.get(version, ()):
+        return []
+    task = _ledger_lines(text)["Task"]
+    if len(task) != 1 or _ledger_value_problem("Task", task[0][1]) is not None:
+        return []
+    lineno, slug = task[0]
+    if _handoff_name_fits(name, slug):
+        return []
+    day = _handoff_name_day(name) or "<YYYY-MM-DD>"
+    return [
+        LintFinding(
+            where,
+            lineno,
+            f"the file name must be '{day}-{slug}.md', the date and then the slug on the "
+            f"'Task:' line, or '{day}-{slug}--<part>.md' for a second note of the task that "
+            "day, <part> being 1 to 12 lowercase letters or digits",
+        )
+    ]
+
+
 def lint_handoff_file(
     path: Path, root: Path, resolve_anchors: bool = False
 ) -> list[LintFinding]:
@@ -1812,14 +1889,18 @@ def lint_handoff_file(
     than the full run does for that file. It does not skip a README -- that exclusion
     belongs to the directory walk, and naming a file is a deliberate act. It reads the
     learnings buffer and the changelog under `root` here too, so both runs judge a lesson
-    title by the same two files.
+    title by the same two files. A note whose version asks for a `Task:` line is judged by
+    its file name here as well, since only a file has one.
     """
-    return lint_handoff(
-        read_text(path),
-        display_path(path, root),
+    text = read_text(path)
+    where = display_path(path, root)
+    findings = lint_handoff(
+        text,
+        where,
         root if resolve_anchors else None,
         ledgers=read_lessons_ledgers(root),
     )
+    return findings + _handoff_name_findings(text, path.name, where)
 
 
 def lint_handoff_dir(
