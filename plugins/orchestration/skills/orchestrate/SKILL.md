@@ -198,7 +198,7 @@ Every delegation gets a written brief. A good brief has exactly:
    >    in plain words that the session may be closed.
    >
    > Write the hand-off from `.ai/templates/handoff.md`: line 1 stays
-   > `<!-- handoff-contract: v2 -->`, and `## Continue` and `## Orchestrator summary` stay in it;
+   > `<!-- handoff-contract: v3 -->`, and `## Continue` and `## Orchestrator summary` stay in it;
    > run the one-file hand-off lint on it before step 5.
 
    Step 4 writes a file: a sub-agent whose harness refuses the write returns the handoff content as
@@ -414,7 +414,7 @@ as a file. These rules make that survivable — the full contract is in `agent-d
   runs (`git rev-parse --verify <ref>`, `git status --porcelain`), with its expected result. A
   prose precondition in a brief you author is the same defect as trusting one you receive — and it
   has already shipped false ("already merged/committed" when it was not).
-- **Name the return path** in the brief: `.ai/handoffs/{YYYY-MM-DD}-{slug}.md`. Never ask the user
+- **Name the return path** in the brief: `.ai/handoffs/{YYYY-MM-DD}-{slug}.md` (`--{part}` before `.md` for a second note that day). Never ask the user
   to paste results back by hand; that is the ritual this replaces.
 - **Parallel peers must be isolated.** Two sessions writing one tree is the measured failure mode
   (HEAD moving mid-task, torn-tree suite verdicts). Give each a declared disjoint file set; if the

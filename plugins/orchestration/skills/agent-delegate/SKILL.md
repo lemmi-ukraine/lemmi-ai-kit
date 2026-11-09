@@ -85,8 +85,9 @@ The Process above changes in three places:
    - **Preconditions as command + expected-result pairs**, never prose. `git rev-parse --verify
      <ref>` → resolves. `git status --porcelain` → empty. A prose precondition you author is the
      same defect as trusting one you receive, and it has already shipped false.
-   - **The return path**: `.ai/handoffs/{YYYY-MM-DD}-{slug}.md`, and the instruction to write the
-     hand-off there per the contract in `parallel-session-safety` §9. Never ask for a paste-back.
+   - **The return path**: `.ai/handoffs/{YYYY-MM-DD}-{slug}.md`, or `{YYYY-MM-DD}-{slug}--{part}.md`
+     for a second note of the task that day, and the instruction to write the hand-off there per the
+     contract in `parallel-session-safety` §9. Never ask for a paste-back.
    - **The verification commands** you will run on return, stated up front so the delegate can
      satisfy them.
    - **Isolation**, if this runs concurrently with another peer: a git worktree, or a declared

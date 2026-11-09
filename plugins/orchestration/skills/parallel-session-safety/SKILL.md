@@ -271,8 +271,8 @@ and any unexplained deletion count is a stop.
 to any hand-off written for another session to pick up — the `cross-session` worker in
 `agent-delegate` dispatches against it, and the support CLI's `lint handoffs` subcommand enforces it.
 
-**Path:** `.ai/handoffs/{YYYY-MM-DD}-{slug}.md`. Named so the return leg is a known location
-instead of a paste into chat.
+**Path:** `.ai/handoffs/{YYYY-MM-DD}-{slug}.md` (`{YYYY-MM-DD}-{slug}--{part}.md` for a second note
+of the task that day), named so the return leg is a known location instead of a paste into chat.
 
 **Required sections:**
 
@@ -283,7 +283,7 @@ instead of a paste into chat.
 | `## Preconditions` | Command + expected result pairs the receiver runs before starting |
 | `## Verification` | Command + expected result pairs that prove the work is done |
 | `## Status` | `in-progress` / `blocked` / `ready-for-review`, plus what is NOT done |
-| `## Continue`, `## Orchestrator summary` | Only in a file whose line 1 is `<!-- handoff-contract: v2 -->` (no label, or `v1`, means the five above): the one line a person pastes into a new session, and at most 10 plain lines for a reader who will not open the rest |
+| `## Continue`, `## Orchestrator summary` | Only in a file whose line 1 is the label `<!-- handoff-contract: v3 -->`, or its `v2` form (no label, or `v1`, means the five above): the one line a person pastes into a new session, and at most 10 plain lines for a reader who will not open the rest. A v3 file also holds six ledger lines above `## Scope`, each once: `Task:`, `Sessions:`, `Written:`, `Lessons:`, `Delegation:` and `Safe to close:`; `.ai/templates/handoff.md` says what each holds |
 
 **Preconditions and verification are commands, never prose.** Write what the receiver *runs*:
 
