@@ -334,13 +334,13 @@ Run all four, in order, and answer each in writing:
 4. **Name what you did not look at, and say how you know that list is complete.** If you cannot,
    the honest output is UNKNOWN plus what would settle it.
 
-Report the outcome in § 10 below. **A challenge that reports no findings is a valid result; a
+Report the outcome in § 10 below; the report then ends with its `Safe to close:` line (see Output Format). **A challenge that reports no findings is a valid result; a
 challenge that is skipped is not**, and nothing else in this pipeline detects the difference —
 which is precisely why an operator had to type it 114 times.
 
 ## Output Format
 
-Present the review results using this structure:
+Present the review results using this structure (the report then ends with `Safe to close: yes` or `Safe to close: no - <what is still running or not committed>` on a line of its own, after section 10):
 
 ```
 ## Post-Task Review
