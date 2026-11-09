@@ -198,8 +198,9 @@ emits **redacted** transcripts for the high-signal ones (any error, or the large
    — the last two landing in `test-failure`/`tool-error`. Without that split, every
    orchestration-heavy window reads as an agent regression and cross-window comparisons are
    apples-to-oranges. Never quote the headline rate without its composition. Since v5 the extractor
-   files three harness shapes under `environment`: `sleep-denial`, `usage-limit` and `cd-denial`
-   (see `references/extractor-output-schema.md`); decompose what still sits in a behavioral bucket.
+   files three shapes under `environment`: `sleep-denial` and `usage-limit` (written by the harness) and
+   `cd-denial` (written by the kit's own shell-prefix gate; see `references/extractor-output-schema.md`).
+   A project's own hook stays behavioral, so decompose what still sits in a behavioral bucket.
 2. **Bounded deep-dive of high-signal sub-agents.** CONSUME `aggregate.json`'s
    `subAgentDeepDiveCandidates` (schema v4): `selected[]` is the ≤6 deep-dive set (already
    ranked by error count desc, then bytes — do not re-rank by hand). Spawn one analyst
@@ -211,8 +212,7 @@ emits **redacted** transcripts for the high-signal ones (any error, or the large
    `overCap[]` entry PLUS each session's `subAgents.errorAgentsNotEmitted` count as "scanned
    via taxonomy only" (no silent drop — those error-bearing agents have no emitted transcript
    at all). Use the Phase-3 analyst prompt plus: "This is a SUB-AGENT transcript — focus on
-   errors it hit, any wrong/fabricated result it returned to its orchestrator, and internal
-   thrash."
+   errors it hit, any wrong/fabricated result it returned to its orchestrator, and internal thrash."
 3. **If there are no sub-agents / none high-signal,** say so explicitly ("no sub-agent activity in
    window" / "sub-agents ran clean") — that is itself a reportable result, not a skipped step.
 
@@ -285,8 +285,8 @@ Calibration: a ~2-week / ~15-session period typically yields ~3–5 strong corre
 preferences. Significantly more → re-check for false positives.
 
 #### 4f. Skill Effectiveness & Convention Coverage
-- Which skills were invoked (`stats.skillsUsed` — since v4 this includes user-typed `/slash`
-  runs, previously invisible; `stats.skillInvocationModes` breaks down user, model and harness per skill),
+- Which skills were invoked (`stats.skillsUsed` — since v4 this includes `/slash` runs, whoever typed
+  them, previously invisible; `stats.skillInvocationModes` breaks down user, model and harness per skill),
   how often; which exist but went unused; tasks done manually that a skill could have handled.
   Cross-check user-mode names against `ls .claude/skills/` — they may include built-in commands.
 - **Diagnose every zero-invocation skill — do not just list it.** For each skill that exists,
@@ -457,8 +457,8 @@ instead of applying them and step 4 offers the consolidation; steps 2 and 3 run 
    rules (non-destructive intake; feeds `/lemmi-ai-kit-core:learning-consolidator`). Behavioral P4s take
    `Category: interaction` under `## Interaction & Workflow Friction` so the consolidator can
    cluster them instead of losing them among codebase pitfalls. **Dedup that section first** —
-   `task-learnings` Step 0 measures each session at completion and may already hold the in-session
-   form; yours is the CROSS-session claim (say how many sessions), so merge, don't near-duplicate.
+   `task-learnings` Step 0 measures one task's sessions and may already hold the in-task form;
+   yours is the CROSS-task claim (say how many sessions and tasks), so merge, don't near-duplicate.
 3. **Surface the sibling cadence** (the inverse of this skill's Phase-0 guard): count intake
    entries (`uv run --no-project --directory "${CLAUDE_PLUGIN_ROOT}/src" python -B -m lemmi_ai_kit lint learnings --list-entries --project "<absolute project root>"`)
    and date the last drain by the newest `CONSOLIDATION` entry in `.ai/ai-changelog.md` whose `**Drained:**`

@@ -19,8 +19,9 @@ due prints nothing at all.
 Why. The buffer-pressure check in `task-learnings` and the cadence guard in `learning-consolidator`
 say the same thing, but only when those skills run, so a session that ends without either never shows
 it and the buffer can pass the threshold unseen. This hook says it at the one moment every session
-has, the start. The retrospective arm is the same idea for `session-retrospective`, whose own cadence
-guard also speaks only when that skill runs. It only says: it never blocks and never writes a file.
+has, the start. The retrospective arm has no such counterpart: the cadence guard of
+`session-retrospective` only stops a run that comes too soon after the newest report, and no skill
+says that a retrospective is overdue. The hook only says: it never blocks and never writes a file.
 
 THE SWITCH. `.ai/drain-nudge-hook.json` in the project folder: `CLAUDE_PROJECT_DIR`, or the `cwd` of
 the payload when the variable is absent. The file is read at every session start, so nothing is cached

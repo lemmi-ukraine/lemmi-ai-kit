@@ -52,8 +52,8 @@ how the human and the agent actually interacted.
 A session that delegated, or that closes a chain of sessions, never skips: what its sub-agents and
 earlier sessions hit is in no count it can see from its own calls.
 
-Then say "no interaction signal — skipping the measurement" and go to Step 1. **A clean session is
-a valid result, not a skipped step.**
+When the gate holds, say "no interaction signal — skipping the measurement" and go to Step 1.
+**A clean session is a valid result, not a skipped step.**
 
 > **Do not read the gate off the extractor's first-user-message field.** When a session opens with a
 > slash command only, that field comes back **blank** — the command invocation is not captured as a

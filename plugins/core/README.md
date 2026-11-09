@@ -118,9 +118,10 @@ none:
 `no retrospective recorded -> run /lemmi-ai-kit-core:session-retrospective`.
 When both are due, the reply holds both lines, the drain line first. The hook never blocks and exits
 0 on every path. `task-learnings` (its buffer-pressure check) and `learning-consolidator` (its
-cadence guard) say what the drain arm says, and `session-retrospective` has a cadence guard of its
-own, but each speaks only when its skill runs, so a session that ends without running them never
-shows it; this hook says it when the session starts.
+cadence guard) say what the drain arm says, but each speaks only when its skill runs, so a session
+that ends without running them never shows it; this hook says it when the session starts. The
+retrospective arm has no such counterpart: the cadence guard of `session-retrospective` only stops a
+run that comes too soon after the newest report, and no skill says that a retrospective is overdue.
 
 It is off by default. It prints nothing until the project holds `.ai/drain-nudge-hook.json` with
 `{"enabled": true}`; the file is read at every session start, so a change takes effect at the next
