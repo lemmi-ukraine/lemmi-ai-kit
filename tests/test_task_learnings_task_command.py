@@ -10,13 +10,18 @@ This test reads the command out of the skill's Step 0 section, fills its placeho
 optional hand-off part, and runs it from the root of a fake project under a fake home. The
 project's session folder holds a chain of three sessions (the hand-off lists the first two, the
 third runs the command) and one session of another task that ran beside them. The run must exit
-0 and write one digest that names every session of the chain and not the other task's session.
+0 and write one digest that holds a measured section for every session of the chain and none for
+the other task's session.
 
 WHAT KEEPS IT HONEST. The command is read from the skill, never retyped here, so what runs is
 what the skill prints. The filler refuses a placeholder it has no value for, so a renamed
 placeholder fails here instead of running with a literal `<...>` in it. The other task's session
 is the negative control that tells a measurement of the chain from one of the whole folder. The
-section reader, the command reader and the filler are each fired at planted text.
+digest's header lists every id the run was given, measured or not, so it cannot show that a
+session was read: only a session's own section can, and the test counts those. A run that
+measures nothing leaves the header and no section, so it fails here (checked by planting that
+change in the extractor). The section reader, the command reader and the filler are each fired
+at planted text.
 """
 
 import json
@@ -224,10 +229,11 @@ def test_the_printed_step_0_command_measures_the_chain_its_hand_off_lists(
     digests = sorted(store.project.rglob("interaction-digest.md"))
     assert len(digests) == 1, f"expected one digest under the project, found {digests}"
     digest = digests[0].read_text(encoding="utf-8")
-    missing = [session for session in _CHAIN if session not in digest]
-    assert not missing, (
-        f"the digest names {len(_CHAIN) - len(missing)} of the chain's {len(_CHAIN)} sessions; "
-        f"missing {missing}. The command run was: {command}"
+    sections = sorted(re.findall(r"^## Session (\S+)$", digest, re.MULTILINE))
+    expected = sorted(session[:8] for session in _CHAIN)
+    assert sections == expected, (
+        f"the digest has a measured section for {sections}, not for each session of the chain "
+        f"{expected}. The command run was: {command}"
     )
     assert _OTHER_TASK not in digest, "the digest names a session of another task"
 
