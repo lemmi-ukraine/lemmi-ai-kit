@@ -197,9 +197,9 @@ emits **redacted** transcripts for the high-signal ones (any error, or the large
    response received"; "The permission handler returned updatedInput … failed schema validation")
    — the last two landing in `test-failure`/`tool-error`. Without that split, every
    orchestration-heavy window reads as an agent regression and cross-window comparisons are
-   apples-to-oranges. Never quote the headline rate without its composition. *Extractor improvement
-   candidate:* classify the known harness shapes into an `environment` category — `SCHEMA_KEYS` +
-   `references/extractor-output-schema.md` + tests move together per the schema doc's own rule.
+   apples-to-oranges. Never quote the headline rate without its composition. Since v5 the extractor
+   files three harness shapes under `environment`: `sleep-denial`, `usage-limit` and `cd-denial`
+   (see `references/extractor-output-schema.md`); decompose what still sits in a behavioral bucket.
 2. **Bounded deep-dive of high-signal sub-agents.** CONSUME `aggregate.json`'s
    `subAgentDeepDiveCandidates` (schema v4): `selected[]` is the ≤6 deep-dive set (already
    ranked by error count desc, then bytes — do not re-rank by hand). Spawn one analyst
@@ -286,7 +286,7 @@ preferences. Significantly more → re-check for false positives.
 
 #### 4f. Skill Effectiveness & Convention Coverage
 - Which skills were invoked (`stats.skillsUsed` — since v4 this includes user-typed `/slash`
-  runs, previously invisible; `stats.skillInvocationModes` breaks down user vs model per skill),
+  runs, previously invisible; `stats.skillInvocationModes` breaks down user, model and harness per skill),
   how often; which exist but went unused; tasks done manually that a skill could have handled.
   Cross-check user-mode names against `ls .claude/skills/` — they may include built-in commands.
 - **Diagnose every zero-invocation skill — do not just list it.** For each skill that exists,
