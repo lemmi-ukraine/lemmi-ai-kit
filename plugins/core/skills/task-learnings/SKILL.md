@@ -34,7 +34,7 @@ A run that finds nothing new is a valid result, not a skipped step: say so in on
 is not yet a finding and may wait if the report names it; a finding already settled is appended
 now, and Step 5's rule that the append itself is never deferred stands.
 
-### Step 0: Measure This Session (gated)
+### Step 0: Measure the Task's Sessions (gated)
 
 Steps 1–8 extract from **recollection**, which is the weakest available evidence for the agent's
 *own* behavior: only findings dramatic enough to notice survive, and no count can be audited
@@ -45,7 +45,12 @@ how the human and the agent actually interacted.
 
 - the session ran fewer than ~15 tool calls, AND
 - no command or file was visibly worked more than once, AND
-- the user did not restate a request or correct you
+- the user did not restate a request or correct you, AND
+- you started no sub-agent (native or Workflow-tool), AND
+- you are not closing a task whose hand-off lists another session
+
+A session that delegated, or that closes a chain of sessions, never skips: what its sub-agents and
+earlier sessions hit is in no count it can see from its own calls.
 
 Then say "no interaction signal — skipping the measurement" and go to Step 1. **A clean session is
 a valid result, not a skipped step.**
@@ -53,30 +58,34 @@ a valid result, not a skipped step.**
 > **Do not read the gate off the extractor's first-user-message field.** When a session opens with a
 > slash command only, that field comes back **blank** — the command invocation is not captured as a
 > user message — so a session that clearly had interaction signal looks like it had none. Judge the
-> gate from the three conditions above (tool-call count, repeated work, restated requests), not from
-> a summary field that can be empty for a reason unrelated to the session's content.
+> gate from the conditions above (tool-call count, repeated work, restated requests, sub-agents, the
+> chain), not from a summary field that can be empty for a reason unrelated to the session's
+> content.
 
 **Otherwise:**
 
-1. **Resolve THIS session's id** — it is the last path segment of your scratchpad directory
-   (`…/claude/<encoded-repo>/<SESSION-ID>/scratchpad`). Pass that id explicitly; do **not** pass
-   `current`. `current` resolves by newest-mtime, and this checkout routinely runs parallel
-   sessions: verified 2026-08-14, **four** transcripts had been written within 180s and
-   newest-mtime pointed at an entirely unrelated session. The extractor fails closed (exit 4)
-   rather than guess, but the scratchpad id avoids the ambiguity outright.
+1. **Resolve THIS session's id** — it is the name of the folder that holds your scratchpad
+   directory (`…/<SESSION-ID>/scratchpad`; the path's last segment is `scratchpad` itself). Pass
+   that id explicitly; do **not** pass `current`. `current` resolves by newest-mtime, and this
+   checkout routinely runs parallel sessions: verified 2026-08-14, **four** transcripts had been
+   written within 180s and newest-mtime pointed at an entirely unrelated session. The extractor
+   fails closed (exit 4) rather than guess, but the scratchpad id avoids the ambiguity outright.
 
-   > **If you are a native SUB-AGENT, Step 0 does not apply to you — skip it and say so.** A
-   > sub-agent shares the parent's project directory, and its scratchpad path carries the **parent's**
-   > session id. So the extractor resolves, runs, **exits 0**, and writes a well-formed digest of the
-   > *orchestrator's* transcript: measured, `first user message` came back as the orchestrator's
-   > takeover brief and the counts (10 user-channel records, 1 error class, 3 sub-agents) all described the
-   > parent. Nothing fails — the self-check passes and step 3's verification passes, because the
-   > digest is genuinely valid for the session it measured.
+   > **If you are a SUB-AGENT, native (Agent tool) or started by the Workflow tool, Step 0 does not
+   > apply to you — skip it and say so.** Your transcript sits under the parent's session, whose own
+   > Step 0 measures it. A native sub-agent shares the parent's project directory, and its
+   > scratchpad path carries the **parent's** session id. So the extractor resolves, runs,
+   > **exits 0**, and writes a well-formed digest of the *orchestrator's* transcript: measured,
+   > `first user message` came back as the orchestrator's takeover brief and the counts (10
+   > user-channel records, 1 error class, 3 sub-agents) all described the parent. Nothing fails —
+   > the self-check passes and step 3's verification passes, because the digest is genuinely valid
+   > for the session it measured.
    >
    > Writing `interaction` entries from those numbers puts **another session's behaviour** into a
    > tracked shared file under your own attribution. Fall through to the "measurement failed" path
-   > and return `Step 0 not run: sub-agent shares the parent's session id`. The orchestrator extracts
-   > interaction learnings for its sub-agents from their returns and error histories, attributed.
+   > and return `Step 0 not run: sub-agent shares the parent's session id`. The orchestrator writes
+   > its sub-agents' interaction lessons from its own digest's **sub-agent block** (item 6), where
+   > their errors are counted, attributed to them; a return's account of its errors is a claim.
 
    > **A repetition signal that names a MANDATED preflight is compliance, not thrash.** The
    > extractor reports repeated commands by their text and is explicitly content-blind, so a rule
@@ -87,12 +96,24 @@ a valid result, not a skipped step.**
    > against the session. When a repeated command is mandated, record it as compliance and name
    > the rule that mandates it; the repeated-command list is evidence to interpret, not a defect list.
 
-2. **Run the extractor from the project root, scoped to that session:**
+2. **Run the extractor from the project root, scoped by session id:**
 
    ```bash
    python "${CLAUDE_PLUGIN_ROOT}/skills/session-retrospective/scripts/extract_sessions.py" \
-     .ai/tmp/task-learnings/<SESSION-ID>/ --session <SESSION-ID> --digest --self-check
+     .ai/tmp/task-learnings/<SESSION-ID>/ --session <SESSION-ID> \
+     [--sessions-from <HAND-OFF>] --digest --self-check
    ```
+
+   **At a hand-off, leave out the part in square brackets:** the run measures this session and its
+   sub-agents, and the note's `Lessons:` line then says what you appended (Step 5, item 5).
+   **At the task's close, fill it with the hand-off you received**, and give `--sessions-from`
+   once for each note of this task you received (a predecessor's, a peer's return): one task
+   digest then covers every session those notes list on their `Sessions:` line, this one, and
+   every sub-agent each started, and nothing of a task that ran beside it. A close with no
+   hand-off received leaves it out. **A note with no `Sessions:` line** (one written to the
+   hand-off contract before v3, or with no contract label) cannot name its chain: leave the part
+   out for it (with no other note, this session is measured alone), and say in your report that
+   the chain's earlier sessions were not measured.
 
    **The output dir is scoped BY SESSION ID, and that is load-bearing — do not collapse it back
    to `.ai/tmp/task-learnings/`.** The extractor clears stale transcripts under its own output
@@ -105,28 +126,42 @@ a valid result, not a skipped step.**
    the replaced digest carries no marker. The danger is specific — step 6's rule 3 requires every
    count you write to be locatable in the digest, so a session re-reading it to confirm a figure
    can read **another session's numbers and attribute them to itself**. The session id is already
-   mandatory above (it is the last segment of the scratchpad path), so scoping costs nothing.
+   mandatory above (the name of the folder that holds the scratchpad), so scoping costs nothing.
+   A task digest goes there too: the folder is the running session's, never one per task.
 
    Also **never `.ai/tmp/retro/`**, which a running retrospective owns.
 
-3. **Verify the pick before trusting the digest.** stderr prints the resolved id and the session's
-   `first user message`. If that message is not one YOU received, you measured someone else's
-   session — stop and re-run with the correct id.
+3. **Verify the pick before trusting the digest.** A one-session run prints the resolved id and
+   the session's `first user message` on stderr. If that message is not one YOU received, you
+   measured someone else's session — stop and re-run with the correct id. A task digest's header
+   names the task (from the hand-off's `Task:` line) and every id it was given: check both
+   against the notes you received.
 
 4. **Exit codes:** `0` digest written · `1` the session dir could not be derived (the working
    directory is not the project root: pass the session dir as the first argument) · `4` ambiguous
    `current` (re-run with the explicit id) · `3` leak gate tripped and the digest was deleted →
-   write **no** interaction entries · `2` usage error or the session had no analyzable content.
+   write **no** interaction entries · `5` a listed session could not be measured (no transcript
+   in this project's session folder, unreadable, or a processing error): the digest is kept and
+   covers the others; write **nothing** about the unmeasured ids, and name each in your report ·
+   `2` usage error, a hand-off with no `Sessions:` line (run again without the bracketed part),
+   or the session had no analyzable content.
 
 5. **Any failure falls through to Steps 1–8.** A measurement failure must never block the
    learnings append — but do **not** write interaction entries from recollection to compensate.
    State that the measurement failed and move on.
 
-6. **Read `.ai/tmp/task-learnings/<SESSION-ID>/interaction-digest.md`** and derive candidates from it:
+6. **Read `.ai/tmp/task-learnings/<SESSION-ID>/interaction-digest.md`** and derive candidates from it.
+   A task digest opens with the task, its ids, the totals across the measured sessions and the
+   unmeasured ids, then gives each session a section of what a one-session digest holds:
    - *counted repetition signals* — already filtered to the re-read threshold (default 6, tunable
      via `--rereads-min`; the digest records why 3 is compliance rather than thrash);
    - *agent error classes with ≥2 occurrences* — decompose before calling any of it agent quality;
      the classifier is content-blind and the digest says so;
+   - *the sub-agent block* — what the session's sub-agents (native and Workflow) hit: how many ran
+     and failed, each class with ≥2 occurrences with up to two redacted samples, and `environment`
+     refusals by shape (the harness or a hook refused or stopped a call: a rule to give a home,
+     not agent quality).
+     It is the source of your sub-agents' lessons, which you write, attributed;
    - *the user-message sequence* — read it for **re-asks**: the same request restated because the
      first attempt did not land. Paraphrase counts. There is deliberately no detector here, so
      this is a read, not a lookup.
@@ -147,18 +182,18 @@ a valid result, not a skipped step.**
 
 | Step 0 (here) | `session-retrospective` |
 |---|---|
-| ONE session, at task completion | ~14-day window, ~weekly cadence |
-| ≥2 occurrences **within this session** | ≥2 occurrences **across sessions** |
+| ONE task: this session at a hand-off, its whole chain at the close | ~14-day window, ~weekly cadence |
+| ≥2 occurrences **within this task's sessions** | ≥2 occurrences **across sessions** of any task |
 | ≤2 entries into the tracked buffer | full report, gitignored |
 
-Report only what this session proves. A pattern you suspect spans sessions belongs to the
-retrospective — leave it there rather than guessing at cross-session frequency.
+Report only what this task's sessions prove. A pattern you suspect spans tasks belongs to the
+retrospective — leave it there rather than guessing at cross-task frequency.
 
 ### Step 1: Review the Task
 
 Recollection is the right tool for the rest — codebase findings live in the diff, not in the
-transcript. Keep it to that: anything about *how the work was conducted* comes from Step 0's
-digest, where it is counted, or it does not get written.
+transcript. Keep it to that: anything about *how the work was conducted*, your sub-agents' work
+included, comes from Step 0's digest, where it is counted, or it does not get written.
 
 Look back at all changes made during the task:
 
@@ -211,6 +246,9 @@ classifier, at the moment of discovery:
 - `Home:` — where this should live when drained. **Work-lane rule:** if the finding is a defect
   to fix or a code/pipeline change (WORK, not knowledge), set `Home: tasks:<tasks/FILE.md>` and
   create/name that task doc in the same step — learnings hold knowledge, task files hold work.
+  **Memory rule:** a project lesson goes to this buffer, never to your private memory alone:
+  memory stays on one operator's machine, where no drain reads it and no teammate's session sees
+  it. `Home: memory` is only for a pointer or an operator's preference, never a project lesson.
 - `Enforce-via:` — name a mechanical seam (`lint`/`test`/`template`/`script`) whenever one exists;
   `prose` is the honest default, not the reflex.
 - `Verify-at:` — one live path/symbol anchoring the claim (write the CURRENT branch's name for it).
@@ -299,9 +337,22 @@ Fifteen days later the identical defect blocked the pipeline again.
    than a fat buffer) — the surfaced line is the enforcement. This is the capture-side twin of
    the consolidator's cadence guard; the 06-23→07-16 lapse grew the buffer to 115 entries
    because nothing at append time said so.
+5. **At a hand-off, the note's `Lessons:` line (hand-off contract v3) says what this session did
+   with its lessons**, in one of three forms:
+   - `[YYYY-MM-DD] title; [YYYY-MM-DD] title` — the entries this session appended, each copied
+     from its buffer heading without the `### `;
+   - `none` — the run found nothing new;
+   - `not run - <reason>` — nothing was appended: the step did not run, or your brief bars the
+     buffer and names another writer (`not run - drafted for <writer>`), and then each drafted
+     entry stays in the note's Status, marked Not done.
+
+   **The receiver transcribes.** A session that receives a note whose drafts were left for it
+   appends them as this step does (dedup first) and lists their titles in its own `Lessons:`
+   line, or in its report at the close: a draft no receiver appends is lost with the note.
 
 Entry format (field rules, canonical slugs, and good/bad examples:
-[references/learnings-format.md](references/learnings-format.md)):
+[references/learnings-format.md](references/learnings-format.md)). Written for a task that has a
+slug, the entry's Context names that slug exactly as its hand-off's `Task:` line spells it:
 
 ```markdown
 ### [YYYY-MM-DD] Short descriptive title
