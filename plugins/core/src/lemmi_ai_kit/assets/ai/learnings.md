@@ -15,8 +15,9 @@ actually useful — so this file normally holds only a handful of not-yet-promot
 **How entries are added:** `task-learnings` appends each finding as a `### [YYYY-MM-DD] title` block
 under the matching `## Category` header (create the header if absent; use a canonical category —
 Architecture Decisions, Common Pitfalls, External Service Quirks, Performance Insights, Pattern
-Discoveries, Convention Clarifications). Place each entry under its **topic** category, never at the
-file end (a chronological catch-all misleads the consolidator's clustering).
+Discoveries, Convention Clarifications, Interaction & Workflow Friction). Place each entry under
+its **topic** category, never at the file end (a chronological catch-all misleads the
+consolidator's clustering).
 
 **How it drains:** periodically (`/learning-consolidator`, ~weekly) each accumulated entry is routed
 to its home above and removed here.
