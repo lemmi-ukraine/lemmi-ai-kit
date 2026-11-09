@@ -46,11 +46,14 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 # --- schema contract (machine source of truth; mirrored in extractor-output-schema.md) ---
 # v4 is ADDITIVE-ONLY over v3: existing keys/shapes unchanged (other consumers — the SKILL.md
 # phases and any downstream analysis skill — keep working); new keys listed at the end.
+# v5 renames and removes no key, but it MOVES counts: the `environment` category takes the results
+# the harness or a hook refused or stopped out of the behavioural categories (see
+# environment_shape), and a slash command the harness typed counts under `harness`, not `user`.
 SCHEMA_KEYS = {
     "top": [
         "schemaVersion",
@@ -83,6 +86,7 @@ SCHEMA_KEYS = {
         "compactions",  # v4 (C-4b): context-compaction boundary count
         "userRejected",  # v4 (additive): TRUE count of user-rejected results (samples are capped)
         "hookDenials",  # v4 (additive): TRUE count of results a PreToolUse hook blocked, main thread
+        "environmentShapes",  # v5: environment shape -> count, main thread
     ],
 }
 
@@ -94,6 +98,7 @@ ERROR_CATEGORIES = [
     "skill-blocked",
     "runtime-exit",
     "tool-error",
+    "environment",
     "other",
 ]
 
@@ -469,6 +474,22 @@ def _is_human_origin(origin):
     return isinstance(origin, dict) and origin.get("kind") == "human"
 
 
+def _sent_by_operator(obj):
+    """What a record's stamps say about who sent it: True for an origin stamp of kind human, or
+    for no origin stamp and none of the machine markers (isMeta, isCompactSummary, a turnOrigin
+    of a program or the harness). The one stamp rule: operator_turn_text reads it for a user
+    record and process_session for a slash command (sessions[].slashCommands[].by), so the two
+    cannot disagree. What a caller adds on top (the injected-text prefixes) stays its own."""
+    origin = obj.get("origin")
+    if origin is not None:
+        return _is_human_origin(origin)
+    return not (
+        obj.get("isMeta")
+        or obj.get("isCompactSummary")
+        or str(obj.get("turnOrigin")) in MACHINE_TURN_ORIGINS
+    )
+
+
 def _answer_text(obj, blocks, id_to_tool):
     """The answers the operator gave the question tool, or '' for any other tool result. The call
     must have been the question tool AND the record must carry the answers: structure alone would
@@ -515,18 +536,13 @@ def operator_turn_text(obj, id_to_tool):
     blocks = _record_blocks(_message_content(obj))
     if any(isinstance(b, dict) and b.get("type") == "tool_result" for b in blocks):
         return redact(_answer_text(obj, blocks, id_to_tool))
-    origin = obj.get("origin")
-    if origin is not None:
-        return redact(_typed_text(blocks)) if _is_human_origin(origin) else ""
-    # No origin stamp: the record is the operator's unless something marks it as machine text, and
-    # the injected-text prefixes still apply (they are all that tells such records apart).
-    if (
-        obj.get("isMeta")
-        or obj.get("isCompactSummary")
-        or str(obj.get("turnOrigin")) in MACHINE_TURN_ORIGINS
-    ):
+    if not _sent_by_operator(obj):
         return ""
     text = _typed_text(blocks)
+    if obj.get("origin") is not None:
+        return redact(text)
+    # No origin stamp and no machine marker: the injected-text prefixes still apply (they are all
+    # that tells such records apart).
     return redact(text) if _is_human_turn(text) else ""
 
 
@@ -579,6 +595,72 @@ DOTNET_BUILD_SIGNATURES = (
     re.compile(r"\berror CS\d{4}\b"),
 )
 
+# The `environment` category: a call the harness or a hook refused or stopped, which is no measure
+# of the agent: give the rule a home, not an agent-quality count. Three shapes, each named by text
+# the harness or the kit's own hook writes, and only where that text OPENS an error record (after
+# leading whitespace and the harness's own <tool_use_error> tag): the same words quoted inside a
+# failed command, a log or a workflow's failure list keep their ordinary class, and a result that
+# is not an error is data. Nothing else moves: a failed shell call opens with "Exit code N"
+# whoever failed, so that opening names no shape. Measured on one transcript store (2026-11-09):
+#   * sleep-denial: the harness refuses a long sleep put in front of a command, "Blocked: sleep N
+#     followed by: <command>" for Bash and "Blocked: Start-Sleep N followed by: ..." for
+#     PowerShell, in the tag. A short sleep runs, so the refusal is matched and never the word.
+#   * usage-limit: the harness's limit sentence ("You've hit your 5-hour limit", "... session
+#     limit"). It stops a turn as an assistant record marked isApiErrorMessage (is_usage_limit_stop),
+#     and it is the shape too when it opens an error tool result.
+#   * cd-denial: the kit shell-prefix gate (hooks/gate_shell_prefix.py) denies a move by returning
+#     its MOVE text as the whole reason. CD_DENIAL_ANCHOR is that text's opening, and a test loads
+#     the hook by path and holds the two equal. Another hook's wording is not encoded here.
+ENVIRONMENT_SHAPES = ("sleep-denial", "usage-limit", "cd-denial")
+TOOL_USE_ERROR_TAG = "<tool_use_error>"
+SLEEP_DENIAL_RE = re.compile(r"Blocked: (?:sleep|Start-Sleep) \S+ followed by\b")
+USAGE_LIMIT_RE = re.compile(r"You['\u2019]ve hit your (?:[\w-]+ ){0,2}limit\b")
+CD_DENIAL_ANCHOR = "Do not move the shell's working directory"
+# The label a usage-limit stop's sample carries where a tool result's carries its tool.
+API_ERROR_SOURCE = "api-error"
+
+
+def _opening(text):
+    """The text an anchor is read against: leading whitespace and the harness's tag dropped."""
+    head = text.lstrip()
+    if head.startswith(TOOL_USE_ERROR_TAG):
+        head = head[len(TOOL_USE_ERROR_TAG) :].lstrip()
+    return head
+
+
+def environment_shape(origin, is_error, text):
+    """The environment shape of one tool result ('sleep-denial', 'usage-limit', 'cd-denial'),
+    or None. Only an error result has one; the sleep and cd shapes only from a shell tool."""
+    if not is_error:
+        return None
+    head = _opening(text)
+    if USAGE_LIMIT_RE.match(head):
+        return "usage-limit"
+    if origin in SHELL_TOOLS:
+        if SLEEP_DENIAL_RE.match(head):
+            return "sleep-denial"
+        if head.startswith(CD_DENIAL_ANCHOR):
+            return "cd-denial"
+    return None
+
+
+def is_usage_limit_stop(obj):
+    """True for the record a usage limit leaves: an assistant record the harness marks as an API
+    error (isApiErrorMessage) whose text opens with the limit sentence. The agent's own prose that
+    quotes the sentence carries no mark, and another API error carries another text."""
+    if obj.get("type") != "assistant" or obj.get("isApiErrorMessage") is not True:
+        return False
+    return USAGE_LIMIT_RE.match(result_text(_message_content(obj)).lstrip()) is not None
+
+
+def _count_shape(shapes, shape):
+    shapes[shape] = shapes.get(shape, 0) + 1
+
+
+def _shapes_in_order(shapes):
+    """A shape count as a plain dict in ENVIRONMENT_SHAPES order, the shapes never seen left out."""
+    return {s: shapes[s] for s in ENVIRONMENT_SHAPES if shapes.get(s)}
+
 
 def classify_error(origin, is_error, text):
     """Return an error category, 'user-rejected', or None. Classifies by ORIGIN tool.
@@ -586,10 +668,14 @@ def classify_error(origin, is_error, text):
     Content tools are never errors unless is_error is set. Shell tools may also error via a
     non-zero exit code surfaced in the result body. 'user-rejected' is USER_REJECTED_SENTENCE at
     the start of an is_error result and nothing looser; leading whitespace is tolerated because
-    a list-of-blocks result joins an empty first block into a leading newline.
+    a list-of-blocks result joins an empty first block into a leading newline. 'environment' is
+    an is_error result that opens with one of the shapes environment_shape names, read before
+    every behavioural rule: a refused sleep put in front of a test run is no test failure.
     """
     if is_error and text.lstrip().startswith(USER_REJECTED_SENTENCE):
         return "user-rejected"
+    if environment_shape(origin, is_error, text):
+        return "environment"
 
     low = text.lower()
     is_shell = origin in SHELL_TOOLS
@@ -744,6 +830,7 @@ def process_session(jsonl_path, sessions_dir, replays=None):
             "transcriptsEmitted": 0,
             "errorAgentsNotEmitted": 0,
             "highSignal": [],
+            "environmentShapes": {},  # v5: environment shape -> count, over the helpers
         },
         "transcriptPath": None,
         "backtrackingMarkers": 0,
@@ -752,6 +839,7 @@ def process_session(jsonl_path, sessions_dir, replays=None):
         "compactions": 0,
         "userRejected": 0,  # every user-rejected result; `user_rejected` below is a capped sample
         "hookDenials": 0,  # every hook-blocked result; `hook_denials` below is a capped sample
+        "environmentShapes": {},  # v5: environment shape -> count; the category holds the total
     }
     # cross-session error samples collected by the caller; here we collect locally then return
     local_errors = defaultdict(list)  # category -> [redacted sample]
@@ -819,6 +907,13 @@ def process_session(jsonl_path, sessions_dir, replays=None):
             sess["counts"]["assistantMsgs"] += 1
             if isinstance(msg.get("model"), str) and msg["model"]:
                 sess["models"][msg["model"]] += 1
+            if is_usage_limit_stop(obj):
+                sess["errorsByCategory"]["environment"] += 1
+                _count_shape(sess["environmentShapes"], "usage-limit")
+                if len(local_errors["environment"]) < SAMPLES_PER_CATEGORY:
+                    local_errors["environment"].append(
+                        f"[{sid[:8]}/{API_ERROR_SOURCE}] {redact(result_text(content))[:160]}"
+                    )
             for b in content:
                 if not isinstance(b, dict):
                     continue
@@ -891,8 +986,10 @@ def process_session(jsonl_path, sessions_dir, replays=None):
                     if cm and len(sess["slashCommands"]) < SLASH_COMMANDS_CAP:
                         am = COMMAND_ARGS_RE.search(b.get("text", ""))
                         args = redact(am.group(1).strip())[:200] if am else ""
+                        # v5: who typed it, by the stamps an operator turn is judged by
+                        by = "operator" if _sent_by_operator(obj) else "harness"
                         sess["slashCommands"].append(
-                            {"command": cm.group(1), "args": args}
+                            {"command": cm.group(1), "args": args, "by": by}
                         )
                         emit(f"  [slash] /{cm.group(1)} {args}".rstrip())
                 elif bt == "tool_result":
@@ -915,6 +1012,11 @@ def process_session(jsonl_path, sessions_dir, replays=None):
                             )
                     elif cat:
                         sess["errorsByCategory"][cat] += 1
+                        if cat == "environment":
+                            _count_shape(
+                                sess["environmentShapes"],
+                                environment_shape(origin, is_err, txt),
+                            )
                         if len(local_errors[cat]) < SAMPLES_PER_CATEGORY:
                             local_errors[cat].append(
                                 f"[{sid[:8]}/{origin}] {redact(txt)[:160]}"
@@ -970,6 +1072,7 @@ def process_session(jsonl_path, sessions_dir, replays=None):
     sess["toolsUsed"] = dict(sess["toolsUsed"])
     sess["errorsByCategory"] = dict(sess["errorsByCategory"])
     sess["models"] = dict(sess["models"])
+    sess["environmentShapes"] = _shapes_in_order(sess["environmentShapes"])
 
     # write per-session transcript
     if sess["counts"]["userMsgs"] > 0:
@@ -994,13 +1097,15 @@ def process_session(jsonl_path, sessions_dir, replays=None):
     return sess, local_errors, user_rejected, hook_denials
 
 
-def render_subagent(jf, left_out=None):
+def render_subagent(jf, left_out=None, shapes=None):
     """Parse one sub-agent transcript .jsonl → (redacted_text, msgs, errorsByCategory, samples).
 
     Mirrors process_session's message walk but lighter: no behavior metrics, just the readable
-    redacted narrative + an error taxonomy (same classify_error, by ORIGIN tool). `samples` is a
-    list of (category, redacted_sample) tuples. Errors inside sub-agents were previously invisible.
-    `left_out` is the list iter_jsonl appends the uuid of each repeated event to.
+    redacted narrative + an error taxonomy (same classify_error, by ORIGIN tool, and a usage-limit
+    stop counted as `environment` as the main walk counts it). `samples` is a list of (category,
+    redacted_sample) tuples. Errors inside sub-agents were previously invisible.
+    `left_out` is the list iter_jsonl appends the uuid of each repeated event to. `shapes`, when
+    given, is a dict that receives {environment shape: count} for this transcript.
     """
     id_to_tool = {}
     lines = []
@@ -1031,6 +1136,17 @@ def render_subagent(jf, left_out=None):
         if otype == "assistant":
             if not isinstance(content, list):
                 continue
+            if is_usage_limit_stop(obj):
+                errs["environment"] += 1
+                if shapes is not None:
+                    _count_shape(shapes, "usage-limit")
+                if len(samples) < SAMPLES_PER_CATEGORY * 2:
+                    samples.append(
+                        (
+                            "environment",
+                            f"{API_ERROR_SOURCE}: {redact(result_text(content))[:140]}",
+                        )
+                    )
             for b in content:
                 if not isinstance(b, dict):
                     continue
@@ -1072,6 +1188,8 @@ def render_subagent(jf, left_out=None):
                     cat = classify_error(origin, is_err, txt)
                     if cat and cat != "user-rejected":
                         errs[cat] += 1
+                        if cat == "environment" and shapes is not None:
+                            _count_shape(shapes, environment_shape(origin, is_err, txt))
                         if len(samples) < SAMPLES_PER_CATEGORY * 2:
                             samples.append((cat, f"{origin}: {redact(txt)[:140]}"))
                     status = "ok" if not cat else f"ERROR({cat}): {redact(txt)[:120]}"
@@ -1092,6 +1210,7 @@ def walk_subagents(session_dir, sess, sessions_dir, left_out=None):
         return
     sid8 = sess["sessionId"][:8]
     parsed = []
+    shapes = {}  # environment shape -> count, over every helper of the session
     for jf in sorted(sub_root.rglob(SUBAGENT_GLOB)):
         sess["subAgents"]["count"] += 1
         size = 0
@@ -1105,7 +1224,7 @@ def walk_subagents(session_dir, sess, sessions_dir, left_out=None):
                 m = json.loads(meta.read_text(encoding="utf-8", errors="replace"))
                 atype = m.get("agentType")
                 goal = m.get("description")
-        text, msgs, errs, samples = render_subagent(jf, left_out)
+        text, msgs, errs, samples = render_subagent(jf, left_out, shapes)
         sess["subAgents"]["msgs"] += msgs
         if len(sess["subAgents"]["agents"]) < 30:
             sess["subAgents"]["agents"].append(
@@ -1139,6 +1258,7 @@ def walk_subagents(session_dir, sess, sessions_dir, left_out=None):
     sess["subAgents"]["errorsByCategory"] = dict(agg_errs)
     sess["subAgents"]["agentsWithErrors"] = agents_with_errors
     sess["subAgents"]["errorSamples"] = dict(sample_by_cat)
+    sess["subAgents"]["environmentShapes"] = _shapes_in_order(shapes)
 
     # select high-signal transcripts to emit: every error-bearing agent + the top-N by bytes,
     # de-duplicated and capped (bounded so a huge fan-out can't explode the output).
@@ -1669,10 +1789,12 @@ def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
         )
         L.append("")
         L.append(
-            "> Classified by ORIGIN TOOL, which is content-blind by design. Harness-generated "
-            "failures (hook denials, usage-limit kills, permission-stream aborts) land in "
-            "behavioral buckets and inflate these counts — decompose before treating any of "
-            "this as an agent-quality finding."
+            "> Classified by ORIGIN TOOL, which is content-blind by design. `environment` is "
+            "the exception: calls the harness or a hook refused or stopped (by shape in "
+            "aggregate.json `environmentShapes`), so give the rule a home, not an agent-quality "
+            "count. Other harness-generated failures (hook denials, permission-stream aborts) "
+            "still land in behavioral buckets and inflate these counts — decompose before "
+            "treating any of this as an agent-quality finding."
         )
     else:
         L.append("_None with 2+ occurrences._")
@@ -1829,6 +1951,8 @@ def main():
     tax = {c: {"count": 0, "sessions": [], "samples": []} for c in ERROR_CATEGORIES}
     user_rejected = {"count": 0, "sessions": [], "samples": []}
     hook_denials = {"count": 0, "sessions": [], "samples": []}
+    # v5: the `environment` category by shape, every shape listed as byCategory lists every class
+    env_shapes = dict.fromkeys(ENVIRONMENT_SHAPES, 0)
     replays = {}  # session id -> repeated events left out of it: for stderr, not the aggregate
 
     prescan_skipped = 0
@@ -1858,6 +1982,8 @@ def main():
         if until and sess["startTime"] and sess["startTime"][:10] > until:
             continue
         sessions.append(sess)
+        for shape, n in sess["environmentShapes"].items():
+            env_shapes[shape] += n
         for cat, samples in local_errors.items():
             tax[cat]["count"] += sess["errorsByCategory"].get(cat, 0)
             if sess["errorsByCategory"].get(cat):
@@ -1895,11 +2021,14 @@ def main():
     # cross-session sub-agent error taxonomy (rolled up from each session's walk_subagents pass)
     sub_tax = {c: {"count": 0, "sessions": [], "samples": []} for c in ERROR_CATEGORIES}
     sub_totals = {"totalAgents": 0, "agentsWithErrors": 0, "transcriptsEmitted": 0}
+    sub_env_shapes = dict.fromkeys(ENVIRONMENT_SHAPES, 0)
     for s in sessions:
         sa = s["subAgents"]
         sub_totals["totalAgents"] += sa.get("count", 0)
         sub_totals["agentsWithErrors"] += sa.get("agentsWithErrors", 0)
         sub_totals["transcriptsEmitted"] += sa.get("transcriptsEmitted", 0)
+        for shape, n in sa.get("environmentShapes", {}).items():
+            sub_env_shapes[shape] += n
         for c, n in sa.get("errorsByCategory", {}).items():
             sub_tax[c]["count"] += n
             sub_tax[c]["sessions"].append(s["sessionId"][:8])
@@ -1960,8 +2089,13 @@ def main():
             "byCategory": tax,
             "userRejected": user_rejected,
             "hookDenials": hook_denials,
+            "environmentShapes": env_shapes,  # v5
         },
-        "subAgentErrorTaxonomy": {"byCategory": sub_tax, **sub_totals},
+        "subAgentErrorTaxonomy": {
+            "byCategory": sub_tax,
+            **sub_totals,
+            "environmentShapes": sub_env_shapes,  # v5
+        },
         "deepDiveCandidates": deep_dive,
         "subAgentDeepDiveCandidates": sub_deep_dive,
         "sessions": sessions,
@@ -2056,13 +2190,14 @@ def _merge_tools(sessions):
 
 
 def _invocation_modes(sessions):
-    """Per-skill invocation counts by mode (v4, C-2): user = /slash, model = Skill tool."""
-    modes = defaultdict(lambda: {"user": 0, "model": 0})
+    """Per-skill invocation counts by mode (v4, C-2; harness v5): user = a /slash command the
+    operator typed, harness = one the harness typed (slashCommands[].by), model = Skill tool."""
+    modes = defaultdict(lambda: {"user": 0, "model": 0, "harness": 0})
     for s in sessions:
         for si in s["skillInvocations"]:
             modes[si["skill"]]["model"] += 1
         for sc in s["slashCommands"]:
-            modes[sc["command"]]["user"] += 1
+            modes[sc["command"]]["user" if sc["by"] == "operator" else "harness"] += 1
     return {k: dict(v) for k, v in sorted(modes.items())}
 
 

@@ -6,13 +6,26 @@ that the emitted `aggregate.json` matches `SCHEMA_KEYS`. **When you change the e
 update `SCHEMA_KEYS` AND this doc together** — the content-reviewer cross-checks this doc against the
 constant and the SKILL.md.
 
-`schemaVersion`: **4** (v4 is ADDITIVE-ONLY: deterministic deep-dive candidate lists,
-slash-command capture, per-session models + compaction counts, `errorAgentsNotEmitted`,
-`skillInvocationModes`, plus non-schema behaviors — date pre-scan, stale-output clearing,
-`--check-file`; existing v3 keys/shapes unchanged, so v3 consumers — the SKILL phases and any
-downstream analysis skill — keep working. v3 added the sub-agent error taxonomy + emitted
-redacted sub-agent transcripts; v2 added per-session transcripts + sub-agent counts; v1 was the
-legacy Node.js flat summary).
+`schemaVersion`: **5**. v5 renames and removes no key, but it MOVES counts, which is why the
+version changed. The `environment` category (see `errorTaxonomy`) takes the results the harness or
+a hook refused or stopped out of the behavioural categories (`runtime-exit`, `test-failure`,
+`build-compile`, `tool-error`), and it counts the usage-limit stops that no category counted
+before. A slash command the harness typed counts under `harness` in `stats.skillInvocationModes`,
+no longer under `user`. The keys v5 adds: `errorTaxonomy.environmentShapes`,
+`subAgentErrorTaxonomy.environmentShapes`, `sessions[].environmentShapes`,
+`sessions[].subAgents.environmentShapes`, `sessions[].slashCommands[].by` and the `harness` mode.
+**A report that compares a window with one built by v4 must say so:** the v4 window filed these
+results in the behavioural categories, so those read higher there and `environment` reads 0; a
+sub-agent whose only error is a usage-limit stop is error-bearing in v5 and was not in v4, which
+can change `agentsWithErrors` and which sub-agent digests are emitted and picked; and a command the
+harness typed was counted as `user`.
+
+(v4 was ADDITIVE-ONLY: deterministic deep-dive candidate lists, slash-command capture, per-session
+models + compaction counts, `errorAgentsNotEmitted`, `skillInvocationModes`, plus non-schema
+behaviors — date pre-scan, stale-output clearing, `--check-file`; existing v3 keys/shapes
+unchanged, so v3 consumers — the SKILL phases and any downstream analysis skill — keep working.
+v3 added the sub-agent error taxonomy + emitted redacted sub-agent transcripts; v2 added
+per-session transcripts + sub-agent counts; v1 was the legacy Node.js flat summary.)
 
 ## Artifacts
 
@@ -42,7 +55,7 @@ digest an older extractor wrote on Windows, where a CRLF inside a message had be
 
 ```jsonc
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "generatedFor": { "sessionDir": "<path>", "since": "YYYY-MM-DD|null", "until": "…|null", "generatedAt": "<iso8601>" },
   "stats": { … },                  // see below
   "errorTaxonomy": { … },          // see below
@@ -87,8 +100,8 @@ these lists as-is; qualifiers beyond the cap are listed in `overCap` (never sile
   "totalThinkingBlocks": 0,
   "subAgent": { "files": 0, "bytes": 0, "msgs": 0 },   // nested sub-agent transcripts aggregated
   "branchesWorkedOn": ["…"],
-  "skillsUsed": ["…"],                                  // v4: union of model-invoked (Skill tool) AND user-typed (/slash) names — same list shape; user-mode entries may include built-in commands (cross-check against `ls .claude/skills/`)
-  "skillInvocationModes": { "session-retrospective": { "user": 2, "model": 0 }, … },  // v4 — per-skill counts by invocation mode
+  "skillsUsed": ["…"],                                  // v4: union of model-invoked (Skill tool) AND /slash names (every `slashCommands` name, whoever typed it) — same list shape; slash entries may include built-in commands (cross-check against `ls .claude/skills/`)
+  "skillInvocationModes": { "session-retrospective": { "user": 2, "model": 0, "harness": 0 }, … },  // v4 — per-skill counts by invocation mode: user = a /command the operator typed, model = the Skill tool; v5 adds harness = a /command the harness typed (see `slashCommands[].by`)
   "skillsBlocked": ["…"],                               // skills invoked via the Skill tool that errored (disable-model-invocation friction)
   "allToolsUsed": { "Read": 344, "Edit": 456, … }
 }
@@ -110,10 +123,12 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
     "skill-blocked":   { "count": 5,  "sessions": […], "samples": […] },
     "runtime-exit":    { "count": 5,  "sessions": […], "samples": […] },
     "tool-error":      { "count": 5,  "sessions": […], "samples": […] },
+    "environment":     { "count": 3,  "sessions": […], "samples": ["[id/Bash] <tool_use_error>Blocked: sleep 30 followed by: …", "[id/api-error] You've hit your 5-hour limit…"] },   // v5
     "other":           { "count": 0,  "sessions": [], "samples": [] }
   },
   "userRejected": { "count": 1, "sessions": ["0f65932c"], "samples": ["[id/Bash] The user doesn't want to proceed…"] },
-  "hookDenials":  { "count": 2, "sessions": ["0f65932c"], "samples": ["[id/Bash] PreToolUse:Bash hook error: …"] }   // v4 (additive)
+  "hookDenials":  { "count": 2, "sessions": ["0f65932c"], "samples": ["[id/Bash] PreToolUse:Bash hook error: …"] },   // v4 (additive)
+  "environmentShapes": { "sleep-denial": 2, "usage-limit": 1, "cd-denial": 0 }   // v5 — the environment count by shape, main thread; every shape listed
 }
 ```
 - **`userRejected` is a SEPARATE bucket** — permission denials are *friction*, not agent mistakes.
@@ -138,8 +153,10 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
   and a hook that did not answer in time are not denials. **Known loss:** a hook that denies by
   JSON returns only its own reason, with no prefix, and nothing else in the record names a hook (the
   harness's `toolDenialKind` stamp is shared with don't-ask mode, built-in safety checks and
-  protected paths), so that form is NOT counted and the count is a floor. Sub-agent transcripts are
-  not counted here; their denials stay in the sub-agent taxonomy under their ordinary category.
+  protected paths), so that form is NOT counted and the count is a floor. The one such hook read by
+  its text is the kit's own shell-prefix gate, and it is read under `environment` (`cd-denial`),
+  not here. Sub-agent transcripts are not counted here; their denials stay in the sub-agent
+  taxonomy under their ordinary category.
 - Category definitions:
   | Category | Meaning |
   |---|---|
@@ -150,10 +167,18 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
   | `skill-blocked` | Skill tool result errored (e.g. `disable-model-invocation`) |
   | `runtime-exit` | Shell non-zero exit, other |
   | `tool-error` | Any other non-shell tool with `is_error` — the non-shell catch-all |
+  | `environment` | v5. Refused or stopped by the harness or a hook: give the rule a home, not an agent-quality count. An `is_error` result that OPENS (after leading whitespace and the harness's `<tool_use_error>` tag) with one of three shapes: `sleep-denial`, the harness's refusal of a long sleep put in front of a command (`Blocked: sleep N followed by`, or `Blocked: Start-Sleep N followed by` in PowerShell; shell tools only); `usage-limit`, the harness's limit sentence (`You've hit your … limit`; any tool); `cd-denial`, the kit shell-prefix gate's own MOVE text (`CD_DENIAL_ANCHOR`, which a test holds equal to the hook's text; shell tools only). Also a usage-limit stop: the assistant record the harness marks `isApiErrorMessage` whose text opens with the limit sentence, in the main thread and in sub-agents. Counted by shape in `environmentShapes` |
   | `other` | Reserved/forward-compat bucket — always emitted, currently always 0; `classify_error()` never returns it (catch-alls are `tool-error` for non-shell, `runtime-exit` for shell) |
 
   Shell errors are tested `build-compile` **before** `test-failure` (a result matching both
-  signatures classifies as `build-compile`).
+  signatures classifies as `build-compile`). Every error result is tested for the `environment`
+  shapes before any of these (only the user-rejected sentence comes first), so a refused sleep put
+  in front of a test run is `environment`, not `test-failure`. The same words anywhere but the
+  opening of an error record (quoted in a failed command, a log or a workflow's failure list) are
+  no shape, and a result that is not an error is data. A failed shell call opens with
+  `Exit code N` whoever failed, so that opening names no shape and keeps its behavioural class. No
+  other hook's wording is encoded (the kit is public): a project's own hook stays in its
+  behavioural class.
 
 ### `subAgentErrorTaxonomy`
 Same shape and ORIGIN-tool classifier as `errorTaxonomy`, but computed over **sub-agent** transcripts
@@ -171,10 +196,13 @@ before v3.
   },
   "totalAgents": 246,         // total sub-agents seen across all sessions
   "agentsWithErrors": 12,     // sub-agents with >=1 classified error
-  "transcriptsEmitted": 31    // redacted sub-agent transcripts written under sessions/sub/
+  "transcriptsEmitted": 31,   // redacted sub-agent transcripts written under sessions/sub/
+  "environmentShapes": { "sleep-denial": 4, "usage-limit": 6, "cd-denial": 0 }   // v5 — the sub-agents' environment count by shape; every shape listed
 }
 ```
-Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its parent session.
+Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its parent session. A
+usage-limit stop's sample names `api-error` where a tool result's names its tool, in both
+taxonomies.
 
 ### `sessions[]` (one object per session, sorted by start time)
 ```jsonc
@@ -189,6 +217,7 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
   "errorsByCategory": { "edit-stale-read": 3, … },   // per-session error counts
   "userRejected": 0,             // v4 (additive) — per-session count of user-rejected results (see `errorTaxonomy`); kept out of errorsByCategory and NOT capped like the samples
   "hookDenials": 0,              // v4 (additive) — per-session count of results a PreToolUse hook blocked (see `errorTaxonomy`); main thread, over the whole transcript, NOT capped; the result still counts in errorsByCategory
+  "environmentShapes": { "sleep-denial": 2 },   // v5 — this session's errorsByCategory.environment split by shape, main thread; a shape never seen is left out
   "behavior": {
     "reReads": [ { "file": "~/…/learnings.md", "count": 7 } ],   // file read >=3x
     "repeatedCommands": [ { "cmd": "git diff --staged", "count": 2 } ],   // identical cmd >=2x
@@ -205,15 +234,22 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
     "errorSamples": { "path-not-found": ["[id/sub] Read: File does not exist…"] },
     "transcriptsEmitted": 3,                                            // # redacted sub-agent .md written
     "errorAgentsNotEmitted": 0,                                         // v4 — error-bearing agents beyond the emission cap (taxonomy-only; NOT derivable from agentsWithErrors − transcriptsEmitted, since emitted includes top-by-bytes non-error agents)
+    "environmentShapes": { "usage-limit": 1 },                          // v5 — the sub-agents' errorsByCategory.environment split by shape; a shape never seen is left out
     "highSignal": [ { "file": "agent-x.md", "type": "general-purpose", "goal": "…", "bytes": 9001, "emittedBytes": 4200, "msgs": 40, "errorsByCategory": {…}, "transcriptPath": "<ABSOLUTE path to sessions/sub/<id>/agent-x.md>" } ]  // bytes = raw source; emittedBytes (v4) = the digest on disk
   },
   "transcriptPath": "<ABSOLUTE path to sessions/<id>.md>",   // functional; pass to deep-dive sub-agents (null only for 0-user sessions, which are filtered out before selection)
   "backtrackingMarkers": 7,      // thinking "wait/actually/reconsider" count — TARGETING HEURISTIC ONLY, never a finding
-  "slashCommands": [ { "command": "session-retrospective", "args": "--since 2026-06-01" } ],  // v4 — user-typed /skill invocations (<command-name> pseudo-user messages; redacted, capped at 40; not counted as userMsgs)
+  "slashCommands": [ { "command": "session-retrospective", "args": "--since 2026-06-01", "by": "operator" } ],  // v4 — /skill invocations (<command-name> pseudo-user messages; redacted, capped at 40; not counted as userMsgs); v5 `by` = who typed it, see below
   "models": { "claude-fable-5": 42 },  // v4 — assistant model id -> message count (segment findings by model)
   "compactions": 1               // v4 — context-compaction boundaries ({"type":"system","subtype":"compact_boundary"}) — a friction signal
 }
 ```
+
+`slashCommands[].by` (v5) is `operator` or `harness`, decided by the record's stamps exactly as an
+operator turn is (one rule, which `operator_turn_text` reads too): `operator` for an `origin` stamp
+of kind `human`, or for no `origin` stamp and none of the machine markers (`isMeta`,
+`isCompactSummary`, a `turnOrigin` of a program or the harness); otherwise `harness`.
+`stats.skillInvocationModes` counts the two apart, as `user` and `harness`.
 
 `behavior.buildTestLoops` is the part of `repeatedCommands` (identical text, at least twice) that
 `TEST_BUILD_RE` matches anywhere in the first 120 characters of the command, in any case: the tools

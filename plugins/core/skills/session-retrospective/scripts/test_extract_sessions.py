@@ -6,6 +6,7 @@ Docker/CI test harness. Run with:
     uv run python -m pytest "${CLAUDE_SKILL_DIR}/scripts/test_extract_sessions.py"
 """
 
+import importlib.util
 import inspect
 import json
 import os
@@ -1236,13 +1237,18 @@ def test_slash_commands_captured_and_merged(tmp_path, monkeypatch):
 
     s = agg["sessions"][0]
     assert s["slashCommands"] == [
-        {"command": "session-retrospective", "args": "--since 2026-06-01"}
+        {
+            "command": "session-retrospective",
+            "args": "--since 2026-06-01",
+            "by": "operator",
+        }
     ]
     assert s["counts"]["userMsgs"] == 1, "command pseudo-message must NOT count as a userMsg"
     assert "session-retrospective" in agg["stats"]["skillsUsed"]
     assert agg["stats"]["skillInvocationModes"]["session-retrospective"] == {
         "user": 1,
         "model": 0,
+        "harness": 0,
     }
 
 
@@ -4413,3 +4419,433 @@ def test_the_schema_reference_example_rule_is_the_one_the_extractor_emits():
     assert "per parent session while others remain" in section
     rule = ex.select_subagent_deep_dive([])["selectionRule"]
     assert f'"selectionRule": "{rule}"' in section
+
+
+# --- environment: refused or stopped by the harness or a hook (schema v5) ---------------------
+# Three shapes, each named by text the harness or the kit's own hook writes and anchored where that
+# text opens an error record. The fixtures follow the shapes real transcripts carry: the harness
+# wraps a refused sleep in its own error tag, a usage limit stops a turn with an assistant record
+# the harness marks as an API error, and the kit's shell-prefix gate denies with its own text as the
+# whole reason. The commands, times and zones in them are made up. The gate's text is read from the
+# hook itself, loaded by path, so no copy of it lives in this file.
+_SLEEP_ADVICE = (
+    ". To wait for a condition, use Monitor with an until-loop (e.g. `until <check>; do sleep 2; "
+    "done`). To wait for a command you started, use run_in_background: true."
+)
+_SLEEP_DENIAL = (
+    "<tool_use_error>Blocked: sleep 30 followed by: uv run pytest -q"
+    + _SLEEP_ADVICE
+    + "</tool_use_error>"
+)
+_START_SLEEP_DENIAL = (
+    "<tool_use_error>Blocked: Start-Sleep 30 followed by: Get-ChildItem"
+    + _SLEEP_ADVICE
+    + "</tool_use_error>"
+)
+_LIMIT_SENTENCE = "You've hit your 5-hour limit · resets 2:30pm (UTC)"
+_SESSION_LIMIT_SENTENCE = "You've hit your session limit · resets 4am (UTC)"
+_GATE_HOOK = Path(__file__).resolve().parents[3] / "hooks" / "gate_shell_prefix.py"
+_MOVE = "<MOVE>"  # stands for the gate's MOVE text in a table; filled in by _filled
+
+
+def _gate_texts():
+    """(the gate's MOVE text, its other texts), from the hook loaded by path. Bytecode is not
+    written, because the hook sits inside the plugin payload."""
+    assert _GATE_HOOK.is_file(), f"the kit gate is not where it was: {_GATE_HOOK}"
+    spec = importlib.util.spec_from_file_location(
+        "gate_shell_prefix_for_extractor_tests", _GATE_HOOK
+    )
+    assert spec is not None and spec.loader is not None
+    gate = importlib.util.module_from_spec(spec)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(gate)
+    finally:
+        sys.dont_write_bytecode = previous
+    texts = dict(gate._TEXTS)
+    move = texts.pop(gate.MOVE)
+    return move, list(texts.values())
+
+
+def _filled(text):
+    return text.replace(_MOVE, _gate_texts()[0])
+
+
+def _opens(anchor, text):
+    """True when `anchor` is a non-empty opening of `text` that ends where a word ends."""
+    if not anchor or not text.startswith(anchor):
+        return False
+    return len(text) == len(anchor) or not text[len(anchor)].isalnum()
+
+
+def _limit_stop(text=_LIMIT_SENTENCE, **overrides):
+    """The record a usage limit leaves: an assistant record the harness marks as an API error,
+    a synthetic model, and the limit sentence as its one text block."""
+    record = {
+        "type": "assistant",
+        "isApiErrorMessage": True,
+        "error": "rate_limit",
+        "apiErrorStatus": 429,
+        "apiError": "usage_limit_reached",
+        "message": {
+            "role": "assistant",
+            "model": "<synthetic>",
+            "content": [_text(text)],
+        },
+    }
+    record.update(overrides)
+    return record
+
+
+_A_TASK = {"type": "user", "message": {"content": [_text("do the task")]}}
+
+
+def test_environment_sits_before_the_reserved_bucket():
+    assert ex.ERROR_CATEGORIES[-2:] == ["environment", "other"]
+
+
+@pytest.mark.parametrize(
+    ("origin", "text"),
+    [
+        ("Bash", "Blocked: sleep 30 followed by <cmd>"),
+        ("Bash", _SLEEP_DENIAL),
+        ("Bash", "\n" + _SLEEP_DENIAL),
+        ("PowerShell", _START_SLEEP_DENIAL),
+    ],
+    ids=[
+        "the-bare-refusal",
+        "in-the-harness-wrapper",
+        "after-an-empty-first-block",
+        "the-powershell-spelling",
+    ],
+)
+def test_the_harness_sleep_refusal_is_an_environment_result(origin, text):
+    """The command in the wrapped form runs pytest, so the behavioural rules filed this refusal
+    as a test failure: it is the harness's refusal, not a test that failed."""
+    assert ex.classify_error(origin, True, text) == "environment"
+    assert ex.environment_shape(origin, True, text) == "sleep-denial"
+
+
+@pytest.mark.parametrize("origin", ["Agent", "Bash", "Read"])
+@pytest.mark.parametrize(
+    "text",
+    [
+        _LIMIT_SENTENCE,
+        _SESSION_LIMIT_SENTENCE,
+        "<tool_use_error>" + _LIMIT_SENTENCE + "</tool_use_error>",
+    ],
+    ids=["five-hour", "session", "in-the-harness-wrapper"],
+)
+def test_an_error_result_opening_with_the_usage_limit_sentence_is_an_environment_result(
+    origin, text
+):
+    assert ex.classify_error(origin, True, text) == "environment"
+    assert ex.environment_shape(origin, True, text) == "usage-limit"
+
+
+@pytest.mark.parametrize("origin", ["Bash", "PowerShell"])
+def test_an_error_shell_result_opening_with_the_gates_move_text_is_a_cd_denial(origin):
+    move = _gate_texts()[0]
+    assert ex.classify_error(origin, True, move) == "environment"
+    assert ex.environment_shape(origin, True, move) == "cd-denial"
+
+
+def test_the_cd_denial_anchor_opens_the_gates_move_text_and_no_other():
+    move, others = _gate_texts()
+    assert _opens(ex.CD_DENIAL_ANCHOR, move)
+    # the comparison can fail: a reworded opening, a cut inside a word, the gate's other texts
+    assert not _opens(ex.CD_DENIAL_ANCHOR, move.replace("move", "change", 1))
+    assert not _opens(ex.CD_DENIAL_ANCHOR[:-1], move)
+    assert others and not any(_opens(ex.CD_DENIAL_ANCHOR, text) for text in others)
+
+
+# (origin, is_error, text, the class it keeps): the three texts quoted inside other records, the
+# same texts in results that are not errors, and near misses of each anchor.
+_NOT_ENVIRONMENT = {
+    # the quoted command runs pytest, so the behavioural rules decide it as they always did
+    "sleep-refusal-quoted-in-a-failed-command": (
+        "Bash",
+        True,
+        "Exit code 1\nlog: " + _SLEEP_DENIAL,
+        "test-failure",
+    ),
+    "limit-sentence-quoted-in-a-failed-command": (
+        "Bash",
+        True,
+        "Exit code 1\nlast line: " + _LIMIT_SENTENCE,
+        "runtime-exit",
+    ),
+    "move-text-quoted-in-a-failed-command": (
+        "Bash",
+        True,
+        "Exit code 1\nthe hook said: " + _MOVE,
+        "runtime-exit",
+    ),
+    "limit-sentence-in-a-workflow-failure-list": (
+        "Workflow",
+        True,
+        "<failures>[step-1] failed: " + _LIMIT_SENTENCE + "</failures>",
+        "tool-error",
+    ),
+    "a-failed-command-that-mentions-sleep": (
+        "Bash",
+        True,
+        "Exit code 1\nsleep: invalid time interval 'abc'",
+        "runtime-exit",
+    ),
+    "the-same-words-behind-a-hook-error-prefix": (
+        "Bash",
+        True,
+        "PreToolUse:Bash hook error: Blocked: sleep 30 followed by: ls",
+        "runtime-exit",
+    ),
+    "sleep-refusal-text-from-a-tool-that-is-no-shell": (
+        "Read",
+        True,
+        _SLEEP_DENIAL,
+        "tool-error",
+    ),
+    "move-text-from-a-tool-that-is-no-shell": ("Edit", True, _MOVE, "tool-error"),
+    "sleep-refusal-text-in-a-result-that-is-no-error": (
+        "Bash",
+        False,
+        _SLEEP_DENIAL,
+        None,
+    ),
+    "limit-sentence-in-a-result-that-is-no-error": (
+        "Agent",
+        False,
+        _LIMIT_SENTENCE,
+        None,
+    ),
+    "move-text-in-a-result-that-is-no-error": ("Bash", False, _MOVE, None),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_NOT_ENVIRONMENT))
+def test_a_text_that_does_not_open_an_error_record_keeps_its_class(name):
+    origin, is_error, text, category = _NOT_ENVIRONMENT[name]
+    text = _filled(text)
+    assert ex.environment_shape(origin, is_error, text) is None
+    assert ex.classify_error(origin, is_error, text) == category
+
+
+# Failing shell calls all open with "Exit code N", the opening the census normaliser kept, so
+# that opening says nothing about who failed: each keeps the class its body earns.
+_FAILING_SHELL_CALLS = {
+    "broken-quoting": (
+        "\n".join(
+            [
+                "Exit code 2",
+                "/usr/bin/bash: -c: line 1: unexpected EOF while looking for matching `\"'",
+                "/usr/bin/bash: -c: line 2: syntax error: unexpected end of file",
+            ]
+        ),
+        "runtime-exit",
+    ),
+    "a-failing-test": (
+        "Exit code 1\nFAILED tests/test_x.py::test_y - AssertionError: boom",
+        "test-failure",
+    ),
+    "a-lint-error": (
+        "Exit code 1\nruff check found 1 error: x.py:1:8: F401 `os` imported but unused",
+        "build-compile",
+    ),
+    "a-traceback": (
+        "\n".join(
+            [
+                "Exit code 1",
+                "Traceback (most recent call last):",
+                '  File "x.py", line 3, in <module>',
+                "ValueError: boom",
+            ]
+        ),
+        "runtime-exit",
+    ),
+}
+
+
+@pytest.mark.parametrize("is_error", [True, False])
+@pytest.mark.parametrize("name", sorted(_FAILING_SHELL_CALLS))
+def test_a_failing_shell_call_keeps_its_behavioural_class(name, is_error):
+    text, category = _FAILING_SHELL_CALLS[name]
+    assert ex.environment_shape("Bash", is_error, text) is None
+    assert ex.classify_error("Bash", is_error, text) == category
+
+
+@pytest.mark.parametrize(
+    ("record", "counted"),
+    [
+        (_limit_stop(), True),
+        (_limit_stop(_SESSION_LIMIT_SENTENCE), True),
+        (_limit_stop("API Error: Connection lost mid-response."), False),
+        (_limit_stop(isApiErrorMessage=False), False),
+        (
+            {"type": "assistant", "message": {"content": [_text(_LIMIT_SENTENCE)]}},
+            False,
+        ),
+        (_limit_stop("The run stopped here. " + _LIMIT_SENTENCE), False),
+    ],
+    ids=[
+        "five-hour-stop",
+        "session-stop",
+        "an-api-error-of-another-kind",
+        "the-sentence-on-an-unmarked-record",
+        "the-agent-quoting-the-sentence",
+        "the-sentence-mid-text",
+    ],
+)
+def test_only_a_marked_record_that_opens_with_the_sentence_is_a_usage_limit_stop(
+    record, counted, tmp_path
+):
+    sess = _process(tmp_path, _minimal_session_rows(extra=[record]), name="stop")
+    assert sess["errorsByCategory"].get("environment", 0) == (1 if counted else 0)
+    assert sess["environmentShapes"] == ({"usage-limit": 1} if counted else {})
+
+
+def test_a_usage_limit_stop_counts_once_in_the_main_walk_and_once_in_the_sub_agent_roll_up(
+    tmp_path,
+):
+    sid = "env00001-0000-0000-0000-000000000000"
+    _write_rows(tmp_path / f"{sid}.jsonl", _minimal_session_rows(extra=[_limit_stop()]))
+    _write_rows_deep(
+        tmp_path / sid / "subagents" / "agent-a1.jsonl",
+        [_A_TASK, _limit_stop(_SESSION_LIMIT_SENTENCE)],
+    )
+    (tmp_path / "sessions").mkdir()
+    sess = ex.process_session(tmp_path / f"{sid}.jsonl", tmp_path / "sessions")[0]
+    assert sess["errorsByCategory"] == {"environment": 1}
+    assert sess["environmentShapes"] == {"usage-limit": 1}
+    sub = sess["subAgents"]
+    assert sub["errorsByCategory"] == {"environment": 1}
+    assert sub["environmentShapes"] == {"usage-limit": 1}
+    assert sub["agentsWithErrors"] == 1
+
+
+def test_the_aggregate_rolls_environment_up_by_shape_for_sessions_and_sub_agents(
+    tmp_path, monkeypatch
+):
+    """Two sleep refusals, a usage-limit stop and a gate denial in the main thread; two sleep
+    refusals in a Workflow agent. The refusals ran pytest, so before the class existed they were
+    filed as test failures."""
+    sdir = tmp_path / "src"
+    sid = "env00002-0000-0000-0000-000000000000"
+    main_rows = [
+        *_tool_error_rows(
+            [
+                ("Bash", _SLEEP_DENIAL),
+                ("Bash", _SLEEP_DENIAL),
+                ("PowerShell", _gate_texts()[0]),
+            ]
+        ),
+        _limit_stop(),
+    ]
+    _write_rows_deep(sdir / f"{sid}.jsonl", _minimal_session_rows(extra=main_rows))
+    _write_rows_deep(
+        sdir / sid / "subagents" / "workflows" / "wf_r1" / "agent-w1.jsonl",
+        [_A_TASK, *_tool_error_rows([("Bash", _SLEEP_DENIAL)] * 2)],
+    )
+    agg = _run(sdir, tmp_path / "out", monkeypatch)
+
+    assert agg["schemaVersion"] >= 5
+    s = agg["sessions"][0]
+    assert s["errorsByCategory"] == {"environment": 4}
+    assert s["environmentShapes"] == {
+        "sleep-denial": 2,
+        "usage-limit": 1,
+        "cd-denial": 1,
+    }
+    assert s["subAgents"]["errorsByCategory"] == {"environment": 2}
+    assert s["subAgents"]["environmentShapes"] == {"sleep-denial": 2}
+
+    tax = agg["errorTaxonomy"]
+    assert tax["byCategory"]["environment"]["count"] == 4
+    assert tax["byCategory"]["test-failure"]["count"] == 0
+    assert tax["environmentShapes"] == {
+        "sleep-denial": 2,
+        "usage-limit": 1,
+        "cd-denial": 1,
+    }
+    sub_tax = agg["subAgentErrorTaxonomy"]
+    assert sub_tax["byCategory"]["environment"]["count"] == 2
+    assert sub_tax["environmentShapes"] == {
+        "sleep-denial": 2,
+        "usage-limit": 0,
+        "cd-denial": 0,
+    }
+    assert list(tax["byCategory"]) == ex.ERROR_CATEGORIES
+
+
+# --- slash commands: the operator's or the harness's ------------------------------------------
+def _command(name, **stamps):
+    """A slash-command record: the harness's command wrapper on the user channel."""
+    body = "\n".join(
+        [
+            f"<command-name>{name}</command-name>",
+            f"<command-message>{name.lstrip('/')}</command-message>",
+            "<command-args></command-args>",
+        ]
+    )
+    return {
+        "type": "user",
+        "message": {"role": "user", "content": [_text(body)]},
+        **stamps,
+    }
+
+
+def test_a_command_the_harness_typed_is_told_apart_from_the_operators(
+    tmp_path, monkeypatch
+):
+    sdir = tmp_path / "src"
+    sdir.mkdir()
+    rows = _minimal_session_rows(
+        extra=[
+            _command("/compact", origin={"kind": "human"}),
+            _command("workflow-authoring", origin={"kind": "coordinator"}),
+            _command("meta-command", isMeta=True),
+            _command("/model"),
+        ]
+    )
+    _write_jsonl(sdir / "cmd00001-0000-0000-0000-000000000000.jsonl", rows)
+    agg = _run(sdir, tmp_path / "out", monkeypatch)
+    by = [c["by"] for c in agg["sessions"][0]["slashCommands"]]
+    assert by == ["operator", "harness", "harness", "operator"]
+    modes = agg["stats"]["skillInvocationModes"]
+    assert modes["workflow-authoring"] == {"user": 0, "model": 0, "harness": 1}
+    assert modes["compact"] == {"user": 1, "model": 0, "harness": 0}
+
+
+# The stamps that decide an operator turn; the same stamps on a typed message say whose it is.
+_STAMP_CASES = (
+    {},
+    {"turnOrigin": "human"},
+    {"isMeta": True},
+    {"isCompactSummary": True},
+    {"turnOrigin": "sdk"},
+    {"turnOrigin": "system"},
+    {"turnOrigin": "peer"},
+    {"turnOrigin": "task_notification"},
+    {"turnOrigin": "scheduled"},
+    {"origin": {"kind": "coordinator"}},
+    {"origin": {}},
+    {"origin": "human"},
+    {"origin": {"kind": "human"}},
+)
+
+
+def test_a_command_is_the_operators_exactly_when_a_typed_turn_with_its_stamps_is(
+    tmp_path,
+):
+    verdicts = []
+    for i, stamps in enumerate(_STAMP_CASES):
+        typed = {"type": "user", "message": {"content": "please look at the build"}}
+        admitted = bool(ex.operator_turn_text({**typed, **stamps}, {}))
+        rows = _minimal_session_rows(extra=[_command("/compact", **stamps)])
+        sess = _process(tmp_path, rows, name=f"stamps{i}")
+        by = [c["by"] for c in sess["slashCommands"]]
+        assert by == ["operator" if admitted else "harness"], (stamps, by)
+        verdicts.append(admitted)
+    assert True in verdicts and False in verdicts, (
+        "one verdict alone shows no agreement"
+    )
