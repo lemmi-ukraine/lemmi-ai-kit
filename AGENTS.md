@@ -70,6 +70,20 @@ convention skills. What follows is specific to THIS repository.
 ### Task documents (`tasks/`)
 - One task per markdown file; keep focused on a single problem.
 - Prefixes: `TECH-` (design), `STRUCT-` (refactor), `PROD-` (runtime), `BUG-` (fix), `FEATURE-` (new work).
+- One slug names a task everywhere: `tasks/<PREFIX>-<slug>.md`, `.specs/<slug>/`, each hand-off
+  `.ai/handoffs/<YYYY-MM-DD>-<slug>.md` with its results folder, the hand-off's `Task:` line, and the
+  Context of the task's learnings, so one search for the slug finds all of a task's work.
+- A slug is 2 to 5 lowercase words or numbers joined by hyphens, at most 40 characters, and names what
+  changes (`task-scoped-learning-capture`, not `fix-stuff`): short enough for a file name, specific
+  enough to search. `lint handoffs` checks a hand-off's `Task:` line and its file name.
+- No date, ticket number, version or other project's name goes in a slug: dates belong in file names,
+  and the rest goes stale or leaks.
+- The first artifact fixes the slug and nothing renames it, because hand-off ledgers and learnings
+  cite it; a task that splits gives each part its own slug.
+- A second hand-off of one task on one day is `<YYYY-MM-DD>-<slug>--<part>.md` (`<part>` one short
+  word or number), so two notes never collide.
+- Ids such as `T3`, `AC-07` or `Q2` stay bare inside the task's own documents and are written
+  `<slug>#T3` anywhere else, because every task numbers its own.
 
 ### AI provider knowledge
 

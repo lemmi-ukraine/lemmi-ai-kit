@@ -407,7 +407,7 @@ will land across more than one PR names its layer there rather than discovering 
 ## Spec Storage Convention
 
 - All specs live in `.specs/{task-name}/` at the project root
-- `{task-name}` uses lowercase with hyphens (e.g., `voice-recording-upload`, `sse-progress-migration`)
+- `{task-name}` is the task's slug, as the Task documents section of AGENTS.md defines it (e.g., `voice-recording-upload`)
 - **Track the spec — but commit it WITH the implementing code, never ahead of it.** Writing under
   `.specs/` does not track it: the directory is not gitignored, but a new file there stays untracked
   until `git add`, and an untracked spec is a single copy with no history. So it must reach a commit.
