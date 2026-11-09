@@ -13,7 +13,9 @@ a hook refused or stopped out of the behavioural categories (`runtime-exit`, `te
 before. A slash command the harness typed counts under `harness` in `stats.skillInvocationModes`,
 no longer under `user`. The keys v5 adds: `errorTaxonomy.environmentShapes`,
 `subAgentErrorTaxonomy.environmentShapes`, `sessions[].environmentShapes`,
-`sessions[].subAgents.environmentShapes`, `sessions[].slashCommands[].by` and the `harness` mode.
+`sessions[].subAgents.environmentShapes`, `sessions[].subAgents.workflowAgents`,
+`sessions[].slashCommands[].by` and the `harness` mode. v5 also adds task mode and the digest's
+sub-agent block (§ Session scoping); neither renames or removes a key.
 **A report that compares a window with one built by v4 must say so:** the v4 window filed these
 results in the behavioural categories, so those read higher there and `environment` reads 0; a
 sub-agent whose only error is a usage-limit stop is error-bearing in v5 and was not in v4, which
@@ -235,9 +237,10 @@ taxonomies.
     "transcriptsEmitted": 3,                                            // # redacted sub-agent .md written
     "errorAgentsNotEmitted": 0,                                         // v4 — error-bearing agents beyond the emission cap (taxonomy-only; NOT derivable from agentsWithErrors − transcriptsEmitted, since emitted includes top-by-bytes non-error agents)
     "environmentShapes": { "usage-limit": 1 },                          // v5 — the sub-agents' errorsByCategory.environment split by shape; a shape never seen is left out
+    "workflowAgents": 1,                                                // v5 — of `count`, the helpers a Workflow run started (under subagents/workflows/); the rest are native
     "highSignal": [ { "file": "agent-x.md", "type": "general-purpose", "goal": "…", "bytes": 9001, "emittedBytes": 4200, "msgs": 40, "errorsByCategory": {…}, "transcriptPath": "<ABSOLUTE path to sessions/sub/<id>/agent-x.md>" } ]  // bytes = raw source; emittedBytes (v4) = the digest on disk
   },
-  "transcriptPath": "<ABSOLUTE path to sessions/<id>.md>",   // functional; pass to deep-dive sub-agents (null only for 0-user sessions, which are filtered out before selection)
+  "transcriptPath": "<ABSOLUTE path to sessions/<id>.md>",   // functional; pass to deep-dive sub-agents (null only for 0-user sessions, which are filtered out before selection; task mode keeps a listed one, see § Session scoping)
   "backtrackingMarkers": 7,      // thinking "wait/actually/reconsider" count — TARGETING HEURISTIC ONLY, never a finding
   "slashCommands": [ { "command": "session-retrospective", "args": "--since 2026-06-01", "by": "operator" } ],  // v4 — /skill invocations (<command-name> pseudo-user messages; redacted, capped at 40; not counted as userMsgs); v5 `by` = who typed it, see below
   "models": { "claude-fable-5": 42 },  // v4 — assistant model id -> message count (segment findings by model)
@@ -302,7 +305,7 @@ Pure stdlib (no third-party deps). The project `.venv` python or system `python`
 strict containment. With neither flag, ALL history is processed (the 14-day default is applied by
 the calling skill, not the extractor).
 
-### Session scoping (`--session`, `--digest`) — consumed by `task-learnings`
+### Session scoping (`--session`, `--sessions-from`, `--digest`) — consumed by `task-learnings`
 
 ```bash
 python "${CLAUDE_SKILL_DIR}/scripts/extract_sessions.py" \
@@ -311,22 +314,24 @@ python "${CLAUDE_SKILL_DIR}/scripts/extract_sessions.py" \
 
 `--session` restricts the run to ONE transcript and **overrides `--since`/`--until`** (the caller
 named the session, so a stale window must not silently drop it and produce an empty digest that
-reads as "no signal"). It accepts a full session id, a unique prefix, or `current`.
+reads as "no signal"). It accepts a full session id, a unique prefix, or `current`. Given twice or
+more, or beside `--sessions-from`, it is task mode instead (§ Task mode, below).
 
 **`current` fails closed.** It resolves by newest-mtime, and if any other transcript was written
 within `CURRENT_AMBIGUITY_WINDOW_S` (180 s) it exits **4** and lists every candidate with its id,
 last-activity, and first user message — rather than guessing. This is not defensive theatre:
 verified 2026-08-14, **four** transcripts in this checkout had been written within that window and
-newest-mtime pointed at an unrelated session. Callers that know their own id (it is the last segment
-of the Claude Code scratchpad path) should pass it explicitly and skip the ambiguity entirely.
+newest-mtime pointed at an unrelated session. Callers that know their own id (it is the name of the
+folder that holds the Claude Code scratchpad, `…/<SESSION-ID>/scratchpad`; the path's last segment
+is `scratchpad` itself) should pass it explicitly and skip the ambiguity entirely.
 
 Every run prints the resolved id plus the session's first user message, so a **wrong pick is
 detectable by the caller** instead of silently becoming a finding about work it never did.
 
-`--digest` requires `--session` and writes `interaction-digest.md`: counted repetition signals
-(re-reads at or above `--rereads-min`, default `DEFAULT_REREADS_MIN` = 6), agent error classes with
-≥2 occurrences, and the session's **operator turns**: what the operator typed, what they typed
-while the model was working (a `queued_command` attachment record, which no user record
+`--digest` requires `--session` or `--sessions-from` and writes `interaction-digest.md`: counted
+repetition signals (re-reads at or above `--rereads-min`, default `DEFAULT_REREADS_MIN` = 6), agent
+error classes with ≥2 occurrences, the sub-agent block (below), and the session's
+**operator turns**: what the operator typed, what they typed while the model was working (a `queued_command` attachment record, which no user record
 duplicates), and the answers they gave the question tool. ONE function, `operator_turn_text`,
 decides which records those are, by structure and not by wording — `origin.kind` human on a user
 record, a human `queued_command` prompt, an `AskUserQuestion` result that carries a dict of
@@ -344,6 +349,14 @@ The digest's header prints `Volume: N operator turns` (the number listed, not ca
 shown) and, on a line of its own, `User-channel records: M`. `M` is `counts.userMsgs`: it counts
 injected text as well, so it is not the number of operator turns, and it stays as it is because it
 selects the deep-dive sessions.
+
+**The sub-agent block** (`## Sub-agents (>=2 in this session)`, between the error classes and the
+operator turns) is what the session's helpers did, native and Workflow alike, read from
+`sessions[].subAgents`: how many were walked (`count`, of them `workflowAgents` in Workflow runs),
+how many failed (`agentsWithErrors`), `environment` by shape, and each class with ≥2 occurrences
+across them with up to two of its redacted samples (`errorSamples`). Before the block those lessons
+reached `aggregate.json` only, which `task-learnings` never reads. The digest's `Gate` reads
+`SIGNAL` when a sub-agent class qualifies too.
 
 **Re-asks are deliberately NOT detected.** Corrections have lexical markers that
 `sweep_user_corrections.py` can grep; a re-ask is the same request restated in different words and
@@ -366,6 +379,50 @@ records a re-read below **3**, so a "≥2 occurrences" filter is vacuous; a coun
 compliance rather than thrash. Session yield: 73% @≥3, 54% @≥4, 42% @≥5, **31% @≥6**, 18% @≥8,
 8% @≥10. The data localizes the honest cut to **4–8** without picking a value inside it — hence a
 parameter, not a constant.
+
+#### Task mode (`--sessions-from`, or `--session` given twice or more)
+
+```bash
+python "${CLAUDE_SKILL_DIR}/scripts/extract_sessions.py" \
+  ".ai/tmp/task-learnings/<SESSION-ID>/" --session <SESSION-ID> \
+  --sessions-from <HAND-OFF> --digest --self-check
+```
+
+A task carried across a hand-off chain is measured as one: every session its hand-offs list, every
+helper those sessions started (native and Workflow), and nothing of a task that ran beside it. Two
+or more `--session`, or any `--sessions-from <hand-off>`, switch the run to task mode, and both
+flags repeat (one `--sessions-from` per note of the task received). One `--session` alone is the
+one-session mode above, prefixes and `current` included. The output folder stays the running
+session's `.ai/tmp/task-learnings/<SESSION-ID>/`; the digest's header names the task.
+
+- **The evidence set is named, never guessed.** The ids are the `--session` values, then each
+  hand-off's `Sessions:` ids, each id once. A hand-off is read as the kit's lint reads it: the
+  header block above the first `## ` heading, outside HTML comments and fences, one `Task:` and one
+  `Sessions:` line (a line written twice counts as absent), the file read as UTF-8 with a
+  byte-order mark dropped. Each id is matched by the exact name of a transcript in the ONE session
+  folder of this run (derived, or the first argument): never by prefix, never in another
+  project's folder. `--since` and `--until` are ignored, as with one `--session`.
+- **Every listed id ends measured or unmeasured, with its reason:** `no transcript in this
+  project's session folder`, `transcript unreadable`, or `processing error (<exception type>)`.
+  An unmeasured id is printed on stderr and listed in the digest, and nothing else is written about
+  it (what a failed session left in `sessions/` is removed). A listed session with no operator turn,
+  even one with no user message at all, is measured, because its helpers may have done the task's
+  work; with no user message its `transcriptPath` is null. A session that ran in another project's
+  folder is measured by a run of its own with that folder as the first argument.
+- **Exit codes:** `2`, before anything is written: a hand-off that does not exist or cannot be
+  read, one with no `Sessions:` line in its header block (an unlabelled, v1 or v2 note) or no id on
+  it, `current` (it picks by file time), hand-offs that name different tasks (one run measures one
+  task) · `3` the leak gate tripped and the digest was deleted; it wins over `5` · `5` at least one
+  listed id is unmeasured, the digest kept · `0` every listed id measured.
+- **The task digest** (`interaction-digest.md`): a header naming the task, the listed ids, how many
+  were measured and the gate; totals across the measured sessions (operator turns, tool calls,
+  compactions, helpers walked native and Workflow and how many failed, each class seen twice or more
+  across the task's sessions with its split by session, main threads and helpers counted apart,
+  and `environment` by shape); the unmeasured ids with their reasons; then one section per measured
+  session, oldest first, holding the one-session digest's sections, sub-agent block included, each
+  listing its own session's count of a class that qualifies across the task. Its rules ask for
+  `>=2 occurrences across this task's sessions`, keep `At most 2 entries per task`, and forbid
+  writing anything about an unmeasured session.
 
 ### v4 run behaviors
 

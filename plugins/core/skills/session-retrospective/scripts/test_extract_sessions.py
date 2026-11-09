@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 import pytest
@@ -4849,3 +4850,751 @@ def test_a_command_is_the_operators_exactly_when_a_typed_turn_with_its_stamps_is
     assert True in verdicts and False in verdicts, (
         "one verdict alone shows no agreement"
     )
+
+
+
+# --- task mode: every session of one task, and nothing else -------------------------------------
+# A task carried across a hand-off chain is measured as one: the sessions its hand-offs list, with
+# the helpers they started, native and Workflow, and nothing of a task that ran beside it. The fake
+# store holds two tasks' sessions in ONE project folder, as parallel sessions are held, and every id
+# is a made-up UUID shape. Each session's operator turn and each helper's results carry a marker of
+# their own, so a test can ask whether anything of a session reached any file the run wrote.
+_TASK_A1 = "a1a1a1a1-0000-4000-8000-000000000001"
+_TASK_A2 = "a2a2a2a2-0000-4000-8000-000000000002"
+_TASK_B1 = "b1b1b1b1-0000-4000-8000-000000000003"
+_TASK_N0 = "c0c0c0c0-0000-4000-8000-000000000004"  # no user message at all; a helper did the work
+_TASK_M = "e9e9e9e9-0000-4000-8000-000000000009"  # listed, with no transcript anywhere
+_ALPHA = "parallel-task-alpha"
+_BETA = "parallel-task-beta"
+# What of each session can reach a file: its id, the id's first 8 characters (the provenance tag a
+# sample carries) and its markers.
+_TRACES = {
+    _TASK_A1: (_TASK_A1, _TASK_A1[:8], "mk-alpha-one", "mk-alpha-one-sub"),
+    _TASK_A2: (_TASK_A2, _TASK_A2[:8], "mk-alpha-two", "mk-alpha-two-sub"),
+    _TASK_B1: (_TASK_B1, _TASK_B1[:8], "mk-beta-one", "mk-beta-one-sub"),
+}
+_STALE_EDIT = "File has been modified since read"
+_LINT_ERROR = "Exit code 1\nruff check found 1 error in {marker}.py: F401 `os` imported but unused"
+_TEST_FAILURE = (
+    "Exit code 1\nFAILED tests/test_{marker}.py::test_y - AssertionError: boom"
+)
+
+
+def _task_main_rows(marker, day):
+    """A main transcript: the operator's one turn, carrying `marker`, and the helper call."""
+    return [
+        _human(
+            [_text(f"please do the {marker} step")],
+            timestamp=f"2026-11-0{day}T10:00:00Z",
+        ),
+        {
+            "type": "assistant",
+            "timestamp": f"2026-11-0{day}T10:00:01Z",
+            "message": {
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": "call_agent",
+                        "name": "Agent",
+                        "input": {"description": "do one part"},
+                    }
+                ]
+            },
+        },
+    ]
+
+
+def _helper_rows(*results):
+    """A helper's transcript: its brief, then one error result per (tool, text) pair."""
+    return [_A_TASK, *_tool_error_rows(results)]
+
+
+def _two_task_store(tmp_path):
+    """The store: task alpha's A1 (a native helper with path-not-found x2, a Workflow helper with
+    two sleep refusals) and A2 (a clean native helper, a Workflow helper with edit-stale-read x2);
+    task beta's B1 (a native helper with build-compile x2, a Workflow helper with test-failure x2).
+    Returns (store, {task: its v3 hand-off})."""
+    store = tmp_path / "store"
+    sub = "subagents"
+    for sid, marker, day in (
+        (_TASK_A1, "mk-alpha-one", 1),
+        (_TASK_A2, "mk-alpha-two", 2),
+        (_TASK_B1, "mk-beta-one", 1),
+    ):
+        _write_rows_deep(store / f"{sid}.jsonl", _task_main_rows(marker, day))
+    missing = "File does not exist: mk-alpha-one-sub.md"
+    _write_rows_deep(
+        store / _TASK_A1 / sub / "agent-a1n.jsonl",
+        _helper_rows(("Read", missing), ("Read", missing)),
+    )
+    _write_rows_deep(
+        store / _TASK_A1 / sub / "workflows" / "wf_ra1" / "agent-a1w.jsonl",
+        _helper_rows(("Bash", _SLEEP_DENIAL), ("Bash", _SLEEP_DENIAL)),
+    )
+    _write_rows_deep(store / _TASK_A2 / sub / "agent-a2n.jsonl", [_A_TASK])
+    stale = f"{_STALE_EDIT}: mk-alpha-two-sub.py"
+    _write_rows_deep(
+        store / _TASK_A2 / sub / "workflows" / "wf_ra2" / "agent-a2w.jsonl",
+        _helper_rows(("Edit", stale), ("Edit", stale)),
+    )
+    lint = _LINT_ERROR.format(marker="mk-beta-one-sub")
+    _write_rows_deep(
+        store / _TASK_B1 / sub / "agent-b1n.jsonl",
+        _helper_rows(("Bash", lint), ("Bash", lint)),
+    )
+    failed = _TEST_FAILURE.format(marker="mk_beta_one_sub")
+    _write_rows_deep(
+        store / _TASK_B1 / sub / "workflows" / "wf_rb1" / "agent-b1w.jsonl",
+        _helper_rows(("Bash", failed), ("Bash", failed)),
+    )
+    notes = {
+        _ALPHA: _write_note(tmp_path, _ALPHA, _TASK_A1, _TASK_A2),
+        _BETA: _write_note(tmp_path, _BETA, _TASK_B1),
+    }
+    return store, notes
+
+
+def _ledger_note(task, ids, label="<!-- handoff-contract: v3 -->"):
+    """A hand-off whose header block carries the v3 ledger lines for `task` and `ids`."""
+    return "\n".join(
+        [
+            label,
+            f"# Hand-off: {task}",
+            "",
+            f"Task: {task}",
+            f"Sessions: {', '.join(ids)}",
+            f"Written: 2026-11-09 14:05 by {ids[-1]}",
+            "Lessons: none",
+            "Delegation: none, because judgment is the work",
+            "Safe to close: yes",
+            "",
+            "## Scope",
+            "The one slice.",
+            "",
+        ]
+    )
+
+
+def _write_note(root, task, *ids, text=None, name=None):
+    path = root / "handoffs" / f"2026-11-09-{name or task}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_ledger_note(task, ids) if text is None else text, encoding="utf-8")
+    return path
+
+
+def _task_run(session_dir, out, monkeypatch, *args):
+    """main() over `session_dir`, writing to `out` (given as a relative path), with `args`: its
+    exit status, 0 when it returns."""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "extract_sessions.py",
+            str(session_dir),
+            _relative_out(monkeypatch, out),
+            *args,
+        ],
+    )
+    try:
+        ex.main()
+    except SystemExit as stop:
+        if stop.code is None:
+            return 0
+        return stop.code if isinstance(stop.code, int) else 1
+    return 0
+
+
+def _every_output(out):
+    """The text of every file the run wrote under `out`, and how many files that is."""
+    files = sorted(p for p in out.rglob("*") if p.is_file())
+    return "\n".join(p.read_text(encoding="utf-8") for p in files), len(files)
+
+
+def _digest_section(digest, heading):
+    """The lines from the heading line that starts with `heading` to the next heading of the
+    same or a higher level; a heading that is not there fails the test."""
+    lines = digest.split("\n")
+    level = len(heading) - len(heading.lstrip("#"))
+    start = next((i for i, ln in enumerate(lines) if ln.startswith(heading)), None)
+    assert start is not None, f"no heading starts with {heading!r}"
+    body = [lines[start]]
+    for ln in lines[start + 1 :]:
+        hashes = len(ln) - len(ln.lstrip("#"))
+        if hashes and ln[hashes : hashes + 1] == " " and hashes <= level:
+            break
+        body.append(ln)
+    return "\n".join(body)
+
+
+def _task_digest(out):
+    return (out / "interaction-digest.md").read_text(encoding="utf-8")
+
+
+def _aggregate_ids(out):
+    agg = json.loads((out / "aggregate.json").read_text(encoding="utf-8"))
+    return agg, {s["sessionId"] for s in agg["sessions"]}
+
+
+def test_a_task_digest_holds_its_own_sessions_and_nothing_of_the_parallel_task(
+    tmp_path, monkeypatch
+):
+    """TC-21, both ways: each run's own classes are the positive control for the other run's
+    absences. B1's classes reach A's files only if B1 was measured, and A's only if A1 or A2 was."""
+    store, notes = _two_task_store(tmp_path)
+
+    out_a = tmp_path / "out_a"
+    code = _task_run(
+        store,
+        out_a,
+        monkeypatch,
+        "--sessions-from",
+        str(notes[_ALPHA]),
+        "--digest",
+        "--self-check",
+    )
+    assert code == 0
+    digest = _task_digest(out_a)
+    assert digest.startswith(f"# Interaction digest — task {_ALPHA}\n")
+    assert f"`{_TASK_A1}`, `{_TASK_A2}`" in digest
+    assert "## Totals across the measured sessions" in digest
+    assert "## Unmeasured sessions (0)" in digest
+    a1 = _digest_section(digest, f"## Session {_TASK_A1[:8]}")
+    a2 = _digest_section(digest, f"## Session {_TASK_A2[:8]}")
+    assert "path-not-found: 2" in _digest_section(a1, "### Sub-agents")
+    assert "edit-stale-read: 2" in _digest_section(a2, "### Sub-agents")
+    assert "- Walked: 2 (1 native, 1 in Workflow runs)" in a1
+    assert "- Walked: 2 (1 native, 1 in Workflow runs)" in a2
+    agg, ids = _aggregate_ids(out_a)
+    assert ids == {_TASK_A1, _TASK_A2}
+    assert agg["subAgentErrorTaxonomy"]["totalAgents"] == 4
+    everything, files = _every_output(out_a)
+    assert files >= 3, "the scan read too few files to mean anything"
+    for trace in _TRACES[_TASK_B1]:
+        assert trace not in everything, (
+            f"{trace} of the parallel task reached task A's files"
+        )
+    for cls in ("build-compile", "test-failure"):
+        assert f"{cls}: " not in digest
+        assert agg["subAgentErrorTaxonomy"]["byCategory"][cls]["count"] == 0
+
+    out_b = tmp_path / "out_b"
+    code = _task_run(
+        store,
+        out_b,
+        monkeypatch,
+        "--sessions-from",
+        str(notes[_BETA]),
+        "--digest",
+        "--self-check",
+    )
+    assert code == 0
+    digest = _task_digest(out_b)
+    b1 = _digest_section(_task_digest(out_b), f"## Session {_TASK_B1[:8]}")
+    assert "build-compile: 2" in b1 and "test-failure: 2" in b1
+    assert _aggregate_ids(out_b)[1] == {_TASK_B1}
+    everything, _ = _every_output(out_b)
+    assert "mk-beta-one" in everything
+    for sid in (_TASK_A1, _TASK_A2):
+        for trace in _TRACES[sid]:
+            assert trace not in everything, f"{trace} of task A reached task B's files"
+    for cls in ("path-not-found", "edit-stale-read", "environment"):
+        assert f"{cls}: " not in digest
+
+
+def test_a_listed_session_with_no_transcript_is_unmeasured_and_the_run_exits_5(
+    tmp_path, monkeypatch, capsys
+):
+    """TC-22. The digest exists, which tells exit 5 apart from exit 2 and exit 3."""
+    store, _ = _two_task_store(tmp_path)
+    note = _write_note(tmp_path, "unmeasured-id-check", _TASK_A1, _TASK_M)
+    out = tmp_path / "out"
+    code = _task_run(
+        store,
+        out,
+        monkeypatch,
+        "--sessions-from",
+        str(note),
+        "--digest",
+        "--self-check",
+    )
+    err = capsys.readouterr().err
+    assert code == ex.EXIT_UNMEASURED == 5
+    digest = _task_digest(out)
+    unmeasured = _digest_section(digest, "## Unmeasured sessions")
+    assert unmeasured.startswith("## Unmeasured sessions (1)")
+    assert f"- `{_TASK_M}`: {ex.UNMEASURED_NO_TRANSCRIPT}" in unmeasured
+    assert f"## Session {_TASK_A1[:8]}" in digest
+    assert f"## Session {_TASK_M[:8]}" not in digest
+    assert _aggregate_ids(out)[1] == {_TASK_A1}
+    assert f"unmeasured {_TASK_M}: {ex.UNMEASURED_NO_TRANSCRIPT}" in err
+    assert "UNMEASURED: 1 of 2 listed session(s)" in err
+
+
+def test_a_listed_transcript_that_cannot_be_read_is_unmeasured(tmp_path, monkeypatch):
+    """The third reason. A folder named like a transcript cannot be opened as one on any
+    operating system, which stands in for a file the system refuses to read."""
+    store, _ = _two_task_store(tmp_path)
+    (store / f"{_TASK_M}.jsonl").mkdir()
+    out = tmp_path / "out"
+    code = _task_run(
+        store, out, monkeypatch, "--session", _TASK_A1, "--session", _TASK_M, "--digest"
+    )
+    assert code == ex.EXIT_UNMEASURED
+    assert f"- `{_TASK_M}`: {ex.UNMEASURED_UNREADABLE}" in _task_digest(out)
+    assert _aggregate_ids(out)[1] == {_TASK_A1}
+
+
+def test_a_listed_session_with_no_operator_turn_is_measured(tmp_path, monkeypatch):
+    """TC-23. A whole-folder run leaves such a session out (it holds no user message), which is
+    the control: task mode is what keeps it, because its helper did the work."""
+    store, _ = _two_task_store(tmp_path)
+    _write_rows_deep(
+        store / f"{_TASK_N0}.jsonl",
+        [
+            {
+                "type": "assistant",
+                "timestamp": "2026-11-03T10:00:00Z",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": "call_agent",
+                            "name": "Agent",
+                            "input": {"description": "run the checks"},
+                        }
+                    ]
+                },
+            }
+        ],
+    )
+    boom = "Exit code 1\nboom"
+    _write_rows_deep(
+        store / _TASK_N0 / "subagents" / "agent-n0n.jsonl",
+        _helper_rows(("Bash", boom), ("Bash", boom)),
+    )
+    whole = _run(store, tmp_path / "whole", monkeypatch)
+    assert _TASK_N0 not in {s["sessionId"] for s in whole["sessions"]}
+
+    note = _write_note(tmp_path, "no-operator-turn-check", _TASK_A1, _TASK_N0)
+    out = tmp_path / "out"
+    code = _task_run(
+        store,
+        out,
+        monkeypatch,
+        "--sessions-from",
+        str(note),
+        "--digest",
+        "--self-check",
+    )
+    assert code == 0
+    section = _digest_section(_task_digest(out), f"## Session {_TASK_N0[:8]}")
+    assert "- Volume: 0 operator turns," in section
+    assert "runtime-exit: 2" in _digest_section(section, "### Sub-agents")
+    assert _aggregate_ids(out)[1] == {_TASK_A1, _TASK_N0}
+
+
+def test_a_listed_session_whose_processing_fails_is_unmeasured_and_never_dropped(
+    tmp_path, monkeypatch, capsys
+):
+    """TC-24. process_session is replaced for ONE id, to prove the no-drop guard bites (AGENTS.md,
+    Testing model): nothing in a well-formed transcript makes it raise."""
+    store, _ = _two_task_store(tmp_path)
+    note = _write_note(tmp_path, "processing-error-check", _TASK_A1, _TASK_A2)
+    real = ex.process_session
+
+    def fails_for_a2(jsonl_path, sessions_dir, replays=None):
+        if jsonl_path.stem == _TASK_A2:
+            raise ValueError("a planted failure")
+        return real(jsonl_path, sessions_dir, replays)
+
+    monkeypatch.setattr(ex, "process_session", fails_for_a2)
+    out = tmp_path / "out"
+    code = _task_run(
+        store,
+        out,
+        monkeypatch,
+        "--sessions-from",
+        str(note),
+        "--digest",
+        "--self-check",
+    )
+    assert code == ex.EXIT_UNMEASURED
+    digest = _task_digest(out)
+    assert f"- `{_TASK_A2}`: {ex.UNMEASURED_PROCESSING_ERROR}" in digest
+    assert f"## Session {_TASK_A1[:8]}" in digest
+    assert f"## Session {_TASK_A2[:8]}" not in digest
+    assert _aggregate_ids(out)[1] == {_TASK_A1}
+    assert (
+        f"unmeasured {_TASK_A2}: {ex.UNMEASURED_PROCESSING_ERROR}"
+        in capsys.readouterr().err
+    )
+
+
+def test_a_leak_wins_over_an_unmeasured_session_and_deletes_the_task_digest(
+    tmp_path, monkeypatch
+):
+    """Exit 3 before exit 5: TC-22's run with a key in an operator turn. The redactions are
+    emptied to prove the leak gate bites in task mode (AGENTS.md, Testing model), as the leak
+    tests above do for one session."""
+    monkeypatch.setattr(ex, "REDACTIONS", [])
+    store = tmp_path / "store"
+    key = _stripe_key(sorted(_STRIPE_SHAPES)[0])
+    _write_rows_deep(
+        store / f"{_TASK_A1}.jsonl", [_human(f"pasted {key} here", source="typed")]
+    )
+    out = tmp_path / "out"
+    code = _task_run(
+        store,
+        out,
+        monkeypatch,
+        "--session",
+        _TASK_A1,
+        "--session",
+        _TASK_M,
+        "--digest",
+        "--self-check",
+    )
+    assert code == 3
+    assert (out / "aggregate.json").is_file(), "the run got as far as the leak gate"
+    assert not (out / "interaction-digest.md").exists()
+
+
+def test_a_hand_off_with_no_sessions_line_exits_2_and_writes_nothing(
+    tmp_path, monkeypatch, capsys
+):
+    """TC-25. The same note with a Sessions line is TC-21's, which runs."""
+    store, _ = _two_task_store(tmp_path)
+    v2_note = "\n".join(
+        [
+            "<!-- handoff-contract: v2 -->",
+            "# Hand-off: an older note",
+            "",
+            "## Scope",
+            f"Sessions: {_TASK_A1}",  # below the first heading: not a ledger line
+            "",
+        ]
+    )
+    note = _write_note(tmp_path, "older-note-check", text=v2_note)
+    out = tmp_path / "out"
+    code = _task_run(store, out, monkeypatch, "--sessions-from", str(note), "--digest")
+    assert code == 2
+    assert not out.exists(), "a refused run writes nothing"
+    assert "has no Sessions line in its header block" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ("--session", "current", "--session", _TASK_A1),
+        ("--session", _TASK_A1, "--session", "current"),
+    ],
+    ids=["current-first", "current-second"],
+)
+def test_current_is_refused_in_task_mode(args, tmp_path, monkeypatch, capsys):
+    """TC-26. `current` alone is the one-session mode it always was, and is not refused there."""
+    store, _ = _two_task_store(tmp_path)
+    out = tmp_path / "out"
+    assert _task_run(store, out, monkeypatch, *args, "--digest") == 2
+    assert not out.exists()
+    assert "refused in task mode" in capsys.readouterr().err
+
+
+def test_a_hand_off_that_lists_current_is_refused(tmp_path, monkeypatch, capsys):
+    """The refusal is told apart by its message: an extractor that does not know the flag
+    exits 2 as well, through its argument parser."""
+    store, _ = _two_task_store(tmp_path)
+    note = _write_note(tmp_path, "current-listed-check", "current", _TASK_A1)
+    out = tmp_path / "out"
+    assert _task_run(store, out, monkeypatch, "--sessions-from", str(note)) == 2
+    assert not out.exists()
+    assert "lists `current`, which is no session id" in capsys.readouterr().err
+
+
+def test_a_hand_off_that_does_not_exist_exits_2_and_writes_nothing(
+    tmp_path, monkeypatch, capsys
+):
+    """TC-27."""
+    store, _ = _two_task_store(tmp_path)
+    missing = tmp_path / "handoffs" / "2026-11-09-not-written-yet.md"
+    out = tmp_path / "out"
+    code = _task_run(
+        store, out, monkeypatch, "--sessions-from", str(missing), "--digest"
+    )
+    assert code == 2
+    assert not out.exists()
+    assert "does not exist" in capsys.readouterr().err
+
+
+def test_hand_offs_that_name_two_tasks_are_refused(tmp_path, monkeypatch, capsys):
+    """One run measures one task: two notes naming different tasks would mix them."""
+    store, notes = _two_task_store(tmp_path)
+    out = tmp_path / "out"
+    code = _task_run(
+        store,
+        out,
+        monkeypatch,
+        "--sessions-from",
+        str(notes[_ALPHA]),
+        "--sessions-from",
+        str(notes[_BETA]),
+    )
+    assert code == 2
+    assert not out.exists()
+    assert "one run measures one task" in capsys.readouterr().err
+
+
+def test_ids_from_several_notes_and_flags_are_measured_once_each(tmp_path, monkeypatch):
+    """--session and --sessions-from both repeat; an id named twice is one section, and a date
+    window is ignored, since the caller named the sessions."""
+    store, notes = _two_task_store(tmp_path)
+    second = _write_note(tmp_path, _ALPHA, _TASK_A2, name=f"{_ALPHA}--return")
+    out = tmp_path / "out"
+    code = _task_run(
+        store,
+        out,
+        monkeypatch,
+        "--session",
+        _TASK_A1,
+        "--sessions-from",
+        str(notes[_ALPHA]),
+        "--sessions-from",
+        str(second),
+        "--since",
+        "2030-01-01",
+        "--digest",
+    )
+    assert code == 0
+    digest = _task_digest(out)
+    assert digest.count(f"## Session {_TASK_A1[:8]}") == 1
+    assert digest.count(f"## Session {_TASK_A2[:8]}") == 1
+    assert f"- Sessions listed: 2: `{_TASK_A1}`, `{_TASK_A2}`" in digest
+    assert _aggregate_ids(out)[1] == {_TASK_A1, _TASK_A2}
+
+
+def test_a_listed_id_is_matched_by_its_exact_name_never_by_prefix(
+    tmp_path, monkeypatch
+):
+    store, _ = _two_task_store(tmp_path)
+    out = tmp_path / "out"
+    prefix = _TASK_A2[:8]
+    code = _task_run(
+        store, out, monkeypatch, "--session", _TASK_A1, "--session", prefix, "--digest"
+    )
+    assert code == ex.EXIT_UNMEASURED
+    assert f"- `{prefix}`: {ex.UNMEASURED_NO_TRANSCRIPT}" in _task_digest(out)
+    assert _aggregate_ids(out)[1] == {_TASK_A1}
+
+
+def test_a_sleep_refusal_inside_a_workflow_helper_reaches_the_task_digest(
+    tmp_path, monkeypatch
+):
+    """TC-34. A1's Workflow helper had two shell calls refused by the harness."""
+    store, _ = _two_task_store(tmp_path)
+    out = tmp_path / "out"
+    code = _task_run(
+        store,
+        out,
+        monkeypatch,
+        "--session",
+        _TASK_A1,
+        "--session",
+        _TASK_A2,
+        "--digest",
+        "--self-check",
+    )
+    assert code == 0
+    a1 = _digest_section(_task_digest(out), f"## Session {_TASK_A1[:8]}")
+    block = _digest_section(a1, "### Sub-agents")
+    assert "- environment: 2" in block
+    assert "- Environment by shape: sleep-denial: 2" in block
+    assert "Blocked: sleep 30 followed by:" in block, "the redacted sample is quoted"
+    agg = json.loads((out / "aggregate.json").read_text(encoding="utf-8"))
+    sub_tax = agg["subAgentErrorTaxonomy"]
+    assert sub_tax["byCategory"]["environment"]["count"] == 2
+    assert sub_tax["environmentShapes"]["sleep-denial"] == 2
+
+
+def test_a_one_session_digest_keeps_its_sections_and_gains_the_sub_agent_block(
+    tmp_path, monkeypatch
+):
+    """TC-37: one --session is the one-session mode it always was, with the sub-agent block
+    added between the error classes and the user-message sequence."""
+    store, _ = _two_task_store(tmp_path)
+    out = tmp_path / "out"
+    code = _task_run(
+        store, out, monkeypatch, "--session", _TASK_A1, "--digest", "--self-check"
+    )
+    assert code == 0
+    digest = _task_digest(out)
+    sections = [
+        "## Counted repetition signals",
+        "## Agent error classes (>=2 in this session)",
+        "## Sub-agents (>=2 in this session)",
+        "## User-message sequence (",
+        "## Rules for anything written from this digest",
+    ]
+    places = [digest.find(heading) for heading in sections]
+    assert -1 not in places, places
+    assert places == sorted(places)
+    block = _digest_section(digest, "## Sub-agents")
+    assert "path-not-found: 2" in block
+    assert "- Walked: 2 (1 native, 1 in Workflow runs), 2 with errors" in block
+    assert "- Gate: SIGNAL" in digest, "a helper's class is a signal of the session"
+    assert "mk-alpha-one" in digest
+    assert _aggregate_ids(out)[1] == {_TASK_A1}
+
+
+def test_a_one_session_digest_without_helpers_says_so(tmp_path, monkeypatch):
+    sdir = tmp_path / "src"
+    _write_rows_deep(sdir / f"{_TASK_A1}.jsonl", _task_main_rows("mk-alpha-one", 1))
+    out = tmp_path / "out"
+    assert _task_run(sdir, out, monkeypatch, "--session", _TASK_A1[:8], "--digest") == 0
+    block = _digest_section(_task_digest(out), "## Sub-agents")
+    assert "_No sub-agent transcript under this session, native or Workflow._" in block
+    assert "- Gate: NO SIGNAL" in _task_digest(out)
+
+
+def test_an_id_whose_transcript_is_in_another_project_folder_is_never_read(short_tmp):
+    """TC-55: the ids resolve in the session folder of the project the run starts in, never in
+    another project's folder on an id's say-so. The second run is the way out the digest names,
+    and the control: it reads that folder because it was given as the first argument."""
+    home, project = _fake_home_and_project(short_tmp)
+    other = short_tmp / "work" / "other"
+    other.mkdir()
+    projects = home / ".claude" / "projects"
+    here = projects / ex._encode_repo_path(project)
+    there = projects / ex._encode_repo_path(other)
+    _write_rows_deep(here / f"{_TASK_A1}.jsonl", _task_main_rows("mk-alpha-one", 1))
+    _write_rows_deep(there / f"{_TASK_M}.jsonl", _task_main_rows("mk-other-project", 2))
+    _write_rows_deep(
+        there / _TASK_M / "subagents" / "agent-xn.jsonl",
+        _helper_rows(("Read", "File does not exist: mk-other-project-sub.md")),
+    )
+
+    first = _run_installed_copy(
+        home,
+        project,
+        ".ai/tmp/t/",
+        "--session",
+        _TASK_A1,
+        "--session",
+        _TASK_M,
+        "--digest",
+        "--self-check",
+    )
+    assert first.returncode == 5, first.stderr
+    out = project / ".ai" / "tmp" / "t"
+    everything, files = _every_output(out)
+    assert files >= 3
+    assert "mk-other-project" not in everything
+    assert f"- `{_TASK_M}`: {ex.UNMEASURED_NO_TRANSCRIPT}" in _task_digest(out)
+    assert "mk-other-project" not in first.stderr
+
+    second = _run_installed_copy(
+        home,
+        project,
+        str(there),
+        ".ai/tmp/x/",
+        "--session",
+        _TASK_M,
+        "--digest",
+        "--self-check",
+    )
+    assert second.returncode == 0, second.stderr
+    assert "mk-other-project" in _task_digest(project / ".ai" / "tmp" / "x")
+
+
+# How the extractor reads a hand-off's ledger: the header block above the first `## ` heading,
+# outside HTML comments and fences, one line each (spec-v2 A's grammar, which the kit's lint
+# reads too; a test of the kit holds the two readers equal). (text, Task, Sessions ids).
+_LEDGER_HEAD = "<!-- handoff-contract: v3 -->\n# Hand-off: t\n\n"
+_LEDGER_SHAPES = {
+    "a-filled-note": (
+        _ledger_note("example-task", (_TASK_A1, _TASK_A2)),
+        "example-task",
+        (_TASK_A1, _TASK_A2),
+    ),
+    "the-lines-inside-a-comment": (
+        _LEDGER_HEAD
+        + f"<!--\nTask: example-task\nSessions: {_TASK_A1}\n-->\n\n## Scope\n",
+        None,
+        (),
+    ),
+    "the-lines-inside-a-fence": (
+        _LEDGER_HEAD
+        + f"```\nTask: example-task\nSessions: {_TASK_A1}\n```\n\n## Scope\n",
+        None,
+        (),
+    ),
+    "the-lines-below-the-first-heading": (
+        _LEDGER_HEAD + f"## Scope\nTask: example-task\nSessions: {_TASK_A1}\n",
+        None,
+        (),
+    ),
+    "a-line-written-twice": (
+        _LEDGER_HEAD
+        + f"Task: example-task\nSessions: {_TASK_A1}\nSessions: {_TASK_A2}\n",
+        "example-task",
+        (),
+    ),
+    "an-id-listed-twice-and-an-empty-item": (
+        _LEDGER_HEAD + f"Sessions: {_TASK_A1}, , {_TASK_A2}, {_TASK_A1},\n## Scope\n",
+        None,
+        (_TASK_A1, _TASK_A2),
+    ),
+    "keys-that-are-not-the-ledger-keys": (
+        _LEDGER_HEAD
+        + f" Task: indented\ntask: lower\nTask : spaced\nSessions:{_TASK_A1}\n",
+        None,
+        (_TASK_A1,),
+    ),
+    "a-heading-inside-a-comment-or-a-fence-ends-nothing": (
+        _LEDGER_HEAD
+        + "<!--\n## Commented out\n-->\n```\n## Fenced\n```\n"
+        + f"Task: example-task\nSessions: {_TASK_A1}\n## Scope\n",
+        "example-task",
+        (_TASK_A1,),
+    ),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_LEDGER_SHAPES))
+def test_the_ledger_is_read_from_the_header_block_alone(name):
+    text, task, ids = _LEDGER_SHAPES[name]
+    ledger = ex.read_handoff_ledger(text)
+    assert ledger["Task"] == task
+    assert ex.ledger_session_ids(ledger["Sessions"]) == ids
+
+
+def test_a_hand_off_is_read_as_the_lint_reads_its_file(tmp_path, monkeypatch):
+    """A byte-order mark and Windows line endings change nothing: the file is read as UTF-8
+    with the mark stripped and its newlines translated. Read with the mark kept, line 1 would
+    open with it and the task would go unnamed."""
+    store, _ = _two_task_store(tmp_path)
+    path = tmp_path / "handoffs" / "2026-11-09-crlf-note.md"
+    text = f"Task: {_ALPHA}\nSessions: {_TASK_A1}\n\n## Scope\n"  # no label: line 1 is Task
+    path.write_bytes(b"\xef\xbb\xbf" + text.replace("\n", "\r\n").encode("utf-8"))
+    out = tmp_path / "out"
+    assert (
+        _task_run(store, out, monkeypatch, "--sessions-from", str(path), "--digest")
+        == 0
+    )
+    assert _task_digest(out).startswith(f"# Interaction digest — task {_ALPHA}\n")
+
+
+def test_header_lines_of_many_spaces_are_read_in_linear_time():
+    """A pattern with a lazy group before `\\s*$` took about 10 seconds on one line of 40,000
+    spaces (the drain-nudge hook's test records it); these lines are read with patterns that
+    cannot backtrack over a run of spaces more than once."""
+    spaces = " " * 40_000
+    text = (
+        _LEDGER_HEAD
+        + f"Task:{spaces}x\n{spaces}\n{spaces}x\nSessions:{spaces},{spaces}{_TASK_A1}\n"
+        + f"<!--{spaces}\n## {spaces}x\nTask: late\n"
+    )
+    started = time.perf_counter()
+    ledger = ex.read_handoff_ledger(text)
+    took = time.perf_counter() - started
+    assert ledger["Task"] == "x"
+    assert ex.ledger_session_ids(ledger["Sessions"]) == (_TASK_A1,)
+    assert took < 1.0, f"{took:.1f} s for header lines of 40,000 spaces"
