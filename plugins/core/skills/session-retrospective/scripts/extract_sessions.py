@@ -613,7 +613,11 @@ DOTNET_BUILD_SIGNATURES = (
 # whoever failed, so that opening names no shape. Measured on one transcript store (2026-11-09):
 #   * sleep-denial: the harness refuses a long sleep put in front of a command, "Blocked: sleep N
 #     followed by: <command>" for Bash and "Blocked: Start-Sleep N followed by: ..." for
-#     PowerShell, in the tag. A short sleep runs, so the refusal is matched and never the word.
+#     PowerShell, in the tag, and a long sleep with nothing after it, "Blocked: standalone sleep
+#     N." and "Blocked: standalone Start-Sleep N." (the store held none of these; the shape is
+#     from a live refusal, 2026-11-09). One guard and one remedy, so one shape: two shapes would
+#     split one habit's count, and the digest's twice-or-more bar counts per shape. A short sleep
+#     runs, so the refusal is matched and never the word.
 #   * usage-limit: the harness's limit sentence ("You've hit your 5-hour limit", "... session
 #     limit"). It stops a turn as an assistant record marked isApiErrorMessage (is_usage_limit_stop),
 #     and it is the shape too when it opens an error tool result.
@@ -622,7 +626,10 @@ DOTNET_BUILD_SIGNATURES = (
 #     the hook by path and holds the two equal. Another hook's wording is not encoded here.
 ENVIRONMENT_SHAPES = ("sleep-denial", "usage-limit", "cd-denial")
 TOOL_USE_ERROR_TAG = "<tool_use_error>"
-SLEEP_DENIAL_RE = re.compile(r"Blocked: (?:sleep|Start-Sleep) \S+ followed by\b")
+SLEEP_DENIAL_RE = re.compile(
+    r"Blocked: (?:(?:sleep|Start-Sleep) \S+ followed by\b"
+    r"|standalone (?:sleep|Start-Sleep) \S+\.)"
+)
 USAGE_LIMIT_RE = re.compile(r"You['\u2019]ve hit your (?:[\w-]+ ){0,2}limit\b")
 CD_DENIAL_ANCHOR = "Do not move the shell's working directory"
 # The label a usage-limit stop's sample carries where a tool result's carries its tool.
@@ -660,6 +667,12 @@ def is_usage_limit_stop(obj):
     if obj.get("type") != "assistant" or obj.get("isApiErrorMessage") is not True:
         return False
     return USAGE_LIMIT_RE.match(result_text(_message_content(obj)).lstrip()) is not None
+
+
+def _errors_outside_environment(errors):
+    """How many of `errors` (category -> count) are the agent's own: every class but
+    `environment`, which a stop or a refusal by the harness or a hook fills."""
+    return sum(n for category, n in errors.items() if category != "environment")
 
 
 def _count_shape(shapes, shape):
@@ -1273,11 +1286,16 @@ def walk_subagents(session_dir, sess, sessions_dir, left_out=None):
     sess["subAgents"]["environmentShapes"] = _shapes_in_order(shapes)
 
     # select high-signal transcripts to emit: every error-bearing agent + the top-N by bytes,
-    # de-duplicated and capped (bounded so a huge fan-out can't explode the output).
+    # de-duplicated and capped (bounded so a huge fan-out can't explode the output). An agent
+    # with an error outside `environment` goes before one whose only errors are stops and
+    # refusals, which are no measure of the agent: a wave the usage limit ended would fill the
+    # cap with the agents it stopped, in path order, and leave out the one that failed.
     top_bytes = sorted(parsed, key=lambda p: -p["bytes"])[:SUBAGENT_TOP_BYTES_EMIT]
-    candidates = [p for p in parsed if p["errs"]] + [
-        p for p in top_bytes if not p["errs"]
+    own = [p for p in parsed if _errors_outside_environment(p["errs"])]
+    stopped = [
+        p for p in parsed if p["errs"] and not _errors_outside_environment(p["errs"])
     ]
+    candidates = own + stopped + [p for p in top_bytes if not p["errs"]]
     seen, ordered = set(), []
     for p in candidates:
         if p["rel"] in seen:
@@ -1482,20 +1500,25 @@ def select_deep_dive(sessions):
 def select_subagent_deep_dive(sessions):
     """Deterministic Phase-3b selection over emitted high-signal sub-agent transcripts.
 
+    The rank reads the errors outside `environment` first, so an agent the harness stopped or
+    refused, however often, follows one with an error of its own; then errorCount (every class),
+    bytes and file, which is the whole rank when no agent has an `environment` error.
     Candidates are taken in rank order with a soft limit per parent session: a parent's
     candidates past SUBAGENT_DEEPDIVE_PER_PARENT_CAP wait while any other candidate remains, and
     a slot still free after that pass is filled from the ones that waited, in rank order. Both
     lists come out in rank order, so the limit decides who is picked, not how the lists read.
     """
-    pool = []
+    pool, own = [], []  # each candidate, and its count of errors outside `environment`
     for s in sessions:
         for hs in s["subAgents"].get("highSignal", []):
+            errors = hs.get("errorsByCategory", {})
+            own.append(_errors_outside_environment(errors))
             pool.append(
                 {
                     "parentSessionId": s["sessionId"],
                     "file": hs["file"],
                     "transcriptPath": hs["transcriptPath"],
-                    "errorCount": sum(hs.get("errorsByCategory", {}).values()),
+                    "errorCount": sum(errors.values()),
                     # `bytes` = raw source size (also the rank key, unchanged);
                     # `emittedBytes` = what the analyst will actually read. Both are carried
                     # so a Phase-3b spawn prompt can state the real read budget.
@@ -1503,7 +1526,16 @@ def select_subagent_deep_dive(sessions):
                     "emittedBytes": hs.get("emittedBytes", 0),
                 }
             )
-    ranked = sorted(pool, key=lambda p: (-p["errorCount"], -p["bytes"], p["file"]))
+    order = sorted(
+        range(len(pool)),
+        key=lambda i: (
+            -own[i],
+            -pool[i]["errorCount"],
+            -pool[i]["bytes"],
+            pool[i]["file"],
+        ),
+    )
+    ranked = [pool[i] for i in order]
     taken_per_parent = defaultdict(int)
     picked, waiting = [], []  # positions in `ranked`
     for position, p in enumerate(ranked):
@@ -1519,7 +1551,8 @@ def select_subagent_deep_dive(sessions):
     chosen = set(picked)
     return {
         "selectionRule": (
-            f"all emitted high-signal sub-agents; rank errorCount desc, bytes desc, file; "
+            f"all emitted high-signal sub-agents; rank errors outside environment desc, "
+            f"errorCount desc, bytes desc, file; "
             f"top {SUBAGENT_DEEPDIVE_CAP}; at most {SUBAGENT_DEEPDIVE_PER_PARENT_CAP} per "
             f"parent session while others remain"
         ),
@@ -1871,8 +1904,14 @@ def _operator_turn_lines(heading, msgs, explain):
     return L
 
 
-def _qualifying(counts, minimum=DIGEST_MIN_OCCURRENCES):
-    return {cat: n for cat, n in (counts or {}).items() if n >= minimum}
+def _qualifying(counts, shapes, minimum=DIGEST_MIN_OCCURRENCES):
+    """The classes in `counts` seen `minimum` times or more. `environment` adds up unrelated
+    rules (a refused sleep, a usage-limit stop, a gate denial), so it qualifies only when one
+    of its shapes, counted in `shapes`, does: one of each is no pattern."""
+    classes = {cat: n for cat, n in (counts or {}).items() if n >= minimum}
+    if not any(n >= minimum for n in (shapes or {}).values()):
+        classes.pop("environment", None)
+    return classes
 
 
 def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
@@ -1891,9 +1930,9 @@ def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
     """
     signals = _repetition_signals(sess, rereads_min)
     rereads, cmds, loops, stale = signals
-    errors = _qualifying(sess.get("errorsByCategory"))
+    errors = _qualifying(sess.get("errorsByCategory"), sess.get("environmentShapes"))
     sub = sess.get("subAgents") or {}
-    sub_errors = _qualifying(sub.get("errorsByCategory"))
+    sub_errors = _qualifying(sub.get("errorsByCategory"), sub.get("environmentShapes"))
     msgs = list(iter_operator_turns(jsonl_path))
 
     signal_count = _signal_count(signals)
@@ -2131,7 +2170,8 @@ def write_task_digest(output_dir, task, sessions, inputs, unmeasured, rereads_mi
     sessions, the ids that were not measured with their reasons, and one section per measured
     session, oldest first, holding what a one-session digest holds, sub-agent block included. A
     class qualifies when it occurs twice or more across the task's sessions, the main threads and
-    the helpers counted apart, and each section lists its own session's count of it. `inputs`
+    the helpers counted apart (`environment` when one of its shapes does), and each section lists
+    its own session's count of it. `inputs`
     maps a session id to (identity, operator turns), read inside the run's per-file guard."""
     main_totals, sub_totals = defaultdict(int), defaultdict(int)
     main_by, sub_by = defaultdict(list), defaultdict(list)
@@ -2157,8 +2197,8 @@ def write_task_digest(output_dir, task, sessions, inputs, unmeasured, rereads_mi
         walked += sub.get("count", 0)
         workflow += sub.get("workflowAgents", 0)
         with_errors += sub.get("agentsWithErrors", 0)
-    main_classes = _qualifying(main_totals)
-    sub_classes = _qualifying(sub_totals)
+    main_classes = _qualifying(main_totals, main_env)
+    sub_classes = _qualifying(sub_totals, sub_env)
     signal_count = sum(
         _signal_count(_repetition_signals(s, rereads_min)) for s in sessions
     )

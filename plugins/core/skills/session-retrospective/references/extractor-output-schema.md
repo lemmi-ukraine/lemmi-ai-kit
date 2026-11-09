@@ -19,8 +19,9 @@ sub-agent block (§ Session scoping); neither renames or removes a key.
 **A report that compares a window with one built by v4 must say so:** the v4 window filed these
 results in the behavioural categories, so those read higher there and `environment` reads 0; a
 sub-agent whose only error is a usage-limit stop is error-bearing in v5 and was not in v4, which
-can change `agentsWithErrors` and which sub-agent digests are emitted and picked; and a command the
-harness typed was counted as `user`.
+can change `agentsWithErrors`; a sub-agent whose only errors are `environment` ones is emitted and
+picked after every sub-agent with an error outside `environment`, which can change which
+sub-agent digests are emitted and picked; and a command the harness typed was counted as `user`.
 
 (v4 was ADDITIVE-ONLY: deterministic deep-dive candidate lists, slash-command capture, per-session
 models + compaction counts, `errorAgentsNotEmitted`, `skillInvocationModes`, plus non-schema
@@ -37,7 +38,7 @@ The extractor writes into `<output-dir>` (always repo-relative, e.g. `.ai/tmp/re
 |------|---------|
 | `aggregate.json` | Cross-session error taxonomy + per-session behavioral metrics + stats |
 | `sessions/<id>.md` | Per-session readable transcript, size-capped (120 KB), fully redacted — for deep reading by sub-agents. The operator turns the cap cut off follow the capped transcript in a section of their own (see below) |
-| `sessions/sub/<id>/<agent>.md` | Redacted, size-capped transcript of a HIGH-SIGNAL sub-agent (any error, or the largest few) under parent session `<id>` — for the Phase-3b sub-agent deep-dive |
+| `sessions/sub/<id>/<agent>.md` | Redacted, size-capped transcript of a HIGH-SIGNAL sub-agent (any error, or the largest few) under parent session `<id>` — for the Phase-3b sub-agent deep-dive. Up to `MAX_SUBAGENT_EMIT_PER_SESSION` per session, in this order: the sub-agents with an error outside `environment`, then those whose only errors are `environment` ones (a stop or a refusal is no measure of the agent), then the largest few |
 
 **The operator section.** A session digest stops at `TRANSCRIPT_BYTE_CAP` and drops the rest, and the
 operator's last turns are in that rest. They are kept: every operator turn after the cut is appended
@@ -81,7 +82,10 @@ these lists as-is; qualifiers beyond the cap are listed in `overCap` (never sile
   "overCap":  [ { "sessionId": "…", "toolUse": 21 } ]
 },
 "subAgentDeepDiveCandidates": {
-  "selectionRule": "all emitted high-signal sub-agents; rank errorCount desc, bytes desc, file; top 6; at most 4 per parent session while others remain",
+  "selectionRule": "all emitted high-signal sub-agents; rank errors outside environment desc, errorCount desc, bytes desc, file; top 6; at most 4 per parent session while others remain",
+  // The rank reads a sub-agent's errors outside `environment` first (counted from its
+  // `highSignal[].errorsByCategory`; they have no field here), so one the harness stopped or
+  // refused, however often, follows one with an error of its own. `errorCount` counts every class.
   "selected": [ { "parentSessionId": "…", "file": "agent-x.md", "transcriptPath": "<ABSOLUTE>", "errorCount": 3, "bytes": 9001, "emittedBytes": 4200 } ],
   // `bytes` = RAW source transcript size (and the rank key). `emittedBytes` (v4, additive) = the
   // redacted, size-capped digest actually on disk — measured at 1.6–2.6% of raw. Quote
@@ -169,7 +173,7 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
   | `skill-blocked` | Skill tool result errored (e.g. `disable-model-invocation`) |
   | `runtime-exit` | Shell non-zero exit, other |
   | `tool-error` | Any other non-shell tool with `is_error` — the non-shell catch-all |
-  | `environment` | v5. Refused or stopped by the harness or a hook: give the rule a home, not an agent-quality count. An `is_error` result that OPENS (after leading whitespace and the harness's `<tool_use_error>` tag) with one of three shapes: `sleep-denial`, the harness's refusal of a long sleep put in front of a command (`Blocked: sleep N followed by`, or `Blocked: Start-Sleep N followed by` in PowerShell; shell tools only); `usage-limit`, the harness's limit sentence (`You've hit your … limit`; any tool); `cd-denial`, the kit shell-prefix gate's own MOVE text (`CD_DENIAL_ANCHOR`, which a test holds equal to the hook's text; shell tools only). Also a usage-limit stop: the assistant record the harness marks `isApiErrorMessage` whose text opens with the limit sentence, in the main thread and in sub-agents. Counted by shape in `environmentShapes` |
+  | `environment` | v5. Refused or stopped by the harness or a hook: give the rule a home, not an agent-quality count. An `is_error` result that OPENS (after leading whitespace and the harness's `<tool_use_error>` tag) with one of three shapes: `sleep-denial`, the harness's refusal of a long sleep, put in front of a command (`Blocked: sleep N followed by`, or `Blocked: Start-Sleep N followed by` in PowerShell) or with nothing after it (`Blocked: standalone sleep N.`, or `Blocked: standalone Start-Sleep N.`), one shape because it is one guard with one remedy (shell tools only); `usage-limit`, the harness's limit sentence (`You've hit your … limit`; any tool); `cd-denial`, the kit shell-prefix gate's own MOVE text (`CD_DENIAL_ANCHOR`, which a test holds equal to the hook's text; shell tools only). Also a usage-limit stop: the assistant record the harness marks `isApiErrorMessage` whose text opens with the limit sentence, in the main thread and in sub-agents. Counted by shape in `environmentShapes` |
   | `other` | Reserved/forward-compat bucket — always emitted, currently always 0; `classify_error()` never returns it (catch-alls are `tool-error` for non-shell, `runtime-exit` for shell) |
 
   Shell errors are tested `build-compile` **before** `test-failure` (a result matching both
@@ -330,7 +334,9 @@ detectable by the caller** instead of silently becoming a finding about work it 
 
 `--digest` requires `--session` or `--sessions-from` and writes `interaction-digest.md`: counted
 repetition signals (re-reads at or above `--rereads-min`, default `DEFAULT_REREADS_MIN` = 6), agent
-error classes with ≥2 occurrences, the sub-agent block (below), and the session's
+error classes with ≥2 occurrences (`environment` only when one of its shapes has ≥2: its shapes are
+unrelated rules, so one refused sleep and one usage-limit stop are no pattern; the line then shows
+the class's whole count), the sub-agent block (below), and the session's
 **operator turns**: what the operator typed, what they typed while the model was working (a `queued_command` attachment record, which no user record
 duplicates), and the answers they gave the question tool. ONE function, `operator_turn_text`,
 decides which records those are, by structure and not by wording — `origin.kind` human on a user
@@ -354,7 +360,8 @@ selects the deep-dive sessions.
 operator turns) is what the session's helpers did, native and Workflow alike, read from
 `sessions[].subAgents`: how many were walked (`count`, of them `workflowAgents` in Workflow runs),
 how many failed (`agentsWithErrors`), `environment` by shape, and each class with ≥2 occurrences
-across them with up to two of its redacted samples (`errorSamples`). Before the block those lessons
+across them (`environment` by the same rule, per shape) with up to two of its redacted samples
+(`errorSamples`). Before the block those lessons
 reached `aggregate.json` only, which `task-learnings` never reads. The digest's `Gate` reads
 `SIGNAL` when a sub-agent class qualifies too.
 
@@ -417,9 +424,10 @@ session's `.ai/tmp/task-learnings/<SESSION-ID>/`; the digest's header names the 
 - **The task digest** (`interaction-digest.md`): a header naming the task, the listed ids, how many
   were measured and the gate; totals across the measured sessions (operator turns, tool calls,
   compactions, helpers walked native and Workflow and how many failed, each class seen twice or more
-  across the task's sessions with its split by session, main threads and helpers counted apart,
-  and `environment` by shape); the unmeasured ids with their reasons; then one section per measured
-  session, oldest first, holding the one-session digest's sections, sub-agent block included, each
+  across the task's sessions with its split by session, main threads and helpers counted apart
+  and `environment` only when one of its shapes is, and `environment` by shape); the unmeasured
+  ids with their reasons; then one section per measured session, oldest first, holding the
+  one-session digest's sections, sub-agent block included, each
   listing its own session's count of a class that qualifies across the task. Its rules ask for
   `>=2 occurrences across this task's sessions`, keep `At most 2 entries per task`, and forbid
   writing anything about an unmeasured session.
