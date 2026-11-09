@@ -24,7 +24,7 @@ replaces it, through every shell the harness may use that exists on this machine
 - every hook script imports only the standard library, because the launcher keeps the script's own
   folder off the import path and a sibling module would not be found;
 - the session-start nudge, registered on its own event, prints nothing until its project holds the
-  switch file, and prints its one line once the file is there, in every shell;
+  switch file, and prints its lines once the file is there, in every shell;
 - the old, unwrapped command exits non-zero on a missing script, which is the control that shows
   this probe can see the failure at all.
 
@@ -228,9 +228,13 @@ def _mode(mode: str, text: str = "") -> bytes:
     return json.dumps({"mode": mode, "text": text}, ensure_ascii=False).encode("utf-8")
 
 
-# What the nudge prints for a project of 30 entries and no changelog: that line does not depend on
-# the day, so the registered string can be asked for it on any day.
-_NUDGE_LINE = "intake at 30 entries, no drain recorded -> run /lemmi-ai-kit-core:learning-consolidator"
+# What the nudge prints for a project of 30 entries, no changelog and no retrospectives folder: both
+# arms are due, and neither line depends on the day, so the registered string can be asked for them
+# on any day.
+_NUDGE_LINES = (
+    "intake at 30 entries, no drain recorded -> run /lemmi-ai-kit-core:learning-consolidator\n"
+    "no retrospective recorded -> run /lemmi-ai-kit-core:session-retrospective"
+)
 
 
 def _nudge_project(path: Path, *, switched_on: bool) -> Path:
@@ -740,18 +744,19 @@ def test_the_real_shell_prefix_hook_denies_through_the_registered_string(
 
 
 @pytest.mark.parametrize("shell", _SHELLS)
-def test_the_real_drain_nudge_prints_its_one_line_through_the_registered_string(
+def test_the_real_drain_nudge_prints_its_lines_through_the_registered_string(
     shell: str, results: _Results
 ) -> None:
-    """The control for the silence below: the project that holds the switch file is due, and the
-    registered string carries the hook's one JSON reply to the harness unchanged."""
+    """The control for the silence below: the project that holds the switch file is due on both
+    arms, and the registered string carries the hook's one JSON reply, with both lines in it, to
+    the harness unchanged."""
     done = results.get(shell, "real drain nudge, switch file present")
     assert done.returncode == 0, done.stderr[-300:]
     reply = cast(dict[str, Any], json.loads(done.stdout.decode("ascii")))
     assert reply == {
         "hookSpecificOutput": {
             "hookEventName": "SessionStart",
-            "additionalContext": _NUDGE_LINE,
+            "additionalContext": _NUDGE_LINES,
         }
     }
 

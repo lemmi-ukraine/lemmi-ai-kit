@@ -1,19 +1,24 @@
-"""The drain-due nudge prints one line when the learnings buffer is due, and otherwise nothing.
+"""The nudge prints a line per arm that is due, the learnings buffer's and the retrospective's, and
+otherwise nothing.
 
 `plugins/core/hooks/nudge_learnings_drain.py` runs when a session opens. It is off until a project
-holds `.ai/drain-nudge-hook.json` with `{"enabled": true}`. Switched on, it counts the entries of
-`.ai/learnings.md`, dates the last drain from `.ai/ai-changelog.md`, and prints one line when the
-buffer holds more than 25 entries, or holds any and the last drain is 7 or more days old.
+holds `.ai/drain-nudge-hook.json` with `{"enabled": true}`. Switched on, it has two arms. The drain
+arm counts the entries of `.ai/learnings.md`, dates the last drain from `.ai/ai-changelog.md`, and
+prints one line when the buffer holds more than 25 entries, or holds any and the last drain is 7 or
+more days old. The retrospective arm dates the newest report in `.ai/retrospectives/` by the date its
+file name starts with, and prints one line when that is 14 days or more ago, or there is none.
 
 The hook is registered for every adopter of Core, so what these tests pin is mostly silence: no
 switch file, a switch that says false, input it cannot read, files it cannot read, a changelog that
-records no drain. Each silent case sits beside the same project made due and switched on, which
-prints, so the probe is shown able to see what it reports as absent.
+records no drain, a retrospectives folder it cannot list. Each silent case sits beside the same
+project made due and switched on, which prints, so the probe is shown able to see what it reports
+as absent. The fixture project holds a recent report, so the retrospective arm is quiet in every test
+that does not ask for it.
 
 Two instruments agree wherever the hook reuses a measure the kit already has: the entry count
 against what `lint learnings --list-entries` prints, and the last drain against the lint's own
-changelog parser. The two numbers the hook acts on are read from the skills that state them, and the
-reader that reads them is fired at a planted copy that states other numbers.
+changelog parser. The three numbers the hook acts on are read from the skills and the README that
+state them, and the readers that read them are fired at planted copies that state other numbers.
 """
 
 import ast
@@ -42,6 +47,7 @@ _HOOK = _REPO_ROOT / "plugins" / "core" / "hooks" / "nudge_learnings_drain.py"
 _SKILLS = _REPO_ROOT / "plugins" / "core" / "skills"
 _TASK_LEARNINGS = _SKILLS / "task-learnings" / "SKILL.md"
 _CONSOLIDATOR = _SKILLS / "learning-consolidator" / "SKILL.md"
+_RETROSPECTIVE_SKILL = _SKILLS / "session-retrospective" / "SKILL.md"
 _README = _REPO_ROOT / "plugins" / "core" / "README.md"
 
 # The day every in-process run is made on. A run in a separate process cannot be told the day, so
@@ -50,6 +56,7 @@ _TODAY = date(2026, 3, 31)
 _SWITCH_NAME = "drain-nudge-hook.json"
 _ON = '{"enabled": true}'
 _ROUTE = "run /lemmi-ai-kit-core:learning-consolidator"
+_RETRO_ROUTE = "run /lemmi-ai-kit-core:session-retrospective"
 _AT_LEAST = chr(0x2265)
 
 
@@ -100,14 +107,27 @@ def _drained(days: int, count: str = "4 entries", today: date = _TODAY) -> str:
     return _ledger((_ago(days, today), _entry("CONSOLIDATION", "a drain", count)))
 
 
+def _report(project: Path, name: str) -> Path:
+    """One file in the project's retrospectives folder, which is made when it is not there."""
+    folder = project / ".ai" / "retrospectives"
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / name
+    path.write_text("# Retrospective\n", encoding="utf-8", newline="\n")
+    return path
+
+
 def _project(
     root: Path,
     *,
     entries: int = 100,
     ledger: str | None = None,
     switch: str | bytes | None = _ON,
+    report_age: int | None = 1,
+    today: date = _TODAY,
 ) -> Path:
-    """A project folder: the buffer, and optionally a changelog and a switch file."""
+    """A project folder: the buffer, optionally a changelog and a switch file, and a retrospective
+    report `report_age` days before `today` (none when it is None). The default report is recent,
+    so the retrospective arm is quiet in every test that does not ask for it."""
     ai = root / ".ai"
     ai.mkdir(parents=True, exist_ok=True)
     (ai / "learnings.md").write_text(_buffer(entries), encoding="utf-8", newline="\n")
@@ -116,6 +136,8 @@ def _project(
     if switch is not None:
         data = switch if isinstance(switch, bytes) else switch.encode("utf-8")
         (ai / _SWITCH_NAME).write_bytes(data)
+    if report_age is not None:
+        _report(root, f"{_ago(report_age, today)}-retrospective.md")
     return root
 
 
@@ -160,6 +182,13 @@ def _line(out: str) -> str:
 
 def _expected(entries: int, days: int) -> str:
     return f"intake at {entries} entries, last drain {days} days ago -> {_ROUTE}"
+
+
+_RETRO_NONE = f"no retrospective recorded -> {_RETRO_ROUTE}"
+
+
+def _expected_retro(days: int) -> str:
+    return f"no retrospective in {days} days -> {_RETRO_ROUTE}"
 
 
 def _run_as_script(
@@ -382,6 +411,165 @@ def test_a_drain_dated_in_the_future_never_prints_a_negative_age(
     project = _project(tmp_path, entries=30, ledger=_drained(-3))
 
     assert _line(_decide(project)) == _expected(30, 0)
+
+
+# ------------------------------------------------------------- the retrospective arm
+
+
+@pytest.mark.parametrize(
+    ("age", "speaks"), [(0, False), (13, False), (14, True), (15, True), (60, True)]
+)
+def test_a_newest_report_14_days_old_or_older_speaks_and_a_newer_one_does_not(
+    age: int, speaks: bool, tmp_path: Path
+) -> None:
+    """The retrospective arm alone: three entries drained a day ago leave the drain arm quiet."""
+    project = _project(tmp_path, entries=3, ledger=_drained(1), report_age=age)
+
+    out = _decide(project)
+
+    assert (out != "") is speaks
+    if speaks:
+        assert _line(out) == _expected_retro(age)
+
+
+@pytest.mark.parametrize(
+    "names",
+    [None, [], ["notes.md"]],
+    ids=["no folder", "an empty folder", "only an undated name"],
+)
+def test_no_dated_report_says_that_no_retrospective_is_recorded(
+    names: list[str] | None, tmp_path: Path
+) -> None:
+    project = _project(tmp_path, entries=3, ledger=_drained(1), report_age=None)
+    if names is not None:
+        (project / ".ai" / "retrospectives").mkdir()
+        for name in names:
+            _report(project, name)
+
+    assert _line(_decide(project)) == _RETRO_NONE
+
+    # The control: one fresh dated report in the same project, and the arm is quiet.
+    _report(project, f"{_ago(1)}-retrospective.md")
+    assert _decide(project) == ""
+
+
+# Names that start with no real date. Taken for one, a name would quiet the arm or break it; beside
+# a report 20 days old the arm must still speak about that report.
+_UNDATED_NAMES = [
+    "notes.md",
+    f"retrospective-{_ago(0)}.md",  # the date is not at the start
+    f"{_TODAY:%Y%m%d}-retrospective.md",  # no hyphens
+    f"{_TODAY.year}-{_TODAY.month}-{_TODAY.day}-retrospective.md",  # not zero-padded
+    "2026-02-30-retrospective.md",  # not a real day
+]
+
+
+@pytest.mark.parametrize("name", _UNDATED_NAMES)
+def test_a_name_that_starts_with_no_real_date_is_ignored(
+    name: str, tmp_path: Path
+) -> None:
+    project = _project(tmp_path, entries=3, ledger=_drained(1), report_age=20)
+    _report(project, name)
+
+    assert _line(_decide(project)) == _expected_retro(20)
+
+
+def test_the_newest_dated_name_decides_whatever_the_modification_times_say(
+    tmp_path: Path,
+) -> None:
+    project = _project(tmp_path, entries=3, ledger=_drained(1), report_age=None)
+    future = _report(project, f"{_ago(-20)}-retrospective.md")
+    old = _report(project, f"{_ago(40)}-retrospective.md")
+    _report(project, "notes.md")
+    # A copy or a checkout gives every file one time: here the oldest name is the newest file.
+    now = time.time()
+    os.utime(future, (now - 1000, now - 1000))
+    os.utime(old, (now, now))
+
+    # The newest name is dated in the future, which reads as today, so nothing is overdue.
+    assert _decide(project) == ""
+
+    # The control: without that file the oldest name decides, and the undated one is no report.
+    future.unlink()
+    assert _line(_decide(project)) == _expected_retro(40)
+
+
+def test_both_arms_due_give_one_reply_holding_two_lines_the_drain_line_first(
+    tmp_path: Path,
+) -> None:
+    project = _project(tmp_path, entries=26, ledger=_drained(1), report_age=20)
+
+    out = _decide(project)
+
+    assert _line(out) == f"{_expected(26, 1)}\n{_expected_retro(20)}"
+    out.encode("ascii")  # a reply that is not ASCII raises here
+
+
+@pytest.mark.parametrize(
+    "switch",
+    [None, "{}", '{"enabled": false}'],
+    ids=["no switch file", "an empty object", "enabled is false"],
+)
+def test_neither_arm_speaks_without_the_switch_even_when_both_are_due(
+    switch: str | None, tmp_path: Path
+) -> None:
+    project = _project(
+        tmp_path, entries=100, ledger=_drained(30), switch=switch, report_age=20
+    )
+
+    assert _decide(project) == ""
+
+    # The control: the same project, switched on, is due on both arms and says so.
+    (project / ".ai" / _SWITCH_NAME).write_text(_ON, encoding="utf-8")
+    assert _line(_decide(project)) == f"{_expected(100, 30)}\n{_expected_retro(20)}"
+
+
+def test_a_retrospectives_path_that_cannot_be_listed_silences_that_arm_and_no_other(
+    tmp_path: Path,
+) -> None:
+    """A file where the folder should be is a failure of the arm, which is not the same as no
+    report: the drain line is still printed and the script still exits 0. There is no changelog,
+    so the drain line holds no day and does not depend on the clock the script runs on."""
+    project = _project(tmp_path, entries=100, report_age=None)
+    (project / ".ai" / "retrospectives").write_text("not a folder", encoding="utf-8")
+    drain_line = f"intake at 100 entries, no drain recorded -> {_ROUTE}"
+
+    assert _line(_decide(project)) == drain_line
+    done = _run_as_script(_payload(project), project)
+    assert (done.returncode, done.stderr) == (0, b"")
+    assert _line(done.stdout.decode("ascii")) == drain_line
+
+    # The control: the same path as an empty folder is no report, and the arm speaks.
+    (project / ".ai" / "retrospectives").unlink()
+    (project / ".ai" / "retrospectives").mkdir()
+    assert _line(_decide(project)) == f"{drain_line}\n{_RETRO_NONE}"
+
+
+def test_a_missing_buffer_silences_the_drain_arm_and_not_the_retrospective_arm(
+    tmp_path: Path,
+) -> None:
+    project = _project(tmp_path, entries=100, ledger=_drained(30), report_age=20)
+    assert _line(_decide(project)) == f"{_expected(100, 30)}\n{_expected_retro(20)}"
+
+    (project / ".ai" / "learnings.md").unlink()
+
+    assert _line(_decide(project)) == _expected_retro(20)
+
+
+def test_a_bug_in_the_retrospective_arm_costs_that_arm_alone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = _project(tmp_path, entries=100, ledger=_drained(30), report_age=20)
+    assert _line(_decide(project)) == f"{_expected(100, 30)}\n{_expected_retro(20)}"
+
+    def planted(project_dir: str) -> date | None:
+        raise RuntimeError(f"planted: {project_dir}")
+
+    # Replaces code only to prove the guard bites: a bug that is not a file error must not reach
+    # the drain arm's line.
+    monkeypatch.setattr(_hook(), "newest_report", planted)
+
+    assert _line(_decide(project)) == _expected(100, 30)
 
 
 # ------------------------------------------------------------ dating the last drain
@@ -704,12 +892,24 @@ def _readme_thresholds(readme: str) -> dict[str, list[int]]:
     return {
         "entries": _stated(section, r"more than (\d+) entries", where),
         "days": _stated(section, r"(\d+) or more days old", where),
+        "report days": _stated(section, r"(\d+) days old or more", where),
     }
+
+
+def _retrospective_window(skill: str) -> list[int]:
+    """The days session-retrospective states as its default window, in its Input paragraph."""
+    paragraph = _item(skill, "Optional date range")
+    return _stated(
+        paragraph,
+        r"Default: last (\d+) days",
+        "session-retrospective's Input paragraph",
+    )
 
 
 def test_the_thresholds_equal_the_numbers_the_skills_and_the_readme_state() -> None:
     stated = _thresholds(_read(_TASK_LEARNINGS), _read(_CONSOLIDATOR))
     in_readme = _readme_thresholds(_read(_README))
+    window = _retrospective_window(_read(_RETROSPECTIVE_SKILL))
     hook = _hook()
 
     assert {name: set(numbers) for name, numbers in stated.items()} == {
@@ -719,7 +919,9 @@ def test_the_thresholds_equal_the_numbers_the_skills_and_the_readme_state() -> N
     assert in_readme == {
         "entries": [cast(int, hook.PRESSURE_ABOVE)],
         "days": [cast(int, hook.DUE_AFTER_DAYS)],
+        "report days": [cast(int, hook.RETROSPECTIVE_AFTER_DAYS)],
     }
+    assert window == [cast(int, hook.RETROSPECTIVE_AFTER_DAYS)]
     # The surface, in numbers: the days are stated in both skills, the entry count at least once.
     assert len(stated["days"]) == 2 and len(stated["entries"]) >= 1, stated
 
@@ -741,9 +943,18 @@ _PLANTED_README = """\
 ### The drain-nudge hook
 
 It prints when the buffer holds more than 30 entries, or holds any and the last drain
-is 14 or more days old.
+is 14 or more days old. The retrospective arm prints when the newest report is 21 days old
+or more.
 
 ### Registration
+"""
+
+_PLANTED_SKILL = """\
+## Input
+
+Optional date range: `--since YYYY-MM-DD --until YYYY-MM-DD`. Default: last 30 days.
+
+---
 """
 
 
@@ -751,12 +962,21 @@ def test_the_threshold_reader_sees_a_planted_copy_that_states_other_numbers() ->
     planted = _thresholds(_PLANTED_CHECK, _PLANTED_CADENCE)
 
     assert planted == {"entries": [30, 30], "days": [14, 14]}
-    assert _readme_thresholds(_PLANTED_README) == {"entries": [30], "days": [14]}
+    assert _readme_thresholds(_PLANTED_README) == {
+        "entries": [30],
+        "days": [14],
+        "report days": [21],
+    }
+    assert _retrospective_window(_PLANTED_SKILL) == [30]
     # A hook still holding 25 and 7 would disagree with this copy: the guard has something to flag.
     assert {name: set(numbers) for name, numbers in planted.items()} != {
         "entries": {25},
         "days": {7},
     }
+    # So would a hook still holding 14 disagree with a README that states 21 and a skill that
+    # states 30.
+    assert _readme_thresholds(_PLANTED_README)["report days"] != [14]
+    assert _retrospective_window(_PLANTED_SKILL) != [14]
 
 
 def test_the_threshold_reader_fails_loudly_when_a_clause_stops_stating_a_number() -> (
@@ -770,8 +990,16 @@ def test_the_threshold_reader_fails_loudly_when_a_clause_stops_stating_a_number(
         _thresholds("no such item\n", _PLANTED_CADENCE)
     with pytest.raises(AssertionError, match="does not state"):
         _readme_thresholds(_PLANTED_README.replace("more than 30", "over 30"))
+    with pytest.raises(AssertionError, match="does not state"):
+        _readme_thresholds(
+            _PLANTED_README.replace("21 days old\nor more", "three weeks")
+        )
     with pytest.raises(AssertionError, match="no '### The drain-nudge hook' section"):
         _readme_thresholds("## Hooks\n")
+    with pytest.raises(AssertionError, match="does not state"):
+        _retrospective_window(_PLANTED_SKILL.replace("last 30 days", "the last month"))
+    with pytest.raises(AssertionError, match="lines start with"):
+        _retrospective_window("no such paragraph\n")
 
 
 # ------------------------------------------------------- the line, as the hook and the README quote it
@@ -803,6 +1031,24 @@ def _quoted_form(entries: str, days: str) -> str:
     )
 
 
+def _retro_quoted_forms(days: str) -> tuple[str, str]:
+    """The two lines the retrospective arm prints, from the hook's own function, with the age
+    replaced by the placeholder a copy of it uses: the line that names an age, and the line that
+    says no report is recorded."""
+    retrospective_line = cast(
+        Callable[[date | None, date], str | None], _hook().retrospective_line
+    )
+    aged = retrospective_line(_TODAY - timedelta(days=_DAYS_MARK), _TODAY)
+    none = retrospective_line(None, _TODAY)
+    assert aged is not None and none is not None, (
+        "a report this old, or none, is overdue"
+    )
+    assert aged.count(str(_DAYS_MARK)) == 1, (
+        f"{_DAYS_MARK} is not in the line once: {aged!r}"
+    )
+    return aged.replace(str(_DAYS_MARK), days), none
+
+
 def _quotes(text: str, form: str) -> bool:
     """Whether `text` holds `form` exactly once as a whole phrase, whitespace folded (a quoted
     line may wrap). A longer name that starts with it, a renamed command, is not a quote."""
@@ -814,11 +1060,16 @@ def _quotes(text: str, form: str) -> bool:
 def test_the_line_the_hook_and_the_readme_quote_is_the_line_it_prints() -> None:
     """Every test that compares the reply with `_ROUTE` pins the printed line. The hook's
     docstring and the README each quote that line with placeholders: they are read back from
-    the printed line, so a command renamed in the code and not in the prose is reported."""
-    assert _quotes(_read(_README), _quoted_form("N", "D"))
+    the printed line, so a command renamed in the code and not in the prose is reported. The two
+    lines of the retrospective arm are read back the same way."""
+    readme = _read(_README)
+    assert _quotes(readme, _quoted_form("N", "D"))
     docstring = _hook().__doc__
     assert docstring is not None, "the hook has no docstring"
     assert _quotes(docstring, _quoted_form("{N}", "{D}"))
+    for text, placeholder in ((readme, "D"), (docstring, "{D}")):
+        for form in _retro_quoted_forms(placeholder):
+            assert _quotes(text, form), form
 
 
 def test_the_quoted_form_is_read_from_the_printed_line_and_flags_a_planted_copy() -> (
@@ -844,6 +1095,16 @@ def test_the_quoted_form_is_read_from_the_printed_line_and_flags_a_planted_copy(
     assert _quotes(f"before `{form}`. after", form)
     # A copy that stands twice is a clause that moved, not one quote.
     assert not _quotes(f"{form} and again {form}", form)
+    # The retrospective arm's lines are read back from the hook in the same way, and flagged the same.
+    aged, none = _retro_quoted_forms("D")
+    assert aged == f"no retrospective in D days -> {_RETRO_ROUTE}"
+    assert none == f"no retrospective recorded -> {_RETRO_ROUTE}"
+    assert not _quotes(
+        f"`{aged.replace('session-retrospective', 'retrospective')}`", aged
+    )
+    assert not _quotes(f"`{none}r`", none)
+    assert not _quotes(f"{aged} and again {aged}", aged)
+    assert _quotes(f"before `{none}`. after", none)
 
 
 # What the hook reads out of the files is read the way the lint reads them: the patterns it holds
@@ -855,7 +1116,7 @@ _COPIED_FROM_THE_LINT = (
     "FIELD_RE",
     "DRAINED_COUNT_RE",
 )
-_THE_HOOKS_OWN = ("ENTRY_RE",)
+_THE_HOOKS_OWN = ("ENTRY_RE", "REPORT_DAY_RE")
 
 
 def _drifted(hook: object, lint: object, names: tuple[str, ...]) -> list[str]:
@@ -1000,7 +1261,7 @@ def test_the_reply_is_one_ascii_json_object_with_no_blocking_key_and_exit_zero(
     tmp_path: Path,
 ) -> None:
     today = date.today()
-    project = _project(tmp_path, ledger=_drained(30, today=today))
+    project = _project(tmp_path, ledger=_drained(30, today=today), today=today)
 
     done = _run_as_script(_payload(project), project)
 
