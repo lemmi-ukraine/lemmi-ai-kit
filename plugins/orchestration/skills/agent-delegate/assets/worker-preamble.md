@@ -112,10 +112,11 @@ Assume this checkout is shared and that other sessions are writing to it right n
   was checked and committed in two separate calls while a peer staged in between.)
 - **A suite or gate verdict over a tree others are editing is void.** Snapshot the changed-file
   list before and after any run you will report, and discard the result if the set changed.
-- **Never put a long `sleep N` in front of a command.** The harness refuses the whole call
-  (`Blocked: sleep N followed by: CMD`), so nothing in it runs, and it says not to chain shorter
-  sleeps around the block. To wait, start a background job and read its completion notice, or use
-  the host's monitor tool (Monitor) with an until-loop on the condition, then run the command.
+- **Never run a long `sleep N`, alone or in front of a command.** The harness refuses the whole call
+  (`Blocked: standalone sleep N.`, or `Blocked: sleep N followed by: CMD` when a command follows), so
+  nothing in it runs, and it says not to chain shorter sleeps around the block. To wait, start a
+  background job and read its completion notice, or use the host's monitor tool (Monitor) with an
+  until-loop on the condition, then run the command.
 
 **Durable state.** Work held only in a scratch clone or in your context is lost when you are
 stopped. Keep it where a stop or a cleanup cannot reach it:
