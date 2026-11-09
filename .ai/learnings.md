@@ -472,7 +472,7 @@ to its home above and removed here.
 
 ### [2026-11-08] Behaviour measured from transcripts reflects the installed plugin build, not HEAD
 - **Context**: The 2026-11-08 learning-capture audit and its cold read.
-- **Finding**: The audit first blamed the current design for low lesson capture, but the transcripts it measured cite the plugin cache folder of an older installed build almost exclusively, so the current design was untested rather than failed.
+- **Finding**: The audit first blamed the current design for low lesson capture, but the transcripts it measured cite the plugin cache folder of an older installed build almost exclusively, so the current design was untested rather than failed (490 references to the 09-14 core build against 3 to the 11-04 build).
 - **Impact**: Before attributing behaviour seen in transcripts to the current design, count which build the transcripts cite (the plugin cache path names it) and compare it with HEAD.
 - **Category**: pitfall
 - **Home**: skill:session-retrospective
@@ -484,8 +484,8 @@ to its home above and removed here.
 
 ### [2026-11-08] Broken shell quoting is the top sub-agent error shape, so run a multi-line probe from a file
 - **Context**: First session retrospective, 2026-10-25 to 2026-11-08 (41 sessions, 792 sub-agents, 14 deep-dives).
-- **Finding**: "unexpected EOF while looking for matching" appears in 21 of the 150 emitted sub-agent transcripts, from 12 parent sessions; the deep-dives add heredocs that mangled a regex, `python -c` with backslashes, backticks run inside double quotes, and nested quotes passed from PowerShell into a container. The taxonomy files these as runtime-exit or build-compile, so they read as failing tests or builds.
-- **Impact**: Write a multi-line probe to a file in the scratch directory and run it by path; never pass a script or a regex through a second shell layer.
+- **Finding**: "unexpected EOF while looking for matching" appears in 21 of the 150 emitted sub-agent transcripts, from 12 parent sessions, the most common shape by transcripts (second by hits, 26 against 27 for never-read edits); the deep-dives add heredocs that mangled a regex, `python -c` with backslashes, backticks run inside double quotes, and nested quotes passed from PowerShell into a container. The taxonomy files all 26 emitted hits as runtime-exit, so they read as failed runs.
+- **Impact**: Write a multi-line probe to a file in the scratch directory and run it by path; never pass a script or a regex through a second shell layer. The worker preamble already asks for a script file, but only for the `NAME=` hook's case; widen that line.
 - **Category**: interaction
 - **Home**: skill:agent-delegate
 - **Enforce-via**: template
@@ -494,7 +494,7 @@ to its home above and removed here.
 
 ### [2026-11-08] The harness blocks `sleep N` followed by a command, so wait on a notice or a Monitor
 - **Context**: First session retrospective, 2026-10-25 to 2026-11-08; the 11-08 audit had found this class with no home.
-- **Finding**: "Blocked: sleep N followed by CMD" appears in 10 emitted sub-agent transcripts of 8 parent sessions and 4 times in the main threads of 3 sessions, and one session retried it after the block; the 11-08 census counted 43 sub-agent hits in 55 transcripts. No rule, skill or buffer entry named it.
+- **Finding**: "Blocked: sleep N followed by CMD" was returned in 9 emitted sub-agent transcripts of 7 parent sessions and 3 times in the main threads of 2 sessions, and one session retried it after the block; the 11-08 census counted 43 such denials in sub-agents. No rule, skill or buffer entry named it. Counting by a plain search also finds sessions that only quoted or searched for the text; count only error results.
 - **Impact**: Never put `sleep N` before a command: run the command in the background and wait for its completion notice, or use Monitor with an until-loop.
 - **Category**: interaction
 - **Home**: skill:agent-delegate
@@ -504,7 +504,7 @@ to its home above and removed here.
 
 ### [2026-11-08] The Edit tool needs a Read-tool read first, and a shell view does not count
 - **Context**: First session retrospective, 2026-10-25 to 2026-11-08, sub-agent deep-dives.
-- **Finding**: Two sub-agents each lost a batch of 6 edits to "File has not been read yet. Read it first before writing to it." on files they had only viewed with `cat` or `sed`; the extractor's taxonomy counts 99 such hits in 13 sessions of the window.
+- **Finding**: Two sub-agents each lost a batch of 6 edits to "File has not been read yet. Read it first before writing to it." on files they had only viewed with `cat` or `sed`. The extractor's `edit-stale-read` class (99 hits in 13 sessions) also counts "File has been modified since read"; in the 150 emitted transcripts the split is 27 never-read to 11 modified-since-read.
 - **Impact**: Read each file with the Read tool before its first Edit, even after viewing it in a shell.
 - **Category**: interaction
 - **Home**: skill:agent-delegate
@@ -514,8 +514,8 @@ to its home above and removed here.
 
 ### [2026-11-08] Wait on completion notices or one Monitor, never by hand-polling
 - **Context**: First session retrospective, 2026-10-25 to 2026-11-08, session and sub-agent deep-dives.
-- **Finding**: About 140 hand polls (`date; ls` or `tail` loops) in 3 sessions and 1 sub-agent despite armed Monitors and completion notices. A Monitor watch expires after 30 minutes; one session re-armed it 14 times and missed a verdict that arrived in a gap.
-- **Impact**: Start the job in the background and wait for its notice, or arm one Monitor and snapshot the state at each re-arm. A `date;` prefix on every call also turns each one into a compound command that prefix allow rules cannot match.
+- **Finding**: About 140 hand polls (`date; ls` or `tail` loops) in 3 sessions and 1 sub-agent despite completion notices, and in 3 of the 4 despite an armed Monitor. A Monitor watch lasts at most 30 minutes (its `timeout_ms`; the default is 5); one session armed a Monitor 14 times, 7 of them after an expiry, and missed a verdict that arrived in a gap.
+- **Impact**: Start the job in the background and wait for its notice, or arm one Monitor and snapshot the state at each re-arm.
 - **Category**: interaction
 - **Home**: skill:orchestrate
 - **Enforce-via**: prose
@@ -524,17 +524,17 @@ to its home above and removed here.
 
 ### [2026-11-08] Hand off at a wave boundary before the context runs out
 - **Context**: First session retrospective, 2026-10-25 to 2026-11-08, session deep-dives.
-- **Finding**: In 3 sessions the context ran out before a hand-off was written: in 2 the operator had to order the hand-over, and 1 worked to 7.58 MB past a 5 MB line it had set itself.
-- **Impact**: At each wave boundary, compare the context used with the session's own line, and hand off before starting a wave that cannot finish inside it.
+- **Finding**: In 3 of the 8 deep-dived sessions the context ran out before a hand-off was written: in 2 the operator had to order the hand-over, and 1 worked to 7.58 MB past the operator's 5 MB line. The orchestrate skill already says to hand off on a leading trigger and to state the hand-off decision at every wave boundary (in the kit since 2026-08-23), but none of the 3 sessions invoked that skill.
+- **Impact**: Do not add more wording to orchestrate: put the wave-boundary decision ("continuing, N waves left" or "handing off") where these sessions read it, as a line in the kickoff and hand-off templates that `lint handoffs` checks.
 - **Category**: interaction
 - **Home**: skill:orchestrate
-- **Enforce-via**: prose
-- **Verify-at**: plugins/orchestration/skills/orchestrate/SKILL.md
+- **Enforce-via**: lint
+- **Verify-at**: plugins/core/src/lemmi_ai_kit/assets/ai/templates/handoff.md
 - **Scope**: durable
 
 ### [2026-11-08] Operators ask whether a session can be closed, so end the last report with its close state
-- **Context**: First session retrospective, 2026-10-25 to 2026-11-08, full-corpus correction sweep.
-- **Finding**: In 3 sessions the operator had to ask "can i close this session?" or the equivalent; no rule or skill text asks for a close-state line.
+- **Context**: First session retrospective, 2026-10-25 to 2026-11-08, a keyword search of every operator message (the correction sweep's markers do not match this question).
+- **Finding**: In at least 10 of the 41 sessions the operator asked "can we close this session?" or "can i close this session?"; no rule or skill text asks for a close-state line.
 - **Impact**: End a session's final report with "Safe to close: yes/no", naming what is committed and what is still running.
 - **Category**: interaction
 - **Home**: skill:post-task-review
@@ -543,8 +543,8 @@ to its home above and removed here.
 - **Scope**: durable
 
 ### [2026-11-08] Operators ask what is left and how long, so answer with the items, the sessions and the time
-- **Context**: First session retrospective, 2026-10-25 to 2026-11-08, correction sweep and deep-dives.
-- **Finding**: In 3 sessions the operator said they did not understand what was left or asked how long it would take, and in one of them 3 such questions got no text answer before the operator's next turn.
+- **Context**: First session retrospective, 2026-10-25 to 2026-11-08, a keyword search of every operator message and the session deep-dives.
+- **Finding**: In at least 5 of the 41 sessions the operator said they did not understand what was left (2 sessions) or asked how long the work would take (4 sessions); in one of them 2 duration questions got no text answer before the operator's next message, and a third got only status lines.
 - **Impact**: When asked what is left or how long, answer first, in text, with a short list of the remaining items, the sessions they need and the time.
 - **Category**: interaction
 - **Home**: skill:orchestrate
