@@ -92,6 +92,36 @@ to its home above and removed here.
 - **Enforce-via**: prose
 - **Scope**: durable
 
+### [2026-11-09] The Write tool turns a typed `\u00a0` escape into the raw character, so a file meant to hold the escape holds a non-ASCII byte instead
+- **Context**: task-scoped-learning-capture: the T13 builder's lesson, reproduced by a review (the typed `\u00a0` landed as bytes C2 A0; a typed `\xa0` stayed literal)
+- **Finding**: A file written through the Write tool with a backslash-u escape in its text contains the decoded character, not the six characters typed. A test fixture or a document that must carry the escape itself is silently changed, and nothing in the tool's reply says so.
+- **Impact**: After writing any file that is meant to contain a backslash escape, scan it for non-ASCII bytes (`python -c "..."` over the bytes, or `grep -P '[^\x00-\x7F]'`) before trusting it; write such fixtures through a heredoc or a script instead.
+- **Category**: pitfall
+- **Home**: skill:post-task-review
+- **Enforce-via**: prose
+- **Verify-at**: plugins/core/skills/post-task-review/references/fixture-design.md
+- **Scope**: durable
+
+### [2026-11-09] A literal phrase grep is blind to a line wrap, so fire it where the phrase is known to exist before trusting its zero
+- **Context**: task-scoped-learning-capture: TC-68's check `git grep -n "improvement candidate"` printed nothing on the pin, where the phrase sits as "*Extractor improvement" at the end of one line and "candidate:*" at the start of the next (`session-retrospective/SKILL.md:200-201` at `12c92ab`); the review's wrapped form `-E 'Extractor improvement$|^ +candidate:\*'` found it
+- **Finding**: A review check written as a grep for a multi-word phrase answers zero on the pin and zero after the edit alike when the phrase wraps, so "none before, none after" reads as a pass for a check that never saw its target. The two wording-test entries of 2026-10-30 and 2026-11-01 describe the same blindness in tests.
+- **Impact**: Fire every phrase grep at the revision where the phrase is known to exist and demand a hit there first; when the phrase may wrap, grep each half, or fold line breaks before matching, and say which was done beside the zero.
+- **Category**: pitfall
+- **Home**: skill:post-task-review
+- **Enforce-via**: script
+- **Verify-at**: plugins/core/skills/post-task-review/scripts/probe_checker.py
+- **Scope**: durable
+
+### [2026-11-09] A privacy scan over output files flags the running session's own id in every path, so scan content and name the paths' folder as the exclusion
+- **Context**: task-scoped-learning-capture: the main session's bar D/E probe over the extractor's outputs flagged this session's id, which names the output folder (`.ai/tmp/task-learnings/<SESSION-ID>/` and the scratchpad path), in every line that printed a path
+- **Finding**: Any scan for session ids over files written under a folder named by the session finds that id in the paths it prints, so a hit in a path is not a leak and a scan that counts it reports a leak that is not there; a scan that excludes the id itself would also miss a real leak of the same id into content.
+- **Impact**: Match ids in file content, not in the path strings the run prints; list the output folder's own name as the one allowed site, and keep a planted real id in content as the positive control.
+- **Category**: pitfall
+- **Home**: skill:task-learnings
+- **Enforce-via**: prose
+- **Verify-at**: plugins/core/skills/task-learnings/SKILL.md
+- **Scope**: durable
+
 ## Performance Insights
 
 ### [2026-11-06] Removing 83 wording-test files cut the test count in half and the suite time by nothing
@@ -99,6 +129,18 @@ to its home above and removed here.
 - **Finding**: `pytest --collect-only` went from 4,782 to 2,412 items, but the six-process split's longest process went from 171 s to 181 s (the files are dealt differently to the processes), and the 83 removed files run in 11 s serially against about 560 s of process time in all. Substring and count tests cost milliseconds; the time is in the tests that start hooks, scripts and git.
 - **Impact**: Do not promise a faster suite from removing wording tests, and measure the removed files alone (`pytest <files> --durations`) before writing any time claim; the case for removal is maintenance and false reds.
 - **Category**: performance
+- **Scope**: durable
+
+## Pattern Discoveries
+
+### [2026-11-09] A new taxonomy class changes every count that sums the taxonomy, so enumerate those consumers before the class lands
+- **Context**: task-scoped-learning-capture: `environment` joined `ERROR_CATEGORIES` in `aabd7c0`; a cold read found that a sub-agent stopped only by the usage limit then counted as error-bearing, filled the 8 emitted transcripts and the deep-dive picks in path order, and pushed out the one agent that failed on its own; the digest's twice-or-more gate also tripped on two unrelated refusals (fixed in `1b5e6c2`)
+- **Finding**: Adding a category to a classifier is additive at the classifier and silently non-additive everywhere a total is summed, a boolean "has errors" is derived or a rank is taken from the sum: `agentsWithErrors`, the emission order, the deep-dive rank and the digest's gate all changed meaning without any test moving.
+- **Impact**: Before landing a new class, grep every consumer of the summed count and the derived boolean (`errorsByCategory`, `errorCount`, `agentsWithErrors`, `_qualifying`) and decide for each whether the new class belongs in it; write the test that plants more new-class items than the cap beside one old-class item.
+- **Category**: pattern
+- **Home**: comment:plugins/core/skills/session-retrospective/scripts/extract_sessions.py:ERROR_CATEGORIES
+- **Enforce-via**: test
+- **Verify-at**: plugins/core/skills/session-retrospective/scripts/extract_sessions.py:_errors_outside_environment
 - **Scope**: durable
 
 ## Interaction & Workflow Friction
@@ -152,4 +194,14 @@ to its home above and removed here.
 - **Home**: skill:orchestrate
 - **Enforce-via**: lint
 - **Verify-at**: plugins/core/src/lemmi_ai_kit/assets/ai/templates/handoff.md
+- **Scope**: durable
+
+### [2026-11-09] A checkpoint whose Landed section is kept current while its Running and Next sections keep the morning's plan sends a resumer to repeat landed work
+- **Context**: task-scoped-learning-capture: `CONTINUE.md` at 11:35 listed T3 under "Patches ready, not landed" and "Next 1: land T3, then build T4, then T5" while its Landed section recorded all three commits; its Next list omitted the built T13
+- **Finding**: A checkpoint is appended to at each milestone, so the sections that record facts grow correctly while the sections that prescribe action keep their first text; the file then contradicts itself, and a resumer who reads "Next" first acts on the stale half.
+- **Impact**: At every checkpoint save, rewrite "Running", "Patches ready" and "Next" from the Landed section (or delete the ones that no longer apply) and move the header's time; a hand-off lint could refuse a Next item that names a commit the log already holds.
+- **Category**: interaction
+- **Home**: skill:orchestrate
+- **Enforce-via**: template
+- **Verify-at**: plugins/orchestration/skills/orchestrate/references/limit-recovery.md
 - **Scope**: durable

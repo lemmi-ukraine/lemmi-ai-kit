@@ -17,6 +17,14 @@
 
 ## 2026-11-10
 
+### [SKILL-MODIFIED] A task's close records the lessons its sub-agents and earlier sessions found
+- **Category:** Knowledge Retention
+- **Hypothesis:** By shipping the v3 task ledger, the extractor's task mode and Step 0's chain measurement together, we expect the share of lesson drafts parked in hand-off and return notes that reach no shared home to fall from 16 of 62 (about 26%, measured on 2026-11-08 under the build installed before 2026-11-05) to at most 10% for tasks that ran on this build.
+- **Signal:** One to two weeks after this build is installed, or by 2026-12-01, whichever comes first, re-run the 2026-11-08 audit's census over the hand-off and return notes written on the new build, and judge each drafted lesson's landing with a rewording-aware search: confirm if at most 10% reach no shared home, refute if 20% or more do.
+- **Risk:** The baseline came from an older installed build; few task chains may run inside the window; the landing judgement is a reader's call; and drains in between move entries, so a promoted home must count as a home.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-10 — Extract learning per task, from every session of its hand-off chain and every sub-agent they started
+
 ### [RULE-ADDED] A session here waits on a completion notice or one Monitor instead of polling by hand
 - **Category:** Speed
 - **Hypothesis:** By stating in the kit's own AGENTS.md, which every session here loads, that a background job or a sub-agent is waited on through its completion notice or one Monitor, never by polling it by hand, and by keeping the detail and the harness's two refusals of a long sleep in `limit-recovery.md`, we expect fewer of the next retrospective window's deep-dived sessions and sub-agents to poll by hand than the 4 that ran about 140 hand polls from 2026-10-25 to 11-08, because the rule now sits in the file those sessions read at start rather than only in a skill reference.
