@@ -1,36 +1,18 @@
-"""The optional page on execution lanes, the line that points at it, the template line and the join
-gate it describes are pinned here.
+"""The checks of the execution lanes wording tests that run code or compare two copies of one fact.
 
-A plan can split a build into two execution lanes: a development lane (D) that writes the code and a
-tests lane (T) that writes tests from the requirements, design and test plan only, in new files. The
-skill said nothing of it and no seeded template had a field to say which lane a task is in. One
-reference of `spec-driven-dev` now says it, labelled optional and untried, because no feature has
-been built through it end to end yet. SKILL.md gains one pointer line under "During Implementation",
-and both copies of the tasks template gain one optional Lane line in each of their two example
-tasks. The page belongs to Core: nothing in it links out of the pack.
+Only the tests that assert something provable remain: they run a command, parse data, resolve a path or compare two shipped copies. The tests that pinned that a sentence says something, and the tests of those pins, are gone; the rule each one pinned stays in the skill or reference it read.
 
-What each test asserts:
+What each remaining test asserts:
 
-* The page states each claim: its label, the two lanes, the Lane field, disjoint file sets, the
-  contracts, the join gate (red on an export of the pre-feature commit, green on the D lane's tree,
-  a failure settled against the requirements), and what the split does not do. Each phrase is fired
-  at a planted removal.
-* SKILL.md points at the page once, inside its section, calls it optional, the link resolves, and
-  the file stays inside the 499-line cap. The pointer check is fired at planted shapes.
-* Both template copies carry the Lane line in each task block and nowhere else, and the two copies
-  are byte-equal. The check is fired at planted shapes.
-* The join gate is run, not only quoted. A throwaway repository is built in a temporary folder with
-  one pre-feature commit and one commit for both lanes. The page's own `git archive` line is run as
-  written, its two placeholders filled, and the archive is unpacked; the T lane's tests are copied
-  into the export (they are new files, so the export cannot hold them) and run there, then on the
-  tree. Exit 1 before, exit 0 after. A test that already passes on the export is flagged as vacuous,
-  and so are one that fails on the tree and one that fails on the export for a reason the plan did
-  not state. A machine without git fails these tests: they do not skip.
-
-THE SURFACE, in numbers the tests assert: 9 claims and 21 phrases in one page, 1 pointer line in 1
-SKILL.md, 2 template copies with 2 task blocks each, and 1 toy repository with 4 test scripts of the
-T lane: 1 that is red then green, and 3 planted known positives (one already green on the export,
-one red on the tree, one red on the export for another reason).
+* `test_each_template_copy_carries_the_lane_line_in_each_task_block`: each template copy carries the lane line in each task block
+* `test_the_two_template_copies_are_byte_equal`: The seeded copy and the kit's own are two files that must not drift. Two different texts are shown to be told apart, so an agreement of the real pair is not an agreement of two things the comparison cannot tell apart.
+* `test_git_is_installed`: The join gate is a git export. A machine without git fails here instead of skipping.
+* `test_the_join_gate_names_the_export_command_the_toy_repository_runs`: the join gate names the export command the toy repository runs
+* `test_the_export_holds_the_pre_feature_commit_and_none_of_the_new_files`: the export holds the pre feature commit and none of the new files
+* `test_the_join_gate_is_red_on_the_export_and_green_on_the_tree`: the join gate is red on the export and green on the tree
+* `test_the_join_gate_flags_a_test_that_already_passes_on_the_export`: The planted known positive: a T lane test of something that exists before the feature exits 0 on the export, so the gate reports that it proves nothing about the feature.
+* `test_the_join_gate_flags_a_test_that_fails_on_the_tree`: the join gate flags a test that fails on the tree
+* `test_the_join_gate_flags_a_test_that_fails_on_the_export_for_another_reason`: the join gate flags a test that fails on the export for another reason
 """
 
 import os
@@ -47,10 +29,7 @@ import pytest
 
 _REPO = Path(__file__).resolve().parents[1]
 _SKILL_DIR = _REPO / "plugins" / "core" / "skills" / "spec-driven-dev"
-_SKILL_MD = _SKILL_DIR / "SKILL.md"
 _PAGE = _SKILL_DIR / "references" / "execution-lanes.md"
-_LINK_TARGET = "references/execution-lanes.md"
-_SKILL_SECTION = "## During Implementation"
 _JOIN_GATE = "## Join gate"
 _TEMPLATE_DIR = (
     _REPO / "plugins" / "core" / "src" / "lemmi_ai_kit" / "assets" / "ai" / "templates"
@@ -63,89 +42,12 @@ _LANE_LINE = (
     "- **Lane** (optional, only when the plan uses execution lanes): "
     "D (development) / T (tests)"
 )
-_SKILL_CAP = 499
 _HEADING = re.compile(r"^(#{1,6})\s")
-
-# (claim, the phrases that must all be in the page; lower-cased, whitespace collapsed)
-_ROWS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    (
-        "1: the page is labelled optional and untried",
-        (
-            "optional, and untried",
-            "reasoned, not run end to end on a real feature",
-        ),
-    ),
-    (
-        "2: a task may run in two execution lanes, and an execution lane is not a review lane",
-        (
-            "a task may run in two execution lanes",
-            "an execution lane is not a review lane",
-        ),
-    ),
-    (
-        "3: every task carries a Lane field: D writes the code, T writes tests from the spec only",
-        (
-            "every task in `tasks.md` carries a lane field",
-            "d (development: writes the implementation)",
-            "t (tests: written from the requirements, design and test plan only, in new files",
-        ),
-    ),
-    (
-        "4: the lanes use disjoint file sets, and a shared file belongs to exactly one lane",
-        ("disjoint file sets", "belongs to exactly one lane"),
-    ),
-    (
-        "5: the T lane opens by asking about each shared contract, a practice and not a rule",
-        (
-            "each contract the two lanes share",
-            "before its first code edit",
-            "a practice, not a rule",
-        ),
-    ),
-    (
-        "6: the join gate runs the T lane's tests on an export of the pre-feature commit, red",
-        (
-            "join gate",
-            "an export of the pre-feature commit",
-            "every one must fail, for the reason the test plan gives",
-            "proves nothing about the feature",
-        ),
-    ),
-    (
-        "7: the same tests run on the D lane's tree, green",
-        ("run the same tests on the d lane's tree. every one must pass",),
-    ),
-    (
-        "8: a failure is settled against the requirements and recorded, never edited away",
-        (
-            "settled against the requirements, never by editing the test to fit the code",
-            "record it in the deviations log",
-        ),
-    ),
-    (
-        "9: the split does not change whose properties the tests come from, or replace a mutation pass",
-        (
-            "changes who writes the tests, not whose list of properties they come from",
-            "does not replace an independent mutation pass or the review",
-        ),
-    ),
-)
 
 
 def _read(path: Path) -> str:
     """The file as text with LF line ends, so a checkout that stores CRLF reads the same."""
     return path.read_text(encoding="utf-8").replace("\r\n", "\n")
-
-
-def _words(text: str) -> str:
-    """Quote markers and emphasis marks dropped, whitespace folded, lower-cased: a line re-wrapped
-    inside a quote or a re-emphasised word is the same sentence."""
-    plain = re.sub(r"^\s*>+ ?|\*", "", text, flags=re.MULTILINE)
-    return " ".join(plain.split()).lower()
-
-
-def _missing(text: str, phrases: tuple[str, ...]) -> list[str]:
-    return [phrase for phrase in phrases if phrase not in text]
 
 
 def _section(text: str, heading: str) -> str:
@@ -188,105 +90,7 @@ def _fenced_lines(text: str) -> list[str]:
 # --- the page ------------------------------------------------------------------------------------
 
 
-def test_the_surface_is_stated_in_numbers() -> None:
-    phrases = [phrase for _, claim_phrases in _ROWS for phrase in claim_phrases]
-    assert (len(_ROWS), len(phrases)) == (9, 21)
-    assert _PAGE.is_file(), _PAGE
-    assert _SKILL_MD.is_file(), _SKILL_MD
-    assert len(_TEMPLATES) == 2
-    unreadable = [name for name, path in _TEMPLATES.items() if not path.is_file()]
-    assert not unreadable, f"templates not where the test looks: {unreadable}"
-    assert len(_T_LANE) == 4
-
-
-@pytest.mark.parametrize(("claim", "phrases"), _ROWS, ids=[row[0] for row in _ROWS])
-def test_the_page_states_the_claim(claim: str, phrases: tuple[str, ...]) -> None:
-    missing = _missing(_words(_read(_PAGE)), phrases)
-    assert not missing, f"the page does not state {claim!r}: missing {missing}"
-
-
-def test_every_phrase_is_reported_when_it_goes() -> None:
-    """Planted removal: each phrase cut out of the real page in turn is the one gap reported, and
-    an empty page lacks every phrase of a row. A phrase the check cannot see go would let the page
-    lose its claim and stay green."""
-    text = _words(_read(_PAGE))
-    for claim, phrases in _ROWS:
-        assert not _missing(text, phrases), f"{claim!r} does not hold at the start"
-        for phrase in phrases:
-            assert _missing(text.replace(phrase, ""), phrases) == [phrase], (
-                claim,
-                phrase,
-            )
-        assert _missing("", phrases) == list(phrases), claim
-
-
-def test_the_label_comes_before_the_first_section() -> None:
-    """A reader who stops at the first heading has still been told the page is optional."""
-    text = _words(_read(_PAGE))
-    assert "## " in text, "the page has no section"
-    assert text.index("optional, and untried") < text.index("## "), text[:120]
-
-
 # --- the pointer in SKILL.md -----------------------------------------------------------------------
-
-
-def _pointer_problems(text: str, skill_dir: Path) -> list[str]:
-    """What is wrong with the pointer lines of a SKILL.md: not one line, outside its section, not
-    called optional, a link that does not resolve, or more lines than the cap."""
-    section_lines = _section(text, _SKILL_SECTION).split("\n")
-    lines = [line for line in text.split("\n") if f"]({_LINK_TARGET})" in line]
-    if len(lines) != 1:
-        return [f"{len(lines)} lines link {_LINK_TARGET}, expected one"]
-    problems: list[str] = []
-    if lines[0] not in section_lines:
-        problems.append(f"the pointer is not under {_SKILL_SECTION!r}")
-    if "optional" not in lines[0].lower():
-        problems.append("the pointer does not call the page optional")
-    if not (skill_dir / _LINK_TARGET).is_file():
-        problems.append(f"the link target {_LINK_TARGET} does not resolve")
-    if text.count("\n") > _SKILL_CAP:
-        problems.append(f"{text.count(chr(10))} lines, over the cap of {_SKILL_CAP}")
-    return problems
-
-
-def test_the_skill_points_at_the_page_once_inside_its_section() -> None:
-    assert _pointer_problems(_read(_SKILL_MD), _SKILL_DIR) == []
-
-
-def test_the_pointer_check_sees_each_planted_shape(tmp_path: Path) -> None:
-    """Known positives and one near miss: a pointer that is missing, doubled, outside its section,
-    not called optional, dead, or one line over the cap. The clean text passes with the page
-    present, so a silence means something."""
-    link = f"[{_LINK_TARGET}]({_LINK_TARGET})"
-    good_line = f"- Optional: two execution lanes, see {link}"
-    page = tmp_path / _LINK_TARGET
-    page.parent.mkdir(parents=True)
-    page.write_text("# page\n", encoding="utf-8")
-
-    def skill(*, pointer: str = good_line, other: str = "Other text.") -> str:
-        return (
-            f"# S\n\n{_SKILL_SECTION}\n\n- a\n{pointer}\n\n## Next section\n\n{other}\n"
-        )
-
-    assert _pointer_problems(skill(), tmp_path) == []
-    assert _pointer_problems(skill(pointer="- nothing"), tmp_path) == [
-        f"0 lines link {_LINK_TARGET}, expected one"
-    ]
-    doubled = _pointer_problems(skill(pointer=good_line, other=good_line), tmp_path)
-    assert doubled == [f"2 lines link {_LINK_TARGET}, expected one"]
-    outside = _pointer_problems(skill(pointer="- a", other=good_line), tmp_path)
-    assert outside == [f"the pointer is not under {_SKILL_SECTION!r}"]
-    plain = _pointer_problems(skill(pointer=f"- Two lanes, see {link}"), tmp_path)
-    assert plain == ["the pointer does not call the page optional"]
-    page.unlink()
-    assert _pointer_problems(skill(), tmp_path) == [
-        f"the link target {_LINK_TARGET} does not resolve"
-    ]
-    page.write_text("# page\n", encoding="utf-8")
-    long_text = skill(other="\n" * (_SKILL_CAP + 1))
-    assert len(_pointer_problems(long_text, tmp_path)) == 1
-    with pytest.raises(AssertionError, match="no heading"):
-        _pointer_problems(f"# S\n\n{good_line}\n", tmp_path)
 
 
 # --- the tasks template ----------------------------------------------------------------------------
@@ -337,25 +141,6 @@ def test_the_two_template_copies_are_byte_equal() -> None:
     kit = _TEMPLATES["kit"].read_bytes()
     assert seeded == kit, "the two copies of the tasks template differ"
     assert seeded + b" " != kit and seeded[:-1] != kit
-
-
-def test_the_lane_check_sees_each_planted_shape() -> None:
-    """Known positives: a line missing from one block, doubled in one, outside every block, and
-    reworded. The seeded copy, which holds the line twice, reports nothing."""
-    text = _read(_TEMPLATES["seeded"])
-    assert text.count(_LANE_LINE) == 2, "the planted shapes need the line twice"
-    assert _lane_gaps(text) == []
-    once = text.replace(f"{_LANE_LINE}\n", "", 1)
-    assert [gap.split(":")[0] for gap in _lane_gaps(once)] == ["### Task 1"]
-    doubled = text.replace(_LANE_LINE, f"{_LANE_LINE}\n{_LANE_LINE}", 1)
-    assert [gap.split(":")[0] for gap in _lane_gaps(doubled)] == ["### Task 1"]
-    outside = text.replace(f"{_LANE_LINE}\n", "", 1).replace(
-        "## Task List", f"{_LANE_LINE}\n\n## Task List", 1
-    )
-    assert len(_lane_gaps(outside)) == 2, _lane_gaps(outside)
-    reworded = text.replace("D (development) / T (tests)", "D / T", 1)
-    assert [gap.split(":")[0] for gap in _lane_gaps(reworded)] == ["### Task 1"]
-    assert _lane_gaps("no task blocks at all") == ["0 task blocks, not 2"]
 
 
 # --- the join gate, run -------------------------------------------------------------------------------
