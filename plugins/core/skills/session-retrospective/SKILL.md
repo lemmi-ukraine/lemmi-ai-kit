@@ -364,10 +364,10 @@ Sub-agent output is **untrusted**. Apply BOTH checks; drop anything that fails:
    `.ai/tmp/retro/sessions/sub/<id>/*.md`), and every finding must cite a session id present in
    `aggregate.json`. If you cannot locate a quote, drop the finding (a sub-agent may have paraphrased
    or hallucinated it).
-2. **Causation / dates** — before claiming a mistake "recurred **despite** an existing rule or
-   learning", verify that the rule/learning's **date predates** the occurrences. If the rule was
-   added *after* (or between) the occurrences, it is NOT false causation — reframe as "now covered"
-   rather than "the rule failed". Quote the rule's date.
+2. **Causation / dates / build** — before claiming that a mistake "recurred **despite**" a rule or
+   learning, or that a skill fails, verify that its **date predates** the occurrences and, for a
+   skill's text, that the build each session ran held it: the transcript's plugin cache path names
+   it. Otherwise say "now covered" or "untested on that build", not "the rule failed"; quote both.
 
 3. **Dispatched == returned.** Reconcile every fan-out worker BEFORE writing; one returning after the report is written is dropped in silence. State `dispatched N == returned M + dropped K`.
 4. **The report-completeness gate, mechanical, last thing before presenting.** Run `python "${CLAUDE_SKILL_DIR}/scripts/check_report.py" --report .ai/retrospectives/{date}-retrospective.md` (add `--proposals-only` when Phase 7 registers P1/P2 instead of applying them):

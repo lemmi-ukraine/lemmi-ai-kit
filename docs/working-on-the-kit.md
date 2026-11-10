@@ -143,6 +143,11 @@ generator, or all-packs plugin.
 `tests/test_plugin.py` holds every pack manifest against `pyproject.toml` on both
 hosts, so a half-finished bump fails the suite instead of shipping.
 
+A branch push runs no gate: `.github/workflows/ci.yaml` runs on pull requests and on pushes to
+`main` only, and a merged head branch is not deleted, so a stacked second pull request is not
+retargeted to `main` by itself. Plan one branch and one pull request in commit groups that each
+revert alone, and stack only when a stage must merge before the next exists.
+
 ## Syncing from upstream
 
 The skills were extracted from another repository and still move in both

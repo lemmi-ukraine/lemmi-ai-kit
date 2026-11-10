@@ -166,7 +166,7 @@ the three commands above are the minimum.
    (pair it with a set-difference against the live tree), and a self-check whose fixtures share
    provenance with the code under test measures well-formedness, not validity.
    **The probe answers "can this checker see?" and nothing about whether your FIXTURES model
-   anything real — six measured ways a green probe certifies a wrong instrument are in
+   anything real — the measured ways a green probe certifies a wrong instrument are in
    [references/fixture-design.md](references/fixture-design.md):** a negative fixture that does not
    *resemble* the target (one unbounded `sk-` pattern halted a pipeline on a branch name AND
    silently rewrote 119 real paths); a probe aimed at the pure half while the network-adjacent half

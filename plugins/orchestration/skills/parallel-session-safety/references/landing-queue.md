@@ -47,6 +47,20 @@ LOCK FREE 15:31 session-b: nothing is being landed; real HEAD <new id>, status =
 - **Read the status before every write, not only at the start.** A session found the checkout's
   status unchanged by a second writer only because it read the status before every write
   (observed, 2026-11-04).
+- **Freeze the set of packages before you build the chain, and build it once.** A package that
+  arrives after the freeze waits for the next chain: five sessions rebuilt their chain as packages
+  kept arriving, one after its list grew four times (observed, 2026-11-02 to 11-04).
+- **Check each seam two packages share on the assembled tree.** Where one package edits a list and
+  another the sections it names, no package's own copy holds both ends. Name the seam in both
+  briefs, derive the check from the assembled files at integration, and fire it at a planted rename
+  and a dropped clause; a gap older than both packages is a finding, not a regression (observed
+  once).
+- **End the chain with one coherence row for the files no package owns.** A sentence one package
+  made stale in a file outside its own set has no owner: three rounds of verifiers and the
+  integration agent reported five such sentences, two of them contradictions of major weight, as
+  not owned and built nothing (observed once). Have each verifier list those notes under a heading
+  of their own, cut the row's one-clause fixes from them, and check each fix with one test that
+  reads both pages.
 
 ## The gate before every commit
 

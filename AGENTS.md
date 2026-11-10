@@ -268,6 +268,13 @@ cost attached is the first one dropped.
 - **Never hand-write a count you can derive.** Ten instances paid for, the most recent
   inside a document about not hand-writing counts. Derive it, or state the command that
   answers it and no number at all.
+- **A check that ships to every consumer needs a way out of its default.** Name the ref it
+  searches and make it resolve, search a symbol as fixed text, exit 2 when the search could not
+  run, answer NO VERDICT for a file type it does not count and give it a flag that counts one,
+  read every non-binary file in a reference sweep, and ship a new check report-only until the
+  maintainers rule on blocking. Four shipped defaults read one stack's facts as everyone's: a C#
+  deliverable scored DOC-ONLY, and a new `quantifiers` check turned flow maps red that had passed
+  at the base, which only a read-only run over a real consumer's maps showed.
 
 #### The CI gates
 
@@ -275,11 +282,32 @@ cost attached is the first one dropped.
   green suite is evidence about the suite. A formatting failure sat on `main` for five
   commits because sessions ran only the tests, and four of those commits were the author
   of this rule.
+- **The exception to running every gate: inside a batch of work, run them once on the first
+  integrated tree and once on the final tree.** In between, a builder runs only the test files that
+  read what it changed, a probe is a script fired at a planted control rather than an agent, and the
+  batch gets one cold read, not one per builder; CI runs the suite again on the pull request. The
+  operator ruled this after a three-project consolidation spent two weeks and several weekly usage
+  limits on stacked checking, while what paid for itself was one cold read (2 Blockers, 9 Majors)
+  and one early full gate run (a red hygiene test); in a 2026-11-09 build each builder still ran the
+  full suite two or three times, about six minutes a run.
 - **Prefix every `uv run` with `PYTHONDONTWRITEBYTECODE=1`.** Every gate imports the package,
   and an import writes `__pycache__` under `plugins/core/src/`, which is inside the pack payload —
   so running the checks is enough to make `publish-check` refuse afterwards, with a
   failure naming files you never wrote. `export` is bash; PowerShell needs
   `$env:PYTHONDONTWRITEBYTECODE = "1"`, and getting that wrong sets nothing silently.
+- **ruff and basedpyright exclude `plugins/*/skills/`.** `pyproject.toml` keeps that tree out of
+  both, so their green says nothing about a skill script, and `ruff format` given such a file by
+  path still reads it and rewrites lines nobody changed: 11 in the session extractor's test file.
+  Check only the hunks you added, or pass `--force-exclude`; pytest still runs those scripts' own
+  tests.
+- **Size a SKILL.md edit against 499 lines with every pending patch applied.** `audit-skills` counts
+  newlines plus one and fails above 500, so `wc -l` 499 is the last passing size, and two patches
+  that each fit `post-task-review/SKILL.md` reached 500 together. State each touched skill's spare
+  lines in the plan (`git show HEAD:<path> | wc -l`), apply the pending patches to one copy in
+  landing order and read the combined count before the later one lands, and keep the detail in a
+  reference behind one pointer line. Search the tests for a bound on the file's length too: one set
+  at that day's length blocked the next legitimate edit, so a bound is the audit's cap, with its
+  source, or none.
 
 #### Measuring
 
@@ -294,6 +322,13 @@ cost attached is the first one dropped.
   commits that were already published.
 - **Two independent instruments must agree before a count decides that work is done.**
   Every wrong count here came from one instrument trusted alone.
+- **A transcript shows the plugin build it ran, and that build is not this checkout.** The Skill
+  tool, the hooks and the commands they run load the installed plugin cache, and an install copies
+  the working tree, so a skill or hook edited here changes nothing until it is installed again. The
+  2026-11-08 audit first blamed the current design for low lesson capture, while the transcripts it
+  measured cited the 2026-09-14 Core build's cache path 490 times and the 2026-11-04 build's 3
+  times. Count which build the transcripts cite and compare it with HEAD before attributing
+  behaviour to the current design.
 
 #### This is a shared checkout
 
@@ -308,8 +343,9 @@ worktrees; concurrency is bought with disjoint paths and nothing else.
   session found another's work staged seconds after its own commit.
 - **`git commit --amend` rewrites whatever `HEAD` points at now, not the commit you
   meant.** A peer committed in the gap between one session's commit and its amend, and the
-  amend landed on the peer's commit. Note also that `check && action` sequences but does
-  not gate — the output is read after the action has run.
+  amend landed on the peer's commit; an amend with no pathspec also commits the whole shared
+  index (a six-path commit amended only to fix its message became 30 files). Note also that
+  `check && action` sequences but does not gate — the output is read after the action has run.
 - **Never `git clean -fd` or `-fdx`, and never `git restore` a path you do not own.**
   There is no reflog for uncommitted work. `-fdx` additionally destroys `tasks/` and
   `.specs/`, which are untracked by operator ruling and exist in no commit.
@@ -346,6 +382,32 @@ paths and nothing else" above is about sessions that write here.
   what one that found nothing returns. A wave has no fixed width: it is sized in tokens against
   the usage window first, then held to what the disk and the machine allow (see
   `references/limit-recovery.md` in the `orchestrate` skill).
+- **Wait for a background job or a sub-agent on its completion notice or on one Monitor, never by
+  polling it by hand.** About 140 hand polls (`date; ls` or `tail` loops) ran in three sessions and
+  a sub-agent here that had a notice coming, three of the four with a Monitor armed as well, and one
+  session that armed a Monitor 14 times, 7 of them after an expiry, missed a verdict that arrived
+  in a gap (2026-11-08 retrospective). Snapshot the state you wait on at each re-arm, and read
+  "Waiting on background work" in the same `limit-recovery.md` before you start a long job.
+
+#### Answering the operator
+
+- **When the operator asks what is left or how long, answer first, in text: the items left, the
+  sessions they need and the time, labelled an estimate and taken from measured earlier durations,
+  never from a guess.** In at least 5 of the 41 sessions of the 2026-11-08 retrospective the
+  operator said they did not understand what was left or asked how long the work would take, and
+  in one of them two duration questions got no text answer before the operator's next message and
+  a third got only status lines. A roadmap written from the `initiative-planner` template logs each
+  forecast beside what was observed in its Forecast log.
+
+#### This repository is public
+
+- **No consumer project's name, internal identifier, infrastructure detail or session id goes
+  into a tracked file or a commit message, whole or in fragments.** A push sends every commit, so
+  a later commit that takes a name out leaves it readable in the earlier ones: 29 of 96 unpushed
+  commits were rewritten on 2026-11-04 to remove such details, and a test plant split into
+  fragments of a real session id passed both push scans, which match contiguous text. Write
+  "a consumer project", build a plant from a synthetic value of the right shape, and scan the
+  added lines with their fragments joined before a commit.
 
 #### Documents
 
