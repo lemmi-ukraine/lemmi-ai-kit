@@ -178,7 +178,7 @@ def test_a_v2_section_holding_only_a_comment_has_no_content(name: str) -> None:
 # --- the label itself ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("version", ["3", "0", "10"])
+@pytest.mark.parametrize("version", ["4", "0", "10"])
 def test_an_unknown_version_is_a_finding_and_the_note_is_checked_as_v1(
     version: str,
 ) -> None:

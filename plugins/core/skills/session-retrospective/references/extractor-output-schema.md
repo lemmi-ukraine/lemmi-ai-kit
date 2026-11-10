@@ -6,13 +6,29 @@ that the emitted `aggregate.json` matches `SCHEMA_KEYS`. **When you change the e
 update `SCHEMA_KEYS` AND this doc together** — the content-reviewer cross-checks this doc against the
 constant and the SKILL.md.
 
-`schemaVersion`: **4** (v4 is ADDITIVE-ONLY: deterministic deep-dive candidate lists,
-slash-command capture, per-session models + compaction counts, `errorAgentsNotEmitted`,
-`skillInvocationModes`, plus non-schema behaviors — date pre-scan, stale-output clearing,
-`--check-file`; existing v3 keys/shapes unchanged, so v3 consumers — the SKILL phases and any
-downstream analysis skill — keep working. v3 added the sub-agent error taxonomy + emitted
-redacted sub-agent transcripts; v2 added per-session transcripts + sub-agent counts; v1 was the
-legacy Node.js flat summary).
+`schemaVersion`: **5**. v5 renames and removes no key, but it MOVES counts, which is why the
+version changed. The `environment` category (see `errorTaxonomy`) takes the results the harness or
+a hook refused or stopped out of the behavioural categories (`runtime-exit`, `test-failure`,
+`build-compile`, `tool-error`), and it counts the usage-limit stops that no category counted
+before. A slash command the harness typed counts under `harness` in `stats.skillInvocationModes`,
+no longer under `user`. The keys v5 adds: `errorTaxonomy.environmentShapes`,
+`subAgentErrorTaxonomy.environmentShapes`, `sessions[].environmentShapes`,
+`sessions[].subAgents.environmentShapes`, `sessions[].subAgents.workflowAgents`,
+`sessions[].slashCommands[].by` and the `harness` mode. v5 also adds task mode and the digest's
+sub-agent block (§ Session scoping); neither renames or removes a key.
+**A report that compares a window with one built by v4 must say so:** the v4 window filed these
+results in the behavioural categories, so those read higher there and `environment` reads 0; a
+sub-agent whose only error is a usage-limit stop is error-bearing in v5 and was not in v4, which
+can change `agentsWithErrors`; a sub-agent whose only errors are `environment` ones is emitted and
+picked after every sub-agent with an error outside `environment`, which can change which
+sub-agent digests are emitted and picked; and a command the harness typed was counted as `user`.
+
+(v4 was ADDITIVE-ONLY: deterministic deep-dive candidate lists, slash-command capture, per-session
+models + compaction counts, `errorAgentsNotEmitted`, `skillInvocationModes`, plus non-schema
+behaviors — date pre-scan, stale-output clearing, `--check-file`; existing v3 keys/shapes
+unchanged, so v3 consumers — the SKILL phases and any downstream analysis skill — keep working.
+v3 added the sub-agent error taxonomy + emitted redacted sub-agent transcripts; v2 added
+per-session transcripts + sub-agent counts; v1 was the legacy Node.js flat summary.)
 
 ## Artifacts
 
@@ -22,7 +38,7 @@ The extractor writes into `<output-dir>` (always repo-relative, e.g. `.ai/tmp/re
 |------|---------|
 | `aggregate.json` | Cross-session error taxonomy + per-session behavioral metrics + stats |
 | `sessions/<id>.md` | Per-session readable transcript, size-capped (120 KB), fully redacted — for deep reading by sub-agents. The operator turns the cap cut off follow the capped transcript in a section of their own (see below) |
-| `sessions/sub/<id>/<agent>.md` | Redacted, size-capped transcript of a HIGH-SIGNAL sub-agent (any error, or the largest few) under parent session `<id>` — for the Phase-3b sub-agent deep-dive |
+| `sessions/sub/<id>/<agent>.md` | Redacted, size-capped transcript of a HIGH-SIGNAL sub-agent (any error, or the largest few) under parent session `<id>` — for the Phase-3b sub-agent deep-dive. Up to `MAX_SUBAGENT_EMIT_PER_SESSION` per session, in this order: the sub-agents with an error outside `environment`, then those whose only errors are `environment` ones (a stop or a refusal is no measure of the agent), then the largest few |
 
 **The operator section.** A session digest stops at `TRANSCRIPT_BYTE_CAP` and drops the rest, and the
 operator's last turns are in that rest. They are kept: every operator turn after the cut is appended
@@ -42,7 +58,7 @@ digest an older extractor wrote on Windows, where a CRLF inside a message had be
 
 ```jsonc
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "generatedFor": { "sessionDir": "<path>", "since": "YYYY-MM-DD|null", "until": "…|null", "generatedAt": "<iso8601>" },
   "stats": { … },                  // see below
   "errorTaxonomy": { … },          // see below
@@ -66,7 +82,10 @@ these lists as-is; qualifiers beyond the cap are listed in `overCap` (never sile
   "overCap":  [ { "sessionId": "…", "toolUse": 21 } ]
 },
 "subAgentDeepDiveCandidates": {
-  "selectionRule": "all emitted high-signal sub-agents; rank errorCount desc, bytes desc, file; top 6; at most 4 per parent session while others remain",
+  "selectionRule": "all emitted high-signal sub-agents; rank errors outside environment desc, errorCount desc, bytes desc, file; top 6; at most 4 per parent session while others remain",
+  // The rank reads a sub-agent's errors outside `environment` first (counted from its
+  // `highSignal[].errorsByCategory`; they have no field here), so one the harness stopped or
+  // refused, however often, follows one with an error of its own. `errorCount` counts every class.
   "selected": [ { "parentSessionId": "…", "file": "agent-x.md", "transcriptPath": "<ABSOLUTE>", "errorCount": 3, "bytes": 9001, "emittedBytes": 4200 } ],
   // `bytes` = RAW source transcript size (and the rank key). `emittedBytes` (v4, additive) = the
   // redacted, size-capped digest actually on disk — measured at 1.6–2.6% of raw. Quote
@@ -87,8 +106,8 @@ these lists as-is; qualifiers beyond the cap are listed in `overCap` (never sile
   "totalThinkingBlocks": 0,
   "subAgent": { "files": 0, "bytes": 0, "msgs": 0 },   // nested sub-agent transcripts aggregated
   "branchesWorkedOn": ["…"],
-  "skillsUsed": ["…"],                                  // v4: union of model-invoked (Skill tool) AND user-typed (/slash) names — same list shape; user-mode entries may include built-in commands (cross-check against `ls .claude/skills/`)
-  "skillInvocationModes": { "session-retrospective": { "user": 2, "model": 0 }, … },  // v4 — per-skill counts by invocation mode
+  "skillsUsed": ["…"],                                  // v4: union of model-invoked (Skill tool) AND /slash names (every `slashCommands` name, whoever typed it) — same list shape; slash entries may include built-in commands (cross-check against `ls .claude/skills/`)
+  "skillInvocationModes": { "session-retrospective": { "user": 2, "model": 0, "harness": 0 }, … },  // v4 — per-skill counts by invocation mode: user = a /command the operator typed, model = the Skill tool; v5 adds harness = a /command the harness typed (see `slashCommands[].by`)
   "skillsBlocked": ["…"],                               // skills invoked via the Skill tool that errored (disable-model-invocation friction)
   "allToolsUsed": { "Read": 344, "Edit": 456, … }
 }
@@ -110,10 +129,12 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
     "skill-blocked":   { "count": 5,  "sessions": […], "samples": […] },
     "runtime-exit":    { "count": 5,  "sessions": […], "samples": […] },
     "tool-error":      { "count": 5,  "sessions": […], "samples": […] },
+    "environment":     { "count": 3,  "sessions": […], "samples": ["[id/Bash] <tool_use_error>Blocked: sleep 30 followed by: …", "[id/api-error] You've hit your 5-hour limit…"] },   // v5
     "other":           { "count": 0,  "sessions": [], "samples": [] }
   },
   "userRejected": { "count": 1, "sessions": ["0f65932c"], "samples": ["[id/Bash] The user doesn't want to proceed…"] },
-  "hookDenials":  { "count": 2, "sessions": ["0f65932c"], "samples": ["[id/Bash] PreToolUse:Bash hook error: …"] }   // v4 (additive)
+  "hookDenials":  { "count": 2, "sessions": ["0f65932c"], "samples": ["[id/Bash] PreToolUse:Bash hook error: …"] },   // v4 (additive)
+  "environmentShapes": { "sleep-denial": 2, "usage-limit": 1, "cd-denial": 0 }   // v5 — the environment count by shape, main thread; every shape listed
 }
 ```
 - **`userRejected` is a SEPARATE bucket** — permission denials are *friction*, not agent mistakes.
@@ -138,8 +159,10 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
   and a hook that did not answer in time are not denials. **Known loss:** a hook that denies by
   JSON returns only its own reason, with no prefix, and nothing else in the record names a hook (the
   harness's `toolDenialKind` stamp is shared with don't-ask mode, built-in safety checks and
-  protected paths), so that form is NOT counted and the count is a floor. Sub-agent transcripts are
-  not counted here; their denials stay in the sub-agent taxonomy under their ordinary category.
+  protected paths), so that form is NOT counted and the count is a floor. The one such hook read by
+  its text is the kit's own shell-prefix gate, and it is read under `environment` (`cd-denial`),
+  not here. Sub-agent transcripts are not counted here; their denials stay in the sub-agent
+  taxonomy under their ordinary category.
 - Category definitions:
   | Category | Meaning |
   |---|---|
@@ -150,10 +173,18 @@ content containing the word "Error:" is NOT counted (the false-positive fix).
   | `skill-blocked` | Skill tool result errored (e.g. `disable-model-invocation`) |
   | `runtime-exit` | Shell non-zero exit, other |
   | `tool-error` | Any other non-shell tool with `is_error` — the non-shell catch-all |
+  | `environment` | v5. Refused or stopped by the harness or a hook: give the rule a home, not an agent-quality count. An `is_error` result that OPENS (after leading whitespace and the harness's `<tool_use_error>` tag) with one of three shapes: `sleep-denial`, the harness's refusal of a long sleep, put in front of a command (`Blocked: sleep N followed by`, or `Blocked: Start-Sleep N followed by` in PowerShell) or with nothing after it (`Blocked: standalone sleep N.`, or `Blocked: standalone Start-Sleep N.`), one shape because it is one guard with one remedy (shell tools only); `usage-limit`, the harness's limit sentence (`You've hit your … limit`; any tool); `cd-denial`, the kit shell-prefix gate's own MOVE text (`CD_DENIAL_ANCHOR`, which a test holds equal to the hook's text; shell tools only). Also a usage-limit stop: the assistant record the harness marks `isApiErrorMessage` whose text opens with the limit sentence, in the main thread and in sub-agents. Counted by shape in `environmentShapes` |
   | `other` | Reserved/forward-compat bucket — always emitted, currently always 0; `classify_error()` never returns it (catch-alls are `tool-error` for non-shell, `runtime-exit` for shell) |
 
   Shell errors are tested `build-compile` **before** `test-failure` (a result matching both
-  signatures classifies as `build-compile`).
+  signatures classifies as `build-compile`). Every error result is tested for the `environment`
+  shapes before any of these (only the user-rejected sentence comes first), so a refused sleep put
+  in front of a test run is `environment`, not `test-failure`. The same words anywhere but the
+  opening of an error record (quoted in a failed command, a log or a workflow's failure list) are
+  no shape, and a result that is not an error is data. A failed shell call opens with
+  `Exit code N` whoever failed, so that opening names no shape and keeps its behavioural class. No
+  other hook's wording is encoded (the kit is public): a project's own hook stays in its
+  behavioural class.
 
 ### `subAgentErrorTaxonomy`
 Same shape and ORIGIN-tool classifier as `errorTaxonomy`, but computed over **sub-agent** transcripts
@@ -171,10 +202,13 @@ before v3.
   },
   "totalAgents": 246,         // total sub-agents seen across all sessions
   "agentsWithErrors": 12,     // sub-agents with >=1 classified error
-  "transcriptsEmitted": 31    // redacted sub-agent transcripts written under sessions/sub/
+  "transcriptsEmitted": 31,   // redacted sub-agent transcripts written under sessions/sub/
+  "environmentShapes": { "sleep-denial": 4, "usage-limit": 6, "cd-denial": 0 }   // v5 — the sub-agents' environment count by shape; every shape listed
 }
 ```
-Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its parent session.
+Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its parent session. A
+usage-limit stop's sample names `api-error` where a tool result's names its tool, in both
+taxonomies.
 
 ### `sessions[]` (one object per session, sorted by start time)
 ```jsonc
@@ -189,6 +223,7 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
   "errorsByCategory": { "edit-stale-read": 3, … },   // per-session error counts
   "userRejected": 0,             // v4 (additive) — per-session count of user-rejected results (see `errorTaxonomy`); kept out of errorsByCategory and NOT capped like the samples
   "hookDenials": 0,              // v4 (additive) — per-session count of results a PreToolUse hook blocked (see `errorTaxonomy`); main thread, over the whole transcript, NOT capped; the result still counts in errorsByCategory
+  "environmentShapes": { "sleep-denial": 2 },   // v5 — this session's errorsByCategory.environment split by shape, main thread; a shape never seen is left out
   "behavior": {
     "reReads": [ { "file": "~/…/learnings.md", "count": 7 } ],   // file read >=3x
     "repeatedCommands": [ { "cmd": "git diff --staged", "count": 2 } ],   // identical cmd >=2x
@@ -205,15 +240,23 @@ Samples carry an `[id/sub]` provenance tag so a sub-agent finding traces to its 
     "errorSamples": { "path-not-found": ["[id/sub] Read: File does not exist…"] },
     "transcriptsEmitted": 3,                                            // # redacted sub-agent .md written
     "errorAgentsNotEmitted": 0,                                         // v4 — error-bearing agents beyond the emission cap (taxonomy-only; NOT derivable from agentsWithErrors − transcriptsEmitted, since emitted includes top-by-bytes non-error agents)
+    "environmentShapes": { "usage-limit": 1 },                          // v5 — the sub-agents' errorsByCategory.environment split by shape; a shape never seen is left out
+    "workflowAgents": 1,                                                // v5 — of `count`, the helpers a Workflow run started (under subagents/workflows/); the rest are native
     "highSignal": [ { "file": "agent-x.md", "type": "general-purpose", "goal": "…", "bytes": 9001, "emittedBytes": 4200, "msgs": 40, "errorsByCategory": {…}, "transcriptPath": "<ABSOLUTE path to sessions/sub/<id>/agent-x.md>" } ]  // bytes = raw source; emittedBytes (v4) = the digest on disk
   },
-  "transcriptPath": "<ABSOLUTE path to sessions/<id>.md>",   // functional; pass to deep-dive sub-agents (null only for 0-user sessions, which are filtered out before selection)
+  "transcriptPath": "<ABSOLUTE path to sessions/<id>.md>",   // functional; pass to deep-dive sub-agents (null only for 0-user sessions, which are filtered out before selection; task mode keeps a listed one, see § Session scoping)
   "backtrackingMarkers": 7,      // thinking "wait/actually/reconsider" count — TARGETING HEURISTIC ONLY, never a finding
-  "slashCommands": [ { "command": "session-retrospective", "args": "--since 2026-06-01" } ],  // v4 — user-typed /skill invocations (<command-name> pseudo-user messages; redacted, capped at 40; not counted as userMsgs)
+  "slashCommands": [ { "command": "session-retrospective", "args": "--since 2026-06-01", "by": "operator" } ],  // v4 — /skill invocations (<command-name> pseudo-user messages; redacted, capped at 40; not counted as userMsgs); v5 `by` = who typed it, see below
   "models": { "claude-fable-5": 42 },  // v4 — assistant model id -> message count (segment findings by model)
   "compactions": 1               // v4 — context-compaction boundaries ({"type":"system","subtype":"compact_boundary"}) — a friction signal
 }
 ```
+
+`slashCommands[].by` (v5) is `operator` or `harness`, decided by the record's stamps exactly as an
+operator turn is (one rule, which `operator_turn_text` reads too): `operator` for an `origin` stamp
+of kind `human`, or for no `origin` stamp and none of the machine markers (`isMeta`,
+`isCompactSummary`, a `turnOrigin` of a program or the harness); otherwise `harness`.
+`stats.skillInvocationModes` counts the two apart, as `user` and `harness`.
 
 `behavior.buildTestLoops` is the part of `repeatedCommands` (identical text, at least twice) that
 `TEST_BUILD_RE` matches anywhere in the first 120 characters of the command, in any case: the tools
@@ -266,7 +309,7 @@ Pure stdlib (no third-party deps). The project `.venv` python or system `python`
 strict containment. With neither flag, ALL history is processed (the 14-day default is applied by
 the calling skill, not the extractor).
 
-### Session scoping (`--session`, `--digest`) — consumed by `task-learnings`
+### Session scoping (`--session`, `--sessions-from`, `--digest`) — consumed by `task-learnings`
 
 ```bash
 python "${CLAUDE_SKILL_DIR}/scripts/extract_sessions.py" \
@@ -275,22 +318,26 @@ python "${CLAUDE_SKILL_DIR}/scripts/extract_sessions.py" \
 
 `--session` restricts the run to ONE transcript and **overrides `--since`/`--until`** (the caller
 named the session, so a stale window must not silently drop it and produce an empty digest that
-reads as "no signal"). It accepts a full session id, a unique prefix, or `current`.
+reads as "no signal"). It accepts a full session id, a unique prefix, or `current`. Given twice or
+more, or beside `--sessions-from`, it is task mode instead (§ Task mode, below).
 
 **`current` fails closed.** It resolves by newest-mtime, and if any other transcript was written
 within `CURRENT_AMBIGUITY_WINDOW_S` (180 s) it exits **4** and lists every candidate with its id,
 last-activity, and first user message — rather than guessing. This is not defensive theatre:
 verified 2026-08-14, **four** transcripts in this checkout had been written within that window and
-newest-mtime pointed at an unrelated session. Callers that know their own id (it is the last segment
-of the Claude Code scratchpad path) should pass it explicitly and skip the ambiguity entirely.
+newest-mtime pointed at an unrelated session. Callers that know their own id (it is the name of the
+folder that holds the Claude Code scratchpad, `…/<SESSION-ID>/scratchpad`; the path's last segment
+is `scratchpad` itself) should pass it explicitly and skip the ambiguity entirely.
 
 Every run prints the resolved id plus the session's first user message, so a **wrong pick is
 detectable by the caller** instead of silently becoming a finding about work it never did.
 
-`--digest` requires `--session` and writes `interaction-digest.md`: counted repetition signals
-(re-reads at or above `--rereads-min`, default `DEFAULT_REREADS_MIN` = 6), agent error classes with
-≥2 occurrences, and the session's **operator turns**: what the operator typed, what they typed
-while the model was working (a `queued_command` attachment record, which no user record
+`--digest` requires `--session` or `--sessions-from` and writes `interaction-digest.md`: counted
+repetition signals (re-reads at or above `--rereads-min`, default `DEFAULT_REREADS_MIN` = 6), agent
+error classes with ≥2 occurrences (`environment` only when one of its shapes has ≥2: its shapes are
+unrelated rules, so one refused sleep and one usage-limit stop are no pattern; the line then shows
+the class's whole count), the sub-agent block (below), and the session's
+**operator turns**: what the operator typed, what they typed while the model was working (a `queued_command` attachment record, which no user record
 duplicates), and the answers they gave the question tool. ONE function, `operator_turn_text`,
 decides which records those are, by structure and not by wording — `origin.kind` human on a user
 record, a human `queued_command` prompt, an `AskUserQuestion` result that carries a dict of
@@ -308,6 +355,15 @@ The digest's header prints `Volume: N operator turns` (the number listed, not ca
 shown) and, on a line of its own, `User-channel records: M`. `M` is `counts.userMsgs`: it counts
 injected text as well, so it is not the number of operator turns, and it stays as it is because it
 selects the deep-dive sessions.
+
+**The sub-agent block** (`## Sub-agents (>=2 in this session)`, between the error classes and the
+operator turns) is what the session's helpers did, native and Workflow alike, read from
+`sessions[].subAgents`: how many were walked (`count`, of them `workflowAgents` in Workflow runs),
+how many failed (`agentsWithErrors`), `environment` by shape, and each class with ≥2 occurrences
+across them (`environment` by the same rule, per shape) with up to two of its redacted samples
+(`errorSamples`). Before the block those lessons
+reached `aggregate.json` only, which `task-learnings` never reads. The digest's `Gate` reads
+`SIGNAL` when a sub-agent class qualifies too.
 
 **Re-asks are deliberately NOT detected.** Corrections have lexical markers that
 `sweep_user_corrections.py` can grep; a re-ask is the same request restated in different words and
@@ -330,6 +386,51 @@ records a re-read below **3**, so a "≥2 occurrences" filter is vacuous; a coun
 compliance rather than thrash. Session yield: 73% @≥3, 54% @≥4, 42% @≥5, **31% @≥6**, 18% @≥8,
 8% @≥10. The data localizes the honest cut to **4–8** without picking a value inside it — hence a
 parameter, not a constant.
+
+#### Task mode (`--sessions-from`, or `--session` given twice or more)
+
+```bash
+python "${CLAUDE_SKILL_DIR}/scripts/extract_sessions.py" \
+  ".ai/tmp/task-learnings/<SESSION-ID>/" --session <SESSION-ID> \
+  --sessions-from <HAND-OFF> --digest --self-check
+```
+
+A task carried across a hand-off chain is measured as one: every session its hand-offs list, every
+helper those sessions started (native and Workflow), and nothing of a task that ran beside it. Two
+or more `--session`, or any `--sessions-from <hand-off>`, switch the run to task mode, and both
+flags repeat (one `--sessions-from` per note of the task received). One `--session` alone is the
+one-session mode above, prefixes and `current` included. The output folder stays the running
+session's `.ai/tmp/task-learnings/<SESSION-ID>/`; the digest's header names the task.
+
+- **The evidence set is named, never guessed.** The ids are the `--session` values, then each
+  hand-off's `Sessions:` ids, each id once. A hand-off is read as the kit's lint reads it: the
+  header block above the first `## ` heading, outside HTML comments and fences, one `Task:` and one
+  `Sessions:` line (a line written twice counts as absent), the file read as UTF-8 with a
+  byte-order mark dropped. Each id is matched by the exact name of a transcript in the ONE session
+  folder of this run (derived, or the first argument): never by prefix, never in another
+  project's folder. `--since` and `--until` are ignored, as with one `--session`.
+- **Every listed id ends measured or unmeasured, with its reason:** `no transcript in this
+  project's session folder`, `transcript unreadable`, or `processing error (<exception type>)`.
+  An unmeasured id is printed on stderr and listed in the digest, and nothing else is written about
+  it (what a failed session left in `sessions/` is removed). A listed session with no operator turn,
+  even one with no user message at all, is measured, because its helpers may have done the task's
+  work; with no user message its `transcriptPath` is null. A session that ran in another project's
+  folder is measured by a run of its own with that folder as the first argument.
+- **Exit codes:** `2`, before anything is written: a hand-off that does not exist or cannot be
+  read, one with no `Sessions:` line in its header block (an unlabelled, v1 or v2 note) or no id on
+  it, `current` (it picks by file time), hand-offs that name different tasks (one run measures one
+  task) · `3` the leak gate tripped and the digest was deleted; it wins over `5` · `5` at least one
+  listed id is unmeasured, the digest kept · `0` every listed id measured.
+- **The task digest** (`interaction-digest.md`): a header naming the task, the listed ids, how many
+  were measured and the gate; totals across the measured sessions (operator turns, tool calls,
+  compactions, helpers walked native and Workflow and how many failed, each class seen twice or more
+  across the task's sessions with its split by session, main threads and helpers counted apart
+  and `environment` only when one of its shapes is, and `environment` by shape); the unmeasured
+  ids with their reasons; then one section per measured session, oldest first, holding the
+  one-session digest's sections, sub-agent block included, each
+  listing its own session's count of a class that qualifies across the task. Its rules ask for
+  `>=2 occurrences across this task's sessions`, keep `At most 2 entries per task`, and forbid
+  writing anything about an unmeasured session.
 
 ### v4 run behaviors
 

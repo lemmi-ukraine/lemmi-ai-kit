@@ -78,7 +78,7 @@ written at all.
    language, no internal ids, with the review's step list and the lessons result in it, and say
    in plain words that the session may be closed.
 
-Write the hand-off from `.ai/templates/handoff.md`: line 1 stays `<!-- handoff-contract: v2 -->`,
+Write the hand-off from `.ai/templates/handoff.md`: line 1 stays `<!-- handoff-contract: v3 -->`,
 and `## Continue` and `## Orchestrator summary` stay in it; run the one-file hand-off lint on it
 before step 5.
 ```

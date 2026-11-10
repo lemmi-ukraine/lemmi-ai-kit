@@ -27,7 +27,7 @@ optional — see § Routing Fields):
 |-------|----------|-------------|
 | Date | Yes | ISO format `YYYY-MM-DD` |
 | Title | Yes | No length cap — state the finding, not a topic label (see note below); no generic titles |
-| Context | Yes | Reference the task or situation specifically |
+| Context | Yes | Reference the task or situation specifically. Written for a task that has a slug, name that slug exactly as its hand-off's `Task:` line spells it, so the consolidator can trace the entry to its task and spot two sessions' copies of one finding |
 | Finding | Yes | One concrete insight per entry |
 | Impact | Yes | Must be actionable — "do X" or "avoid Y" |
 | Category | Yes | Must be one of the canonical slugs (see below) |
@@ -80,7 +80,10 @@ gate remains the authoritative routing decision, and the consolidator must verif
   finding is a *defect to fix* or a *code/pipeline change* (work, not knowledge), it must name an
   existing or newly created `tasks/` doc (prefixes per AGENTS.md § Task documents) — create the
   task file in the same step. Learnings hold knowledge; task files hold work; an entry that is
-  really work with no task file is homeless by construction.
+  really work with no task file is homeless by construction. `memory` is the operator's private
+  store, so it takes only a pointer or an operator's preference, never a project lesson: a lesson
+  about the project goes to this buffer even when a memory note also records it, because memory
+  stays on one operator's machine, where no drain reads it and no teammate's session sees it.
 - **Enforce-via** — retrospectives show mechanical seams (spawn templates, lints, tests, script
   gates) reliably change behavior while always-loaded prose only raises probability (e.g.
   edit-stale-read recurred 43× despite its rule; the spawn-preamble fix took sub-agent env-traps

@@ -54,3 +54,20 @@ measurement. None is a cap the kit sets; a project that states its own cap (§ 1
 - **Stopping a task can leave its child processes running, so list the ones you started and stop
   them before you go on.** An orphaned run keeps loading the machine, and a gate run beside it can
   fail for that reason alone. Never stop a process a peer started.
+
+## Waiting on background work
+
+- **Wait on a completion notice, not on hand polls or a long `sleep`.** Start the job with
+  `run_in_background` and let its notice wake you: about 140 hand polls ran in three sessions and a
+  sub-agent that had a notice coming, three of the four with a Monitor armed as well (observed,
+  2026-11-08). The harness refuses a long sleep alone (`Blocked: standalone sleep N.`) or before a
+  command (`Blocked: sleep N followed by: CMD`): a 30-second sleep before a command was refused
+  and a 5-second one ran (observed, 2026-11-09).
+- **A Monitor watch expires, so snapshot the state you wait on at each re-arm.** One session armed
+  a Monitor 14 times, 7 of them after an expiry, and missed a verdict that arrived in a gap
+  (observed once).
+- **Wait on the finish line, not a proxy.** A sub-agent's output file stayed empty until it was
+  done, so a wait on its size only timed out, and a background command with an inner `&` sent
+  its notice early (each observed once).
+- **Read `date` as its own call at a wake-up, not as a prefix.** A `date;` prefix made 29% of one
+  window's main-thread shell calls compounds no prefix allow rule matches (observed, 2026-11-08).

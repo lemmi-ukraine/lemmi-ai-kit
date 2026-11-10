@@ -321,6 +321,47 @@ spelling differs: case, a hyphen against an underscore, a plural, a trailing mar
   presence proves nothing), resolve each remaining number by what it counts, in which file, from
   which command, and report "N checkable, N carried" beside the sweep, never "all resolve".
 
+## 16. A replay tests a guard's verdicts; a mutant tests its tests
+
+A guard's table of shapes is written from the same picture of the input as the guard itself, so it
+shares the guard's blind spots, and a clean run over that table proves neither half.
+
+- **Replay recorded real input through the old and the new guard, and diff the verdicts.** A shell
+  guard that passed its own table of 27 shapes was replayed over 1,216 real commands that name its
+  file: the replay found a pattern that took 11 seconds on a 25 KB line, a `py` word matching
+  inside `.py` file names and three new false denials of read-only PowerShell, and running about
+  1,000 commands for real in sandboxes then found a dozen shapes the patterns could not see.
+- **Mutate the guard, one rule branch at a time, to test its tests.** A replay of about 75,000
+  recorded commands with no false denial said nothing about whether the tests would notice a rule
+  change: 293 mutants of the same hook and its launcher left 48 survivors, 9 of them on plausible
+  shapes. Give each plausible survivor a row that fails without its branch, and keep a planted kill
+  and a planted no-op as controls; the next round's 20 mutants all died.
+- **Read each mutant's verdict from the runner's summary line, never from its exit code alone, and
+  run the controls first.** A bare `bash` started from a Python subprocess on Windows resolved to a
+  WSL launcher stub, so no test ran and the stub still exited 1, which an exit-code classifier
+  counts as a kill; the control that an unmutated copy must pass exposed it before any verdict was
+  used. Start a shell from a subprocess by its full path.
+
+## 17. Every behaviour a guard relies on needs a plant that only that behaviour catches
+
+A guard can pass while a behaviour it depends on (its scope, an order, a count, a lead match, a
+uniqueness check) goes untested. A mutant that removes the behaviour then survives, and the
+survivor names the plant that is missing.
+
+- **Assert that a planted variant differs from the original and that a reader without the step
+  under test cannot read it.** A re-wrap helper replaced by an identity function left every re-wrap
+  case green, because nothing asserted that the plant differed from the text, and a citation plant
+  was read by the bare pattern's own `\s*`, so removing the fold under test changed no verdict.
+- **Plant a fixture that only that behaviour rejects, and assert the property the guard needs, not
+  that "something changed".** A lead match loosened from `startswith` to `in`, a fourth table
+  column and a section cutter that returned the whole text each stayed green until a mutation
+  round, and a uniqueness safety net that no reachable input triggered survived its own deletion
+  until a test planted a real collision.
+- **Give each parametrized table a stated size that a test of its own asserts.** pytest reports an
+  emptied table as one skip and the suite stays green, while a count inside the parametrized test
+  runs once per row and cannot see a dropped one. Read an unexpected skip as a possibly empty
+  table, and assert unique keys where rows are keyed.
+
 ---
 
 ## Why this file is prose and not a check

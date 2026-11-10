@@ -22,6 +22,13 @@ Design (see references/extractor-output-schema.md):
 
 Usage:
   python extract_sessions.py [<session-dir>] <output-dir> [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--self-check]
+  python extract_sessions.py [<session-dir>] <output-dir> --session <id|current> [--digest] [--self-check]
+  python extract_sessions.py [<session-dir>] <output-dir> [--session <id> ...] [--sessions-from <hand-off> ...] [--digest] [--self-check]
+
+The last form is task mode (two or more --session, or any --sessions-from): it measures exactly
+the sessions a task's hand-offs list, and their helpers, and exits 5 when one of them could not be
+measured (see the task-mode comment above read_handoff_ledger, and the Session scoping section of
+extractor-output-schema.md).
 
 <session-dir> is OPTIONAL — when omitted it is derived from the working directory plus
 ~/.claude/projects/ (see _derive_session_dir), so the skill works for any engineer on any machine
@@ -46,11 +53,14 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 # --- schema contract (machine source of truth; mirrored in extractor-output-schema.md) ---
 # v4 is ADDITIVE-ONLY over v3: existing keys/shapes unchanged (other consumers — the SKILL.md
 # phases and any downstream analysis skill — keep working); new keys listed at the end.
+# v5 renames and removes no key, but it MOVES counts: the `environment` category takes the results
+# the harness or a hook refused or stopped out of the behavioural categories (see
+# environment_shape), and a slash command the harness typed counts under `harness`, not `user`.
 SCHEMA_KEYS = {
     "top": [
         "schemaVersion",
@@ -83,6 +93,7 @@ SCHEMA_KEYS = {
         "compactions",  # v4 (C-4b): context-compaction boundary count
         "userRejected",  # v4 (additive): TRUE count of user-rejected results (samples are capped)
         "hookDenials",  # v4 (additive): TRUE count of results a PreToolUse hook blocked, main thread
+        "environmentShapes",  # v5: environment shape -> count, main thread
     ],
 }
 
@@ -94,6 +105,7 @@ ERROR_CATEGORIES = [
     "skill-blocked",
     "runtime-exit",
     "tool-error",
+    "environment",
     "other",
 ]
 
@@ -185,6 +197,8 @@ MAX_SUBAGENT_EMIT_PER_SESSION = 8
 # leaves a journal.jsonl there too, the run's event log (no message, no uuid). The sidecar
 # agent-<id>.meta.json is NOT part of the test, because real agent transcripts exist without one.
 SUBAGENT_GLOB = "agent-*.jsonl"
+# The folder under subagents/ that holds the Workflow runs; a helper anywhere else is native.
+SUBAGENT_WORKFLOWS_DIR = "workflows"
 
 # Deep-dive candidate selection (v4, C-1): the Phase-3/3b ranking used to be done by the model
 # (LLM arithmetic/sorting is a known error class; the 06-22 run hand-wrote an ad-hoc script for
@@ -469,6 +483,22 @@ def _is_human_origin(origin):
     return isinstance(origin, dict) and origin.get("kind") == "human"
 
 
+def _sent_by_operator(obj):
+    """What a record's stamps say about who sent it: True for an origin stamp of kind human, or
+    for no origin stamp and none of the machine markers (isMeta, isCompactSummary, a turnOrigin
+    of a program or the harness). The one stamp rule: operator_turn_text reads it for a user
+    record and process_session for a slash command (sessions[].slashCommands[].by), so the two
+    cannot disagree. What a caller adds on top (the injected-text prefixes) stays its own."""
+    origin = obj.get("origin")
+    if origin is not None:
+        return _is_human_origin(origin)
+    return not (
+        obj.get("isMeta")
+        or obj.get("isCompactSummary")
+        or str(obj.get("turnOrigin")) in MACHINE_TURN_ORIGINS
+    )
+
+
 def _answer_text(obj, blocks, id_to_tool):
     """The answers the operator gave the question tool, or '' for any other tool result. The call
     must have been the question tool AND the record must carry the answers: structure alone would
@@ -515,18 +545,13 @@ def operator_turn_text(obj, id_to_tool):
     blocks = _record_blocks(_message_content(obj))
     if any(isinstance(b, dict) and b.get("type") == "tool_result" for b in blocks):
         return redact(_answer_text(obj, blocks, id_to_tool))
-    origin = obj.get("origin")
-    if origin is not None:
-        return redact(_typed_text(blocks)) if _is_human_origin(origin) else ""
-    # No origin stamp: the record is the operator's unless something marks it as machine text, and
-    # the injected-text prefixes still apply (they are all that tells such records apart).
-    if (
-        obj.get("isMeta")
-        or obj.get("isCompactSummary")
-        or str(obj.get("turnOrigin")) in MACHINE_TURN_ORIGINS
-    ):
+    if not _sent_by_operator(obj):
         return ""
     text = _typed_text(blocks)
+    if obj.get("origin") is not None:
+        return redact(text)
+    # No origin stamp and no machine marker: the injected-text prefixes still apply (they are all
+    # that tells such records apart).
     return redact(text) if _is_human_turn(text) else ""
 
 
@@ -579,6 +604,85 @@ DOTNET_BUILD_SIGNATURES = (
     re.compile(r"\berror CS\d{4}\b"),
 )
 
+# The `environment` category: a call the harness or a hook refused or stopped, which is no measure
+# of the agent: give the rule a home, not an agent-quality count. Three shapes, each named by text
+# the harness or the kit's own hook writes, and only where that text OPENS an error record (after
+# leading whitespace and the harness's own <tool_use_error> tag): the same words quoted inside a
+# failed command, a log or a workflow's failure list keep their ordinary class, and a result that
+# is not an error is data. Nothing else moves: a failed shell call opens with "Exit code N"
+# whoever failed, so that opening names no shape. Measured on one transcript store (2026-11-09):
+#   * sleep-denial: the harness refuses a long sleep put in front of a command, "Blocked: sleep N
+#     followed by: <command>" for Bash and "Blocked: Start-Sleep N followed by: ..." for
+#     PowerShell, in the tag, and a long sleep with nothing after it, "Blocked: standalone sleep
+#     N." and "Blocked: standalone Start-Sleep N." (the store held none of these; the shape is
+#     from a live refusal, 2026-11-09). One guard and one remedy, so one shape: two shapes would
+#     split one habit's count, and the digest's twice-or-more bar counts per shape. A short sleep
+#     runs, so the refusal is matched and never the word.
+#   * usage-limit: the harness's limit sentence ("You've hit your 5-hour limit", "... session
+#     limit"). It stops a turn as an assistant record marked isApiErrorMessage (is_usage_limit_stop),
+#     and it is the shape too when it opens an error tool result.
+#   * cd-denial: the kit shell-prefix gate (hooks/gate_shell_prefix.py) denies a move by returning
+#     its MOVE text as the whole reason. CD_DENIAL_ANCHOR is that text's opening, and a test loads
+#     the hook by path and holds the two equal. Another hook's wording is not encoded here.
+ENVIRONMENT_SHAPES = ("sleep-denial", "usage-limit", "cd-denial")
+TOOL_USE_ERROR_TAG = "<tool_use_error>"
+SLEEP_DENIAL_RE = re.compile(
+    r"Blocked: (?:(?:sleep|Start-Sleep) \S+ followed by\b"
+    r"|standalone (?:sleep|Start-Sleep) \S+\.)"
+)
+USAGE_LIMIT_RE = re.compile(r"You['\u2019]ve hit your (?:[\w-]+ ){0,2}limit\b")
+CD_DENIAL_ANCHOR = "Do not move the shell's working directory"
+# The label a usage-limit stop's sample carries where a tool result's carries its tool.
+API_ERROR_SOURCE = "api-error"
+
+
+def _opening(text):
+    """The text an anchor is read against: leading whitespace and the harness's tag dropped."""
+    head = text.lstrip()
+    if head.startswith(TOOL_USE_ERROR_TAG):
+        head = head[len(TOOL_USE_ERROR_TAG) :].lstrip()
+    return head
+
+
+def environment_shape(origin, is_error, text):
+    """The environment shape of one tool result ('sleep-denial', 'usage-limit', 'cd-denial'),
+    or None. Only an error result has one; the sleep and cd shapes only from a shell tool."""
+    if not is_error:
+        return None
+    head = _opening(text)
+    if USAGE_LIMIT_RE.match(head):
+        return "usage-limit"
+    if origin in SHELL_TOOLS:
+        if SLEEP_DENIAL_RE.match(head):
+            return "sleep-denial"
+        if head.startswith(CD_DENIAL_ANCHOR):
+            return "cd-denial"
+    return None
+
+
+def is_usage_limit_stop(obj):
+    """True for the record a usage limit leaves: an assistant record the harness marks as an API
+    error (isApiErrorMessage) whose text opens with the limit sentence. The agent's own prose that
+    quotes the sentence carries no mark, and another API error carries another text."""
+    if obj.get("type") != "assistant" or obj.get("isApiErrorMessage") is not True:
+        return False
+    return USAGE_LIMIT_RE.match(result_text(_message_content(obj)).lstrip()) is not None
+
+
+def _errors_outside_environment(errors):
+    """How many of `errors` (category -> count) are the agent's own: every class but
+    `environment`, which a stop or a refusal by the harness or a hook fills."""
+    return sum(n for category, n in errors.items() if category != "environment")
+
+
+def _count_shape(shapes, shape):
+    shapes[shape] = shapes.get(shape, 0) + 1
+
+
+def _shapes_in_order(shapes):
+    """A shape count as a plain dict in ENVIRONMENT_SHAPES order, the shapes never seen left out."""
+    return {s: shapes[s] for s in ENVIRONMENT_SHAPES if shapes.get(s)}
+
 
 def classify_error(origin, is_error, text):
     """Return an error category, 'user-rejected', or None. Classifies by ORIGIN tool.
@@ -586,10 +690,14 @@ def classify_error(origin, is_error, text):
     Content tools are never errors unless is_error is set. Shell tools may also error via a
     non-zero exit code surfaced in the result body. 'user-rejected' is USER_REJECTED_SENTENCE at
     the start of an is_error result and nothing looser; leading whitespace is tolerated because
-    a list-of-blocks result joins an empty first block into a leading newline.
+    a list-of-blocks result joins an empty first block into a leading newline. 'environment' is
+    an is_error result that opens with one of the shapes environment_shape names, read before
+    every behavioural rule: a refused sleep put in front of a test run is no test failure.
     """
     if is_error and text.lstrip().startswith(USER_REJECTED_SENTENCE):
         return "user-rejected"
+    if environment_shape(origin, is_error, text):
+        return "environment"
 
     low = text.lower()
     is_shell = origin in SHELL_TOOLS
@@ -744,6 +852,8 @@ def process_session(jsonl_path, sessions_dir, replays=None):
             "transcriptsEmitted": 0,
             "errorAgentsNotEmitted": 0,
             "highSignal": [],
+            "environmentShapes": {},  # v5: environment shape -> count, over the helpers
+            "workflowAgents": 0,  # v5: of `count`, the helpers a Workflow run started
         },
         "transcriptPath": None,
         "backtrackingMarkers": 0,
@@ -752,6 +862,7 @@ def process_session(jsonl_path, sessions_dir, replays=None):
         "compactions": 0,
         "userRejected": 0,  # every user-rejected result; `user_rejected` below is a capped sample
         "hookDenials": 0,  # every hook-blocked result; `hook_denials` below is a capped sample
+        "environmentShapes": {},  # v5: environment shape -> count; the category holds the total
     }
     # cross-session error samples collected by the caller; here we collect locally then return
     local_errors = defaultdict(list)  # category -> [redacted sample]
@@ -819,6 +930,13 @@ def process_session(jsonl_path, sessions_dir, replays=None):
             sess["counts"]["assistantMsgs"] += 1
             if isinstance(msg.get("model"), str) and msg["model"]:
                 sess["models"][msg["model"]] += 1
+            if is_usage_limit_stop(obj):
+                sess["errorsByCategory"]["environment"] += 1
+                _count_shape(sess["environmentShapes"], "usage-limit")
+                if len(local_errors["environment"]) < SAMPLES_PER_CATEGORY:
+                    local_errors["environment"].append(
+                        f"[{sid[:8]}/{API_ERROR_SOURCE}] {redact(result_text(content))[:160]}"
+                    )
             for b in content:
                 if not isinstance(b, dict):
                     continue
@@ -891,8 +1009,10 @@ def process_session(jsonl_path, sessions_dir, replays=None):
                     if cm and len(sess["slashCommands"]) < SLASH_COMMANDS_CAP:
                         am = COMMAND_ARGS_RE.search(b.get("text", ""))
                         args = redact(am.group(1).strip())[:200] if am else ""
+                        # v5: who typed it, by the stamps an operator turn is judged by
+                        by = "operator" if _sent_by_operator(obj) else "harness"
                         sess["slashCommands"].append(
-                            {"command": cm.group(1), "args": args}
+                            {"command": cm.group(1), "args": args, "by": by}
                         )
                         emit(f"  [slash] /{cm.group(1)} {args}".rstrip())
                 elif bt == "tool_result":
@@ -915,6 +1035,11 @@ def process_session(jsonl_path, sessions_dir, replays=None):
                             )
                     elif cat:
                         sess["errorsByCategory"][cat] += 1
+                        if cat == "environment":
+                            _count_shape(
+                                sess["environmentShapes"],
+                                environment_shape(origin, is_err, txt),
+                            )
                         if len(local_errors[cat]) < SAMPLES_PER_CATEGORY:
                             local_errors[cat].append(
                                 f"[{sid[:8]}/{origin}] {redact(txt)[:160]}"
@@ -970,6 +1095,7 @@ def process_session(jsonl_path, sessions_dir, replays=None):
     sess["toolsUsed"] = dict(sess["toolsUsed"])
     sess["errorsByCategory"] = dict(sess["errorsByCategory"])
     sess["models"] = dict(sess["models"])
+    sess["environmentShapes"] = _shapes_in_order(sess["environmentShapes"])
 
     # write per-session transcript
     if sess["counts"]["userMsgs"] > 0:
@@ -994,13 +1120,15 @@ def process_session(jsonl_path, sessions_dir, replays=None):
     return sess, local_errors, user_rejected, hook_denials
 
 
-def render_subagent(jf, left_out=None):
+def render_subagent(jf, left_out=None, shapes=None):
     """Parse one sub-agent transcript .jsonl → (redacted_text, msgs, errorsByCategory, samples).
 
     Mirrors process_session's message walk but lighter: no behavior metrics, just the readable
-    redacted narrative + an error taxonomy (same classify_error, by ORIGIN tool). `samples` is a
-    list of (category, redacted_sample) tuples. Errors inside sub-agents were previously invisible.
-    `left_out` is the list iter_jsonl appends the uuid of each repeated event to.
+    redacted narrative + an error taxonomy (same classify_error, by ORIGIN tool, and a usage-limit
+    stop counted as `environment` as the main walk counts it). `samples` is a list of (category,
+    redacted_sample) tuples. Errors inside sub-agents were previously invisible.
+    `left_out` is the list iter_jsonl appends the uuid of each repeated event to. `shapes`, when
+    given, is a dict that receives {environment shape: count} for this transcript.
     """
     id_to_tool = {}
     lines = []
@@ -1031,6 +1159,17 @@ def render_subagent(jf, left_out=None):
         if otype == "assistant":
             if not isinstance(content, list):
                 continue
+            if is_usage_limit_stop(obj):
+                errs["environment"] += 1
+                if shapes is not None:
+                    _count_shape(shapes, "usage-limit")
+                if len(samples) < SAMPLES_PER_CATEGORY * 2:
+                    samples.append(
+                        (
+                            "environment",
+                            f"{API_ERROR_SOURCE}: {redact(result_text(content))[:140]}",
+                        )
+                    )
             for b in content:
                 if not isinstance(b, dict):
                     continue
@@ -1072,6 +1211,8 @@ def render_subagent(jf, left_out=None):
                     cat = classify_error(origin, is_err, txt)
                     if cat and cat != "user-rejected":
                         errs[cat] += 1
+                        if cat == "environment" and shapes is not None:
+                            _count_shape(shapes, environment_shape(origin, is_err, txt))
                         if len(samples) < SAMPLES_PER_CATEGORY * 2:
                             samples.append((cat, f"{origin}: {redact(txt)[:140]}"))
                     status = "ok" if not cat else f"ERROR({cat}): {redact(txt)[:120]}"
@@ -1092,8 +1233,11 @@ def walk_subagents(session_dir, sess, sessions_dir, left_out=None):
         return
     sid8 = sess["sessionId"][:8]
     parsed = []
+    shapes = {}  # environment shape -> count, over every helper of the session
     for jf in sorted(sub_root.rglob(SUBAGENT_GLOB)):
         sess["subAgents"]["count"] += 1
+        if jf.relative_to(sub_root).parts[0] == SUBAGENT_WORKFLOWS_DIR:
+            sess["subAgents"]["workflowAgents"] += 1
         size = 0
         with contextlib.suppress(OSError):
             size = jf.stat().st_size
@@ -1105,7 +1249,7 @@ def walk_subagents(session_dir, sess, sessions_dir, left_out=None):
                 m = json.loads(meta.read_text(encoding="utf-8", errors="replace"))
                 atype = m.get("agentType")
                 goal = m.get("description")
-        text, msgs, errs, samples = render_subagent(jf, left_out)
+        text, msgs, errs, samples = render_subagent(jf, left_out, shapes)
         sess["subAgents"]["msgs"] += msgs
         if len(sess["subAgents"]["agents"]) < 30:
             sess["subAgents"]["agents"].append(
@@ -1139,13 +1283,19 @@ def walk_subagents(session_dir, sess, sessions_dir, left_out=None):
     sess["subAgents"]["errorsByCategory"] = dict(agg_errs)
     sess["subAgents"]["agentsWithErrors"] = agents_with_errors
     sess["subAgents"]["errorSamples"] = dict(sample_by_cat)
+    sess["subAgents"]["environmentShapes"] = _shapes_in_order(shapes)
 
     # select high-signal transcripts to emit: every error-bearing agent + the top-N by bytes,
-    # de-duplicated and capped (bounded so a huge fan-out can't explode the output).
+    # de-duplicated and capped (bounded so a huge fan-out can't explode the output). An agent
+    # with an error outside `environment` goes before one whose only errors are stops and
+    # refusals, which are no measure of the agent: a wave the usage limit ended would fill the
+    # cap with the agents it stopped, in path order, and leave out the one that failed.
     top_bytes = sorted(parsed, key=lambda p: -p["bytes"])[:SUBAGENT_TOP_BYTES_EMIT]
-    candidates = [p for p in parsed if p["errs"]] + [
-        p for p in top_bytes if not p["errs"]
+    own = [p for p in parsed if _errors_outside_environment(p["errs"])]
+    stopped = [
+        p for p in parsed if p["errs"] and not _errors_outside_environment(p["errs"])
     ]
+    candidates = own + stopped + [p for p in top_bytes if not p["errs"]]
     seen, ordered = set(), []
     for p in candidates:
         if p["rel"] in seen:
@@ -1350,20 +1500,25 @@ def select_deep_dive(sessions):
 def select_subagent_deep_dive(sessions):
     """Deterministic Phase-3b selection over emitted high-signal sub-agent transcripts.
 
+    The rank reads the errors outside `environment` first, so an agent the harness stopped or
+    refused, however often, follows one with an error of its own; then errorCount (every class),
+    bytes and file, which is the whole rank when no agent has an `environment` error.
     Candidates are taken in rank order with a soft limit per parent session: a parent's
     candidates past SUBAGENT_DEEPDIVE_PER_PARENT_CAP wait while any other candidate remains, and
     a slot still free after that pass is filled from the ones that waited, in rank order. Both
     lists come out in rank order, so the limit decides who is picked, not how the lists read.
     """
-    pool = []
+    pool, own = [], []  # each candidate, and its count of errors outside `environment`
     for s in sessions:
         for hs in s["subAgents"].get("highSignal", []):
+            errors = hs.get("errorsByCategory", {})
+            own.append(_errors_outside_environment(errors))
             pool.append(
                 {
                     "parentSessionId": s["sessionId"],
                     "file": hs["file"],
                     "transcriptPath": hs["transcriptPath"],
-                    "errorCount": sum(hs.get("errorsByCategory", {}).values()),
+                    "errorCount": sum(errors.values()),
                     # `bytes` = raw source size (also the rank key, unchanged);
                     # `emittedBytes` = what the analyst will actually read. Both are carried
                     # so a Phase-3b spawn prompt can state the real read budget.
@@ -1371,7 +1526,16 @@ def select_subagent_deep_dive(sessions):
                     "emittedBytes": hs.get("emittedBytes", 0),
                 }
             )
-    ranked = sorted(pool, key=lambda p: (-p["errorCount"], -p["bytes"], p["file"]))
+    order = sorted(
+        range(len(pool)),
+        key=lambda i: (
+            -own[i],
+            -pool[i]["errorCount"],
+            -pool[i]["bytes"],
+            pool[i]["file"],
+        ),
+    )
+    ranked = [pool[i] for i in order]
     taken_per_parent = defaultdict(int)
     picked, waiting = [], []  # positions in `ranked`
     for position, p in enumerate(ranked):
@@ -1387,7 +1551,8 @@ def select_subagent_deep_dive(sessions):
     chosen = set(picked)
     return {
         "selectionRule": (
-            f"all emitted high-signal sub-agents; rank errorCount desc, bytes desc, file; "
+            f"all emitted high-signal sub-agents; rank errors outside environment desc, "
+            f"errorCount desc, bytes desc, file; "
             f"top {SUBAGENT_DEEPDIVE_CAP}; at most {SUBAGENT_DEEPDIVE_PER_PARENT_CAP} per "
             f"parent session while others remain"
         ),
@@ -1590,16 +1755,9 @@ def resolve_session_scope(session_dir, selector):
     return newest
 
 
-def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
-    """Write the per-task interaction digest that `task-learnings` Step 0 reads.
-
-    Counted signals are computed here. RE-ASKS ARE DELIBERATELY NOT DETECTED: a re-ask is the
-    same request restated in different words, and unlike a correction (which has lexical markers
-    — "wrong", "no,", "actually" — that sweep_user_corrections.py greps) it has no marker at all.
-    A token-overlap similarity score both false-positives on shared domain vocabulary and misses
-    terse restatements. So this emits the user-message SEQUENCE and the reader classifies by
-    reading it — judgment where judgment belongs.
-    """
+def _repetition_signals(sess, rereads_min):
+    """(re-reads, repeated commands, build/test loops, stale-read retries) of one session, each
+    at the digest's threshold."""
     b = sess.get("behavior") or {}
     rereads = [r for r in (b.get("reReads") or []) if r.get("count", 0) >= rereads_min]
     cmds = [
@@ -1609,44 +1767,38 @@ def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
     ]
     loops = list(b.get("buildTestLoops") or [])
     stale = b.get("staleReadEdits") or 0
-    errors = {
-        cat: n
-        for cat, n in (sess.get("errorsByCategory") or {}).items()
-        if n >= DIGEST_MIN_OCCURRENCES
-    }
-    msgs = list(iter_operator_turns(jsonl_path))
+    return rereads, cmds, loops, stale
 
-    signal_count = (
+
+def _signal_count(signals):
+    rereads, cmds, loops, stale = signals
+    return (
         len(rereads)
         + len(cmds)
         + len(loops)
         + (1 if stale >= DIGEST_MIN_OCCURRENCES else 0)
     )
-    ident = _session_identity(jsonl_path)
 
-    L = []
-    L.append(f"# Interaction digest — session {ident['sessionId'][:8]}")
-    L.append("")
-    L.append(f"- Session: `{ident['sessionId']}`")
-    L.append(f"- Last activity: {ident['lastActivity']}")
-    L.append(f"- Branch: {sess.get('gitBranch') or 'unknown'}")
-    L.append(
+
+def _session_header_lines(sess, ident, msgs):
+    """The lines that say which session this is and how much happened in it."""
+    return [
+        f"- Session: `{ident['sessionId']}`",
+        f"- Last activity: {ident['lastActivity']}",
+        f"- Branch: {sess.get('gitBranch') or 'unknown'}",
         f"- Volume: {len(msgs)} operator turns, "
-        f"{sess['counts']['toolUse']} tool calls, {sess.get('compactions', 0)} compaction(s)"
-    )
-    # counts.userMsgs is every user-channel record that carries text, injected text included, so it
-    # is not the number of operator turns above; it stays, labelled, because it drives selection.
-    L.append(
+        f"{sess['counts']['toolUse']} tool calls, {sess.get('compactions', 0)} compaction(s)",
+        # counts.userMsgs is every user-channel record that carries text, injected text included,
+        # so it is not the number of operator turns above; it stays, labelled, because it drives
+        # selection.
         f"- User-channel records: {sess['counts']['userMsgs']} (counts.userMsgs; includes skill, "
-        "hand-back and compaction text, so it is not a count of operator turns)"
-    )
-    L.append(
-        f"- Re-read threshold applied: >={rereads_min} (see DEFAULT_REREADS_MIN provenance)"
-    )
-    L.append(f"- Gate: {'SIGNAL' if signal_count or errors else 'NO SIGNAL'}")
-    L.append("")
-    L.append("## Counted repetition signals")
-    L.append("")
+        "hand-back and compaction text, so it is not a count of operator turns)",
+    ]
+
+
+def _signal_lines(heading, signals, rereads_min):
+    rereads, cmds, loops, stale = signals
+    L = [heading, ""]
     if rereads or cmds or loops or stale >= DIGEST_MIN_OCCURRENCES:
         for r in rereads:
             L.append(f"- re-read x{r['count']}: `{r.get('file', '?')}`")
@@ -1661,44 +1813,157 @@ def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
             f"_None at or above the thresholds (re-read >={rereads_min}, others >={DIGEST_MIN_OCCURRENCES})._"
         )
     L.append("")
-    L.append("## Agent error classes (>=2 in this session)")
-    L.append("")
-    if errors:
+    return L
+
+
+def _error_class_lines(heading, classes, none_line):
+    """The main thread's error classes that qualify, most frequent first, and the note on how
+    they were classified."""
+    L = [heading, ""]
+    if classes:
         L.extend(
-            f"- {cat}: {n}" for cat, n in sorted(errors.items(), key=lambda kv: -kv[1])
+            f"- {cat}: {n}" for cat, n in sorted(classes.items(), key=lambda kv: -kv[1])
         )
         L.append("")
         L.append(
-            "> Classified by ORIGIN TOOL, which is content-blind by design. Harness-generated "
-            "failures (hook denials, usage-limit kills, permission-stream aborts) land in "
-            "behavioral buckets and inflate these counts — decompose before treating any of "
-            "this as an agent-quality finding."
+            "> Classified by ORIGIN TOOL, which is content-blind by design. `environment` is "
+            "the exception: calls the harness or a hook refused or stopped (by shape in "
+            "aggregate.json `environmentShapes`), so give the rule a home, not an agent-quality "
+            "count. Other harness-generated failures (hook denials, permission-stream aborts) "
+            "still land in behavioral buckets and inflate these counts — decompose before "
+            "treating any of this as an agent-quality finding."
         )
     else:
-        L.append("_None with 2+ occurrences._")
+        L.append(none_line)
+    L.append("")
+    return L
+
+
+def _subagent_lines(heading, sub, classes):
+    """The sub-agent block of one session: the helpers walked (native and Workflow), how many
+    failed, their environment refusals by shape, and each error class that qualifies with up to
+    SUBAGENT_DIGEST_SAMPLES of its redacted samples. `sub` is the session's `subAgents`."""
+    L = [heading, ""]
+    count = sub.get("count", 0)
+    if not count:
+        L.append("_No sub-agent transcript under this session, native or Workflow._")
+        L.append("")
+        return L
+    workflow = sub.get("workflowAgents", 0)
+    L.append(
+        f"- Walked: {count} ({count - workflow} native, {workflow} in Workflow runs), "
+        f"{sub.get('agentsWithErrors', 0)} with errors"
+    )
+    shapes = sub.get("environmentShapes") or {}
+    if shapes:
+        L.append(
+            "- Environment by shape: "
+            + ", ".join(f"{shape}: {n}" for shape, n in shapes.items())
+        )
+    if not classes:
+        L.append(f"- Error classes with {DIGEST_MIN_OCCURRENCES}+ occurrences: none")
+        L.append("")
+        return L
+    samples = sub.get("errorSamples") or {}
+    for cat, n in sorted(classes.items(), key=lambda kv: -kv[1]):
+        L.append(f"- {cat}: {n}")
+        for sample in (samples.get(cat) or [])[:SUBAGENT_DIGEST_SAMPLES]:
+            flat = " ".join(str(sample).split())[:DIGEST_USER_MSG_CHARS]
+            L.append(f"  - sample: {flat}")
     L.append("")
     L.append(
-        f"## User-message sequence ({len(msgs)} total, first {DIGEST_USER_MSG_CAP} shown)"
+        "> The helpers' own results, classified as the main thread's are (by ORIGIN TOOL, "
+        "content-blind; `environment` is a refusal or stop by the harness or a hook). The "
+        "session that started a helper is the one that writes its lessons."
     )
     L.append("")
-    L.append(
-        "Read these for RE-ASKS: the same request restated because the first attempt did not "
-        "land. A re-ask needs >=2 occurrences to qualify, and paraphrase counts — no lexical "
-        "marker exists, which is why this is a sequence to read and not a detector's output."
-    )
-    L.append("")
-    L.append(
-        "Operator turns only: typed messages, messages typed while the model was working, and "
-        "the answers given to the question tool. Skill bodies, task notifications, hand-backs "
-        "and compaction text are not listed."
-    )
-    L.append("")
+    return L
+
+
+def _operator_turn_lines(heading, msgs, explain):
+    L = [heading, ""]
+    if explain:
+        L.append(
+            "Read these for RE-ASKS: the same request restated because the first attempt did not "
+            "land. A re-ask needs >=2 occurrences to qualify, and paraphrase counts — no lexical "
+            "marker exists, which is why this is a sequence to read and not a detector's output."
+        )
+        L.append("")
+        L.append(
+            "Operator turns only: typed messages, messages typed while the model was working, and "
+            "the answers given to the question tool. Skill bodies, task notifications, hand-backs "
+            "and compaction text are not listed."
+        )
+        L.append("")
     for i, t in enumerate(msgs[:DIGEST_USER_MSG_CAP], 1):
         flat = " ".join(t.split())[:DIGEST_USER_MSG_CHARS]
         L.append(f"{i}. {flat}")
     if len(msgs) > DIGEST_USER_MSG_CAP:
         L.append(f"…and {len(msgs) - DIGEST_USER_MSG_CAP} more (not shown).")
     L.append("")
+    return L
+
+
+def _qualifying(counts, shapes, minimum=DIGEST_MIN_OCCURRENCES):
+    """The classes in `counts` seen `minimum` times or more. `environment` adds up unrelated
+    rules (a refused sleep, a usage-limit stop, a gate denial), so it qualifies only when one
+    of its shapes, counted in `shapes`, does: one of each is no pattern."""
+    classes = {cat: n for cat, n in (counts or {}).items() if n >= minimum}
+    if not any(n >= minimum for n in (shapes or {}).values()):
+        classes.pop("environment", None)
+    return classes
+
+
+def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
+    """Write the per-task interaction digest that `task-learnings` Step 0 reads.
+
+    Counted signals are computed here. RE-ASKS ARE DELIBERATELY NOT DETECTED: a re-ask is the
+    same request restated in different words, and unlike a correction (which has lexical markers
+    — "wrong", "no,", "actually" — that sweep_user_corrections.py greps) it has no marker at all.
+    A token-overlap similarity score both false-positives on shared domain vocabulary and misses
+    terse restatements. So this emits the user-message SEQUENCE and the reader classifies by
+    reading it — judgment where judgment belongs.
+
+    The sub-agent block carries what the session's helpers did, native and Workflow alike: the
+    lessons of work a session handed off are this session's to write, and before the block they
+    reached aggregate.json only, which this step never reads.
+    """
+    signals = _repetition_signals(sess, rereads_min)
+    rereads, cmds, loops, stale = signals
+    errors = _qualifying(sess.get("errorsByCategory"), sess.get("environmentShapes"))
+    sub = sess.get("subAgents") or {}
+    sub_errors = _qualifying(sub.get("errorsByCategory"), sub.get("environmentShapes"))
+    msgs = list(iter_operator_turns(jsonl_path))
+
+    signal_count = _signal_count(signals)
+    gate = "SIGNAL" if signal_count or errors or sub_errors else "NO SIGNAL"
+    ident = _session_identity(jsonl_path)
+
+    L = []
+    L.append(f"# Interaction digest — session {ident['sessionId'][:8]}")
+    L.append("")
+    L.extend(_session_header_lines(sess, ident, msgs))
+    L.append(
+        f"- Re-read threshold applied: >={rereads_min} (see DEFAULT_REREADS_MIN provenance)"
+    )
+    L.append(f"- Gate: {gate}")
+    L.append("")
+    L.extend(_signal_lines("## Counted repetition signals", signals, rereads_min))
+    L.extend(
+        _error_class_lines(
+            "## Agent error classes (>=2 in this session)",
+            errors,
+            "_None with 2+ occurrences._",
+        )
+    )
+    L.extend(_subagent_lines("## Sub-agents (>=2 in this session)", sub, sub_errors))
+    L.extend(
+        _operator_turn_lines(
+            f"## User-message sequence ({len(msgs)} total, first {DIGEST_USER_MSG_CAP} shown)",
+            msgs,
+            explain=True,
+        )
+    )
     L.append("## Rules for anything written from this digest")
     L.append("")
     L.append(
@@ -1716,8 +1981,362 @@ def write_interaction_digest(output_dir, sess, jsonl_path, rereads_min):
     path = Path(output_dir) / "interaction-digest.md"
     _write_lf(path, "\n".join(L))
     print(
-        f"Wrote {path} — gate={'SIGNAL' if signal_count or errors else 'NO SIGNAL'}, "
-        f"{signal_count} repetition signal(s), {len(errors)} error class(es), {len(msgs)} operator turns",
+        f"Wrote {path} — gate={gate}, "
+        f"{signal_count} repetition signal(s), {len(errors)} error class(es), "
+        f"{len(sub_errors)} sub-agent error class(es), {len(msgs)} operator turns",
+        file=sys.stderr,
+    )
+    return path
+
+
+# --- task mode: every session of one task, and nothing else ------------------------------------
+# A task carried across a hand-off chain is measured as one: the sessions its hand-offs list on
+# their `Sessions:` line, with every helper those sessions started (native and Workflow), and not a
+# session of any other task, even one that ran beside it. The ids are the evidence set, so nothing
+# here guesses one: `current` is refused, an id is matched by the exact name of a transcript in the
+# ONE session folder this run reads (never by prefix, never in another project's folder on an id's
+# say-so), and an id that cannot be measured is reported with its reason and never dropped. A
+# listed session with no operator turn is measured all the same: its helpers did work.
+#
+# A hand-off is read as the kit's lint reads it (lemmi_ai_kit.checks: parse_handoff_ledger and
+# handoff_session_ids): the header block is every line above the first `## ` heading, HTML
+# comments blanked with their newlines kept, fenced lines skipped; a line is a ledger line when it
+# starts with its key and a colon, its value is the rest of the line stripped, and a line written
+# twice has no value. This file runs stand-alone and imports nothing of the kit, so the rule is
+# restated here, and tests/test_handoff_ledger_agreement.py holds the two readers equal on the same
+# notes. Each pattern below reads a line of many spaces in linear time: the lines are another
+# session's text.
+HANDOFF_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+HANDOFF_FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
+HANDOFF_SECTION_RE = re.compile(r"^## (.+)$")
+HANDOFF_LEDGER_KEYS = ("Task", "Sessions")
+# The selector that picks a session by file time: a guess, so task mode refuses it.
+CURRENT_SELECTOR = "current"
+# Exit status of a run in which a listed session could not be measured; the digest is kept.
+EXIT_UNMEASURED = 5
+UNMEASURED_NO_TRANSCRIPT = "no transcript in this project's session folder"
+UNMEASURED_UNREADABLE = "transcript unreadable"
+UNMEASURED_PROCESSING_ERROR = "processing error"
+# How many redacted samples the sub-agent block quotes for one class (the session carries 3).
+SUBAGENT_DIGEST_SAMPLES = 2
+
+
+def read_handoff_ledger(text):
+    """{'Task': value or None, 'Sessions': value or None} from a hand-off's header block, read
+    as the kit's lint reads it (see the comment above). None: no such line, or two."""
+    text = HANDOFF_COMMENT_RE.sub(lambda m: "\n" * m.group(0).count("\n"), text)
+    found = {key: [] for key in HANDOFF_LEDGER_KEYS}
+    fenced = False
+    for line in text.splitlines():
+        if HANDOFF_FENCE_RE.match(line):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        if HANDOFF_SECTION_RE.match(line):
+            break
+        for key in HANDOFF_LEDGER_KEYS:
+            if line.startswith(f"{key}:"):
+                found[key].append(line[len(key) + 1 :].strip())
+                break
+    return {key: (v[0] if len(v) == 1 else None) for key, v in found.items()}
+
+
+def ledger_session_ids(sessions):
+    """The ids a `Sessions:` value lists, in order and each once; () for None. The ids are
+    separated by commas and stripped, and an empty item is skipped."""
+    if sessions is None:
+        return ()
+    return tuple(
+        dict.fromkeys(item.strip() for item in sessions.split(",") if item.strip())
+    )
+
+
+def _refusal(message):
+    """The exit of a refused task-mode run, for the caller to raise: a task's evidence set is
+    named, never guessed, so a run that cannot name it says why, measures nothing and writes
+    nothing (exit 2)."""
+    print(
+        f"ERROR: {message} No session was measured and nothing was written.",
+        file=sys.stderr,
+    )
+    return SystemExit(2)
+
+
+def resolve_task_scope(selectors, notes):
+    """The evidence set of a task-mode run: {'task': slug or None, 'ids': (...), 'notes': [...]}.
+
+    The ids are the --session values in the order given, then each hand-off's Sessions ids, each
+    id once. Exits 2 before anything is written on `current`, on a hand-off that does not exist
+    or cannot be read, on one with no single Sessions line or no id on it, and on hand-offs that
+    name different tasks: one run measures one task."""
+    if CURRENT_SELECTOR in selectors:
+        raise _refusal(
+            f"`--session {CURRENT_SELECTOR}` is refused in task mode: it picks a session by file "
+            "time, and a task's sessions are named by id."
+        )
+    ids = list(selectors)
+    tasks = []
+    for note in notes:
+        path = Path(note)
+        if not path.exists():
+            raise _refusal(f"the hand-off {note} does not exist.")
+        try:
+            text = path.read_text(encoding="utf-8-sig", errors="replace")
+        except OSError as exc:
+            raise _refusal(
+                f"the hand-off {note} cannot be read ({type(exc).__name__})."
+            ) from None
+        ledger = read_handoff_ledger(text)
+        if ledger["Sessions"] is None:
+            raise _refusal(
+                f"the hand-off {note} has no Sessions line in its header block (above the first "
+                "`## ` heading, outside comments and fences), or has two; a v3 hand-off lists "
+                "every session of its task there, and none is guessed in its place."
+            )
+        listed = ledger_session_ids(ledger["Sessions"])
+        if not listed:
+            raise _refusal(
+                f"the Sessions line of the hand-off {note} lists no session id."
+            )
+        ids.extend(listed)
+        if ledger["Task"] is not None and ledger["Task"] not in tasks:
+            tasks.append(ledger["Task"])
+    if len(tasks) > 1:
+        raise _refusal(
+            f"the hand-offs name {len(tasks)} tasks ({', '.join(tasks)}); one run measures one "
+            "task."
+        )
+    ids = list(dict.fromkeys(ids))
+    if CURRENT_SELECTOR in ids:
+        raise _refusal(
+            f"a hand-off lists `{CURRENT_SELECTOR}`, which is no session id."
+        )
+    return {
+        "task": tasks[0] if tasks else None,
+        "ids": tuple(ids),
+        "notes": list(notes),
+    }
+
+
+def resolve_task_sessions(session_dir, ids):
+    """([transcript], [(id, reason)]): each listed id's transcript, found by its exact file name
+    in the listing of `session_dir` and nowhere else, or the reason it has none."""
+    by_name = {f.stem: f for f in session_dir.glob("*.jsonl")}
+    found, missing = [], []
+    for sid in ids:
+        path = by_name.get(sid)
+        if path is None:
+            missing.append((sid, UNMEASURED_NO_TRANSCRIPT))
+            continue
+        try:
+            with open(path, "rb"):
+                pass
+        except OSError:
+            missing.append((sid, UNMEASURED_UNREADABLE))
+            continue
+        found.append(path)
+    return found, missing
+
+
+def _drop_outputs(sessions_dir, sid):
+    """Remove what process_session wrote for `sid` before it failed, so that an unmeasured
+    session leaves nothing in the outputs."""
+    with contextlib.suppress(OSError):
+        (sessions_dir / f"{sid}.md").unlink(missing_ok=True)
+    shutil.rmtree(sessions_dir / "sub" / sid, ignore_errors=True)
+
+
+def _shape_text(shapes):
+    return ", ".join(f"{shape}: {n}" for shape, n in shapes.items() if n) or "none"
+
+
+def _class_total_lines(label, totals, by_session):
+    """One totals line for the classes that qualify across the task, each with its split by
+    session, so that a count written from it can be found again in the sections below."""
+    if not totals:
+        return [f"- {label}: none"]
+    L = [f"- {label}:"]
+    for cat, n in sorted(totals.items(), key=lambda kv: -kv[1]):
+        split = ", ".join(f"{sid8}: {k}" for sid8, k in by_session[cat])
+        L.append(f"  - {cat}: {n} ({split})")
+    return L
+
+
+def write_task_digest(output_dir, task, sessions, inputs, unmeasured, rereads_min):
+    """Write the task digest: one interaction digest for every session a task's hand-offs list.
+
+    The header names the task and the listed ids; then come the totals over the measured
+    sessions, the ids that were not measured with their reasons, and one section per measured
+    session, oldest first, holding what a one-session digest holds, sub-agent block included. A
+    class qualifies when it occurs twice or more across the task's sessions, the main threads and
+    the helpers counted apart (`environment` when one of its shapes does), and each section lists
+    its own session's count of it. `inputs`
+    maps a session id to (identity, operator turns), read inside the run's per-file guard."""
+    main_totals, sub_totals = defaultdict(int), defaultdict(int)
+    main_by, sub_by = defaultdict(list), defaultdict(list)
+    main_env = dict.fromkeys(ENVIRONMENT_SHAPES, 0)
+    sub_env = dict.fromkeys(ENVIRONMENT_SHAPES, 0)
+    turns = tools = compactions = walked = workflow = with_errors = 0
+    for s in sessions:
+        sid8 = s["sessionId"][:8]
+        sub = s.get("subAgents") or {}
+        for cat, n in (s.get("errorsByCategory") or {}).items():
+            main_totals[cat] += n
+            main_by[cat].append((sid8, n))
+        for cat, n in (sub.get("errorsByCategory") or {}).items():
+            sub_totals[cat] += n
+            sub_by[cat].append((sid8, n))
+        for shape, n in (s.get("environmentShapes") or {}).items():
+            main_env[shape] = main_env.get(shape, 0) + n
+        for shape, n in (sub.get("environmentShapes") or {}).items():
+            sub_env[shape] = sub_env.get(shape, 0) + n
+        turns += len(inputs[s["sessionId"]][1])
+        tools += s["counts"]["toolUse"]
+        compactions += s.get("compactions", 0)
+        walked += sub.get("count", 0)
+        workflow += sub.get("workflowAgents", 0)
+        with_errors += sub.get("agentsWithErrors", 0)
+    main_classes = _qualifying(main_totals, main_env)
+    sub_classes = _qualifying(sub_totals, sub_env)
+    signal_count = sum(
+        _signal_count(_repetition_signals(s, rereads_min)) for s in sessions
+    )
+    gate = "SIGNAL" if signal_count or main_classes or sub_classes else "NO SIGNAL"
+    slug = task["task"]
+
+    L = [f"# Interaction digest — task {slug or '(not named)'}", ""]
+    if slug:
+        named_in = ", ".join(f"`{Path(note).name}`" for note in task["notes"])
+        L.append(f"- Task: `{slug}`, from the `Task:` line of {named_in}")
+    elif task["notes"]:
+        L.append("- Task: not named: no hand-off given has a single `Task:` line")
+    else:
+        L.append("- Task: not named: the sessions were given by id, with no hand-off")
+    L.append(
+        f"- Sessions listed: {len(task['ids'])}: "
+        + ", ".join(f"`{sid}`" for sid in task["ids"])
+    )
+    L.append(
+        f"- Measured: {len(sessions)}, one section each below, oldest first; "
+        f"unmeasured: {len(unmeasured)}"
+        + (" (nothing in this file is about them)" if unmeasured else "")
+    )
+    L.append(
+        f"- Re-read threshold applied: >={rereads_min} (see DEFAULT_REREADS_MIN provenance)"
+    )
+    L.append(f"- Gate: {gate}")
+    L.append(
+        "- Each user-message sequence lists operator turns only (typed messages, messages typed "
+        "while the model was working, answers given to the question tool). Read them for "
+        "RE-ASKS: the same request restated because the first attempt did not land; paraphrase "
+        "counts, and no detector does this for you."
+    )
+    L.append("")
+    L.append("## Totals across the measured sessions")
+    L.append("")
+    L.append(
+        f"- Volume: {turns} operator turns, {tools} tool calls, {compactions} compaction(s)"
+    )
+    L.append(
+        f"- Sub-agents: {walked} walked ({walked - workflow} native, {workflow} in Workflow "
+        f"runs), {with_errors} with errors"
+    )
+    L.extend(
+        _class_total_lines(
+            "Agent error classes (>=2 across this task's sessions)",
+            main_classes,
+            main_by,
+        )
+    )
+    L.extend(
+        _class_total_lines(
+            "Sub-agent error classes (>=2 across this task's sessions)",
+            sub_classes,
+            sub_by,
+        )
+    )
+    L.append(
+        f"- Environment by shape: main threads {_shape_text(main_env)}; "
+        f"sub-agents {_shape_text(sub_env)}"
+    )
+    L.append("")
+    L.append(f"## Unmeasured sessions ({len(unmeasured)})")
+    L.append("")
+    if unmeasured:
+        L.extend(f"- `{sid}`: {reason}" for sid, reason in unmeasured)
+        L.append("")
+        L.append(
+            "> Not read, so nothing here is about them and nothing written from this file may "
+            "be. A session that ran in another project's folder is measured by a run of its own "
+            "with that folder as the first argument."
+        )
+    else:
+        L.append("_None: every listed session was measured._")
+    L.append("")
+    for s in sessions:
+        ident, msgs = inputs[s["sessionId"]]
+        sub = s.get("subAgents") or {}
+        L.append(f"## Session {s['sessionId'][:8]}")
+        L.append("")
+        L.extend(_session_header_lines(s, ident, msgs))
+        L.append("")
+        L.extend(
+            _signal_lines(
+                "### Counted repetition signals",
+                _repetition_signals(s, rereads_min),
+                rereads_min,
+            )
+        )
+        L.extend(
+            _error_class_lines(
+                "### Agent error classes (>=2 across this task's sessions)",
+                {
+                    cat: n
+                    for cat, n in (s.get("errorsByCategory") or {}).items()
+                    if cat in main_classes
+                },
+                "_None of the classes seen 2+ times across this task._",
+            )
+        )
+        L.extend(
+            _subagent_lines(
+                "### Sub-agents (>=2 across this task's sessions)",
+                sub,
+                {
+                    cat: n
+                    for cat, n in (sub.get("errorsByCategory") or {}).items()
+                    if cat in sub_classes
+                },
+            )
+        )
+        L.extend(
+            _operator_turn_lines(
+                f"### User-message sequence ({len(msgs)} total, first {DIGEST_USER_MSG_CAP} shown)",
+                msgs,
+                explain=False,
+            )
+        )
+    L.append("## Rules for anything written from this digest")
+    L.append("")
+    L.append(
+        f"1. A candidate needs **>={DIGEST_MIN_OCCURRENCES} occurrences across this task's sessions**. One event is not a pattern."
+    )
+    L.append("2. **At most 2 entries per task.** Rank and drop the rest.")
+    L.append(
+        "3. Every count and quote you write **must be locatable in this file**. If it is not here, discard the claim — do not soften it."
+    )
+    L.append(
+        "4. **Write nothing about an unmeasured session**: it was not read. Cross-TASK patterns are `session-retrospective`'s job, not this one. Report only what this task's sessions prove."
+    )
+    L.append("")
+
+    path = Path(output_dir) / "interaction-digest.md"
+    _write_lf(path, "\n".join(L))
+    print(
+        f"Wrote {path} — task {slug or '(not named)'}, gate={gate}, {len(sessions)} of "
+        f"{len(task['ids'])} listed session(s) measured, {len(unmeasured)} unmeasured, "
+        f"{len(main_classes)} error class(es), {len(sub_classes)} sub-agent error class(es)",
         file=sys.stderr,
     )
     return path
@@ -1760,14 +2379,28 @@ def main():
     ap.add_argument("--self-check", action="store_true")
     ap.add_argument(
         "--session",
+        action="append",
         help="scope to ONE session: a session id (or unique prefix), or 'current' for the "
         "most-recently-written transcript. 'current' exits 4 if two transcripts were written "
-        "close together, rather than guessing between parallel sessions.",
+        "close together, rather than guessing between parallel sessions. Given twice or more, "
+        "or beside --sessions-from, it is task mode: each id must be the exact name of a "
+        "transcript in the session dir, and 'current' is refused (exit 2).",
+    )
+    ap.add_argument(
+        "--sessions-from",
+        action="append",
+        metavar="HAND-OFF",
+        help="task mode: measure every session a v3 hand-off lists on its Sessions line, with "
+        "their sub-agents, and nothing else (repeatable: one per note of the task received). "
+        "A hand-off that does not exist or has no Sessions line exits 2; a listed session that "
+        "cannot be measured is reported unmeasured with its reason, and the run exits 5 with "
+        "the digest kept.",
     )
     ap.add_argument(
         "--digest",
         action="store_true",
-        help="also write interaction-digest.md (requires --session); consumed by task-learnings",
+        help="also write interaction-digest.md (requires --session or --sessions-from); "
+        "consumed by task-learnings",
     )
     ap.add_argument(
         "--rereads-min",
@@ -1778,9 +2411,20 @@ def main():
     )
     args = ap.parse_args()
 
-    if args.digest and not args.session:
-        print("ERROR: --digest requires --session <id|current>", file=sys.stderr)
+    selectors = args.session or []
+    notes = args.sessions_from or []
+    # Task mode: the sessions of one task, named by id or by its hand-offs (see the comment
+    # above read_handoff_ledger). One --session alone is the one-session mode it always was.
+    task_mode = bool(notes) or len(selectors) > 1
+
+    if args.digest and not (selectors or notes):
+        print(
+            "ERROR: --digest requires --session <id|current> or --sessions-from <hand-off>",
+            file=sys.stderr,
+        )
         sys.exit(2)
+    # Read and checked before anything is written, so a refusal leaves no output behind.
+    task = resolve_task_scope(selectors, notes) if task_mode else None
 
     session_dir = Path(args.session_dir) if args.session_dir else _derive_session_dir()
     print(f"Using session dir: {session_dir}", file=sys.stderr)
@@ -1807,12 +2451,21 @@ def main():
     sessions_dir.mkdir(parents=True, exist_ok=True)
 
     # An explicit --session overrides date filtering: the caller named the session, so a stale
-    # --since would silently drop it and yield an empty digest that reads as "no signal".
-    since = None if args.session else args.since
-    until = None if args.session else args.until
+    # --since would silently drop it and yield an empty digest that reads as "no signal". A
+    # task's hand-offs name its sessions too.
+    since = None if selectors or notes else args.since
+    until = None if selectors or notes else args.until
 
-    if args.session:
-        scoped = resolve_session_scope(session_dir, args.session)
+    unmeasured = []  # task mode: (session id, reason) for each listed id that was not measured
+    if task is not None:
+        files, unmeasured = resolve_task_sessions(session_dir, task["ids"])
+        print(
+            f"Task mode: {task['task'] or '(task not named)'}, {len(task['ids'])} listed "
+            f"session(s), {len(files)} transcript(s) found by exact name",
+            file=sys.stderr,
+        )
+    elif selectors:
+        scoped = resolve_session_scope(session_dir, selectors[0])
         ident = _session_identity(scoped)
         print(
             f"Scoped to ONE session: {ident['sessionId']}\n"
@@ -1829,7 +2482,12 @@ def main():
     tax = {c: {"count": 0, "sessions": [], "samples": []} for c in ERROR_CATEGORIES}
     user_rejected = {"count": 0, "sessions": [], "samples": []}
     hook_denials = {"count": 0, "sessions": [], "samples": []}
+    # v5: the `environment` category by shape, every shape listed as byCategory lists every class
+    env_shapes = dict.fromkeys(ENVIRONMENT_SHAPES, 0)
     replays = {}  # session id -> repeated events left out of it: for stderr, not the aggregate
+    # task mode: session id -> (identity, operator turns), read inside the per-file guard below so
+    # that a transcript the digest cannot read makes its session unmeasured, never a crash
+    digest_inputs = {}
 
     prescan_skipped = 0
     for f in files:
@@ -1847,10 +2505,22 @@ def main():
             sess, local_errors, rejected, hooked = process_session(
                 f, sessions_dir, replays
             )
+            if task is not None and args.digest:
+                digest_inputs[sess["sessionId"]] = (
+                    _session_identity(f),
+                    list(iter_operator_turns(f)),
+                )
         except Exception as exc:  # never abort the whole run on one file
             print(f"  ! error processing {f.name}: {exc}", file=sys.stderr)
+            if task is not None:  # a listed session is never dropped: it is unmeasured
+                unmeasured.append(
+                    (f.stem, f"{UNMEASURED_PROCESSING_ERROR} ({type(exc).__name__})")
+                )
+                _drop_outputs(sessions_dir, f.stem)
             continue
-        if sess["counts"]["userMsgs"] == 0:
+        # A listed session is measured whatever it holds: one with no operator turn may still
+        # have started the helpers that did the task's work.
+        if sess["counts"]["userMsgs"] == 0 and task is None:
             continue
         # date overlap filter
         if since and sess["endTime"] and sess["endTime"][:10] < since:
@@ -1858,6 +2528,8 @@ def main():
         if until and sess["startTime"] and sess["startTime"][:10] > until:
             continue
         sessions.append(sess)
+        for shape, n in sess["environmentShapes"].items():
+            env_shapes[shape] += n
         for cat, samples in local_errors.items():
             tax[cat]["count"] += sess["errorsByCategory"].get(cat, 0)
             if sess["errorsByCategory"].get(cat):
@@ -1882,7 +2554,16 @@ def main():
 
     sessions.sort(key=lambda s: s["startTime"] or "")
 
-    if args.digest:
+    if task is not None:
+        listed_at = {sid: i for i, sid in enumerate(task["ids"])}
+        unmeasured.sort(key=lambda u: listed_at.get(u[0], len(listed_at)))
+        for sid, reason in unmeasured:
+            print(f"  ! unmeasured {sid}: {reason}", file=sys.stderr)
+        if args.digest:
+            write_task_digest(
+                output_dir, task, sessions, digest_inputs, unmeasured, args.rereads_min
+            )
+    elif args.digest:
         if not sessions:
             print(
                 "ERROR: the scoped session yielded no analyzable content (0 real user messages) — "
@@ -1895,11 +2576,14 @@ def main():
     # cross-session sub-agent error taxonomy (rolled up from each session's walk_subagents pass)
     sub_tax = {c: {"count": 0, "sessions": [], "samples": []} for c in ERROR_CATEGORIES}
     sub_totals = {"totalAgents": 0, "agentsWithErrors": 0, "transcriptsEmitted": 0}
+    sub_env_shapes = dict.fromkeys(ENVIRONMENT_SHAPES, 0)
     for s in sessions:
         sa = s["subAgents"]
         sub_totals["totalAgents"] += sa.get("count", 0)
         sub_totals["agentsWithErrors"] += sa.get("agentsWithErrors", 0)
         sub_totals["transcriptsEmitted"] += sa.get("transcriptsEmitted", 0)
+        for shape, n in sa.get("environmentShapes", {}).items():
+            sub_env_shapes[shape] += n
         for c, n in sa.get("errorsByCategory", {}).items():
             sub_tax[c]["count"] += n
             sub_tax[c]["sessions"].append(s["sessionId"][:8])
@@ -1960,8 +2644,13 @@ def main():
             "byCategory": tax,
             "userRejected": user_rejected,
             "hookDenials": hook_denials,
+            "environmentShapes": env_shapes,  # v5
         },
-        "subAgentErrorTaxonomy": {"byCategory": sub_tax, **sub_totals},
+        "subAgentErrorTaxonomy": {
+            "byCategory": sub_tax,
+            **sub_totals,
+            "environmentShapes": sub_env_shapes,  # v5
+        },
         "deepDiveCandidates": deep_dive,
         "subAgentDeepDiveCandidates": sub_deep_dive,
         "sessions": sessions,
@@ -2046,6 +2735,17 @@ def main():
                 file=sys.stderr,
             )
 
+    # Task mode, last, so that a leak (exit 3, digest deleted) wins: a listed session that was
+    # not measured is never silent. The digest is kept, and it names each such id with its reason.
+    if task is not None and unmeasured:
+        print(
+            f"UNMEASURED: {len(unmeasured)} of {len(task['ids'])} listed session(s) could not "
+            f"be measured ({', '.join(sid for sid, _ in unmeasured)}); exit {EXIT_UNMEASURED}. "
+            "Write nothing about them.",
+            file=sys.stderr,
+        )
+        sys.exit(EXIT_UNMEASURED)
+
 
 def _merge_tools(sessions):
     merged = defaultdict(int)
@@ -2056,13 +2756,14 @@ def _merge_tools(sessions):
 
 
 def _invocation_modes(sessions):
-    """Per-skill invocation counts by mode (v4, C-2): user = /slash, model = Skill tool."""
-    modes = defaultdict(lambda: {"user": 0, "model": 0})
+    """Per-skill invocation counts by mode (v4, C-2; harness v5): user = a /slash command the
+    operator typed, harness = one the harness typed (slashCommands[].by), model = Skill tool."""
+    modes = defaultdict(lambda: {"user": 0, "model": 0, "harness": 0})
     for s in sessions:
         for si in s["skillInvocations"]:
             modes[si["skill"]]["model"] += 1
         for sc in s["slashCommands"]:
-            modes[sc["command"]]["user"] += 1
+            modes[sc["command"]]["user" if sc["by"] == "operator" else "harness"] += 1
     return {k: dict(v) for k, v in sorted(modes.items())}
 
 

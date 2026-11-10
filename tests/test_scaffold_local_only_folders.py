@@ -50,6 +50,9 @@ def git_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         pytest.skip("git is not installed, so git check-ignore cannot be asked")
     empty = tmp_path / "git-empty"
     empty.write_text("", encoding="utf-8")
+    # Emptying GIT_CONFIG_GLOBAL is not enough: git still reads its default excludes
+    # file under the user's config home, and a planted `*.md` there made this fixture
+    # ignore AGENTS.md. An empty excludesFile closes that.
     global_config = tmp_path / "gitconfig-global"
     global_config.write_text(
         f'[core]\n\texcludesFile = "{empty.as_posix()}"\n', encoding="utf-8"

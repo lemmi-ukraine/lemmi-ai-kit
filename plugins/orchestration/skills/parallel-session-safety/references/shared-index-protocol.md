@@ -171,6 +171,13 @@ new, gone and changed paths, inside or outside the declared set. Prove "unchange
 never by equal counts. A hash flags a neighbour's edit too, so classify each changed path by owner
 (`SKILL.md` §2) before calling it a violation.
 
+A hash says only that a file changed. When you pin a file another lane keeps writing, also copy
+its bytes into your own scratch at pin time. A line-sequence diff against the writer's own pre-edit
+snapshot once showed an insert-only edit (32 lines added, 0 replaced or deleted), so a reviewer
+skipped every old line instead of re-reading 340, but finding that snapshot took a search of the
+writer's scratch area, and a later search of the tree for one timed out twice; your own copy gives
+the same diff with no search (observed, 2026-11-02 and 11-03).
+
 ### 12h. A merge into a tree others are writing: dry-run it first
 
 `git merge-tree --write-tree HEAD <target>` (git 2.38+) merges in the object database and touches

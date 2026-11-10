@@ -1,9 +1,23 @@
-<!-- handoff-contract: v2 -->
+<!-- handoff-contract: v3 -->
 # Hand-off: {slug}
 
 <!--
 HOW TO USE (delete this comment and every instruction line before you hand over)
-- Copy to `.ai/handoffs/{YYYY-MM-DD}-{slug}.md`: the date is the day you write it. Keep line 1, the version label, as it is.
+- Copy to `.ai/handoffs/{YYYY-MM-DD}-{slug}.md`: the date is the day you write it, `{slug}` the slug on the `Task:` line. A second
+  note of the task that day goes to `{YYYY-MM-DD}-{slug}--{part}.md`, `{part}` 1 to 12 lowercase letters or digits. Keep line 1,
+  the version label, as it is.
+- The six lines under this comment are the ledger: keep each once, above `## Scope` and outside any comment or fence.
+  - `Task:` the task's slug, the same slug as its task file, its spec folder and this note's file name: 2 to 5 words of
+    lowercase letters and digits joined by `-` (`^[a-z0-9]+(-[a-z0-9]+){1,4}$`), at most 40 characters, never renamed.
+  - `Sessions:` every session of the task, separated by commas, this one last. A session's id is the name of the folder that
+    holds its scratchpad. Copy the `Sessions:` ids of every note of this task you received (a predecessor's, a peer's
+    return), then add your own; a forked session adds its new id; a sub-agent adds nothing.
+  - `Written:` `YYYY-MM-DD HH:MM by <id>`: the local time you write this note, and your own id, which `Sessions:` lists.
+  - `Lessons:` `none` (the lessons step found nothing new), `not run - <reason>`, or the entries you appended,
+    `[YYYY-MM-DD] title; [YYYY-MM-DD] title`, each copied from its learnings buffer heading without the `### `. If your
+    brief bars the buffer and names another writer: `not run - drafted for <writer>`, each draft kept in Status, under Not done.
+  - `Delegation:` `none, because <reason>`, or the pieces you handed to sub-agents, `<piece>; <piece>`.
+  - `Safe to close:` `yes`, `yes - <note>`, or `no - <what is still running or not committed>`.
 - This folder is gitignored and never committed: a hand-off is a POINTER. A fact that must outlive it goes to git (a task file,
   a doc, a code comment), the learnings buffer or a memory note, and is only NAMED here. Never paste a credential or token.
 - Write a figure with the time you measured it; the receiver re-derives it. Preconditions and Verification are commands with
@@ -14,7 +28,12 @@ HOW TO USE (delete this comment and every instruction line before you hand over)
 - Optional sections go after the last required one: Error history and Files changed (see the end).
 -->
 
-Written: {YYYY-MM-DD HH:MM local} by {session id or window name}
+Task: example-task
+Sessions: example-session-id
+Written: 2026-01-01 09:00 by example-session-id
+Lessons: none
+Delegation: none, because <reason>
+Safe to close: no - <reason>
 
 ## Scope
 - **In (may change):** {the one slice, and the files or folders it may touch}

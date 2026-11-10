@@ -83,7 +83,12 @@ _ALLOWED_SUBJECTS: dict[str, tuple[str, ...]] = {}
 
 
 def _commit_messages(repo: Path) -> list[tuple[str, str, str]]:
-    """(sha, subject, full message) for every commit reachable from any ref."""
+    """(sha, subject, full message) for every commit reachable from any ref.
+
+    Any ref means local ones too: a tag or branch that only this clone holds on
+    rewritten history fails the scan here and never in CI, and
+    `git for-each-ref --contains <sha>` names the ref.
+    """
     result = subprocess.run(
         ["git", "log", "--all", "--format=%H%x00%s%x00%B%x01"],
         cwd=repo,

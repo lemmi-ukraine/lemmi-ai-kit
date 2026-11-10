@@ -165,6 +165,10 @@ question it never asked despite measuring the friction.}
 {.NET build failures (MSBuild, C# compiler errors) count as `build-compile`; a report made before
 that rule had them in `test-failure` or `runtime-exit`, so its counts move against this window.}
 
+{Since v5, results the harness or a hook refused or stopped count as `environment`, and `user` in
+`stats.skillInvocationModes` no longer counts harness-typed commands; a report that compares with a
+window built by the v4 extractor says so, because that window's counts move against this one.}
+
 ## Recommendations
 
 ### Priority 1: New/Strengthened Rules for AGENTS.md

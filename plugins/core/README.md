@@ -44,7 +44,7 @@ client, as for the rest of Core.
 |---|---|---|
 | `gate_learnings_drain` | Removing entries from `.ai/learnings.md` (an Edit, MultiEdit or Write that drops entries, or a shell call shaped like a rewrite or a removal of the file) while no approved consolidation plan is recorded for the day. Appending is never blocked. | Registered whenever Core is enabled; there is no switch. |
 | `gate_shell_prefix` | Shell calls (the Bash and PowerShell tools) that move the persistent working directory, start with a variable assignment, or shadow `cd`. | Off by default: it does nothing until a project switches it on. |
-| `nudge_learnings_drain` | Nothing: when a session opens it prints one line if the learnings buffer is due for a drain. | Off by default: it prints nothing until a project switches it on. |
+| `nudge_learnings_drain` | Nothing: when a session opens it prints a line if the learnings buffer is due for a drain, and a line if the newest retrospective is overdue. | Off by default: it prints nothing until a project switches it on. |
 
 ### The shell-prefix hook
 
@@ -109,11 +109,19 @@ already has the hook registered on its next shell call.
 ### The drain-nudge hook
 
 `nudge_learnings_drain` runs when a session opens (the `startup`, `resume` and `clear` sources) and
-prints one line into the session when the learnings buffer is due for a drain:
+prints at most one line per arm into the session, two arms under one switch. The drain arm speaks
+when the learnings buffer is due for a drain:
 `intake at N entries, last drain D days ago -> run /lemmi-ai-kit-core:learning-consolidator`.
-It never blocks and exits 0 on every path. `task-learnings` (its buffer-pressure check) and
-`learning-consolidator` (its cadence guard) say the same thing, but only when they run, so a session
-that ends without either never shows it; this hook says it when the session starts.
+The retrospective arm speaks when the newest report in `.ai/retrospectives/` is old, or there is
+none:
+`no retrospective in D days -> run /lemmi-ai-kit-core:session-retrospective`, or
+`no retrospective recorded -> run /lemmi-ai-kit-core:session-retrospective`.
+When both are due, the reply holds both lines, the drain line first. The hook never blocks and exits
+0 on every path. `task-learnings` (its buffer-pressure check) and `learning-consolidator` (its
+cadence guard) say what the drain arm says, but each speaks only when its skill runs, so a session
+that ends without running them never shows it; this hook says it when the session starts. The
+retrospective arm has no such counterpart: the cadence guard of `session-retrospective` only stops a
+run that comes too soon after the newest report, and no skill says that a retrospective is overdue.
 
 It is off by default. It prints nothing until the project holds `.ai/drain-nudge-hook.json` with
 `{"enabled": true}`; the file is read at every session start, so a change takes effect at the next
@@ -128,7 +136,16 @@ count that cannot be read, counts as drained. It prints when the buffer holds mo
 or when it holds any and the last drain is 7 or more days old: the numbers those two skills state,
 and a test fails when the hook or this section disagrees with them. With no drain recorded the age
 rule stays quiet, and a buffer over the entry count prints `no drain recorded` in place of the age.
-It reads no stash, branch or backup copy of the buffer, and a project cannot change the two numbers.
+It reads no stash, branch or backup copy of the buffer, and a project cannot change these numbers.
+
+The retrospective arm reads the file names in `.ai/retrospectives/`, where `session-retrospective`
+writes `{date}-retrospective.md`. A name that starts with `YYYY-MM-DD` and a real day dates a report,
+and the newest date wins; the modification time is never read, because a copy or a checkout gives
+every file one. A name with no date is ignored, and a date in the future counts as today. The arm
+speaks when the newest report is 14 days old or more, the default window of `session-retrospective`,
+and a test fails when the hook or this section disagrees with it. A folder that is missing, empty or
+without a dated name counts as no report. A folder it cannot list (the path is a file, for
+example) silences this arm alone: the drain line is still printed and the exit code is still 0.
 
 Every session start pays one `uv` and Python start whether or not the switch is on, and the hooks
 reference says Claude's first response waits for SessionStart hooks to finish. The reference says

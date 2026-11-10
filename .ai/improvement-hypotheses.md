@@ -15,6 +15,24 @@
 
 ---
 
+## 2026-11-10
+
+### [SKILL-MODIFIED] A task's close records the lessons its sub-agents and earlier sessions found
+- **Category:** Knowledge Retention
+- **Hypothesis:** By shipping the v3 task ledger, the extractor's task mode and Step 0's chain measurement together, we expect the share of lesson drafts parked in hand-off and return notes that reach no shared home to fall from 16 of 62 (about 26%, measured on 2026-11-08 under the build installed before 2026-11-05) to at most 10% for tasks that ran on this build.
+- **Signal:** One to two weeks after this build is installed, or by 2026-12-01, whichever comes first, re-run the 2026-11-08 audit's census over the hand-off and return notes written on the new build, and judge each drafted lesson's landing with a rewording-aware search: confirm if at most 10% reach no shared home, refute if 20% or more do.
+- **Risk:** The baseline came from an older installed build; few task chains may run inside the window; the landing judgement is a reader's call; and drains in between move entries, so a promoted home must count as a home.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-10 — Extract learning per task, from every session of its hand-off chain and every sub-agent they started
+
+### [RULE-ADDED] A session here waits on a completion notice or one Monitor instead of polling by hand
+- **Category:** Speed
+- **Hypothesis:** By stating in the kit's own AGENTS.md, which every session here loads, that a background job or a sub-agent is waited on through its completion notice or one Monitor, never by polling it by hand, and by keeping the detail and the harness's two refusals of a long sleep in `limit-recovery.md`, we expect fewer of the next retrospective window's deep-dived sessions and sub-agents to poll by hand than the 4 that ran about 140 hand polls from 2026-10-25 to 11-08, because the rule now sits in the file those sessions read at start rather than only in a skill reference.
+- **Signal:** In the next session-retrospective run over at least 10 sessions that started after this rule landed, or by 2026-12-31, whichever comes first, count in its deep-dived sessions and sub-agents the ones that poll a background job by hand more than 5 times (`date; ls`, `tail` or `sleep` loops between the job's start and its completion notice): confirm if at most 1 does; refute if 3 or more do; exactly 2, or fewer than 10 sessions in the window, leaves it inconclusive.
+- **Risk:** The rule is prose in an always-loaded file, the mechanism the tracker skill says all refuted verdicts so far share; the polls are counted by reading the deep-dives, so the count depends on which sessions the extractor picks; a window with fewer background jobs polls less with no change in behaviour; the thresholds are uncalibrated starting values.
+- **Status:** PENDING
+- **Changelog ref:** 2026-11-10 — First drain of the learnings buffer, with the first hypothesis verdicts (61 entries processed)
+
 ## 2026-11-06
 
 ### [RULE-ADDED] New test files check what code can check and no longer that a sentence is still there
@@ -112,6 +130,7 @@
 - **Hypothesis:** By shipping the version label, the lint rule and the seeded template together, we expect the hand-offs written in an adopter's `.ai/handoffs/` after the update to pass `lint handoffs` at v2 (both new sections present and non-empty) more often than notes written from the five-section contract alone, because the compliance the standard was chosen for came from the template, the label and the lint together (quoted from a consumer, uncalibrated, not re-measured here).
 - **Signal:** Over the next 5 hand-offs written in a project that updated to this version, or by 2026-12-28, whichever comes first, run `lint handoffs` over them: confirm if at least 4 of the 5 carry the v2 label on line 1 and pass with both new sections present; refute if fewer than 3 of the 5 carry the label; inconclusive with fewer than 5 hand-offs in the window.
 - **Risk:** The label is optional by design, so a project can ignore it and still pass at five sections; the compliance figure is quoted and was not re-measured; the thresholds are uncalibrated defaults; the lint checks that the two sections are non-empty, not that they are useful.
+- **Validation notes (2026-11-10):** 1 of the 5 hand-offs the signal needs: the one hand-off of 2026-11-08 carries the v2 label and passed the lint (2026-11-08 retrospective).
 - **Status:** PENDING
 - **Changelog ref:** 2026-11-04 — Apply the third session of change requests: 21 verified packages across the review, planning, orchestration, drain and hand-off skills
 
@@ -194,7 +213,8 @@
 - **Hypothesis:** By stating in AGENTS.md that crisp pieces go to sub-agents with their own context, working only in an export and delivering patches, we expect the next sessions in this repository that find nothing they can build themselves to hand pieces to sub-agents instead of ending at "waiting on the operator", and no worker to write in the shared tree, because the rule names the safe shape and says who commits.
 - **Signal:** Over the next five sessions that read this rule, or by 2026-12-28, whichever comes first, read each session's return note and the tree's `git status` before and after its workers ran: confirm if at least three sessions that had splittable pieces used sub-agents and no worker's path appears in the tree's status; refute if a worker wrote in the tree, or a session with splittable pieces stopped at "waiting on the operator" without trying; inconclusive if fewer than three sessions had splittable pieces.
 - **Risk:** Two of the three workers in the session that prompted the rule died to usage-limit and access errors mid-wave; a rule that encourages waves can multiply that on a limited window, and its own guards (read the usage window first; save a checkpoint at each milestone) depend on a usage feed that was stale and on workers that remember to write the checkpoint.
-- **Status:** PENDING
+- **Status:** CONFIRMED
+- **Resolution (2026-11-10):** The first five sessions after the rule (all on 2026-11-03) had splittable pieces and all used sub-agents (6 to 23 Agent or Workflow calls each); no worker path showed in their 35 status reads of the checkout and none stopped at "waiting on the operator"; every worker write inside the tree went to a `.specs/` output folder its brief named, one staging copy in a sub-folder the brief's list did not name being counted as allowed (operator ruling, 2026-11-09). Against: every kickoff already asked for sub-agents, so the prompts explain the behaviour as much as the rule does, and in two of the five the operator still asked for more parallel sub-agents (2026-11-08 retrospective). A confirm the kickoffs could have produced alone: a case for the meta-synthesis.
 - **Changelog ref:** 2026-11-03 — Sub-agents with their own context work only in a copy of the tree, and only the main session commits what they deliver
 
 ### [SKILL-MODIFIED] A drain's recovery point is a commit that is never removed, so the landing audit's input is cited by commit id
@@ -392,7 +412,8 @@
 - **Hypothesis:** By naming every completion event in the review's description, its activation list, the seeded checklist and orchestrate's brief line, we expect the operator to have to ask for the review or the self-challenge by hand in fewer sessions, because a size limit of 3 or more files stood in all four places.
 - **Signal:** In the first retrospective that covers sessions run under this text, or by 2026-12-30, whichever comes first, count the sessions in which the operator typed a request for the review or the self-challenge: confirm if the share is under half of the 23 of 66 sessions (a floor) the earlier retrospective counted; refute if it is the same or higher.
 - **Risk:** More review runs on small tasks for every consumer, because the description decides when the model calls the skill; a project whose own AGENTS.md keeps the size limit is not reached by this change.
-- **Status:** PENDING
+- **Status:** CONFIRMED
+- **Resolution (2026-11-10):** The 2026-11-08 retrospective is the first over sessions run under this text. In 3 of the 22 kit sessions started after the change (14%), the operator typed a request for the completion review or the self-challenge, under half of the earlier 23 of 66 (35%). Against: that baseline came from another project's retrospective; the requests were found by a pattern over the operator's typed turns (it found 7 over all 41 sessions); and until 2026-11-05 the review skill ran from the 2026-09-14 installed build, so for most of the 22 only the AGENTS.md checklist, read from the checkout, carried the change.
 - **Changelog ref:** 2026-10-30 — Review at every completion event, a project switch for the usage gate, a named writer for ledger entries, a sequencing check, a re-plan sweep and a fetch-summary rule
 
 ### [INFRA-MODIFIED] A proceed is classified before it is counted as feedback
@@ -400,6 +421,7 @@
 - **Hypothesis:** By telling a retrospective to classify the assistant message above a "proceed" before counting it as feedback, we expect the next retrospective reports to stop listing restarts after a limit or a guard wait among corrections, preferences and redirections, because the schema reference now names that kind, gives its share (about 90% in the one corpus measured) and says what a bare "proceed" after a completion report means.
 - **Signal:** Over the next 2 retrospective runs whose session store holds at least one message that opens with "proceed", or by 2026-12-30, whichever comes first: confirm if neither report lists such a message after a platform stop or a guard wait as a correction, preference or redirection, and every "proceed" a report does list names the message above it; refute if a report lists a restart as feedback or lists a "proceed" without naming what preceded it; inconclusive if fewer than 2 such runs happen.
 - **Risk:** The share comes from one corpus and may not hold in another; a reader who files every "proceed" as a restart would hide a real premature-completion finding, which is why the paragraph names that kind too.
+- **Validation notes (2026-11-10):** Run 1 of 2: the 2026-11-08 retrospective's session store holds messages that open with "proceed", and its report lists none of them as a correction, a preference or a redirection.
 - **Status:** PENDING
 - **Changelog ref:** 2026-10-30 — Say how to read a message that opens with proceed, and add six short evidence lessons to existing skills
 
@@ -434,6 +456,7 @@
 - **Hypothesis:** By printing each support-CLI command in the one form measured to run from an installed plugin copy, with the project named and a CI test that parses every printed line, we expect a session that follows a printed lint or audit line to get its project's verdict instead of an import error or a pass over the plugin's own directory, because the line now sets nothing first and carries an absolute `--project`.
 - **Signal:** Over the next 2 retrospectives or by 2026-12-23, whichever comes first, Grep the emitted digests for `No module named lemmi_ai_kit` and for a printed lint or audit run without `--project`: confirm at 0 in both, refute if either shows one, inconclusive if no session ran a printed command.
 - **Risk:** It helps only a session that runs the printed line; one that retypes a shorter command still passes `lint all` without `--project`, because the CLI does not fail closed.
+- **Validation notes (2026-11-10):** Retrospective 1 of 2 (2026-11-08): 0 "No module named lemmi_ai_kit" in its 190 digest files; 7 of 17 lint or audit mentions lack --project, all of them help calls, truncated forms or variables, not yet classified as printed runs.
 - **Status:** PENDING
 - **Changelog ref:** 2026-10-29 — Make the landing audit refuse to guess, give the lint a ledger-growth note and a one-file hand-off mode, and print every CLI command in one runnable form
 
@@ -442,6 +465,7 @@
 - **Hypothesis:** By reading a bare-integer checker output as its count and offering a shell-free `--script` mode, we expect sessions to certify a sound checker as CAN-SEE on the first run, because the two causes of a false UNUSABLE verdict (a lone "0" counted as a line, a pattern mangled by the platform shell) no longer arise.
 - **Signal:** Inspect the next two sessions that quote a `probe_checker` verdict, or look by 2026-11-29, whichever comes first, counting verdicts that read UNUSABLE for a checker later shown sound and invocation errors that needed a second attempt. Confirm if both counts are zero; refute if either recurs with the new default.
 - **Risk:** A checker that deliberately prints one line holding only a number is now read as that number, so an exact-count expectation can shift; `--count-mode lines` restores the old reading.
+- **Validation notes (2026-11-10):** 1 of the 2 sessions so far: one session on 2026-11-04 quoted 2 CAN-SEE verdicts with 0 UNUSABLE and 0 invocation errors; another session's stamps came from the script's own mutation tests and do not count; the 30 sub-agent transcripts that carry a stamp were not read.
 - **Status:** PENDING
 - **Changelog ref:** 2026-10-29 — Read a checker's one-number output, run a checker script without a shell, and find a citation's file from a scratch export
 
@@ -452,7 +476,8 @@
 - **Hypothesis:** By keeping the operator turns the 120 KB cap cut off, reading mid-turn messages and question answers as operator turns, and numbering the sweep's citations by LF alone, we expect the next retrospective to find the operator's closing words in every capped digest and to cite lines that Grep and Read confirm, because one structural predicate now decides what an operator turn is for every digest and the sweep no longer reads through universal newlines.
 - **Signal:** In the next retrospective run over at least 10 sessions after the installed Core plugin carries this change, or by 2026-12-09, whichever comes first, check with Grep and Read on the raw transcripts and the digests, not with the extractor. For each digest that carries the line `[...transcript truncated at 120 KB...]`, find the last human-origin record of its transcript (`origin.kind` human, typed or mid-turn) and confirm its words are in the digest; for 30 citations of `user_corrections_sweep.txt` (all if fewer), Read the cited line and confirm it is the `USER:` line that starts the quoted text. Confirm if every check agrees; refute if one capped digest lacks its last operator turn or one citation names another line. Fewer than 3 capped digests or fewer than 10 citations leaves it inconclusive. The same checks fail on the previous scripts: over 206 real sessions 84 of 136 citations named another line, and 29 of 31 capped digests had operator turns after the cut that the digest did not hold.
 - **Risk:** The operator section sits outside the 120 KB cap, so the longest digests grow (over those 206 sessions the largest went from 125,638 to 129,356 bytes, the largest section being 6,290 bytes) and a deep read costs a little more context. The structural rule decides only for records that carry an origin stamp: 1,104 of the 2,692 user records without a tool result in that sample carry none, and for those the prefix list still decides. Nothing resolves this unless a session runs a retrospective and does the checks by hand.
-- **Status:** PENDING
+- **Status:** CONFIRMED
+- **Resolution (2026-11-10):** The 2026-11-08 retrospective ran over 41 sessions on the installed Core build of 2026-11-04, which carries this change. All 3 capped digests hold their transcript's last human-origin turn after the cut, and all 62 citations of user_corrections_sweep.txt name the USER: line that starts the quoted text, read with bytes split on LF; the same check moved one line down rejected all 62 (control). No counter-instance found.
 - **Changelog ref:** 2026-10-28 — Keep every operator turn in the session digests, cite the lines Grep shows and count each event once
 
 ## 2026-10-27
@@ -462,6 +487,7 @@
 - **Hypothesis:** By judging a shell command the way a shell reads it, we expect the learnings drain guard to deny far fewer reads and appends, because about nine in ten of the 96 denials the old guard gave in a replay of recorded commands were read-only inspections, appends or writes to other files.
 - **Signal:** Over the next 30 days of recorded sessions, or the next 40 denials of this guard, whichever comes first, classify each denial of a shell command by reading the command. Confirm if fewer than 10% are plain reads or appends; refute if more than a quarter are. A python script that reads the file and writes another is a known false positive and is counted separately, not here. Fewer than 20 denials leaves the hypothesis inconclusive.
 - **Risk:** A guard that denies less can let a rewrite through; the python-on-stdin shape is now denied, but the known gaps listed in its docstring remain open.
+- **Validation notes (2026-11-10):** The three sessions whose read-only calls naming the buffer were denied (2026-11-08 retrospective) ran the 2026-09-14 installed build, the old shell arm, so they do not test this change. A measurement on 2026-11-09 found the current hook denying 0 of 11 read-only calls that name the buffer, which closed the retrospective's re-check of this guard, and in one session a call that ran an inline python write of another file beside a path naming the buffer was denied: the known false positive this signal counts separately. 1 denial counted so far, far from the 40 or the 30 days.
 - **Status:** PENDING
 - **Changelog ref:** 2026-10-27 — Collect the skill tests in CI, rebuild the learnings guard's shell arm and fix the extractor's rejection count
 
@@ -472,5 +498,6 @@
 - **Hypothesis:** By shipping the flow tools with explicit consumer roots and independent fixtures, we expect new projects to produce accepted flow maps without manual path repairs because validation no longer depends on the source checkout.
 - **Signal:** Inspect the next two submitted flow-map changes outside the source project, or by 2026-11-09, whichever comes first, using their git diffs and review comments. Confirm if both are accepted without a manual tool-path repair; refute if either requires one. No qualifying submissions leaves the hypothesis inconclusive.
 - **Risk:** Agents can over-read a structural pass as a truth claim; evidence review remains manual.
-- **Status:** PENDING
+- **Status:** INCONCLUSIVE
+- **Resolution (2026-11-10):** The window closed on 2026-11-09 with no flow-map change submitted and reviewed in a project other than the source project that the kit's own history or sessions show; the consumers' histories were not read. What would settle it: two reviewed flow-map changes in another project. Not re-armed: a fresh hypothesis is due only when such a project exists.
 - **Changelog ref:** 2026-09-14 — Share portable flow mapping through Core

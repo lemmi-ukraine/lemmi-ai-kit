@@ -30,7 +30,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -235,8 +235,16 @@ HANDOFF_STATUSES: tuple[str, ...] = ("in-progress", "blocked", "ready-for-review
 HANDOFF_SECTIONS_BY_VERSION: dict[int, tuple[str, ...]] = {
     1: (),
     2: ("Continue", "Orchestrator summary"),
+    3: ("Continue", "Orchestrator summary"),
 }
 _UNLABELLED_HANDOFF_VERSION = 1
+# What a version asks for beyond sections: `Key: value` lines in the header block, each once. v3
+# adds the six that tie a note to its task and to every session that worked on it, so the task's
+# close can measure exactly those sessions and no parallel one. A version that is not a key here
+# asks for no line, so an older note is judged exactly as before.
+HANDOFF_LINES_BY_VERSION: dict[int, tuple[str, ...]] = {
+    3: ("Task", "Sessions", "Written", "Lessons", "Delegation", "Safe to close"),
+}
 # A marker that is misplaced or mistyped is a finding only when it names the first version that
 # asks for more than the five sections, or a later one. A marker that names v1, or no version,
 # is the older kind some projects wrote of their own before the label existed: it asks for
@@ -617,6 +625,36 @@ def _drain_marker_finding(
     return None
 
 
+def _counts_as_drain(drained: str | None) -> bool:
+    """Whether a `CONSOLIDATION` entry's `Drained` value makes it a drain, as the cadence readers
+    read it: a count above 0, or no line, or a count that cannot be read; never a count of 0."""
+    if drained is None or DRAINED_COUNT_RE.match(drained.strip()) is None:
+        return True
+    try:
+        return int(drained.split()[0]) > 0
+    except ValueError:  # more digits than int() converts: a count, and not a small one
+        return True
+
+
+def _last_drain(blocks: list[Block]) -> date | None:
+    """The date of the newest `CONSOLIDATION` entry that counts as a drain, or None.
+
+    The reading of the drain-nudge hook's `last_drain`, made with this module's own parser: an
+    entry is dated by the `## YYYY-MM-DD` heading it sits under, an entry under any other heading
+    is skipped, and the newest date wins whatever order the sections are in.
+    """
+    drains: list[date] = []
+    for block in blocks:
+        day = block.heading_date()
+        if day is not None and any(
+            _is_drain_entry(entry)
+            and _counts_as_drain(fields_of(entry.body).get(DRAINED_FIELD))
+            for entry in block.entries
+        ):
+            drains.append(day)
+    return max(drains, default=None)
+
+
 # --- per-file lints -----------------------------------------------------------------------
 
 
@@ -926,6 +964,11 @@ PATH_LINE_SUFFIX_RE = re.compile(r":\d+$")
 SECTION_RE = re.compile(r"^## (.+)$")
 
 
+def _blank_comments(text: str) -> str:
+    """The text with every HTML comment blanked and its newlines kept, so line numbers stay true."""
+    return HTML_COMMENT_RE.sub(lambda m: "\n" * m.group(0).count("\n"), text)
+
+
 def _handoff_sections(text: str) -> tuple[dict[str, list[tuple[int, str]]], list[str]]:
     """`({section: [(lineno, line)]}, duplicate section names)`.
 
@@ -934,7 +977,7 @@ def _handoff_sections(text: str) -> tuple[dict[str, list[tuple[int, str]]], list
     than silently overwritten: a second `## Status` would otherwise hide the first from
     every check, the same defect `check_entry_body_integrity` catches elsewhere.
     """
-    text = HTML_COMMENT_RE.sub(lambda m: "\n" * m.group(0).count("\n"), text)
+    text = _blank_comments(text)
     sections: dict[str, list[tuple[int, str]]] = {}
     duplicates: list[str] = []
     current: str | None = None
@@ -1171,13 +1214,397 @@ def _handoff_version(text: str, where: str) -> tuple[int, list[LintFinding]]:
     return version, findings
 
 
-def lint_handoff(text: str, where: str, root: Path | None = None) -> list[LintFinding]:
+# --- the ledger lines (`HANDOFF_LINES_BY_VERSION`) ---------------------------------------------
+#
+# The header block is every line above the first `## ` heading, read as `_handoff_sections` reads
+# the note, so the two agree on where the sections start: comments blanked, fenced lines skipped.
+# The title sits there too and is never a ledger line. A line is read with `startswith` and
+# `strip`, and a value is matched whole by a pattern in which no two adjacent quantifiers can
+# match the same character: these lines are another session's text, and the heading patterns
+# above end in a lazy group before `\s*$`, which a line of many spaces turns quadratic.
+
+_LEDGER_KEYS: tuple[str, ...] = tuple(
+    dict.fromkeys(key for keys in HANDOFF_LINES_BY_VERSION.values() for key in keys)
+)
+# One slug names a task everywhere: its task file, its spec folder, its hand-offs and the `Task:`
+# line. Two to five words of lowercase letters and digits, one hyphen between two words, and at
+# most 40 characters, so that it stays short enough to search for and to carry in a file name.
+_TASK_SLUG_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+){1,4}")
+_TASK_SLUG_MAX_LENGTH = 40
+_SESSION_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{7,}")
+_WRITTEN_RE = re.compile(
+    r"([0-9]{4})-([0-9]{2})-([0-9]{2})\s+([0-9]{2}):([0-9]{2})\s+by\s+(\S+)"
+)
+_LESSON_DATE_RE = re.compile(r"\[([0-9]{4})-([0-9]{2})-([0-9]{2})\]")
+_NONE_WORD_RE = re.compile(r"none\b", re.IGNORECASE)
+_LESSONS_NOT_RUN = "not run - "
+_DELEGATION_NONE = "none, because "
+_SAFE_TO_CLOSE_HEADS: tuple[str, ...] = ("yes - ", "no - ")
+
+
+def _ledger_lines(text: str) -> dict[str, list[tuple[int, str]]]:
+    """`{key: [(lineno, value)]}` for every ledger line of the header block, every key present.
+
+    A ledger line starts with its key and a colon; its value is the rest of the line, stripped.
+    A line inside a comment or a fence, or below the first `## ` heading, is not one.
+    """
+    lines = _blank_comments(text).splitlines()
+    fenced = _fence_mask(lines)
+    found: dict[str, list[tuple[int, str]]] = {key: [] for key in _LEDGER_KEYS}
+    for index, line in enumerate(lines):
+        if fenced[index]:
+            continue
+        if SECTION_RE.match(line) is not None:
+            break
+        key = next((key for key in _LEDGER_KEYS if line.startswith(f"{key}:")), None)
+        if key is not None:
+            found[key].append((index + 1, line[len(key) + 1 :].strip()))
+    return found
+
+
+def parse_handoff_ledger(text: str) -> dict[str, str | None]:
+    """The ledger values of a note's header block, by key, in the order of the table.
+
+    A value is None when its line is absent from the header block -- one inside a comment,
+    inside a fence or below the first `## ` heading is absent -- and when the line is written
+    there more than once, because two values are not one; the lint reports which. The version
+    label is not read: this says what a note holds, and the lint decides what a version needs.
+    """
+    return {
+        key: lines[0][1] if len(lines) == 1 else None
+        for key, lines in _ledger_lines(text).items()
+    }
+
+
+def handoff_session_ids(sessions: str | None) -> tuple[str, ...]:
+    """The ids a `Sessions:` value lists, in order and each once; empty for None.
+
+    The ids are separated by commas and stripped, and an empty item is skipped. Whether an id
+    has the shape of one is the lint's question, not this function's.
+    """
+    if sessions is None:
+        return ()
+    return tuple(
+        dict.fromkeys(item.strip() for item in sessions.split(",") if item.strip())
+    )
+
+
+def _written_by(value: str) -> tuple[date, str] | None:
+    """The day and the writer of a `Written:` value, or None when it is not
+    `YYYY-MM-DD HH:MM by <id>` with a calendar date and a clock time."""
+    match = _WRITTEN_RE.fullmatch(value)
+    if match is None:
+        return None
+    year, month, day, hour, minute, writer = match.groups()
+    written = _parse_date(year, month, day)
+    if written is None or int(hour) > 23 or int(minute) > 59:
+        return None
+    return written, writer
+
+
+def _lesson_titles(value: str) -> list[str] | None:
+    """The titles of a `Lessons:` title list, or None when the value is not one.
+
+    The list is split at each date bracket, so a title may hold a `;`, and the `;` between two
+    titles is dropped. A title keeps its bracket and has its whitespace collapsed: the form it is
+    matched in against the buffer's headings. The list opens with a bracket, each bracket is a
+    calendar date, and each is followed by a title.
+    """
+    marks = list(_LESSON_DATE_RE.finditer(value))
+    if not marks or marks[0].start() != 0:
+        return None
+    ends = [mark.start() for mark in marks[1:]] + [len(value)]
+    titles: list[str] = []
+    for mark, end in zip(marks, ends, strict=True):
+        title = " ".join(value[mark.start() : end].split())
+        if title.endswith(";"):
+            title = title[:-1].rstrip()
+        if _parse_date(*mark.groups()) is None or not title[len(mark.group(0)) :]:
+            return None
+        titles.append(title)
+    return titles
+
+
+def _lessons(value: str) -> list[str] | None:
+    """The titles a `Lessons:` value names, none for `none` or `not run - <reason>`; None when
+    the value has none of the three forms."""
+    if value == "none":
+        return []
+    if value.startswith(_LESSONS_NOT_RUN):
+        return [] if value[len(_LESSONS_NOT_RUN) :].strip() else None
+    return _lesson_titles(value)
+
+
+def _delegation_is_valid(value: str) -> bool:
+    """`none, because <reason>`, or the pieces handed to sub-agents separated by `;`, none of
+    them empty. A value that opens with the word `none` is read as the first form, so a bare
+    `none` is a finding and never a piece of that name."""
+    if _NONE_WORD_RE.match(value) is not None:
+        reason = value[len(_DELEGATION_NONE) :]
+        return value.startswith(_DELEGATION_NONE) and bool(reason.strip())
+    return all(piece.strip() for piece in value.split(";"))
+
+
+def _safe_to_close_is_valid(value: str) -> bool:
+    """`yes`, `yes - <text>` or `no - <reason>`: a `no` must say what is still open."""
+    return value == "yes" or any(
+        value.startswith(head) and bool(value[len(head) :].strip())
+        for head in _SAFE_TO_CLOSE_HEADS
+    )
+
+
+def _task_slug_is_valid(value: str) -> bool:
+    """The value is a task's slug in shape and length.
+
+    The pattern runs on the whole value before the length is compared, so a test that times a
+    long value times the pattern itself; checking the length first would hide a slow pattern.
+    """
+    return (
+        _TASK_SLUG_RE.fullmatch(value) is not None
+        and len(value) <= _TASK_SLUG_MAX_LENGTH
+    )
+
+
+def _sessions_problem(value: str) -> str | None:
+    """What is wrong with a `Sessions:` value, or None when every item is a session id."""
+    items = [item.strip() for item in value.split(",")]
+    if not any(items):
+        return "lists no session id"
+    for item in items:
+        if not item:
+            return "holds an empty item; separate the ids with one comma each"
+        if _SESSION_ID_RE.fullmatch(item) is None:
+            return (
+                f"holds '{item[:60]}', which is not a session id: 8 or more letters, "
+                "digits, '-' or '_', the first a letter or a digit"
+            )
+    return None
+
+
+# Each line but `Sessions:` (which names the id that is wrong) as a check of its value and the
+# form a finding states.
+_LEDGER_FORMS: dict[str, tuple[Callable[[str], bool], str]] = {
+    "Task": (
+        _task_slug_is_valid,
+        "the task's slug: 2 to 5 words of lowercase letters and digits joined by '-', at "
+        f"most {_TASK_SLUG_MAX_LENGTH} characters, such as 'example-task'",
+    ),
+    "Written": (
+        lambda value: _written_by(value) is not None,
+        "'YYYY-MM-DD HH:MM by <session id>'",
+    ),
+    "Lessons": (
+        lambda value: _lessons(value) is not None,
+        "'none', 'not run - <reason>' or '[YYYY-MM-DD] title; [YYYY-MM-DD] title'",
+    ),
+    "Delegation": (
+        _delegation_is_valid,
+        "'none, because <reason>' or the pieces handed to sub-agents, '<piece>; <piece>'",
+    ),
+    "Safe to close": (
+        _safe_to_close_is_valid,
+        "'yes', 'yes - <text>' or 'no - <what is still running or not committed>'",
+    ),
+}
+
+
+def _ledger_value_problem(key: str, value: str) -> str | None:
+    if key == "Sessions":
+        problem = _sessions_problem(value)
+        return None if problem is None else f"'Sessions:' {problem}"
+    check, form = _LEDGER_FORMS[key]
+    if check(value):
+        return None
+    shown = f"it reads '{value[:60]}'" if value else "it is empty"
+    return f"'{key}:' must be {form}; {shown}"
+
+
+@dataclass(frozen=True)
+class LessonsLedgers:
+    """What a v3 note's lesson titles are checked against: the buffer's titles and the last drain.
+
+    `titles` holds every `### ` heading of `.ai/learnings.md` outside a fence, whitespace
+    collapsed; it is None when the buffer cannot be read, and `unreadable` then says why.
+    `last_drain` is the date of the changelog's newest entry that counts as a drain, or None
+    when it records none. `read_lessons_ledgers` reads both from a project root.
+    """
+
+    titles: frozenset[str] | None
+    last_drain: date | None
+    unreadable: str = ""
+
+
+def _repeated_session_notes(
+    sound: Mapping[str, tuple[int, str]], where: str
+) -> list[LintFinding]:
+    """A note for an id `Sessions:` lists more than once: harmless to a reader, so never an error."""
+    sessions = sound.get("Sessions")
+    if sessions is None:
+        return []
+    counts: dict[str, int] = {}
+    for item in sessions[1].split(","):
+        counts[item.strip()] = counts.get(item.strip(), 0) + 1
+    return [
+        LintFinding(
+            where,
+            sessions[0],
+            f"'Sessions:' lists '{item[:60]}' {seen} times; list each session once",
+            note=True,
+        )
+        for item, seen in counts.items()
+        if seen > 1
+    ]
+
+
+def _writer_findings(
+    sound: Mapping[str, tuple[int, str]], where: str
+) -> list[LintFinding]:
+    """The writer of a note must be one of the sessions it lists."""
+    written, sessions = sound.get("Written"), sound.get("Sessions")
+    by = None if written is None else _written_by(written[1])
+    if written is None or sessions is None or by is None:
+        return []
+    if by[1] in handoff_session_ids(sessions[1]):
+        return []
+    return [
+        LintFinding(
+            where,
+            written[0],
+            f"'Written:' names '{by[1][:60]}', which 'Sessions:' does not list; the "
+            "writer's own id ends the 'Sessions:' list",
+        )
+    ]
+
+
+def _lesson_title_findings(
+    sound: Mapping[str, tuple[int, str]], where: str, ledgers: LessonsLedgers | None
+) -> list[LintFinding]:
+    """Each lesson title against the buffer, strictly only for a note written after the drain.
+
+    A drain removes titles from the buffer and the consolidator then lints every note, so a
+    title missing from a note written on or before the day of the last drain, or not dated, is
+    a note naming that drain. With no drain recorded nothing can have removed a title, so a
+    missing one is an error whatever the date.
+    """
+    lessons = sound.get("Lessons")
+    titles = None if lessons is None else _lessons(lessons[1])
+    if ledgers is None or lessons is None or not titles:
+        return []
+    buffer = _FILE_TARGETS["learnings"]
+    if ledgers.titles is None:
+        return [
+            LintFinding(
+                where,
+                lessons[0],
+                f"'Lessons:' names {len(titles)} title(s), but {buffer} cannot be read "
+                f"({ledgers.unreadable}), so none of them is checked",
+            )
+        ]
+    written = sound.get("Written")
+    by = None if written is None else _written_by(written[1])
+    drained = ledgers.last_drain
+    findings: list[LintFinding] = []
+    for title in titles:
+        if title in ledgers.titles:
+            continue
+        missing = f"'Lessons:' title '{title[:80]}' is not in {buffer}"
+        if drained is None:
+            findings.append(
+                LintFinding(
+                    where,
+                    lessons[0],
+                    f"{missing}, and no drain is recorded that could have moved it",
+                )
+            )
+        elif by is not None and by[0] > drained:
+            findings.append(
+                LintFinding(
+                    where,
+                    lessons[0],
+                    f"{missing}, and this note was written after the last drain "
+                    f"({drained})",
+                )
+            )
+        else:
+            findings.append(
+                LintFinding(
+                    where,
+                    lessons[0],
+                    f"{missing}; a drain may have moved it, since this note is not "
+                    f"dated after the last drain ({drained})",
+                    note=True,
+                )
+            )
+    return findings
+
+
+def _ledger_findings(
+    text: str, where: str, version: int, ledgers: LessonsLedgers | None
+) -> list[LintFinding]:
+    """What a note's ledger lines get wrong at `version`; nothing for a version without lines.
+
+    One slip is one finding: a line that is missing, repeated or malformed is reported once,
+    and a check that reads two lines -- the writer against `Sessions:`, a title against the
+    buffer and the drain -- reads only lines that are themselves sound.
+    """
+    keys = HANDOFF_LINES_BY_VERSION.get(version, ())
+    if not keys:
+        return []
+    found = _ledger_lines(text)
+    findings: list[LintFinding] = []
+    sound: dict[str, tuple[int, str]] = {}
+    for key in keys:
+        lines = found[key]
+        if not lines:
+            findings.append(
+                LintFinding(
+                    where,
+                    1,
+                    f"missing ledger line '{key}:' (line 1 declares hand-off contract "
+                    f"v{version}); write it above the first '## ', outside comments and fences",
+                )
+            )
+            continue
+        if len(lines) > 1:
+            findings.append(
+                LintFinding(
+                    where,
+                    lines[1][0],
+                    f"ledger line '{key}:' is written {len(lines)} times above the first "
+                    "'## '; write it once",
+                )
+            )
+            continue
+        lineno, value = lines[0]
+        problem = _ledger_value_problem(key, value)
+        if problem is None:
+            sound[key] = (lineno, value)
+        else:
+            findings.append(LintFinding(where, lineno, problem))
+    findings += _repeated_session_notes(sound, where)
+    findings += _writer_findings(sound, where)
+    findings += _lesson_title_findings(sound, where, ledgers)
+    return findings
+
+
+def lint_handoff(
+    text: str,
+    where: str,
+    root: Path | None = None,
+    *,
+    ledgers: LessonsLedgers | None = None,
+) -> list[LintFinding]:
     """Lint ONE hand-off file. Pass `root` to resolve its anchors against git.
 
     Line 1 may carry a version label (`HANDOFF_SECTIONS_BY_VERSION`): the version decides
     which sections are required beyond the five, and a file with no label is held to the five.
     A label that is misplaced or mistyped is reported only when it names v2 or a later
     version, so a marker of the older kind, naming v1 or no version, never fails a note.
+
+    A version in `HANDOFF_LINES_BY_VERSION` also needs its ledger lines, each in its form. Pass
+    `ledgers` to check the lesson titles a note names against the learnings buffer; without
+    them a title is judged by its form only, as without `root` no anchor is resolved.
+    `lint_handoff_file` always passes them.
     """
     findings: list[LintFinding] = []
     sections, duplicates = _handoff_sections(text)
@@ -1202,6 +1629,7 @@ def lint_handoff(text: str, where: str, root: Path | None = None) -> list[LintFi
             )
         elif not any(line.strip() for _, line in body):
             findings.append(LintFinding(where, 1, f"'## {name}' has no content"))
+    findings.extend(_ledger_findings(text, where, version, ledgers))
     for name in duplicates:
         findings.append(
             LintFinding(
@@ -1354,6 +1782,103 @@ def handoff_files(root: Path) -> list[Path]:
     ]
 
 
+def _buffer_titles(text: str) -> frozenset[str]:
+    """Every `### ` heading of the learnings buffer outside a fence, its whitespace collapsed.
+
+    Read with `startswith`, not the entry pattern, which a heading of many spaces turns
+    quadratic. An entry above the first `## ` counts: its title is in the file all the same.
+    """
+    lines = text.splitlines()
+    fenced = _fence_mask(lines)
+    return frozenset(
+        " ".join(line[4:].split())
+        for index, line in enumerate(lines)
+        if not fenced[index] and line.startswith("### ")
+    )
+
+
+def read_lessons_ledgers(root: Path) -> LessonsLedgers:
+    """The learnings buffer's titles and the last drain, read from the project at `root`.
+
+    Two file reads and no process started, so the default lint stays offline. A buffer that
+    cannot be read is a finding only for a note that names titles; a changelog that cannot be
+    read records no drain, which holds every title to the buffer.
+    """
+    titles: frozenset[str] | None = None
+    unreadable = ""
+    try:
+        titles = _buffer_titles(read_text(target_path("learnings", root)))
+    except FileNotFoundError:
+        unreadable = "no such file"
+    except OSError as error:
+        unreadable = type(error).__name__
+    try:
+        changelog = read_text(target_path("changelog", root))
+    except OSError:
+        return LessonsLedgers(titles, None, unreadable)
+    return LessonsLedgers(titles, _last_drain(parse_blocks(changelog)), unreadable)
+
+
+# A note whose version has a `Task:` line is named for its task, `<YYYY-MM-DD>-<slug>.md`, or
+# `<YYYY-MM-DD>-<slug>--<part>.md` for a second note of the task on one day, so one search for
+# the slug finds every note. A slug never holds `--`, so either name gives the slug back. Only a
+# file has a name: the shipped template and stub are linted as text, under names no slug fits,
+# so the rule lives here and not in `lint_handoff`. A name is cut with slices, and both patterns
+# are of bounded length.
+_HANDOFF_NAME_DAY_RE = re.compile(r"([0-9]{4})-([0-9]{2})-([0-9]{2})")
+_HANDOFF_NAME_PART_RE = re.compile(r"[a-z0-9]{1,12}")
+_HANDOFF_NAME_SUFFIX = ".md"
+
+
+def _handoff_name_day(name: str) -> str | None:
+    """The calendar date a hand-off's file name opens with, as written, or None."""
+    day = _HANDOFF_NAME_DAY_RE.match(name)
+    if day is None or _parse_date(*day.groups()) is None:
+        return None
+    return day.group(0)
+
+
+def _handoff_name_fits(name: str, slug: str) -> bool:
+    """`<YYYY-MM-DD>-<slug>.md`, or `<YYYY-MM-DD>-<slug>--<part>.md` with `<part>` 1 to 12
+    lowercase letters or digits."""
+    day = _handoff_name_day(name)
+    if day is None or not name.endswith(_HANDOFF_NAME_SUFFIX):
+        return False
+    rest = name[len(day) : -len(_HANDOFF_NAME_SUFFIX)]
+    if rest == f"-{slug}":
+        return True
+    part = rest.removeprefix(f"-{slug}--")
+    return part != rest and _HANDOFF_NAME_PART_RE.fullmatch(part) is not None
+
+
+def _handoff_name_findings(text: str, name: str, where: str) -> list[LintFinding]:
+    """A finding when a note's file name does not carry the slug of its `Task:` line.
+
+    Only a version that asks for a `Task:` line is judged, so an older note keeps its name. A
+    `Task:` line that is missing, repeated or malformed has its own finding already, and the
+    name is not judged against it: one slip is one finding.
+    """
+    version, _ = _handoff_version(text, where)
+    if "Task" not in HANDOFF_LINES_BY_VERSION.get(version, ()):
+        return []
+    task = _ledger_lines(text)["Task"]
+    if len(task) != 1 or _ledger_value_problem("Task", task[0][1]) is not None:
+        return []
+    lineno, slug = task[0]
+    if _handoff_name_fits(name, slug):
+        return []
+    day = _handoff_name_day(name) or "<YYYY-MM-DD>"
+    return [
+        LintFinding(
+            where,
+            lineno,
+            f"the file name must be '{day}-{slug}.md', the date and then the slug on the "
+            f"'Task:' line, or '{day}-{slug}--<part>.md' for a second note of the task that "
+            "day, <part> being 1 to 12 lowercase letters or digits",
+        )
+    ]
+
+
 def lint_handoff_file(
     path: Path, root: Path, resolve_anchors: bool = False
 ) -> list[LintFinding]:
@@ -1362,11 +1887,20 @@ def lint_handoff_file(
     The single place a file becomes findings: the directory run calls it once per file and
     `lint handoffs FILE` calls it once, so the shortcut cannot report a different truth
     than the full run does for that file. It does not skip a README -- that exclusion
-    belongs to the directory walk, and naming a file is a deliberate act.
+    belongs to the directory walk, and naming a file is a deliberate act. It reads the
+    learnings buffer and the changelog under `root` here too, so both runs judge a lesson
+    title by the same two files. A note whose version asks for a `Task:` line is judged by
+    its file name here as well, since only a file has one.
     """
-    return lint_handoff(
-        read_text(path), display_path(path, root), root if resolve_anchors else None
+    text = read_text(path)
+    where = display_path(path, root)
+    findings = lint_handoff(
+        text,
+        where,
+        root if resolve_anchors else None,
+        ledgers=read_lessons_ledgers(root),
     )
+    return findings + _handoff_name_findings(text, path.name, where)
 
 
 def lint_handoff_dir(

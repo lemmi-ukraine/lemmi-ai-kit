@@ -32,6 +32,37 @@ rewritten except inside `kit-setup`'s own marked blocks.
 
 ---
 
+## 2026-11-10
+
+### SKILL-MODIFIED: Learning is extracted per task, from every session and sub-agent of it
+
+- **What:** A hand-off can now name its task and the sessions that worked on it. Contract v3 adds
+  six header lines that `lint handoffs` checks (Task, Sessions, Written, Lessons, Delegation and
+  Safe to close), and the seeded hand-off template and the delegate stub carry them; v2 and
+  unlabelled notes are judged as before. The session extractor gains a task mode (`--session` given
+  twice or more, or `--sessions-from <hand-off>`): it measures exactly the sessions a hand-off lists
+  and every sub-agent they started, never a parallel session of another task, and reports an id it
+  cannot measure instead of skipping it. It also files the harness's own refusals (a long sleep, a
+  usage-limit stop, the kit's `cd` gate) under a new `environment` category and counts the slash
+  commands the harness injects apart from the operator's. `task-learnings` measures the whole chain
+  at a task's close; the drain-nudge hook can also say that no retrospective has run for 14 days;
+  `post-task-review`'s report ends with a `Safe to close:` line; delegated workers are told that a
+  long sleep is refused; and AGENTS.md states a task naming convention (one slug for a task's file,
+  spec folder, hand-offs and learnings), which the lint checks on a hand-off's Task line and file
+  name.
+- **Why:** Learning was extracted once per session, from that session's main thread, while about
+  88% of this repository's tool calls ran inside sub-agents. A lesson found only there (the harness
+  refusing a long sleep) had no home anywhere, and a task carried across several sessions had no
+  record of which sessions belonged to it.
+- **Files:** the hand-off lint and templates, the delegate stub, the session extractor and its
+  schema reference, the `task-learnings`, `post-task-review`, `session-retrospective`,
+  `orchestrate`, `agent-delegate`, `parallel-session-safety` and `spec-driven-dev` skills, the
+  drain-nudge hook and the core README, the seeded learnings buffer and the AGENTS.md template.
+- **Affected workflows:** every hand-off and its lint, `task-learnings` at every close, the
+  retrospective and delegated workers. To take it, update the plugins and start a new session. The
+  hand-off template and AGENTS.md in your project are copies: refresh them with `kit-setup`, which
+  reports what it skips, or copy the v3 lines and the naming rules by hand.
+
 ## 2026-11-04
 
 ### INFRA-MODIFIED: Four more scaffold files, and what a re-run leaves alone

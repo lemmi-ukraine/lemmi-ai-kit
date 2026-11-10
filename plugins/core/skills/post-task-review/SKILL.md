@@ -166,7 +166,7 @@ the three commands above are the minimum.
    (pair it with a set-difference against the live tree), and a self-check whose fixtures share
    provenance with the code under test measures well-formedness, not validity.
    **The probe answers "can this checker see?" and nothing about whether your FIXTURES model
-   anything real — six measured ways a green probe certifies a wrong instrument are in
+   anything real — the measured ways a green probe certifies a wrong instrument are in
    [references/fixture-design.md](references/fixture-design.md):** a negative fixture that does not
    *resemble* the target (one unbounded `sk-` pattern halted a pipeline on a branch name AND
    silently rewrote 119 real paths); a probe aimed at the pure half while the network-adjacent half
@@ -331,12 +331,10 @@ Run all four, in order, and answer each in writing:
 3. **Check the gate against its diff, not against your description of it.** For each gate you claim
    passed: did it actually run, over the files you actually changed, and finish? Print the
    denominator beside every zero. A green gate says nothing about a rule it does not encode: before asking for a push, measure each stated operator rule itself.
-4. **Name what you did not look at, and say how you know that list is complete.** If you cannot,
-   the honest output is UNKNOWN plus what would settle it.
+4. **Name what you did not look at, and say how you know that list is complete.** If you cannot, the honest output is UNKNOWN plus what would settle it.
 
-Report the outcome in § 10 below. **A challenge that reports no findings is a valid result; a
-challenge that is skipped is not**, and nothing else in this pipeline detects the difference —
-which is precisely why an operator had to type it 114 times.
+Report the outcome in § 10 below. **A challenge that reports no findings is a valid result; a challenge that is skipped is not**,
+and nothing else in this pipeline detects the difference — which is precisely why an operator had to type it 114 times.
 
 ## Output Format
 
@@ -389,6 +387,8 @@ Present the review results using this structure:
 - **Numbers re-derived**: {which commands were re-run at write time}
 - **Gates re-checked against the diff**: {gate → files covered → denominator}
 - **What I did not look at**: {and how I know the list is complete, or UNKNOWN + what would settle it}
+
+Safe to close: {yes | no - <what is still running or not committed>}
 ```
 
 ## Important Notes
