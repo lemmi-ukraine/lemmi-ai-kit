@@ -17,6 +17,12 @@ replace that reading -- no regex decides whether a paragraph is honest. What the
 is remove the shapes that are never legitimate here, so a reviewer's attention is
 spent on the sentences a regex cannot judge.
 
+The same scan keeps out what only this project's maintainers can resolve: a request id of
+the families `_INTERNAL_IDS` names, a full session id or a session name, a mailbox, a
+drive-letter path. None of that is an attack. It is a reference an adopter cannot follow,
+and `_INTERNAL_IDS` holds it to zero for the same reason as the rules above. What it does
+not cover (commit-like tokens, other families of ids) is said beside the patterns.
+
 **Every pattern below was measured against the payload before it was added**, and
 every one of them is clean today. That is the point of adding them now: the cost of a
 rule is lowest while nothing violates it, and a rule adopted at zero violations never
@@ -35,11 +41,12 @@ nothing checking them. This file states no counts, because a typed count goes st
 `test_the_scan_surface_is_every_pack_and_is_counted` derives, per pack, the files, text
 files and scripts the checks read, and asserts that the pack folders on disk are exactly
 `PACKS`, that every listed file belongs to exactly one pack, that the text and script
-surfaces share no file, that every pack has text in scope, and that the listing never
+surfaces share no file, that the internal-id surface holds every text file and script and
+nothing git did not list, that every pack has text in scope, and that the listing never
 exceeds a walk of the disk. `test_the_scan_surface_check_goes_red_on_a_planted_gap`
 fires each of those assertions at a gap in a synthetic tree, and
 `test_a_violation_planted_in_each_pack_turns_the_real_checks_red` copies each pack's own
-text and scripts into a temporary tree, shows the real checks green on the copy, plants
+text, scripts and json into a temporary tree, shows the real checks green on the copy, plants
 one violation per check, and requires every check to go red naming its own planted file
 and no other.
 """
@@ -127,6 +134,62 @@ _INVISIBLE: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile("[​‌‍﻿]"), "zero-width character"),
     (re.compile("[‪-‮⁦-⁩]"), "bidirectional override"),
 )
+
+# What only this project's maintainers can resolve. An adopter reads the pack and cannot
+# follow a request id, a recorded session or a mailbox, and a drive-letter path names a
+# machine they do not have. Each shape below was measured against every text, script and
+# json file of every pack and reports nothing, so none needs a grandfather list; the UUID
+# shape asks for the version and variant bits, which is why the synthetic ids in a
+# shipped test fixture do not match it. The broad shapes (any capital letter and digits,
+# any hex-looking token) were measured too and are not used, because they report labels
+# and fixture ids. Commit ids are not covered for the same reason: real ones sit in
+# shipped text today (session prefixes and a branch tip), so the shape would need a
+# grandfather list that hides the next one.
+_ID_SUFFIXES = (*_TEXT_SUFFIXES, _SCRIPT_SUFFIX, ".json")
+_INTERNAL_IDS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (
+        re.compile(
+            r"\b(?:KIT|OQ)-?\d+[a-z]?\b|\b(?:LO|AUDIT|PY[23])-\d+\b|\bK-\d+[a-z]?\b"
+            r"|\bK\d{2,}[a-z]?\b"
+        ),
+        "an internal request id",
+    ),
+    (
+        re.compile(
+            r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b"
+        ),
+        "a host session id",
+    ),
+    (re.compile(r"\blemmi-ai-kit-[0-9a-f]{2}\b"), "a host session name"),
+    (
+        re.compile(
+            r"(?<![\w.+-])(?!(?:git|no-?reply)@)[\w.+-]+@"
+            r"(?!(?:[\w-]+\.)*(?:example\.(?:com|org|net)|invalid|test|example|localhost)"
+            r"(?![\w-]|\.[\w-]))[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}\b"
+        ),
+        "an e-mail address",
+    ),
+    (
+        re.compile(r"(?<![A-Za-z])[A-Za-z]:/(?!Users/|home/)[A-Za-z]\w+"),
+        "a drive-letter path",
+    ),
+    (re.compile(r"\(D\d+\)"), "a decision cited by an opaque label"),
+    (
+        re.compile(r"\b[Pp]roject\s+(?:policy|convention)[\s#(]*\d{4}-\d{2}-\d{2}"),
+        "a project rule cited by its date",
+    ),
+)
+# One planted positive per shape, built from pieces so this file carries none of them.
+_ID_PLANTS: dict[str, str] = {
+    "an internal request id": "decided in " + "KIT" + "-12 last week",
+    "a host session id": "recorded by "
+    + "-".join(("12345678", "1234", "4abc", "8abc", "123456789abc")),
+    "a host session name": "recorded by " + "lemmi-ai-kit-" + "00",
+    "an e-mail address": "ask " + "someone" + "@" + "corp-mail.io" + " about it",
+    "a drive-letter path": "open " + "D" + ":/" + "work/notes.md",
+    "a decision cited by an opaque label": "per the rule " + "(D" + "7)",
+    "a project rule cited by its date": "per project " + "policy 2026-11-04",
+}
 
 # Modules that let a shipped script reach off the machine. The payload imports none of
 # them today, and there is no reason a skill script should: everything here reads the
@@ -223,6 +286,11 @@ def _python_files() -> list[str]:
     return [f for f in _payload_files() if f.endswith(_SCRIPT_SUFFIX)]
 
 
+def _id_files() -> list[str]:
+    """Every payload file the internal-id scan reads: text, scripts and json."""
+    return [f for f in _payload_files() if f.endswith(_ID_SUFFIXES)]
+
+
 def _scan(text: str, rules: tuple[tuple[re.Pattern[str], str], ...]) -> list[str]:
     found: list[str] = []
     for pattern, why in rules:
@@ -272,6 +340,7 @@ def test_the_scan_surface_is_every_pack_and_is_counted() -> None:
     on_disk = _by_pack(_walk_payload(_REPO_ROOT))
     text = set(_text_files())
     scripts = set(_python_files())
+    ids = set(_id_files())
 
     in_a_pack = [f for files in by_pack.values() for f in files]
     assert sorted(in_a_pack) == sorted(listed), (
@@ -280,6 +349,10 @@ def test_the_scan_surface_is_every_pack_and_is_counted() -> None:
     )
     assert text.isdisjoint(scripts), (
         f"files read as both text and script: {sorted(text & scripts)}"
+    )
+    assert (text | scripts) <= ids <= set(listed), (
+        "the internal-id surface must hold every text file and script, and nothing "
+        f"that git did not list: {sorted((text | scripts) - ids)}"
     )
 
     rows: list[str] = []
@@ -395,6 +468,27 @@ def test_no_shipped_text_carries_invisible_characters() -> None:
         + "\n".join(violations)
         + "\n\nWhat renders in a diff is then not what the agent parses, which makes "
         "review of this file unsound regardless of what the text appears to say."
+    )
+
+
+def test_no_shipped_file_carries_an_internal_id() -> None:
+    violations: list[str] = []
+    for relative in _id_files():
+        try:
+            text = (_REPO_ROOT / relative).read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError) as exc:
+            violations.append(
+                f"{relative}: could not be scanned ({type(exc).__name__})"
+            )
+            continue
+        violations.extend(f"{relative}:{hit}" for hit in _scan(text, _INTERNAL_IDS))
+
+    assert not violations, (
+        "shipped files carrying a reference only this project's maintainers can resolve:\n"
+        + "\n".join(violations)
+        + "\n\nAn adopter cannot follow a request id, a session, a mailbox or a path on "
+        "someone else's machine. Say what the rule is, or name the file that holds it, "
+        "and leave the ticket out."
     )
 
 
@@ -528,7 +622,8 @@ def test_every_text_pattern_catches_a_planted_positive() -> None:
         "zero-width character": "harmless​text",
         "bidirectional override": "harmless‮text",
     }
-    rules = _INJECTION + _INVISIBLE
+    planted.update(_ID_PLANTS)
+    rules = _INJECTION + _INVISIBLE + _INTERNAL_IDS
     known = {why for _, why in rules}
     assert set(planted) == known, (
         "the planted-positive set has drifted from the rule set: "
@@ -608,6 +703,12 @@ _PLANTS: tuple[_Plant, ...] = (
         True,
     ),
     _Plant(
+        test_no_shipped_file_carries_an_internal_id,
+        "planted-id.md",
+        _ID_PLANTS["an internal request id"],
+        True,
+    ),
+    _Plant(
         test_no_shipped_script_imports_a_network_module,
         "planted-network.py",
         "import socket\n",
@@ -629,11 +730,11 @@ _PLANTS: tuple[_Plant, ...] = (
 
 
 def _copy_pack_text(pack: str, source_root: Path, destination: Path) -> list[str]:
-    """A throw-away copy of what the checks read in one pack: its text and its scripts."""
+    """A throw-away copy of what the checks read in one pack: its text, scripts and json."""
     copied: list[str] = []
     for source in sorted((source_root / "plugins" / pack).rglob("*")):
         relative = source.relative_to(source_root).as_posix()
-        if source.is_file() and relative.endswith((*_TEXT_SUFFIXES, _SCRIPT_SUFFIX)):
+        if source.is_file() and relative.endswith(_ID_SUFFIXES):
             target = destination / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target)
@@ -668,7 +769,7 @@ def test_a_violation_planted_in_each_pack_turns_the_real_checks_red(
 ) -> None:
     """The real checks, fired at a copy of one pack with one violation planted per check.
 
-    The five functions called here are the five checks above, not a restatement of
+    The functions called here are the checks above, not a restatement of
     their rules: they run against a temporary tree because their two inputs, the
     repository root and the file listing, are pointed at it. A listing that stopped
     reaching a pack, or a check whose assertion stopped failing, shows up as a check
@@ -681,7 +782,7 @@ def test_a_violation_planted_in_each_pack_turns_the_real_checks_red(
     monkeypatch.setattr(this, "_REPO_ROOT", short_root)
     monkeypatch.setattr(this, "_payload_files", lambda: _walk_payload(short_root))
 
-    # The negative half: the pack's own text and scripts, copied, pass every real check.
+    # The negative half: the pack's own text, scripts and json, copied, pass every real check.
     for plant in _PLANTS:
         failure = _failure_of(plant.check)
         assert failure is None, (
@@ -690,6 +791,7 @@ def test_a_violation_planted_in_each_pack_turns_the_real_checks_red(
         )
     text_before = len(_text_files())
     scripts_before = len(_python_files())
+    ids_before = len(_id_files())
     assert text_before > 0, f"{pack}: the copy holds no text file to scan"
 
     # The positive half: one plant per check, each in a file of its own.
@@ -713,6 +815,9 @@ def test_a_violation_planted_in_each_pack_turns_the_real_checks_red(
     )
     assert len(_python_files()) == scripts_before + script_plants, (
         f"{pack}: the script surface did not grow by the {script_plants} planted scripts"
+    )
+    assert len(_id_files()) == ids_before + len(_PLANTS), (
+        f"{pack}: the internal-id surface did not grow by the {len(_PLANTS)} planted files"
     )
 
     for plant in _PLANTS:

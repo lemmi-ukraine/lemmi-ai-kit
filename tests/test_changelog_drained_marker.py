@@ -1,26 +1,23 @@
-"""The drain marker: each `CONSOLIDATION` entry says how many entries it drained.
+"""The checks of the changelog drained marker tests that run code or compare two copies of one fact.
 
-A consolidation can promote now and drain later, or never. The cadence readers took the date
-of the newest `CONSOLIDATION` entry in the changelog as the last drain, so a run that drained
-nothing silenced every nudge while the buffer grew. Each `CONSOLIDATION` entry now carries
-`- **Drained:** N entries` (the entries that run removed from the buffer, 0 allowed); a reader
-takes the newest entry whose N is above 0, and an entry without the line counts as drained,
-so a ledger written before the marker keeps working.
+Only the tests that assert something provable remain: they run a command, parse data, resolve a path or compare two shipped copies. The tests that pinned that a sentence says something, and the tests of those pins, are gone; the rule each one pinned stays in the skill or reference it read.
 
-Two halves are pinned here, each red on the text or code it replaced:
+What each remaining test asserts:
 
-* the changelog lint: once a ledger holds one entry with a `Drained` line, every
-  `CONSOLIDATION` entry dated on or after the oldest such entry must carry the line, with a
-  count. The cut-off is that entry, never a date in the code (the kit dropped hard-coded
-  cut-offs for the adopter's `--since`), and the rule passes the same `--since` gate as the
-  other per-entry checks;
-* the places that read or write the marker: each reader names it, the "above 0" reading and
-  the unmarked rule in the clause that does the reading, the changelog skill's example
-  shows the line in a shape the lint reads, and its verify step names the check.
+* `test_a_marked_ledger_flags_a_later_unmarked_entry_not_an_earlier_one`: a marked ledger flags a later unmarked entry not an earlier one
+* `test_the_rule_starts_at_the_oldest_marked_entry_not_the_newest`: A newer marked entry does not move the cut-off: an unmarked entry between two marked ones is judged, because it is dated after the oldest of them.
+* `test_an_unmarked_entry_dated_on_the_first_marked_day_is_judged`: On or after: the boundary day is inside the rule, and a count of 0 is a marker.
+* `test_an_unmarked_ledger_gives_no_finding`: A ledger that never wrote the marker is never judged by it; the same ledger with its oldest entry marked is the positive control that shows the rule is there to fire.
+* `test_since_keeps_an_entry_dated_before_it_out_of_judgment`: Without the option both later entries are judged, so the option is what spares one. The marked entry is itself before the cutoff: adoption is read from the whole file.
+* `test_an_entry_of_another_type_is_never_judged`: an entry of another type is never judged
+* `test_a_drained_line_on_another_type_does_not_mark_the_ledger`: The marker is a `CONSOLIDATION` entry's line, and the readers look for it nowhere else, so the same line under another type is not the ledger adopting it. The positive control is the same ledger with the line on a `CONSOLIDATION` entry.
+* `test_a_drained_line_without_a_count_is_reported`: A line with no count still marks the ledger, so the typo is reported rather than hidden; the older unmarked entry stays spared.
+* `test_a_count_of_zero_or_more_is_a_marker`: The counted entry passes, and it marks the ledger: the later unmarked one is flagged.
+* `test_the_marker_check_flags_the_old_reading_and_spares_the_new_one`: the marker check flags the old reading and spares the new one
+* `test_the_grouping_example_shows_the_marker_in_the_shape_the_lint_reads`: the grouping example shows the marker in the shape the lint reads
 """
 
 import re
-from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 
@@ -29,14 +26,8 @@ import pytest
 from lemmi_ai_kit import checks
 
 _SKILLS = Path(__file__).resolve().parents[1] / "plugins" / "core" / "skills"
-_TASK_LEARNINGS = _SKILLS / "task-learnings" / "SKILL.md"
-_RETROSPECTIVE = _SKILLS / "session-retrospective" / "SKILL.md"
-_CONSOLIDATOR = _SKILLS / "learning-consolidator" / "SKILL.md"
-_ACTIONS = _SKILLS / "learning-consolidator" / "references" / "consolidation-actions.md"
 _CHANGELOG_SKILL = _SKILLS / "ai-changelog" / "SKILL.md"
 
-_AT_LEAST = chr(0x2265)
-_EM_DASH = chr(0x2014)
 
 _MARKER_LINE = re.compile(r"^- \*\*Drained:\*\* \d+ entries$")
 
@@ -197,48 +188,8 @@ def test_a_count_of_zero_or_more_is_a_marker(value: str) -> None:
 # --- the places that read or write the marker ---------------------------------------------
 
 
-def _fold(text: str) -> str:
-    return " ".join(text.split())
-
-
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
-
-
-def _list_item(path: Path, lead: str, stop: str | None = None) -> str:
-    """The list item whose first line starts with `lead`, folded.
-
-    It runs through the indented and blank lines below that line, to the next line in column
-    0, or to `stop` when one is given. A lead or a stop that is not found fails: a clause
-    that moved is a test to update, never a clause to stop checking.
-    """
-    lines = _read(path).split("\n")
-    starts = [index for index, line in enumerate(lines) if line.startswith(lead)]
-    assert len(starts) == 1, f"{path.name}: {len(starts)} lines start with {lead!r}"
-    item = [lines[starts[0]]]
-    for line in lines[starts[0] + 1 :]:
-        if line.strip() and not line.startswith((" ", "\t")):
-            break
-        item.append(line)
-    flat = _fold("\n".join(item))
-    if stop is not None:
-        assert stop in flat, f"{path.name}: {stop!r} is not in the item {lead!r}"
-        flat = flat[: flat.index(stop)]
-    return flat
-
-
-def _paragraph(path: Path, lead: str) -> str:
-    """The blank-line-delimited paragraph that starts with `lead`, folded."""
-    blocks = re.split(r"\n\s*\n", _read(path))
-    found = [block for block in blocks if block.lstrip().startswith(lead)]
-    assert len(found) == 1, f"{path.name}: {len(found)} paragraphs start with {lead!r}"
-    return _fold(found[0])
-
-
-def _table_row(path: Path, lead: str) -> str:
-    rows = [line for line in _read(path).split("\n") if line.startswith(lead)]
-    assert len(rows) == 1, f"{path.name}: {len(rows)} rows start with {lead!r}"
-    return _fold(rows[0])
 
 
 def _section(path: Path, heading: str) -> str:
@@ -293,52 +244,6 @@ def test_the_marker_check_flags_the_old_reading_and_spares_the_new_one() -> None
     assert _marker_gaps(new) == []
 
 
-# Each place: the clause that reads the marker, and the old reading it replaced, which must
-# be gone from that clause.
-_PLACES: dict[str, tuple[Callable[[], str], str]] = {
-    "task-learnings-buffer-pressure-check": (
-        lambda: _list_item(_TASK_LEARNINGS, "4. **Buffer-pressure check"),
-        "OR the newest `CONSOLIDATION` entry in `.ai/ai-changelog.md` is **"
-        + _AT_LEAST
-        + " 7 days old**",
-    ),
-    "retrospective-closing-nudge": (
-        lambda: _list_item(_RETROSPECTIVE, "3. **Surface the sibling cadence**"),
-        "read the newest `CONSOLIDATION` date in `.ai/ai-changelog.md`",
-    ),
-    "consolidator-cadence-guard": (
-        lambda: _list_item(
-            _CONSOLIDATOR, "0. **Cadence guard**", stop="Cadence: measured"
-        ),
-        "read the newest `CONSOLIDATION` entry date in `.ai/ai-changelog.md`",
-    ),
-    "consolidator-keep-dwell-limit": (
-        lambda: _list_item(_CONSOLIDATOR, "4. **Keep entries**"),
-        "check its date against the two most recent `CONSOLIDATION` entries in "
-        "`.ai/ai-changelog.md`)",
-    ),
-    "actions-dwell-limit": (
-        lambda: _paragraph(_ACTIONS, "**Dwell limit (lean-buffer invariant):**"),
-        "the two most recent `CONSOLIDATION` entries in `.ai/ai-changelog.md` "
-        + _EM_DASH
-        + " if the entry predates both",
-    ),
-    "changelog-type-row": (
-        lambda: _table_row(_CHANGELOG_SKILL, "| `CONSOLIDATION` |"),
-        "| `CONSOLIDATION` | Learnings promoted to rules/skills during consolidation |",
-    ),
-}
-
-
-@pytest.mark.parametrize("place", sorted(_PLACES))
-def test_each_place_reads_the_last_drain_by_its_marker(place: str) -> None:
-    scope, old = _PLACES[place]
-    clause = scope()
-
-    assert _marker_gaps(clause) == [], f"{place} does not say: {_marker_gaps(clause)}"
-    assert old not in clause, f"{place} still states the reading it replaced"
-
-
 def test_the_grouping_example_shows_the_marker_in_the_shape_the_lint_reads() -> None:
     example = _fenced_lines(
         _section(_CHANGELOG_SKILL, "## Grouping Under Consolidation")
@@ -356,27 +261,3 @@ def test_the_grouping_example_shows_the_marker_in_the_shape_the_lint_reads() -> 
 
     assert checks.lint_changelog(with_marker, "x.md") == []
     assert len(_flagged(without)) == 1
-
-
-def test_the_verify_step_names_the_marker_check_and_its_fallback() -> None:
-    """What Step 3 says the lint checks, and its fallback for when the lint cannot run, each
-    name the marker; the sentence it replaced named neither."""
-    paragraph = _paragraph(_CHANGELOG_SKILL, "It checks date-heading order")
-    fallback_lead = "Fallback only if the lint cannot run"
-    assert fallback_lead in paragraph, f"Step 3 has no {fallback_lead!r} clause"
-    lint, fallback = paragraph.split(fallback_lead, 1)
-
-    gaps = [p for p in ("Drained", "`CONSOLIDATION`", "oldest") if p not in lint]
-    gaps += [
-        f"fallback: {p}" for p in ("Drained", "`CONSOLIDATION`") if p not in fallback
-    ]
-    assert gaps == [], f"Step 3 does not say {gaps}"
-    assert "the 12-type taxonomy, and required fields." not in lint
-
-
-def test_the_consolidator_writes_the_marker_into_its_changelog_entry() -> None:
-    """The writer must know the line and that a run which removed nothing writes 0: an entry
-    without the line counts as drained, so leaving it out is the defect itself."""
-    step = _paragraph(_CONSOLIDATOR, "**7a. Append changelog entry**")
-
-    assert re.search(r"Drained.{0,120}\b0\b", step), step
